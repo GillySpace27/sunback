@@ -4,11 +4,8 @@ A program that downloads the most current images of the sun from the SDO satelli
 """
 import sys
 from setuptools import setup, find_packages
-from depricated import versioneer
+from sunback import versioneer
 
-print("SANTA CLAUS")
-tVers = versioneer.get_version().split('+')[0]
-print(tVers)
 short_description = __doc__.split("\n")
 
 # from https://github.com/pytest-dev/pytest-runner#conditional-requirement
@@ -29,7 +26,7 @@ setup(
     description=short_description[0],
     long_description=long_description,
     long_description_content_type="text/markdown",
-    version=tVers,
+    version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     license='BSD-3-Clause',
 
