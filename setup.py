@@ -6,6 +6,8 @@ import sys
 from setuptools import setup, find_packages
 from sunback import versioneer
 
+paklist = ['pillow', 'astropy', 'ctypes', 'time', 'pathlib', 'numpy', 'urllib', 'pytesseract']
+
 short_description = __doc__.split("\n")
 
 # from https://github.com/pytest-dev/pytest-runner#conditional-requirement
@@ -34,8 +36,9 @@ setup(
     # Which Python importable modules should be included when your package is installed
     # Handled automatically by setuptools. Use 'exclude' to prevent some specific
     # subpackage(s) from being added, if needed
-    packages=find_packages(),
-    requires=['pillow', 'astropy', 'ctypes', 'time', 'pathlib', 'numpy', 'urllib', 'pytesseract'],
+    # packages=find_packages(),
+    packages=paklist,
+    requires=paklist,
 
     # Optional include package data to ship with your package
     # Customize MANIFEST.in if the general case does not suit your needs
