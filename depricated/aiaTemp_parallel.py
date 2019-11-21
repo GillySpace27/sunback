@@ -3,7 +3,8 @@ if __name__ == "__main__": main = True
 else: main = False
 
 from mpi4py import MPI
-import masterslave as ms
+from depricated import masterslave as ms
+
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 root = rank == 0
@@ -30,9 +31,7 @@ from rebin import rebin
 
 from urllib.request import urlretrieve as urlret
 from astropy.io import fits
-import astropy.table as tb
 
-from PIL import Image
 import warnings
 warnings.simplefilter("ignore")
 from scipy import interpolate as interp

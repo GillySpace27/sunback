@@ -3,7 +3,6 @@ import time
 import pathlib
 
 from urllib.request import urlretrieve as urlret
-from random import shuffle
 import os.path as path
 
 from PIL import Image
@@ -12,9 +11,8 @@ from PIL import ImageDraw
 
 import pytesseract as tes
 from numpy import mod
-from numpy import floor
 
-import aiaTemp_parallel as aia
+from depricated import aiaTemp_parallel as aia
 
 # import sys, os
 import sys; sys.stderr = open("errlog.txt", "w")

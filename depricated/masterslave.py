@@ -1,6 +1,5 @@
 from mpi4py import MPI
 from numpy import arange
-from numpy import zeros_like
 import numpy as np
 defResponse = None
 
@@ -64,7 +63,7 @@ def master(wi, useBar):
     bar = None
     if useBar:
         try: 
-            import progressBar as pb
+            from depricated import progressBar as pb
             bar = pb.ProgressBar(len(wi))
             bar.display()
         except: 
