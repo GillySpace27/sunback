@@ -3,4 +3,5 @@ include MANIFEST.in
 include versioneer.py
 
 graft sunback
-global-exclude *.py[cod] __pycache__ *.so
+global-exclude *.py[cod] __pycache__ *.soinclude sunback/_version.py
+include sunback/_version.py

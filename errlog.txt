@@ -1,5 +1,12 @@
-warning: no files found matching 'versioneer.py'
 warning: no previously-included files matching '__pycache__' found anywhere in distribution
-warning: no previously-included files matching '*.so' found anywhere in distribution
+warning: no previously-included files matching '*.soinclude' found anywhere in distribution
 warning: Check: missing required meta-data: url
 
+warning: Check: This command has been deprecated. Use `twine check` instead: https://packaging.python.org/guides/making-a-pypi-friendly-readme#validating-restructuredtext-markup
+
+warning: Check: Not checking long description content type 'text/markdown', this command only checks 'text/x-rst'.
+
+WARNING: Registering is deprecated, use twine to upload instead (https://pypi.org/p/twine/)
+Upload failed (400): '0.0.2+0.g4f9d80d.dirty' is an invalid value for Version. Error: Can't use PEP 440 local versions. See https://packaging.python.org/specifications/core-metadata
+WARNING: Uploading via this command is deprecated, use twine to upload instead (https://pypi.org/p/twine/)
+error: Upload failed (400): '0.0.2+0.g4f9d80d.dirty' is an invalid value for Version. Error: Can't use PEP 440 local versions. See https://packaging.python.org/specifications/core-metadata
