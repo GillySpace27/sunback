@@ -35,6 +35,7 @@ setup(
     # Handled automatically by setuptools. Use 'exclude' to prevent some specific
     # subpackage(s) from being added, if needed
     packages=find_packages(),
+    requires=['pillow', 'astropy', 'ctypes', 'time', 'pathlib', 'numpy', 'urllib', 'pytesseract'],
 
     # Optional include package data to ship with your package
     # Customize MANIFEST.in if the general case does not suit your needs
