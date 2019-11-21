@@ -33,15 +33,14 @@ before_install:
 
 install:
 
-    # Create test environment for package
-  - python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/test_env.yaml
-    # Activate the test environment
-  - conda activate test
+#    # Create test environment for package
+#  - python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/test_env.yaml
+#    # Activate the test environment
+#  - conda activate test
 
-    # Make sure pip is around
-  - python -m ensurepip
-  - pip install -r requirements.txt
-
+    # Try to load the requirements
+  -  conda create --name sunTest --file requirements.txt
+  -  conda activate sunTest
 
     # Build and install package
   - python setup.py develop --no-deps
