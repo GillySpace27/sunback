@@ -25,8 +25,11 @@ install:
     # Try to update conda first to avoid odd dependency clashes
  # - conda update --all
 
+#  - pip install -r requirements.txt
+  - while read requirement; do conda install --yes $requirement || pip install $requirement; done < requirements.txt
+
     # Create test environment for package
-  - python devtools\\scripts\\create_conda_env.py -n=test -p=%PYTHON_VERSION% sunback.yaml
+  - python devtools\\scripts\\create_conda_env.py -n=test -p=%PYTHON_VERSION% devtools\\conda-envs\\test_env.yaml
 
     # Activate the test environment
   - activate test
