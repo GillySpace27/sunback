@@ -4,7 +4,7 @@ A program that downloads the most current images of the sun from the SDO satelli
 """
 import sys
 from setuptools import setup, find_packages
-import versioneer
+from sunback import versioneer
 
 short_description = __doc__.split("\n")
 

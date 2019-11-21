@@ -17,9 +17,6 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
-import sunback
-
-
 # -- Project information -----------------------------------------------------
 
 project = 'SolarBackgroundUpdater'

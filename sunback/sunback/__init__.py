@@ -1,6 +1,6 @@
 """
 SolarBackgroundUpdater
-A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series. 
+A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series.
 """
 
 # Add imports here
