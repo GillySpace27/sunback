@@ -20,7 +20,7 @@ try:
 except:
     long_description = "\n".join(short_description[2:])
 
-
+print(paklist)
 setup(
     # Self-descriptive entries which should always be present
     name='sunback',
@@ -36,9 +36,9 @@ setup(
     # Which Python importable modules should be included when your package is installed
     # Handled automatically by setuptools. Use 'exclude' to prevent some specific
     # subpackage(s) from being added, if needed
-    # packages=find_packages(),
-    packages=paklist,
-    requires=paklist,
+    packages=find_packages(),
+    # packages=paklist,
+    # requires=paklist,
 
     # Optional include package data to ship with your package
     # Customize MANIFEST.in if the general case does not suit your needs
@@ -50,7 +50,7 @@ setup(
 
     # Additional entries you may want simply uncomment the lines you want and fill in the data
     # url='http://www.my_package.com',  # Website
-    # install_requires=[],              # Required packages, pulls from pip if needed; do not use for Conda deployment
+    install_requires=paklist,              # Required packages, pulls from pip if needed; do not use for Conda deployment
     # platforms=['Linux',
     #            'Mac OS-X',
     #            'Unix',
