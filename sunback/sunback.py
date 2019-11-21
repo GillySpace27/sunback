@@ -31,8 +31,29 @@ sys.stderr = open("errlog.txt", "w")
 
 # Function Definitions
 
-def download_image(web_path, fullPath, wave):
-    """Download an image and save it to file"""
+def download_image(web_path, local_path, wave):
+    """
+    Download an image and save it to file
+
+    Go to the internet and download an image
+
+    Parameters
+    ----------
+    web_path : str
+        The web location of the image repository
+        
+    local_path : str
+        The local save location of the image
+        
+    wave : str
+        The name of the desired image
+
+    Returns
+    -------
+    success : bool
+        0 if success
+    """
+
     print("Downloading Image...", end='', flush=True)
     # if wave[0] == 't':
     #     try:
@@ -45,10 +66,10 @@ def download_image(web_path, fullPath, wave):
     #             return 1
     # else:
     try:
-        urlret(web_path, fullPath)
+        urlret(web_path, local_path)
     except:
         try:
-            urlret(web_path, fullPath)
+            urlret(web_path, local_path)
         except:
             print('Failed', flush=True);
             return 1
@@ -56,10 +77,10 @@ def download_image(web_path, fullPath, wave):
     return 0
 
 
-def update_background(full_path):
+def update_background(local_path):
     """Update the system background"""
     try:
-        ctypes.windll.user32.SystemParametersInfoW(20, 0, full_path, 0)
+        ctypes.windll.user32.SystemParametersInfoW(20, 0, local_path, 0)
         print("Background Updated")
     except:
         print("Failed to update background");
@@ -241,10 +262,6 @@ def run():
 
     # save_reference(pathToFile, '0211')
 
-
-# @classmethod
-# def run(cls):
-#     pass
 
 
 if __name__ == "__main__":

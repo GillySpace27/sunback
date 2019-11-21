@@ -150,16 +150,16 @@ print("\nLive SDO Background Updater \nWritten by Gilly\n")
 			# # Define the Image
 			# print("Image: {}".format(wave))
 			# webPath = webString.format(wave)
-			# fullPath = normpath(pathToFile + wave + fileEnd)
+			# full_path = normpath(pathToFile + wave + fileEnd)
 			
 			# # Download the Image
-			# # downloadImage(webPath, fullPath)
+			# # downloadImage(webPath, full_path)
 			
 			# # Modify the Image
-			# # imageMod(fullPath, wave)
+			# # imageMod(full_path, wave)
 			
 			# # Update the Background
-			# updateBackground(fullPath)
+			# updateBackground(full_path)
 			
 			# # Wait for a bit
 			# time.sleep(picChangeTime)
