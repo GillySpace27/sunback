@@ -8,7 +8,6 @@ dependencies:
   - pip
   - pillow
   - astropy
-  - time
   - pathlib
   - numpy
   - pytesseract
@@ -22,6 +21,7 @@ dependencies:
   - pip:
       - ctypes
       - urllib
+      - time
 #      - mpi4py
 
 #    - codecov
