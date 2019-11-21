@@ -23,20 +23,13 @@ install:
   - conda config --set always_yes yes
 
     # Try to update conda first to avoid odd dependency clashes
- # - conda update --all
+  - conda update --all
 
 #    # Create test environment for package
   - python devtools\\scripts\\create_conda_env.py -n=test -p=%PYTHON_VERSION% devtools\\conda-envs\\test_env.yaml
 #
 #    # Activate the test environment
   - activate test
-
-    # Try to load the requirements
-#  -  conda create --name sunTest --file requirements.txt
-#  -  conda activate sunTest
-#  - while read requirement; do conda install --yes $requirement; done < requirements.txt 2>error.log
-#  - pip install -r requirements.txt
-
 
     # Build and install package
   - python setup.py develop --no-deps
