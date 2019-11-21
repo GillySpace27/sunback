@@ -4,6 +4,15 @@ dependencies:
     # Base depends
   - python
   - pip
+  -
+  - pillow
+  - astropy
+  - ctypes
+  - time
+  - pathlib
+  - numpy
+  - urllib
+  - pytesseract
 
     # Testing
   - pytest
