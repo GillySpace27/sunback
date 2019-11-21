@@ -1,3 +1,5 @@
 warning: no files found matching 'versioneer.py'
 warning: no previously-included files matching '__pycache__' found anywhere in distribution
 warning: no previously-included files matching '*.so' found anywhere in distribution
+warning: Check: missing required meta-data: url
+
