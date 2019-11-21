@@ -6,12 +6,15 @@
 Welcome to SolarBackgroundUpdater's documentation!
 =========================================================
 
+Thank you for being interested in using my software! Let me know if anything is broken.
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    getting_started
    api
+   all-about-me
 
 
 

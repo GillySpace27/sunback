@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'SolarBackgroundUpdater'
 copyright = ("2019, Chris Gilly. Project structure based on the "
              "Computational Molecular Science Python Cookiecutter version 1.1")
-author = 'Chris Gilly'
+author = 'Chris R. Gilly'
 
 # The short X.Y version
 version = ''

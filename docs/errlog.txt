@@ -1,0 +1,2 @@
+C:\Users\chgi7364\AppData\Local\Continuum\anaconda3\envs\sunback\lib\site-packages\sphinx_rtd_theme\search.html:20: RemovedInSphinx30Warning: To modify script_files in the theme is deprecated. Please insert a <script> tag directly in your theme instead.
+  {{ super() }}
