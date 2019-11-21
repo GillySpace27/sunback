@@ -32,12 +32,17 @@ before_install:
   - python -V
 
 install:
-  - pip install -r requirements.txt
 
     # Create test environment for package
   - python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/test_env.yaml
     # Activate the test environment
   - conda activate test
+
+    # Make sure pip is around
+  - python -m ensurepip
+  - pip install -r requirements.txt
+
+
     # Build and install package
   - python setup.py develop --no-deps
 
