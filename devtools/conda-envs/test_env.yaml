@@ -22,6 +22,7 @@ dependencies:
   - pip:
       - ctypes
       - urllib
+#      - mpi4py
 
 #    - codecov
 

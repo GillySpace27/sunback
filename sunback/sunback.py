@@ -21,7 +21,7 @@ import pytesseract as tes
 from numpy import mod
 from numpy import floor
 
-import aiaTemp_parallel as aia
+# import aiaTemp_parallel as aia
 
 # import sys, os
 import sys
@@ -31,27 +31,27 @@ sys.stderr = open("errlog.txt", "w")
 
 # Function Definitions
 
-def download_image(webPath, fullPath, wave):
+def download_image(web_path, fullPath, wave):
     """Download an image and save it to file"""
     print("Downloading Image...", end='', flush=True)
-    if wave[0] == 't':
+    # if wave[0] == 't':
+    #     try:
+    #         aia.runParallel()
+    #     except:
+    #         try:
+    #             aia.runParallel()
+    #         except:
+    #             print('Failed', flush=True)
+    #             return 1
+    # else:
+    try:
+        urlret(web_path, fullPath)
+    except:
         try:
-            aia.runParallel()
+            urlret(web_path, fullPath)
         except:
-            try:
-                aia.runParallel()
-            except:
-                print('Failed', flush=True)
-                return 1
-    else:
-        try:
-            urlret(webPath, fullPath)
-        except:
-            try:
-                urlret(webPath, fullPath)
-            except:
-                print('Failed', flush=True);
-                return 1
+            print('Failed', flush=True);
+            return 1
     print("Success", flush=True)
     return 0
 
