@@ -5,7 +5,9 @@ A program that downloads the most current images of the sun from the SDO satelli
 import sys
 from setuptools import setup, find_packages
 from sunback import versioneer
+import os
 
+os.listdir('devtools/conda-envs/')
 paklist = ['pillow', 'astropy', 'ctypes', 'time', 'pathlib', 'numpy', 'urllib', 'pytesseract']
 
 short_description = __doc__.split("\n")
