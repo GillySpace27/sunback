@@ -66,7 +66,7 @@ def download_image(web_path, local_path, wave):
     #             return 1
     # else:
     try:
-        urlret(web_path, local_path)
+        urlret(web_path, local_path) 
     except:
         try:
             urlret(web_path, local_path)
