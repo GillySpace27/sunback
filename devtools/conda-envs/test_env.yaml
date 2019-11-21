@@ -1,17 +1,16 @@
 name: test
 channels:
+  - conda-forge
+
 dependencies:
     # Base depends
   - python
   - pip
-  -
   - pillow
   - astropy
-  - ctypes
   - time
   - pathlib
   - numpy
-  - urllib
   - pytesseract
 
     # Testing
@@ -20,6 +19,9 @@ dependencies:
   - codecov
 
     # Pip-only installs
-  #- pip:
-  #  - codecov
+  - pip:
+      - ctypes
+      - urllib
+
+#    - codecov
 
