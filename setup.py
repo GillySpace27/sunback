@@ -1,10 +1,10 @@
-"""
-SolarBackgroundUpdater
+""" Sets your desktop background to the most recent images of the Sun.
+Solar Background Updater
 A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series. 
 """
 import sys
 from setuptools import setup, find_packages
-from depricated import versioneer
+from sunback import versioneer
 
 short_description = __doc__.split("\n")
 

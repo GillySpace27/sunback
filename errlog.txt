@@ -1,6 +1,0 @@
-C:\Users\chgi7364\AppData\Local\Continuum\anaconda3\envs\sunback\lib\site-packages\setuptools\dist.py:484: UserWarning: The version specified ('Carl+0.g0909796.dirty') is an invalid version, this may not work as expected with newer versions of setuptools, pip, and PyPI. Please see PEP 440 for more details.
-  "details." % self.metadata.version
-warning: no previously-included files matching '__pycache__' found anywhere in distribution
-warning: no previously-included files matching '*.soinclude' found anywhere in distribution
-warning: Check: missing required meta-data: url
-

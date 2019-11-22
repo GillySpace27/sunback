@@ -1,6 +1,6 @@
 """
 sunback.py
-A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series. 
+A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series.
 
 Handles the primary functions
 """
@@ -26,10 +26,14 @@ from numpy import floor
 # import sys, os
 import sys
 
-sys.stderr = open("errlog.txt", "w")
+# sys.stderr = open("errlog.txt", "w")
 
+
+def hello():
+    print("Hello World")
 
 # Function Definitions
+
 
 def download_image(web_path, local_path, wave):
     """
@@ -41,10 +45,10 @@ def download_image(web_path, local_path, wave):
     ----------
     web_path : str
         The web location of the image repository
-        
+
     local_path : str
         The local save location of the image
-        
+
     wave : str
         The name of the desired image
 
