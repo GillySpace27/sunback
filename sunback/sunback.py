@@ -33,7 +33,7 @@ sys.stderr = open("errlog.txt", "w")
 
 def download_image(web_path, local_path, wave):
     """
-    Download an image and save it to file asdf asdf
+    Download an image and save it to file
 
     Go to the internet and download an image
 
