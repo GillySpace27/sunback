@@ -1,15 +1,15 @@
 Solar Background Updater
 ==============================
 [//]: # (Badges)
-![GitHub last commit (branch)](https://img.shields.io/github/last-commit/GillySpace27/sunback/master)
+[![GitHub last commit (branch)](https://img.shields.io/github/last-commit/GillySpace27/sunback/master)](https://github.com/GillySpace27/sunback/tree/master)
 [![Travis Build Status](https://travis-ci.com/GillySpace27/sunback.svg?branch=master)](https://travis-ci.com/GillySpace27/sunback)
 [![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/ji7e0pm5xxckf6rq/branch/master?svg=true)](https://ci.appveyor.com/project/GillySpace27/sunback/)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/a47b3701e7544010a4708d923a71fedb)](https://www.codacy.com/manual/GillySpace27/sunback?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=GillySpace27/sunback&amp;utm_campaign=Badge_Grade)
 [![codecov](https://codecov.io/gh/GillySpace27/sunback/branch/master/graph/badge.svg)](https://codecov.io/gh/GillySpace27/sunback/branch/master)
 ![GitHub repo size](https://img.shields.io/github/repo-size/GillySpace27/sunback)
 [![Documentation Status](https://readthedocs.org/projects/sunback/badge/?version=latest)](https://sunback.readthedocs.io/en/latest/?badge=latest)
-![GitHub](https://img.shields.io/github/license/GillySpace27/sunback)
-![PyPI](https://img.shields.io/pypi/v/sunback)
+[![GitHub](https://img.shields.io/github/license/GillySpace27/sunback)](https://opensource.org/licenses/BSD-3-Clause)
+[![PyPI](https://img.shields.io/pypi/v/sunback)](https://pypi.org/project/sunback/)
 
 A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series. 
 
