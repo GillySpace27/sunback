@@ -12,6 +12,7 @@ env/
 build/
 develop-eggs/
 dist/
+dist_old/
 downloads/
 eggs/
 .eggs/
@@ -102,3 +103,4 @@ ENV/
 
 # mypy
 .mypy_cache/
+/dist_old/
