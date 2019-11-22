@@ -21,7 +21,7 @@ except:
 setup(
     # Self-descriptive entries which should always be present
     name='sunback',
-    author='Chris Gilly',
+    author='Chris R. Gilly',
     author_email='chris.gilly@colorado.edu',
     description=short_description[0],
     long_description=long_description,
@@ -45,11 +45,12 @@ setup(
 
     # Additional entries you may want simply uncomment the lines you want and fill in the data
     # url='http://www.my_package.com',  # Website
-    # install_requires=paklist,              # Required packages, pulls from pip if needed; do not use for Conda deployment
-    # platforms=['Linux',
-    #            'Mac OS-X',
-    #            'Unix',
-    #            'Windows'],            # Valid platforms your code works on, adjust to your flavor
+    install_requires=["python", "pip", "pillow", "astropy", "pathlib",
+                      "numpy", "pytesseract", "ctypes", "urllib", "time"], # Required packages, pulls from pip if needed; do not use for Conda deployment
+
+    platforms=['Windows'],            # Valid platforms your code works on, adjust to your flavor
+    #'Linux','Mac OS-X','Unix',
+
     # python_requires=">=3.5",          # Python version restrictions
 
     # Manual control if final package is compressible or not, set False to prevent the .egg from being made
