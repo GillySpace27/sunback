@@ -45,7 +45,7 @@ setup(
 
     # Additional entries you may want simply uncomment the lines you want and fill in the data
     # url='http://www.my_package.com',  # Website
-    install_requires=["python", "pip", "pillow", "astropy", "pathlib",
+    install_requires=["pip", "pillow", "astropy", "pathlib",
                       "numpy", "pytesseract", "ctypes", "urllib", "time"], # Required packages, pulls from pip if needed; do not use for Conda deployment
 
     platforms=['Windows'],            # Valid platforms your code works on, adjust to your flavor
