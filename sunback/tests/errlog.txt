@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "C:\Users\chgi7364\AppData\Local\Continuum\anaconda3\envs\sunback\lib\site-packages\sunback\__init__.py", line 10, in <module>
+    from depricated._version import get_versions
+ModuleNotFoundError: No module named 'depricated'
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'asdlfkj' is not defined
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'afoiwjef' is not defined
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'asdkc' is not defined
