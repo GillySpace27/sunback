@@ -312,7 +312,7 @@ class Parameters:
     @staticmethod
     def discover_best_default_directory():
         """Determine where to store the images"""
-        subdirectory_name = "images"
+        subdirectory_name = r"data\images"
         if __file__ in globals():
             directory = join(dirname(abspath(__file__)), subdirectory_name)
         else:
@@ -333,7 +333,7 @@ class Parameters:
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     p = Parameters()
-    # p.set_download_resolution(1025)
+    p.set_download_resolution(1025)
     Sunback(p).run()
 
 

@@ -59,7 +59,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 1 - Planning'
+        'Development Status :: 1 - Planning',
 
         # Indicate who your project is intended for
         'Intended Audience :: End Users/Desktop',
@@ -79,8 +79,8 @@ setup(
         'Programming Language :: Python :: 3 :: Only',
 
         # Platforms
-        'Operating System :: Microsoft :: Windows'
-        'Environment :: Win32 (MS Windows)'
+        'Operating System :: Microsoft :: Windows',
+        'Environment :: Win32 (MS Windows)',
     ]
 
     # Manual control if final package is compressible or not, set False to prevent the .egg from being made
