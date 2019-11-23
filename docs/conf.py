@@ -43,7 +43,7 @@ release = __version__
 #
 # needs_sphinx = '1.0'
 
-autodoc_mock_imports = [line.strip() for line in open(r"..\sunback.egg-info\requires.txt", 'r')]
+autodoc_mock_imports = [line.strip() for line in open(r"../sunback.egg-info/requires.txt", 'r')]
 
 
 # Add any Sphinx extension module names here, as strings. They can be
