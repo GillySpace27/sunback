@@ -185,24 +185,30 @@ class Sunback:
         print("Resolution: {}\n".format(self.params.resolution))
 
         while True:
+            try:
+                for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
+                    print("Image: {}".format(wave))
 
-            for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
-                print("Image: {}".format(wave))
+                    # Define the Image
+                    local_path = self.params.get_local_path(wave)
 
-                # Define the Image
-                local_path = self.params.get_local_path(wave)
+                    # Download the Image
+                    self.download_image(local_path, web_path)
 
-                # Download the Image
-                self.download_image(local_path, web_path)
+                    # Modify the Image
+                    self.modify_image(local_path, wave, self.params.resolution)
 
-                # Modify the Image
-                self.modify_image(local_path, wave, self.params.resolution)
+                    # Update the Background
+                    self.update_background(local_path)
 
-                # Update the Background
-                self.update_background(local_path)
-
-                # Wait for a bit
-                self.params.sleep_for_time(wave)
+                    # Wait for a bit
+                    self.params.sleep_for_time(wave)
+            except (KeyboardInterrupt, SystemExit):
+                print("Fine, I'll Stop.\n")
+                raise
+            except:
+                print("I failed")
+                continue
 
 
 class Parameters:
