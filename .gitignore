@@ -104,3 +104,6 @@ ENV/
 # mypy
 .mypy_cache/
 /dist_old/
+/depricated/
+/sunback/Images/
+/sunback/images/

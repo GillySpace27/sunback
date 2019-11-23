@@ -12,22 +12,29 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
-# Incase the project was not installed
+# In case the project was not installed
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
+# sys.path.append('../')
+
+from sunback._version import get_versions
+versions = get_versions()
+__version__ = versions['version']
+__git_revision__ = versions['full-revisionid']
+del get_versions, versions
 
 # -- Project information -----------------------------------------------------
 
-project = 'SolarBackgroundUpdater'
+project = 'Solar Background Updater'
 copyright = ("2019, Chris R. Gilly. Project structure based on the "
              "Computational Molecular Science Python Cookiecutter version 1.1")
 author = 'Chris R. Gilly'
 
 # The short X.Y version
-version = ''
+version = __version__.split('+')[0]
 # The full version, including alpha/beta/rc tags
-release = ''
+release = __version__
 
 
 # -- General configuration ---------------------------------------------------
@@ -162,10 +169,12 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'sunback', 'SolarBackgroundUpdater Documentation',
+    (master_doc, 'sunback', 'Solar Background Updater Documentation',
      author, 'sunback', 'A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series. ',
      'Miscellaneous'),
 ]
 
 
 # -- Extension configuration -------------------------------------------------
+autosummary_generate = True
+autosummary_imported_members = True

@@ -7,16 +7,9 @@ A program that downloads the most current images of the sun from the SDO satelli
 from sunback.sunback import *
 
 # Handle versioneer
-from depricated._version import get_versions
+from ._version import get_versions
 versions = get_versions()
 __version__ = versions['version']
 __git_revision__ = versions['full-revisionid']
 del get_versions, versions
 
-from depricated._version import get_versions
-__version__ = get_versions()['version']
-del get_versions
-
-from ._version import get_versions
-__version__ = get_versions()['version']
-del get_versions

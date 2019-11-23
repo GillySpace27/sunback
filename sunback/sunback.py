@@ -1,296 +1,339 @@
 """
 sunback.py
-A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series.
+A program that downloads the most current images of the sun from the SDO satellite,
+then finds the most likely temperature in each pixel.
+Then it sets each of the images to the desktop background in series.
 
 Handles the primary functions
 """
 
-import ctypes
-import time
-import pathlib
-
-from urllib.request import urlretrieve as urlret
-from random import shuffle
-import os.path as path
-
-from PIL import Image
-from PIL import ImageFont
-from PIL import ImageDraw
-
-import pytesseract as tes
-from numpy import mod
-from numpy import floor
-
-# import aiaTemp_parallel as aia
-
-# import sys, os
-import sys
-
-# sys.stderr = open("errlog.txt", "w")
+from ctypes import windll
+from time import localtime, altzone, timezone, strftime, sleep
+from urllib.request import urlretrieve
+from os import getcwd, makedirs
+from os.path import normpath, abspath, join, dirname
+from PIL import Image, ImageFont, ImageDraw
+from pytesseract import image_to_string
 
 
-def hello():
-    print("Hello World")
-
-# Function Definitions
-
-
-def download_image(web_path, local_path, wave):
+class Sunback:
     """
-    Download an image and save it to file asdf
-
-    Go to the internet and download an image
+    The Primary Class that Does Everything
 
     Parameters
     ----------
-    web_path : str
-        The web location of the image repository
-
-    local_path : str
-        The local save location of the image
-
-    wave : str
-        The name of the desired image
-
-    Returns
-    -------
-    success : bool
-        0 if success
+    parameters : Parameters (optional)
+        a class specifying run options
     """
-
-    print("Downloading Image...", end='', flush=True)
-    # if wave[0] == 't':
-    #     try:
-    #         aia.runParallel()
-    #     except:
-    #         try:
-    #             aia.runParallel()
-    #         except:
-    #             print('Failed', flush=True)
-    #             return 1
-    # else:
-    try:
-        urlret(web_path, local_path)
-    except:
-        try:
-            urlret(web_path, local_path)
-        except:
-            print('Failed', flush=True);
-            return 1
-    print("Success", flush=True)
-    return 0
-
-
-def update_background(local_path):
-    """Update the system background"""
-    try:
-        ctypes.windll.user32.SystemParametersInfoW(20, 0, local_path, 0)
-        print("Background Updated")
-    except:
-        print("Failed to update background");
-        raise
-
-
-def save_reference(pathToFile, wave):
-    """Grab a single reference image and save"""
-    try:
-        print("Saving Reference Image...", end='', flush=True)
-        now = time.strftime("%y-%j-%H-%M")
-        webpath = "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_2048_{}.jpg".format(wave)
-        fullpath = path.normpath(pathToFile + "reference\\171_reference_{}.jpg".format(now))
-        urlret(webpath, fullpath)
-        print("Success")
-    except:
-        print("Failed")
-
-
-def imageMod(fullPath, wave, resolution):
-    """Modify the image"""
-    try:
-        print('Modifying Image...', end='', flush=True)
-        # Open the image for modification
-        img = Image.open(fullPath)
-        img_raw = img
-        font = ImageFont.truetype(path.normpath("C:\Windows\Fonts\Arial.ttf"), 42)
-
-        # Shrink the HMI images to be the same size
-        if wave[0] == 'H':
-            smallSize = int(0.84*resolution) #1725
-            print(smallSize)
-            old_img = img.resize((smallSize, smallSize))
-            old_size = old_img.size
-
-            new_size = (resolution, resolution)
-            new_im = Image.new("RGB", new_size)
-
-            x = int((new_size[0] - old_size[0]) / 2)
-            y = int((new_size[1] - old_size[1]) / 2)
-
-            new_im.paste(old_img, (x, y))
-            img = new_im
-
-        # Read the time and reprint it
-        if time.localtime().tm_isdst:
-            offset = time.altzone / hours
+    def __init__(self, parameters=None):
+        """Initialize a new parameter object or use the provided one"""
+        if parameters:
+            self.params = parameters
         else:
-            offset = time.timezone / hours
+            self.params = Parameters()
 
-        # try:
-        cropped = img_raw.crop((0, 1950, 1024, 2048))
+    @staticmethod
+    def download_image(local_path, web_path):
+        """
+        Download an image and save it to file
 
-        # cornerX = 218
-        # cornerY = 970
-        # widX = 1612
-        # widY = 100
-        # cropped2 = img_raw.crop((cornerX,cornerY, cornerX + widX, cornerY+widY))
-        # cropped2.show()
+        Go to the internet and download an image
 
-        results = tes.image_to_string(cropped)
+        Parameters
+        ----------
+        web_path : str
+            The web location of the image
 
-        if wave[0] == 'H':  # HMI Data
-            imgTime = results[-6:]
-            imgHour = int(imgTime[:2])
-            imgMin = int(imgTime[2:4])
+        local_path : str
+            The local save location of the image
+        """
+        print("Downloading Image...", end='', flush=True)
 
-        else:  # AIA Data
-            imgTime = results[-11:-6]
-            imgHour = int(imgTime[:2])
-            imgMin = int(imgTime[-2:])
+        try:
+            urlretrieve(web_path, local_path)
+        except:
+            try:
+                urlretrieve(web_path, local_path)
+            except:
+                print("Failed", flush=True)
+                raise
 
-        imgHour = int(mod(imgHour - offset, 12))
-        pre = ''
-    except:
-        imgHour = mod(time.localtime().tm_hour, 12)
-        imgMin = time.localtime().tm_min
-        pre = 'x'
+        print("Success", flush=True)
 
-    if imgHour == 0: imgHour = 12
-    # Draw on the image and save
-    draw = ImageDraw.Draw(img)
+    @staticmethod
+    def update_background(local_path):
+        """
+        Update the System Background
 
-    # Draw the wavelength
-    towrite = wave[1:] if wave[0] == '0' else wave
-    draw.text((1510, 300), towrite, (200, 200, 200), font=font)
+        Parameters
+        ----------
+        local_path : str
+            The local save location of the image
+        """
+        print("Updating Background...", end='', flush=True)
 
-    # Draw a scale Earth
-    cornerX = 1580
-    cornerY = 350
-    widX = 15
-    widY = widX
-    draw.ellipse((cornerX, cornerY, cornerX + widX, cornerY + widY), fill='white', outline='green')
+        try:
+            windll.user32.SystemParametersInfoW(20, 0, local_path, 0)
+            print("Success")
+        except:
+            print("Failed")
+            raise
 
-    # Draw the Current Time
-    draw.rectangle([(450, 150), (560, 200)], fill=(0, 0, 0))
-    draw.text((450, 150), time.strftime("%I:%M"), (200, 200, 200), font=font)
+    @staticmethod
+    def modify_image(local_path, wave, resolution):
+        """
+        Modify the Image with some Annotations
 
-    # Draw the Image Time
-    draw.text((450, 300), "{:0>2}:{:0>2}{}".format(imgHour, imgMin, pre), (200, 200, 200), font=font)
+        Parameters
+        ----------
+        local_path : str
+            The local save location of the image
 
-    img.save(fullPath)
-    print("Success")
-    # except:
-    #     print("Failed");
-    #     return 1
-    return 0
+        wave : str
+            The name of the desired wavelength
 
+        resolution: int
+            The resolution of the images
+        """
+        
+        print('Modifying Image...', end='', flush=True)
 
-def run():
-    # ##Set up the variables
+        # Open the image for modification
+        img = Image.open(local_path)
+        img_raw = img
 
-    #  Delay Time for Background Rotation
-    seconds = 1
-    minutes = 60
-    hours = minutes * 60
-    picChangeTime = 30 * seconds  # 0.3 * minutes
-    longMultiple = 3
+        try:
+            # Are we working with the HMI image?
+            is_hmi = wave[0] == 'H'
 
-    # File Paths
-    pathToFile = r"C:\Users\chgi7364\Dropbox\Drive\Pictures\SunToday\\"
+            # Shrink the HMI images to be the same size
+            if is_hmi:
+                small_size = int(0.84*resolution)  # 1725
+                old_img = img.resize((small_size, small_size))
+                old_size = old_img.size
 
-    # pathToFile = path.dirname(path.abspath(__file__)) + "\Images\\"
-    pathlib.Path(pathToFile).mkdir(parents=True, exist_ok=True)
+                new_size = (resolution, resolution)
+                new_im = Image.new("RGB", new_size)
 
-    # Wavelength Selection
+                x = int((new_size[0] - old_size[0]) / 2)
+                y = int((new_size[1] - old_size[1]) / 2)
 
-    resolution = 2048
-    webStringAIA = "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_{}{}".format(resolution, "_{}.jpg")
-    wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094', 'HMIBC', 'HMIIF']
-    # wavelengths = ['0193', 'temp']
-    wavelengths.sort()
-    # wavelengths.insert(0, 'temp')
+                new_im.paste(old_img, (x, y))
+                img = new_im
 
-    webPaths = [webStringAIA.format(wave) for wave in wavelengths]
-    webPaths.append("https://sdo.gsfc.nasa.gov/assets/img/latest/f_211_193_171pfss_{}.jpg".format(resolution))
-    wavelengths.append("PFSS")
-
-    fileEnd = "_Now.jpg"
-
-    ##The Main Loop
-
-    print("\nLive SDO Background Updater \nWritten by Gilly\n")
-    print("Resolution: {}".format(resolution))
-
-    while True:
-
-        for wave, webPath in zip(wavelengths, webPaths):
-            # try:
-            # Define the Image
-            print("Image: {}".format(wave))
-            fullPath = path.normpath(pathToFile + wave + fileEnd)
-
-            # Download the Image
-            if download_image(webPath, fullPath, wave):
-                continue
-
-            # Modify the Image
-            if imageMod(fullPath, wave, resolution):
-                pass
-
-            # Update the Background
-            update_background(fullPath)
-
-            # Wait for a bit
-            if 'temp' in wave:
-                change = longMultiple * picChangeTime
+            # Read the time and reprint it
+            if localtime().tm_isdst:
+                offset = altzone / 3600
             else:
-                change = picChangeTime
+                offset = timezone / 3600
 
-            print("Waiting for {} seconds...".format(change), end='', flush=True)
-            time.sleep(change)
-            print("Done\n")
-            # except (KeyboardInterrupt, SystemExit):
-            #     print("Fine, I'll Stop.\n");
-            #     raise
-            # except:
-            #     print("I failed")
+            cropped = img_raw.crop((0, 1950, 1024, 2048))
+            results = image_to_string(cropped)
 
-    # save_reference(pathToFile, '0211')
+            if is_hmi:  # HMI Data
+                image_time = results[-6:]
+                image_hour = int(image_time[:2])
+                image_minute = int(image_time[2:4])
 
+            else:  # AIA Data
+                image_time = results[-11:-6]
+                image_hour = int(image_time[:2])
+                image_minute = int(image_time[-2:])
+
+            image_hour = int(image_hour - offset) % 12
+            pre = ''
+        except:
+            image_hour = localtime().tm_hour % 12
+            image_minute = localtime().tm_min
+            pre = 'x'
+
+        if image_hour == 0:
+            image_hour = 12
+        # Draw on the image and save
+        draw = ImageDraw.Draw(img)
+
+        # Draw the wavelength
+        font = ImageFont.truetype(normpath(r"C:\Windows\Fonts\Arial.ttf"), 42)
+        towrite = wave[1:] if wave[0] == '0' else wave
+        draw.text((1510, 300), towrite, (200, 200, 200), font=font)
+
+        # Draw a scale Earth
+        corner_x = 1580
+        corner_y = 350
+        width_x = 15
+        width_y = width_x
+        draw.ellipse((corner_x, corner_y, corner_x + width_x, corner_y + width_y), fill='white', outline='green')
+
+        # Draw the Current Time
+        draw.rectangle([(450, 150), (560, 200)], fill=(0, 0, 0))
+        draw.text((450, 150), strftime("%I:%M"), (200, 200, 200), font=font)
+
+        # Draw the Image Time
+        draw.text((450, 300), "{:0>2}:{:0>2}{}".format(image_hour, image_minute, pre), (200, 200, 200), font=font)
+
+        img.save(local_path)
+        print("Success")
+        # except:
+        #     print("Failed");
+        #     return 1
+        return 0
+
+    def run(self):
+        """The Main Loop"""
+
+        print("\nLive SDO Background Updater \nWritten by Gilly\n")
+        print("Resolution: {}\n".format(self.params.resolution))
+
+        while True:
+
+            for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
+                print("Image: {}".format(wave))
+
+                # Define the Image
+                local_path = self.params.get_local_path(wave)
+
+                # Download the Image
+                self.download_image(local_path, web_path)
+
+                # Modify the Image
+                self.modify_image(local_path, wave, self.params.resolution)
+
+                # Update the Background
+                self.update_background(local_path)
+
+                # Wait for a bit
+                self.params.sleep_for_time(wave)
+
+
+class Parameters:
+    """
+    A container class for the run parameters of the program
+    """
+    seconds = 1
+    minutes = 60 * seconds
+    hours = 60 * minutes
+
+    def __init__(self):
+        """Sets all the attributes to None"""
+        # Initialize Variables
+        self.background_update_delay_seconds = None
+        self.time_multiplier_for_long_display = None
+        self.local_directory = None
+        self.use_wavelengths = None
+        self.resolution = None
+        self.web_image_frame = None
+        self.web_image_location = None
+        self.web_paths = None
+        self.file_ending = None
+
+        self.set_default_values()
+
+    def set_default_values(self):
+        """Sets the Defaults for all the Parameters"""
+
+        #  Set Delay Time for Background Rotation
+        self.set_update_delay_seconds(30 * self.seconds)
+        self.set_time_multiplier(3)
+
+        # Set File Paths
+        self.set_local_directory()
+
+        # Set Wavelengths
+        self.set_wavelengths(['0171', '0193', '0211', '0304', '0131', '0335', '0094', 'HMIBC', 'HMIIF'])
+
+        # Set Resolution
+        self.set_download_resolution(2048)
+
+        # Set Web Location
+        self.set_web_image_frame("https://sdo.gsfc.nasa.gov/assets/img/latest/latest_{}_{}")
+
+        # Add extra images
+        new_web_path_1 = "https://sdo.gsfc.nasa.gov/assets/img/latest/f_211_193_171pfss_{}.jpg".format(self.resolution)
+        self.append_to_web_paths(new_web_path_1, 'PFSS')
+
+        # Select File Ending
+        self.set_file_ending("{}_Now.jpg")
+
+    # Methods that Set Parameters
+    def set_update_delay_seconds(self, delay):
+        self.background_update_delay_seconds = delay
+
+    def set_time_multiplier(self, multiplier):
+        self.time_multiplier_for_long_display = multiplier
+
+    def set_local_directory(self, path=None):
+        if path is not None:
+            self.local_directory = path
+        else:
+            self.local_directory = self.discover_best_default_directory()
+
+        makedirs(self.local_directory, exist_ok=True)
+
+    def set_wavelengths(self, waves):
+        self.use_wavelengths = waves
+        self.use_wavelengths.sort()
+        if self.has_all_necessary_data():
+            self.make_web_paths()
+
+    def set_download_resolution(self, resolution):
+        self.resolution = min([170, 256, 512, 1024, 2048, 3072, 4096], key=lambda x: abs(x - resolution))
+        if self.has_all_necessary_data():
+            self.make_web_paths()
+
+    def set_web_image_frame(self, path):
+        self.web_image_frame = path
+        if self.has_all_necessary_data():
+            self.make_web_paths()
+
+    def set_file_ending(self, string):
+        self.file_ending = string
+
+    # Methods that create something
+
+    def make_web_paths(self):
+        self.web_image_location = self.web_image_frame.format(self.resolution, "{}.jpg")
+        self.web_paths = [self.web_image_location.format(wave) for wave in self.use_wavelengths]
+
+    def append_to_web_paths(self, path, wave=' '):
+        self.web_paths.append(path)
+        self.use_wavelengths.append(wave)
+
+    # Methods that return information or do something
+    def has_all_necessary_data(self):
+        if self.web_image_frame is not None:
+            if self.use_wavelengths is not None:
+                if self.resolution is not None:
+                    return True
+        return False
+
+    def get_local_path(self, wave):
+        return normpath(join(self.local_directory, self.file_ending.format(wave)))
+
+    @staticmethod
+    def discover_best_default_directory():
+        """Determine where to store the images"""
+        subdirectory_name = "images"
+        if __file__ in globals():
+            directory = join(dirname(abspath(__file__)), subdirectory_name)
+        else:
+            directory = join(abspath(getcwd()), subdirectory_name)
+        return directory
+
+    def sleep_for_time(self, wave):
+        change = self.background_update_delay_seconds + 0
+
+        if 'temp' in wave:
+            change *= self.time_multiplier_for_long_display
+
+        print("Waiting for {} seconds...".format(change), end='', flush=True)
+        sleep(change)
+        print("Done\n")
 
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run()
+    p = Parameters()
+    # p.set_download_resolution(1025)
+    Sunback(p).run()
 
 
-def canvas(with_attribution=True):
-    """
-    Placeholder function to show example docstring (NumPy format)
-
-    Replace this function and doc string for your own project
-
-    Parameters
-    ----------
-    with_attribution : bool, Optional, default: True
-        Set whether or not to display who the quote is from
-
-    Returns
-    -------
-    quote : str
-        Compiled string including quote and optional attribution
-    """
-
-    quote = "The code is but a canvas to our imagination."
-    if with_attribution:
-        quote += "\n\t- Adapted from Henry David Thoreau"
-    return quote

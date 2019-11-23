@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to SolarBackgroundUpdater's documentation!
+Welcome to Solar Background Updater's documentation!
 =========================================================
 
 Thank you for being interested in using my software! Let me know if anything is broken.
@@ -16,6 +16,8 @@ Thank you for being interested in using my software! Let me know if anything is 
    api
    all-about-me
 
+.. autosummary::
+   :toctree: autosummary
 
 
 Indices and tables

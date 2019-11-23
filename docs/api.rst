@@ -4,4 +4,8 @@ API Documentation
 .. autosummary::
    :toctree: autosummary
 
-   sunback.canvas
+   sunback.Sunback
+   sunback.Parameters
+
+
+

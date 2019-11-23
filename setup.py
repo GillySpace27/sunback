@@ -20,7 +20,7 @@ except:
 
 setup(
     # Self-descriptive entries which should always be present
-    name='sunback',
+    name='Sunback',
     author='Chris R. Gilly',
     author_email='chris.gilly@colorado.edu',
     description=short_description[0],
@@ -29,6 +29,7 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     license='BSD-3-Clause',
+    url='https://github.com/GillySpace27/sunback', # Website
 
     # Which Python importable modules should be included when your package is installed
     # Handled automatically by setuptools. Use 'exclude' to prevent some specific
@@ -43,15 +44,44 @@ setup(
     # Allows `setup.py test` to work correctly with pytest
     setup_requires=[] + pytest_runner,
 
-    # Additional entries you may want simply uncomment the lines you want and fill in the data
-    # url='http://www.my_package.com',  # Website
-    install_requires=["pip", "pillow", "astropy", "pathlib",
-                      "numpy", "pytesseract"], # Required packages, pulls from pip if needed; do not use for Conda deployment
+    # Required packages, pulls from pip if needed; do not use for Conda deployment
+    install_requires=["pip", "pillow", "astropy", "pytesseract"],
 
     platforms=['Windows'],            # Valid platforms your code works on, adjust to your flavor
-    #'Linux','Mac OS-X','Unix',
+                                        #'Linux','Mac OS-X','Unix',
 
-    # python_requires=">=3.5",          # Python version restrictions
+    python_requires=">=3.0",          # Python version restrictions
+
+    classifiers=[
+        # How mature is this project? Common values are
+        #   1 - Planning
+        #   2 - Pre-Alpha
+        #   3 - Alpha
+        #   4 - Beta
+        #   5 - Production/Stable
+        'Development Status :: 1 - Planning'
+
+        # Indicate who your project is intended for
+        'Intended Audience :: End Users/Desktop',
+        'Intended Audience :: Science/Research',
+        'Topic :: Desktop Environment',
+        'Topic :: Desktop Environment :: Screen Savers',
+        'Topic :: Multimedia :: Graphics :: Viewers',
+
+        # Pick your license as you wish (should match "license" above)
+        'License :: OSI Approved :: BSD License',
+
+        # Specify the Python versions you support here. In particular, ensure
+        # that you indicate whether you support Python 2, Python 3 or both.
+        # 'Programming Language :: Python :: 3',
+        # 'Programming Language :: Python :: 3.2',
+        # 'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3 :: Only',
+
+        # Platforms
+        'Operating System :: Microsoft :: Windows'
+        'Environment :: Win32 (MS Windows)'
+    ]
 
     # Manual control if final package is compressible or not, set False to prevent the .egg from being made
     # zip_safe=False,
