@@ -3,7 +3,7 @@ include MANIFEST.in
 include versioneer.py
 
 graft sunback
-global-exclude *.py[cod] __pycache__ *.soinclude sunback/_version.py
+global-exclude *.py[cod] *.soinclude sunback/_version.py
 include sunback/_version.py
 
 prune sunback/data/images
@@ -12,3 +12,4 @@ prune devtools
 prune sunback/.idea
 prune images
 prune data/images
+prune docs/_build
