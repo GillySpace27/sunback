@@ -13,7 +13,7 @@ from urllib.request import urlretrieve
 from os import getcwd, makedirs
 from os.path import normpath, abspath, join, dirname
 from PIL import Image, ImageFont, ImageDraw
-from pytesseract import image_to_string
+import pytesseract as pt
 
 
 class Sunback:
@@ -128,7 +128,7 @@ class Sunback:
                 offset = timezone / 3600
 
             cropped = img_raw.crop((0, 1950, 1024, 2048))
-            results = image_to_string(cropped)
+            results = pt.image_to_string(cropped)
 
             if is_hmi:  # HMI Data
                 image_time = results[-6:]

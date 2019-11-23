@@ -1,18 +1,16 @@
 Solar Background Updater
 ==============================
 [//]: # (Badges)
-[![GitHub last commit (branch)](https://img.shields.io/github/last-commit/GillySpace27/sunback/master)](https://github.com/GillySpace27/sunback/tree/master)
-[![Travis Build Status](https://travis-ci.com/GillySpace27/sunback.svg?branch=master)](https://travis-ci.com/GillySpace27/sunback)
-[![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/ji7e0pm5xxckf6rq/branch/master?svg=true)](https://ci.appveyor.com/project/GillySpace27/sunback/)
-[![Documentation Status](https://readthedocs.org/projects/sunback/badge/?version=latest)](https://sunback.readthedocs.io/en/latest/?badge=latest)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/a47b3701e7544010a4708d923a71fedb)](https://www.codacy.com/manual/GillySpace27/sunback?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=GillySpace27/sunback&amp;utm_campaign=Badge_Grade)
-[![codecov](https://codecov.io/gh/GillySpace27/sunback/branch/master/graph/badge.svg)](https://codecov.io/gh/GillySpace27/sunback/branch/master)
-![GitHub repo size](https://img.shields.io/github/repo-size/GillySpace27/sunback)
-[![GitHub](https://img.shields.io/github/license/GillySpace27/sunback)](https://opensource.org/licenses/BSD-3-Clause)
-[![PyPI](https://img.shields.io/pypi/v/sunback)](https://pypi.org/project/sunback/)
+<a href="https://github.com/GillySpace27/sunback/tree/master" target="_blank">![GitHub last commit (branch)](https://img.shields.io/github/last-commit/GillySpace27/sunback/master)</a>
+<a href="https://travis-ci.com/GillySpace27/sunback" target="_blank">![Travis Build Status](https://travis-ci.com/GillySpace27/sunback.svg?branch=master)</a>
+<a href="https://ci.appveyor.com/project/GillySpace27/sunback/" target="_blank">![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/ji7e0pm5xxckf6rq/branch/master?svg=true)</a>
+<a href="https://sunback.readthedocs.io/en/latest/?badge=latest" target="_blank">![Documentation Status](https://readthedocs.org/projects/sunback/badge/?version=latest)</a>
+<a href="https://www.codacy.com/manual/GillySpace27/sunback?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=GillySpace27/sunback&amp;utm_campaign=Badge_Grade" target="_blank">![Codacy Badge](https://api.codacy.com/project/badge/Grade/a47b3701e7544010a4708d923a71fedb)</a>
+<a href="https://codecov.io/gh/GillySpace27/sunback/branch/master" target="_blank">![codecov](https://codecov.io/gh/GillySpace27/sunback/branch/master/graph/badge.svg)</a>
+<a href="https://github.com/GillySpace27/sunback/" target="_blank">![GitHub repo size](https://img.shields.io/github/repo-size/GillySpace27/sunback)</a>
+<a href="https://opensource.org/licenses/BSD-3-Clause" target="_blank">![GitHub](https://img.shields.io/github/license/GillySpace27/sunback)</a>
+<a href="https://pypi.org/project/sunback/" target="_blank">![PyPI](https://img.shields.io/pypi/v/sunback)</a>
 
-![Thing](https://s.yimg.com/rz/p/yahoo_frontpage_en-US_s_f_p_205x58_frontpage_2x.png)
-<a href="https://www.yahoo.com" 
 A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series. 
 
 ### Copyright
