@@ -332,7 +332,7 @@ class Parameters:
 
 def run():
     p = Parameters()
-    p.set_download_resolution(1025)
+    p.set_download_resolution(2048)
     Sunback(p).run()
 
 

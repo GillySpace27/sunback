@@ -13,6 +13,12 @@ Solar Background Updater
 
 A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series. 
 
+
+Basic Usage:  
+pip install sunback  
+import sunback as sb  
+sb.run()  
+
 ### Copyright
 
 Copyright (c) 2019, [Chris R. Gilly](https://gilly.space) [ORCiD](https://orcid.org/0000-0003-0021-9056)
