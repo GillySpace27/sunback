@@ -11,6 +11,8 @@ Solar Background Updater
 [![GitHub](https://img.shields.io/github/license/GillySpace27/sunback)](https://opensource.org/licenses/BSD-3-Clause)
 [![PyPI](https://img.shields.io/pypi/v/sunback)](https://pypi.org/project/sunback/)
 
+![Thing](https://s.yimg.com/rz/p/yahoo_frontpage_en-US_s_f_p_205x58_frontpage_2x.png)
+<a href="https://www.yahoo.com" 
 A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series. 
 
 ### Copyright

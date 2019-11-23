@@ -178,3 +178,5 @@ texinfo_documents = [
 # -- Extension configuration -------------------------------------------------
 autosummary_generate = True
 autosummary_imported_members = True
+
+autodoc_mock_imports = [line.strip() for line in open(r"..\sunback.egg-info\requires.txt", 'r')]
