@@ -330,10 +330,14 @@ class Parameters:
         print("Done\n")
 
 
-if __name__ == "__main__":
-    # Do something if this file is invoked on its own
+def run():
     p = Parameters()
     p.set_download_resolution(1025)
     Sunback(p).run()
+
+
+if __name__ == "__main__":
+    # Do something if this file is invoked on its own
+    run()
 
 
