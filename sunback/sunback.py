@@ -7,7 +7,7 @@ Then it sets each of the images to the desktop background in series.
 Handles the primary functions
 """
 
-from ctypes import windll
+import ctypes
 from time import localtime, altzone, timezone, strftime, sleep
 from urllib.request import urlretrieve
 from os import getcwd, makedirs
@@ -73,7 +73,7 @@ class Sunback:
         print("Updating Background...", end='', flush=True)
 
         try:
-            windll.user32.SystemParametersInfoW(20, 0, local_path, 0)
+            ctypes.windll.user32.SystemParametersInfoW(20, 0, local_path, 0)
             print("Success")
         except:
             print("Failed")
