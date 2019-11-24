@@ -1,3 +1,5 @@
+requests
+progressbar
 --index-url https://pypi.python.org/simple/
 
 -e .

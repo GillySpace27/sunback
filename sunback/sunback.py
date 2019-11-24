@@ -14,7 +14,9 @@ from os import getcwd, makedirs
 from os.path import normpath, abspath, join, dirname
 from PIL import Image, ImageFont, ImageDraw
 import pytesseract as pt
+from tqdm import tqdm
 
+debug = True
 
 class Sunback:
     """
@@ -59,6 +61,41 @@ class Sunback:
                 raise
 
         print("Success", flush=True)
+
+    @staticmethod
+    def download_file(local_path, web_path):
+        print("Downloading Image:", end='\n', flush=True)
+
+        import requests
+        # import time
+        # now = time.time()
+        # print("Get")
+        # r = requests.get(web_path, stream=True)
+        # print(time.time()-now, flush=True)
+        # f = open(local_path, 'wb')
+        # file_size = int(r.headers['Content-Length'])
+        # for i, chunk in enumerate(r.iter_content()):
+        #     f.write(chunk)
+        #     print(i//file_size, end="\r")
+        # f.close()
+        # print(time.time()-now)
+        # return
+        # import time
+        # import json
+        # import urllib.request
+        # now = time.time()
+        # response = urllib.request.urlopen(web_path).read()
+        # print("Took {:0.2f} Seconds".format(time.time()-now))
+
+        r = requests.get(web_path, stream=False)
+        if r.status_code == 200:
+            with open(local_path, 'wb') as f:
+                ii=0
+                for chunk in r.iter_content(1024):
+                    f.write(chunk)
+                    print(ii, end='\r', flush=True)
+                    ii+=1
+        print("\n")
 
     @staticmethod
     def update_background(local_path):
@@ -178,39 +215,51 @@ class Sunback:
         #     return 1
         return 0
 
-    def run(self):
+    def loop(self):
         """The Main Loop"""
+        for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
+            print("Image: {}".format(wave))
+
+            # Define the Image
+            local_path = self.params.get_local_path(wave)
+
+            # Download the Image
+            self.download_file(local_path, web_path)
+
+            # Modify the Image
+            self.modify_image(local_path, wave, self.params.resolution)
+
+            # Update the Background
+            self.update_background(local_path)
+
+            # Wait for a bit
+            self.params.sleep_for_time(wave)
+
+
+    def run(self):
+        """Run the program in a way that won't break"""
 
         print("\nLive SDO Background Updater \nWritten by Gilly\n")
         print("Resolution: {}\n".format(self.params.resolution))
 
         while True:
             try:
-                for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
-                    print("Image: {}".format(wave))
-
-                    # Define the Image
-                    local_path = self.params.get_local_path(wave)
-
-                    # Download the Image
-                    self.download_image(local_path, web_path)
-
-                    # Modify the Image
-                    self.modify_image(local_path, wave, self.params.resolution)
-
-                    # Update the Background
-                    self.update_background(local_path)
-
-                    # Wait for a bit
-                    self.params.sleep_for_time(wave)
+                self.loop()
             except (KeyboardInterrupt, SystemExit):
                 print("Fine, I'll Stop.\n")
                 raise
             except:
-                print("I failed")
+                print("I failed, but I'm ignoring it.")
                 continue
-            finally:
-                print("Thats a Loop")
+
+    def debug(self):
+        """Run the program in a way that will break"""
+
+        print("\nLive SDO Background Updater \nWritten by Gilly\n")
+        print("Resolution: {}\n".format(self.params.resolution))
+
+        while True:
+                self.loop()
 
 
 class Parameters:
@@ -235,6 +284,10 @@ class Parameters:
         self.file_ending = None
 
         self.set_default_values()
+
+    def check_real_number(self, number):
+        assert type(number) in [float, int]
+        assert number > 0
 
     def set_default_values(self):
         """Sets the Defaults for all the Parameters"""
@@ -262,12 +315,18 @@ class Parameters:
         # Select File Ending
         self.set_file_ending("{}_Now.jpg")
 
+        return 0
+
     # Methods that Set Parameters
     def set_update_delay_seconds(self, delay):
+        self.check_real_number(delay)
         self.background_update_delay_seconds = delay
+        return 0
 
     def set_time_multiplier(self, multiplier):
+        self.check_real_number(multiplier)
         self.time_multiplier_for_long_display = multiplier
+        return 0
 
     def set_local_directory(self, path=None):
         if path is not None:
@@ -278,12 +337,15 @@ class Parameters:
         makedirs(self.local_directory, exist_ok=True)
 
     def set_wavelengths(self, waves):
+        # [self.check_real_number(int(num)) for num in waves]
         self.use_wavelengths = waves
         self.use_wavelengths.sort()
         if self.has_all_necessary_data():
             self.make_web_paths()
+        return 0
 
     def set_download_resolution(self, resolution):
+        self.check_real_number(resolution)
         self.resolution = min([170, 256, 512, 1024, 2048, 3072, 4096], key=lambda x: abs(x - resolution))
         if self.has_all_necessary_data():
             self.make_web_paths()
@@ -334,18 +396,24 @@ class Parameters:
             change *= self.time_multiplier_for_long_display
 
         print("Waiting for {} seconds...".format(change), end='', flush=True)
-        sleep(change)
+
+        fps = 10
+        for ii in tqdm(range(int(fps*change))):
+            sleep(1/fps)
         print("Done\n")
 
 
-def run():
+def run(debugg=False):
     p = Parameters()
     p.set_download_resolution(2048)
-    Sunback(p).run()
+    if debugg:
+        Sunback(p).debug()
+    else:
+        Sunback(p).run()
 
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run()
+    run(debug)
 
 
