@@ -7,7 +7,6 @@ Then it sets each of the images to the desktop background in series.
 Handles the primary functions
 """
 
-import ctypes
 from time import localtime, altzone, timezone, strftime, sleep
 from urllib.request import urlretrieve
 from os import getcwd, makedirs
@@ -61,41 +60,43 @@ class Sunback:
                 raise
 
         print("Success", flush=True)
+        return 0
 
-    @staticmethod
-    def download_file(local_path, web_path):
-        print("Downloading Image:", end='\n', flush=True)
-
-        import requests
-        # import time
-        # now = time.time()
-        # print("Get")
-        # r = requests.get(web_path, stream=True)
-        # print(time.time()-now, flush=True)
-        # f = open(local_path, 'wb')
-        # file_size = int(r.headers['Content-Length'])
-        # for i, chunk in enumerate(r.iter_content()):
-        #     f.write(chunk)
-        #     print(i//file_size, end="\r")
-        # f.close()
-        # print(time.time()-now)
-        # return
-        # import time
-        # import json
-        # import urllib.request
-        # now = time.time()
-        # response = urllib.request.urlopen(web_path).read()
-        # print("Took {:0.2f} Seconds".format(time.time()-now))
-
-        r = requests.get(web_path, stream=False)
-        if r.status_code == 200:
-            with open(local_path, 'wb') as f:
-                ii=0
-                for chunk in r.iter_content(1024):
-                    f.write(chunk)
-                    print(ii, end='\r', flush=True)
-                    ii+=1
-        print("\n")
+    #
+    # @staticmethod
+    # def download_file(local_path, web_path):
+    #     print("Downloading Image:", end='\n', flush=True)
+    #
+    #     import requests
+    #     # import time
+    #     # now = time.time()
+    #     # print("Get")
+    #     # r = requests.get(web_path, stream=True)
+    #     # print(time.time()-now, flush=True)
+    #     # f = open(local_path, 'wb')
+    #     # file_size = int(r.headers['Content-Length'])
+    #     # for i, chunk in enumerate(r.iter_content()):
+    #     #     f.write(chunk)
+    #     #     print(i//file_size, end="\r")
+    #     # f.close()
+    #     # print(time.time()-now)
+    #     # return
+    #     # import time
+    #     # import json
+    #     # import urllib.request
+    #     # now = time.time()
+    #     # response = urllib.request.urlopen(web_path).read()
+    #     # print("Took {:0.2f} Seconds".format(time.time()-now))
+    #
+    #     r = requests.get(web_path, stream=False)
+    #     if r.status_code == 200:
+    #         with open(local_path, 'wb') as f:
+    #             ii=0
+    #             for chunk in r.iter_content(1024):
+    #                 f.write(chunk)
+    #                 print(ii, end='\r', flush=True)
+    #                 ii+=1
+    #     print("\n")
 
     @staticmethod
     def update_background(local_path):
@@ -108,13 +109,33 @@ class Sunback:
             The local save location of the image
         """
         print("Updating Background...", end='', flush=True)
+        assert isinstance(local_path, str)
+
+        import platform
+        this_system = platform.system()
 
         try:
-            ctypes.windll.user32.SystemParametersInfoW(20, 0, local_path, 0)
+            if this_system == "Windows":
+                import ctypes
+                ctypes.windll.user32.SystemParametersInfoW(20, 0, local_path, 0)
+            elif this_system == "Darwin":
+                from appscript import app, mactypes
+                app('Finder').desktop_picture.set(mactypes.File(local_path))
+            elif this_system == "Linux":
+                import os
+                os.system(
+                    "/usr/bin/gsettings set org.gnome.desktop.background picture-uri {}".format(local_path))
+            else:
+                raise OSError("Operating System Not Supported")
+
+
+
+
             print("Success")
         except:
             print("Failed")
             raise
+        return 0
 
     @staticmethod
     def modify_image(local_path, wave, resolution):

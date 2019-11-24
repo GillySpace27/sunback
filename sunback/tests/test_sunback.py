@@ -15,21 +15,24 @@ def test_sunback_imported():
     assert "sunback" in sys.modules
 
 
-# class TestSunback(TestCase):
-#     def test_download_image(self):
-#         self.fail()
-#
-#     def test_update_background(self):
-#         self.fail()
-#
-#     def test_modify_image(self):
-#         self.fail()
-#
-#     def test_loop(self):
-#         self.fail()
-#
-#     def test_run(self):
-#         self.fail()
-#
-#     def test_debug(self):
-#         self.fail()
+class TestSunback(TestCase):
+    def test_download_image(self):
+        local_path = "tests/test_171.jpg"
+        web_path = "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_512_0171.jpg"
+        self.assertFalse(sunback.Sunback().download_image(local_path, web_path))
+
+    def test_update_background(self):
+        local_path = "tests/test_171.jpg"
+        self.assertFalse(sunback.Sunback().update_background(local_path))
+
+    # def test_modify_image(self):
+    #     self.fail()
+    #
+    # def test_loop(self):
+    #     self.fail()
+    #
+    # def test_run(self):
+    #     self.fail()
+    #
+    # def test_debug(self):
+    #     self.fail()
