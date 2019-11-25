@@ -8,7 +8,7 @@ Handles the primary functions
 """
 
 from time import localtime, altzone, timezone, strftime, sleep
-from urllib.request import urlretrieve, urlopen
+from urllib.request import urlretrieve
 from os import getcwd, makedirs
 from os.path import normpath, abspath, join, dirname
 from PIL import Image, ImageFont, ImageDraw
@@ -50,7 +50,7 @@ class Sunback:
         print("Downloading Image...", end='', flush=True)
 
         try:
-            self.get_image(web_path, local_path)
+            urlretrieve(web_path, local_path)
         except:
             try:
                 urlretrieve(web_path, local_path)
@@ -60,45 +60,6 @@ class Sunback:
 
         print("Success", flush=True)
         return 0
-
-    #
-    # @staticmethod
-    # def download_file(local_path, web_path):
-    #     print("Downloading Image:", end='\n', flush=True)
-    #
-    #     import requests
-    #     # import time
-    #     # now = time.time()
-    #     # print("Get")
-    #     # r = requests.get(web_path, stream=True)
-    #     # print(time.time()-now, flush=True)
-    #     # f = open(local_path, 'wb')
-    #     # file_size = int(r.headers['Content-Length'])
-    #     # for i, chunk in enumerate(r.iter_content()):
-    #     #     f.write(chunk)
-    #     #     print(i//file_size, end="\r")
-    #     # f.close()
-    #     # print(time.time()-now)
-    #     # return
-    #     # import time
-    #     # import json
-    #     # import urllib.request
-    #     # now = time.time()
-    #     # response = urllib.request.urlopen(web_path).read()
-    #     # print("Took {:0.2f} Seconds".format(time.time()-now))
-    #
-    #     r = requests.get(web_path, stream=False)
-    #     if r.status_code == 200:
-    #         with open(local_path, 'wb') as f:
-    #             ii=0
-    #             for chunk in r.iter_content(1024):
-    #                 f.write(chunk)
-    #                 print(ii, end='\r', flush=True)
-    #                 ii+=1
-    #     print("\n")
-
-    def get_image(self, web_path, local_path):
-            open(local_path,'wb').write(urlopen(web_path).read())
 
     @staticmethod
     def update_background(local_path):
@@ -257,7 +218,6 @@ class Sunback:
 
             # Wait for a bit
             self.params.sleep_for_time(wave)
-
 
     def run(self):
         """Run the program in a way that won't break"""
