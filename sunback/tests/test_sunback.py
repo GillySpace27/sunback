@@ -17,7 +17,7 @@ def test_sunback_imported():
 
 class TestSunback(TestCase):
     def test_download_image(self):
-        local_path = "tests/test_171.jpg"
+        local_path = "test_171.jpg"
         web_path = "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_512_0171.jpg"
         self.assertFalse(sunback.Sunback().download_image(local_path, web_path))
 

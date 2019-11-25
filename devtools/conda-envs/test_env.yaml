@@ -12,6 +12,7 @@ dependencies:
   - numpy
   - pytesseract
   - tqdm
+  - appscript
 
     # Testing
   - pytest

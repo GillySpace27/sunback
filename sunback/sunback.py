@@ -8,7 +8,7 @@ Handles the primary functions
 """
 
 from time import localtime, altzone, timezone, strftime, sleep
-from urllib.request import urlretrieve
+from urllib.request import urlretrieve, urlopen
 from os import getcwd, makedirs
 from os.path import normpath, abspath, join, dirname
 from PIL import Image, ImageFont, ImageDraw
@@ -33,8 +33,7 @@ class Sunback:
         else:
             self.params = Parameters()
 
-    @staticmethod
-    def download_image(local_path, web_path):
+    def download_image(self, local_path, web_path):
         """
         Download an image and save it to file
 
@@ -51,7 +50,7 @@ class Sunback:
         print("Downloading Image...", end='', flush=True)
 
         try:
-            urlretrieve(web_path, local_path)
+            self.get_image(web_path, local_path)
         except:
             try:
                 urlretrieve(web_path, local_path)
@@ -97,6 +96,9 @@ class Sunback:
     #                 print(ii, end='\r', flush=True)
     #                 ii+=1
     #     print("\n")
+
+    def get_image(self, web_path, local_path):
+            open(local_path,'wb').write(urlopen(web_path).read())
 
     @staticmethod
     def update_background(local_path):
