@@ -81,6 +81,7 @@ dependencies:
   - setuptools=41.6.0=py37_1
   - six=1.13.0=py37_0
   - sqlite=3.30.1=hfa6e2cd_0
+  - tqdm
   - tk=8.6.9=hfa6e2cd_1003
   - tornado=6.0.3=py37hfa6e2cd_0
   - urllib3=1.25.7=py37_0

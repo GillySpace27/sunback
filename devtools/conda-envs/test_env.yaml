@@ -25,6 +25,7 @@ dependencies:
       - urllib
       - time
 #      - mpi4py
+      - tqdm
 
 #    - codecov
 

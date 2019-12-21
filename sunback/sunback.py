@@ -208,7 +208,7 @@ class Sunback:
             local_path = self.params.get_local_path(wave)
 
             # Download the Image
-            self.download_file(local_path, web_path)
+            self.download_image(local_path, web_path)
 
             # Modify the Image
             self.modify_image(local_path, wave, self.params.resolution)
