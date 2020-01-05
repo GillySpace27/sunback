@@ -13,6 +13,7 @@ from os import getcwd, makedirs
 from os.path import normpath, abspath, join, dirname
 from PIL import Image, ImageFont, ImageDraw
 import pytesseract as pt
+from sys import exit
 
 debug = False
 
@@ -214,19 +215,20 @@ class Sunback:
         local_path : str
             The local save location of the image
         """
-        print("Downloading Image...", end='', flush=True)
+        tries = 3
 
-        try:
-            urlretrieve(web_path, local_path)
-        except:
+        for ii in range(tries):
             try:
+                print("Downloading Image...", end='', flush=True)
                 urlretrieve(web_path, local_path)
-            except:
-                print("Failed", flush=True)
+                print("Success", flush=True)
+                return 0
+            except KeyboardInterrupt:
                 raise
+            except Exception:
+                print("Failed {} Time(s).".format(ii + 1), flush=True)
+        raise Exception
 
-        print("Success", flush=True)
-        return 0
 
     @staticmethod
     def update_background(local_path):
@@ -400,23 +402,24 @@ class Sunback:
         self.print_header()
 
         fail_count = 0
-        fail_max = 20
+        fail_max = 10
 
         while True:
             for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
                 try:
                     self.loop(wave, web_path)
                 except (KeyboardInterrupt, SystemExit):
-                    print("Fine, I'll Stop.\n")
-                    raise
+                    print("\n\nOk, I'll Stop.\n")
+                    exit(0)
                 except Exception as error:
+                    print("Failure!")
                     fail_count += 1
                     if fail_count < fail_max:
                         print("I failed, but I'm ignoring it. Count: {}/{}".format(fail_count, fail_max))
                         continue
                     else:
                         print("Too Many Failures, I Quit!")
-                        raise error
+                        exit(1)
 
     def debug(self):
         """Run the program in a way that will break"""
