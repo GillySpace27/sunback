@@ -24,10 +24,11 @@ A program that downloads the most current images of the sun from the SDO satelli
 
 Basic Usage:  
 pip install sunback  
+python3  
 import sunback as sb  
-sb.run()  
+sb.run(delay=30, resolution=2048)  
 
-This only works on windows at this time but I would love to expand it as soon as I am able.
+This only works on windows at this time but I would love to expand it as soon as I am able. Check contribute.md to see how you can help out!
 
 ### Copyright
 

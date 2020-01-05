@@ -7,15 +7,182 @@ Then it sets each of the images to the desktop background in series.
 Handles the primary functions
 """
 
-from time import localtime, altzone, timezone, strftime, sleep
+from time import localtime, altzone, timezone, strftime, sleep, time, asctime
 from urllib.request import urlretrieve
 from os import getcwd, makedirs
 from os.path import normpath, abspath, join, dirname
 from PIL import Image, ImageFont, ImageDraw
 import pytesseract as pt
-from tqdm import tqdm
 
-debug = True
+debug = False
+
+
+class Parameters:
+    """
+    A container class for the run parameters of the program
+    """
+    seconds = 1
+    minutes = 60 * seconds
+    hours = 60 * minutes
+
+    def __init__(self):
+        """Sets all the attributes to None"""
+        # Initialize Variables
+        self.background_update_delay_seconds = None
+        self.time_multiplier_for_long_display = None
+        self.local_directory = None
+        self.use_wavelengths = None
+        self.resolution = None
+        self.web_image_frame = None
+        self.web_image_location = None
+        self.web_paths = None
+        self.file_ending = None
+        self.run_time_offset = None
+
+        self.start_time = time()
+        self.is_first_run = True
+
+        self.set_default_values()
+
+    def check_real_number(self, number):
+        assert type(number) in [float, int]
+        assert number > 0
+
+    def set_default_values(self):
+        """Sets the Defaults for all the Parameters"""
+
+        #  Set Delay Time for Background Rotation
+        self.set_update_delay_seconds(30 * self.seconds)
+        self.set_time_multiplier(3)
+
+        # Set File Paths
+        self.set_local_directory()
+
+        # Set Wavelengths
+        self.set_wavelengths(['0171', '0193', '0211', '0304', '0131', '0335', '0094', 'HMIBC', 'HMIIF'])
+
+        # Set Resolution
+        self.set_download_resolution(2048)
+
+        # Set Web Location
+        self.set_web_image_frame("https://sdo.gsfc.nasa.gov/assets/img/latest/latest_{}_{}")
+
+        # Add extra images
+        new_web_path_1 = "https://sdo.gsfc.nasa.gov/assets/img/latest/f_211_193_171pfss_{}.jpg".format(self.resolution)
+        self.append_to_web_paths(new_web_path_1, 'PFSS')
+
+        # Select File Ending
+        self.set_file_ending("{}_Now.jpg")
+
+        return 0
+
+    # Methods that Set Parameters
+    def set_update_delay_seconds(self, delay):
+        self.check_real_number(delay)
+        self.background_update_delay_seconds = delay
+        return 0
+
+    def set_time_multiplier(self, multiplier):
+        self.check_real_number(multiplier)
+        self.time_multiplier_for_long_display = multiplier
+        return 0
+
+    def set_local_directory(self, path=None):
+        if path is not None:
+            self.local_directory = path
+        else:
+            self.local_directory = self.discover_best_default_directory()
+
+        makedirs(self.local_directory, exist_ok=True)
+
+    def set_wavelengths(self, waves):
+        # [self.check_real_number(int(num)) for num in waves]
+        self.use_wavelengths = waves
+        self.use_wavelengths.sort()
+        if self.has_all_necessary_data():
+            self.make_web_paths()
+        return 0
+
+    def set_download_resolution(self, resolution):
+        self.check_real_number(resolution)
+        self.resolution = min([170, 256, 512, 1024, 2048, 3072, 4096], key=lambda x: abs(x - resolution))
+        if self.has_all_necessary_data():
+            self.make_web_paths()
+
+    def set_web_image_frame(self, path):
+        self.web_image_frame = path
+        if self.has_all_necessary_data():
+            self.make_web_paths()
+
+    def set_file_ending(self, string):
+        self.file_ending = string
+
+    # Methods that create something
+
+    def make_web_paths(self):
+        self.web_image_location = self.web_image_frame.format(self.resolution, "{}.jpg")
+        self.web_paths = [self.web_image_location.format(wave) for wave in self.use_wavelengths]
+
+    def append_to_web_paths(self, path, wave=' '):
+        self.web_paths.append(path)
+        self.use_wavelengths.append(wave)
+
+    # Methods that return information or do something
+    def has_all_necessary_data(self):
+        if self.web_image_frame is not None:
+            if self.use_wavelengths is not None:
+                if self.resolution is not None:
+                    return True
+        return False
+
+    def get_local_path(self, wave):
+        return normpath(join(self.local_directory, self.file_ending.format(wave)))
+
+    @staticmethod
+    def discover_best_default_directory():
+        """Determine where to store the images"""
+        subdirectory_name = r"data\images"
+        if __file__ in globals():
+            directory = join(dirname(abspath(__file__)), subdirectory_name)
+        else:
+            directory = join(abspath(getcwd()), subdirectory_name)
+        return directory
+
+    def determine_delay(self, wave):
+        """ Determine how long to wait """
+
+        delay = self.background_update_delay_seconds + 0
+
+        if 'temp' in wave:
+            delay *= self.time_multiplier_for_long_display
+
+        self.run_time_offset = time() - self.start_time
+        delay -= self.run_time_offset
+        delay = max(delay, 0)
+        return delay
+
+    def wait_if_required(self, delay):
+        """ Wait if Required """
+
+        if self.is_first_run:
+            self.is_first_run = False
+        elif delay <= 0:
+            pass
+        else:
+            # print("Took {:0.1f} seconds. ".format(self.run_time_offset), end='')
+            print("Waiting for {:0.0f} seconds ({} total)... ".format(delay, self.background_update_delay_seconds),
+                  end='', flush=True)
+
+            fps = 10
+            for ii in (range(int(fps * delay))):
+                sleep(1 / fps)
+
+            print("Done")
+
+    def sleep_for_time(self, wave):
+        """ Make sure that the loop takes the right amount of time """
+        self.wait_if_required(self.determine_delay(wave))
+
 
 class Sunback:
     """
@@ -199,197 +366,74 @@ class Sunback:
         #     return 1
         return 0
 
-    def loop(self):
+    def loop(self, wave, web_path):
         """The Main Loop"""
-        for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
-            print("Image: {}".format(wave))
+        self.params.start_time = time()
+        print("Image: {}, at {}".format(wave, asctime()))
+        # Define the Image
+        local_path = self.params.get_local_path(wave)
 
-            # Define the Image
-            local_path = self.params.get_local_path(wave)
+        # Download the Image
+        self.download_image(local_path, web_path)
 
-            # Download the Image
-            self.download_image(local_path, web_path)
+        # Modify the Image
+        self.modify_image(local_path, wave, self.params.resolution)
 
-            # Modify the Image
-            self.modify_image(local_path, wave, self.params.resolution)
+        # Wait for a bit
+        self.params.sleep_for_time(wave)
 
-            # Update the Background
-            self.update_background(local_path)
+        # Update the Background
+        self.update_background(local_path)
 
-            # Wait for a bit
-            self.params.sleep_for_time(wave)
+        print('')
+
+        # print("\n----->>>>>Cycle {:0.1f} seconds\n".format(time()-self.params.start_time))
+
+    def print_header(self):
+        print("\nSunback: Live SDO Background Updater \nWritten by Chris R. Gilly")
+        print("Check out my website: http://gilly.space\n")
+        print("Delay: {} Seconds".format(self.params.background_update_delay_seconds))
+        print("Resolution: {}\n".format(self.params.resolution))
 
     def run(self):
         """Run the program in a way that won't break"""
+        self.print_header()
 
-        print("\nLive SDO Background Updater \nWritten by Gilly\n")
-        print("Resolution: {}\n".format(self.params.resolution))
+        fail_count = 0
+        fail_max = 20
 
         while True:
-            try:
-                self.loop()
-            except (KeyboardInterrupt, SystemExit):
-                print("Fine, I'll Stop.\n")
-                raise
-            except:
-                print("I failed, but I'm ignoring it.")
-                continue
+            for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
+                try:
+                    self.loop(wave, web_path)
+                except (KeyboardInterrupt, SystemExit):
+                    print("Fine, I'll Stop.\n")
+                    raise
+                except Exception as error:
+                    fail_count += 1
+                    if fail_count < fail_max:
+                        print("I failed, but I'm ignoring it. Count: {}/{}".format(fail_count, fail_max))
+                        continue
+                    else:
+                        print("Too Many Failures, I Quit!")
+                        raise error
 
     def debug(self):
         """Run the program in a way that will break"""
-
-        print("\nLive SDO Background Updater \nWritten by Gilly\n")
-        print("Resolution: {}\n".format(self.params.resolution))
+        self.print_header()
 
         while True:
-                self.loop()
+            for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
+                self.loop(wave, web_path)
 
 
-class Parameters:
-    """
-    A container class for the run parameters of the program
-    """
-    seconds = 1
-    minutes = 60 * seconds
-    hours = 60 * minutes
 
-    def __init__(self):
-        """Sets all the attributes to None"""
-        # Initialize Variables
-        self.background_update_delay_seconds = None
-        self.time_multiplier_for_long_display = None
-        self.local_directory = None
-        self.use_wavelengths = None
-        self.resolution = None
-        self.web_image_frame = None
-        self.web_image_location = None
-        self.web_paths = None
-        self.file_ending = None
-
-        self.set_default_values()
-
-    def check_real_number(self, number):
-        assert type(number) in [float, int]
-        assert number > 0
-
-    def set_default_values(self):
-        """Sets the Defaults for all the Parameters"""
-
-        #  Set Delay Time for Background Rotation
-        self.set_update_delay_seconds(30 * self.seconds)
-        self.set_time_multiplier(3)
-
-        # Set File Paths
-        self.set_local_directory()
-
-        # Set Wavelengths
-        self.set_wavelengths(['0171', '0193', '0211', '0304', '0131', '0335', '0094', 'HMIBC', 'HMIIF'])
-
-        # Set Resolution
-        self.set_download_resolution(2048)
-
-        # Set Web Location
-        self.set_web_image_frame("https://sdo.gsfc.nasa.gov/assets/img/latest/latest_{}_{}")
-
-        # Add extra images
-        new_web_path_1 = "https://sdo.gsfc.nasa.gov/assets/img/latest/f_211_193_171pfss_{}.jpg".format(self.resolution)
-        self.append_to_web_paths(new_web_path_1, 'PFSS')
-
-        # Select File Ending
-        self.set_file_ending("{}_Now.jpg")
-
-        return 0
-
-    # Methods that Set Parameters
-    def set_update_delay_seconds(self, delay):
-        self.check_real_number(delay)
-        self.background_update_delay_seconds = delay
-        return 0
-
-    def set_time_multiplier(self, multiplier):
-        self.check_real_number(multiplier)
-        self.time_multiplier_for_long_display = multiplier
-        return 0
-
-    def set_local_directory(self, path=None):
-        if path is not None:
-            self.local_directory = path
-        else:
-            self.local_directory = self.discover_best_default_directory()
-
-        makedirs(self.local_directory, exist_ok=True)
-
-    def set_wavelengths(self, waves):
-        # [self.check_real_number(int(num)) for num in waves]
-        self.use_wavelengths = waves
-        self.use_wavelengths.sort()
-        if self.has_all_necessary_data():
-            self.make_web_paths()
-        return 0
-
-    def set_download_resolution(self, resolution):
-        self.check_real_number(resolution)
-        self.resolution = min([170, 256, 512, 1024, 2048, 3072, 4096], key=lambda x: abs(x - resolution))
-        if self.has_all_necessary_data():
-            self.make_web_paths()
-
-    def set_web_image_frame(self, path):
-        self.web_image_frame = path
-        if self.has_all_necessary_data():
-            self.make_web_paths()
-
-    def set_file_ending(self, string):
-        self.file_ending = string
-
-    # Methods that create something
-
-    def make_web_paths(self):
-        self.web_image_location = self.web_image_frame.format(self.resolution, "{}.jpg")
-        self.web_paths = [self.web_image_location.format(wave) for wave in self.use_wavelengths]
-
-    def append_to_web_paths(self, path, wave=' '):
-        self.web_paths.append(path)
-        self.use_wavelengths.append(wave)
-
-    # Methods that return information or do something
-    def has_all_necessary_data(self):
-        if self.web_image_frame is not None:
-            if self.use_wavelengths is not None:
-                if self.resolution is not None:
-                    return True
-        return False
-
-    def get_local_path(self, wave):
-        return normpath(join(self.local_directory, self.file_ending.format(wave)))
-
-    @staticmethod
-    def discover_best_default_directory():
-        """Determine where to store the images"""
-        subdirectory_name = r"data\images"
-        if __file__ in globals():
-            directory = join(dirname(abspath(__file__)), subdirectory_name)
-        else:
-            directory = join(abspath(getcwd()), subdirectory_name)
-        return directory
-
-    def sleep_for_time(self, wave):
-        change = self.background_update_delay_seconds + 0
-
-        if 'temp' in wave:
-            change *= self.time_multiplier_for_long_display
-
-        print("Waiting for {} seconds...".format(change), end='', flush=True)
-
-        fps = 10
-        for ii in tqdm(range(int(fps*change))):
-            sleep(1/fps)
-        print("Done\n")
-
-
-def run(debugg=False):
+def run(delay=30, resolution=2048, debug=False):
     p = Parameters()
-    p.set_download_resolution(2048)
-    if debugg:
+    p.set_update_delay_seconds(delay)
+    p.set_download_resolution(resolution)
+
+    if debug:
         Sunback(p).debug()
     else:
         Sunback(p).run()
@@ -397,6 +441,6 @@ def run(debugg=False):
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run(debug)
+    run(30, debug=debug)
 
 

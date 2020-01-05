@@ -6,7 +6,7 @@ I am glad for any support you have.
 
 The main things that need to be done on this project are:
 * Make this program work on Mac
-* Make this program work on PC
+* Make this program work on Linux
 * Generally make things follow best practices
 * Write tests for all of the functions, such that the code coverage can understand
 * Write documentation for everything that Sphinx can understand

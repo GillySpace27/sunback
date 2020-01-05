@@ -11,7 +11,6 @@ dependencies:
   - pathlib
   - numpy
   - pytesseract
-  - tqdm
 #  - appscript
 
     # Testing
@@ -25,7 +24,6 @@ dependencies:
       - urllib
       - time
 #      - mpi4py
-      - tqdm
 
 #    - codecov
 
