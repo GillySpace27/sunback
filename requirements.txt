@@ -1,5 +1,4 @@
-requests
-progressbar
---index-url https://pypi.python.org/simple/
+# -index-url https://pypi.python.org/simple/
+matplotlib
 
 -e .

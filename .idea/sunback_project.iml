@@ -8,7 +8,7 @@
       <excludeFolder url="file://$MODULE_DIR$/dist" />
       <excludeFolder url="file://$MODULE_DIR$/dist_old" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.7 (sunback)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.7 (sunback_proj)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="ReSTService">
