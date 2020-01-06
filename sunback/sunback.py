@@ -12,7 +12,7 @@ from os import getcwd, makedirs, rename, remove
 from os.path import normpath, abspath, join, dirname, exists
 from calendar import timegm
 import sys
-import numpy as np
+from numpy import sqrt, argpartition, nanmean, abs
 import matplotlib.pyplot as plt
 
 from sunpy.net import Fido, attrs as a
@@ -374,13 +374,13 @@ class Sunback:
         dpi = pixels / inches
 
         # Modify the data
-        data = np.sqrt(np.abs(data))
+        data = sqrt(abs(data))
 
         # Reject Outliers
         a = data.flatten()
         remove_num = 10
-        ind = np.argpartition(a, -remove_num)[-remove_num:]
-        a[ind] = np.nanmean(a)*4
+        ind = argpartition(a, -remove_num)[-remove_num:]
+        a[ind] = nanmean(a)*4
         data = a.reshape(data.shape)
 
 
