@@ -45,7 +45,7 @@ setup(
     setup_requires=[] + pytest_runner,
 
     # Required packages, pulls from pip if needed; do not use for Conda deployment
-    install_requires=["pip", "pillow", "astropy", "pytesseract"],
+    install_requires=["astropy", "sunpy[net]", "numpy", "matplotlib"],
 
     platforms=['Windows'],            # Valid platforms your code works on, adjust to your flavor
                                         #'Linux','Mac OS-X','Unix',

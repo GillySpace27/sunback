@@ -8,20 +8,16 @@ Handles the primary functions
 """
 
 from time import localtime, altzone, timezone, strftime, sleep, time, asctime
-from urllib.request import urlretrieve
 from os import getcwd, makedirs, rename, remove
 from os.path import normpath, abspath, join, dirname, exists
-from PIL import Image, ImageFont, ImageDraw
-import pytesseract as pt
-from sys import exit
+from calendar import timegm
 import sys
+import numpy as np
+import matplotlib.pyplot as plt
 
 from sunpy.net import Fido, attrs as a
-
-import matplotlib.pyplot as plt
 import sunpy.cm
 import sunpy.map
-import numpy as np
 
 debug = False
 
@@ -212,38 +208,88 @@ class Sunback:
         else:
             self.params = Parameters()
 
+        self.last_time = 0
+        self.this_time = 1
+        self.new_images = True
+        self.fido_result = None
+        self.fido_num = None
+
     # # Image Stuff
 
     def fido_search(self):
         """ Find the Most Recent Images """
-        # Define Time Range
-        fmt_str = '%Y/%m/%d %H:%M'
-        early = strftime(fmt_str, localtime(time() - 120))
-        now = strftime(fmt_str)
 
-        # Find Results
-        self.fido_result = Fido.search(a.Time(early, now), a.Instrument('aia'))
-        self.fido_num = self.fido_result.file_num
+        minute_range = 18
+        self.fido_num = 0
 
-        # print(self.fido_result)
+        while not 3 < self.fido_num < 13:
+            # Define Time Range
+            fmt_str = '%Y/%m/%d %H:%M'
+            early = strftime(fmt_str, localtime(time() - minute_range*60 + timezone))
+            now = strftime(fmt_str, localtime(time() + timezone))
+
+            # Find Results
+            self.fido_result = Fido.search(a.Time(early, now), a.Instrument('aia'))
+            self.fido_num = self.fido_result.file_num
+
+            # Change time range if wrong number of records
+            if self.fido_num > 13:
+                minute_range -= 2
+            elif self.fido_num < 3:
+                minute_range += 2
+
+            if self.fido_num == 0:
+                continue
+
+            self.this_time = int(self.fido_result.get_response(0)[0].time.start)
+            self.new_images = self.last_time < self.this_time
+
+        if self.new_images:
+            print("Search Found {} new images at {}\n".format(self.fido_num, self.parse_time_string(str(self.this_time),2)), flush=True)
+        else:
+            print("No New Images, using Cached Data\n")
+
+        self.last_time = self.this_time
+
+        with open(self.params.time_file, 'w') as fp:
+            fp.write(str(self.this_time)+'\n')
+            fp.write(str(self.fido_num)+'\n')
+            fp.write(str(self.fido_result.get_response(0)))
 
     def fido_retrieve_by_index(self, ind):
         """Retrieve a result by index and save it to file"""
 
         tries = 3
 
-        for ii in range(tries):
-            try:
-                print("Downloading Image...", end='', flush=True)
-                result = self.fido_retrieve_result(self.fido_result[0, ind])
-                print("Success", flush=True)
-                return result
-            except KeyboardInterrupt:
-                raise
-            except Exception as exp:
-                print("Failed {} Time(s).".format(ii + 1), flush=True)
-                if ii == tries-1:
-                    raise exp
+        if self.new_images:
+            for ii in range(tries):
+                try:
+                    print("Downloading Image...", end='', flush=True)
+                    result = self.fido_retrieve_result(self.fido_result[0, ind])
+                    print("Success", flush=True)
+                    return result
+                except KeyboardInterrupt:
+                    raise
+                except Exception as exp:
+                    print("Failed {} Time(s).".format(ii + 1), flush=True)
+                    if ii == tries-1:
+                        raise exp
+        else:
+            print("Using Cached Data...", end='', flush=True)
+            result = self.list_files1(self.params.local_directory, 'fits')
+            print("Success", flush=True)
+            file_name = [x for x in result][ind]
+            full_name = file_name[:4]
+
+            with open(self.params.time_file, 'r') as fp:
+                time_stamp = fp.read()
+            time_string = self.parse_time_string(str(time_stamp), 2)
+            save_path = join(self.params.local_directory, file_name)
+            return full_name, save_path, time_string
+
+    def list_files1(self, directory, extension):
+        from os import listdir
+        return (f for f in listdir(directory) if f.endswith('.' + extension))
 
     def fido_get_name_by_index(self, ind):
         name = self.fido_result[0, ind].get_response(0)[0].wave.wavemin
@@ -276,23 +322,38 @@ class Sunback:
         return name, save_path, time_string
 
     @staticmethod
-    def parse_time_string(downloaded_files):
-        time_string = downloaded_files[0][-25:-10]
-        year = time_string[:4]
-        month = time_string[4:6]
-        day = time_string[6:8]
-        hour_raw = int(time_string[9:11])
+    def parse_time_string(downloaded_files, which=0):
+        if which == 0:
+            time_string = downloaded_files[0][-25:-10]
+            year = time_string[:4]
+            month = time_string[4:6]
+            day = time_string[6:8]
+            hour_raw = int(time_string[9:11])
+            minute = time_string[11:13]
+        else:
+            time_string = downloaded_files
+            year = time_string[:4]
+            month = time_string[4:6]
+            day = time_string[6:8]
+            hour_raw = int(time_string[8:10])
+            minute = time_string[10:12]
+
         hour = str(hour_raw%12)
         if hour == '0':
             hour = 12
         suffix = 'pm' if hour_raw > 12 else 'am'
-        minute = time_string[11:13]
+        from time import mktime
+        struct_time = (int(year), int(month), int(day), hour_raw, int(minute), 0, 0, 0, -1)
+
+        new_time_string = strftime("%H:%M%p %m/%d/%Y ", localtime(timegm(struct_time))).lower()
+
         # print(year, month, day, hour, minute)
-        new_time_string = "{}:{}{} {}/{}/{} ".format(hour, minute, suffix, month, day, year)
+        # new_time_string = "{}:{}{} {}/{}/{} ".format(hour, minute, suffix, month, day, year)
         return new_time_string
 
     def fits_to_image(self, image_data):
         """Modify the Fits image into a nice png"""
+        print("Modifying Image...", end='', flush=True)
         full_name, save_path, time_string = image_data
 
         # Make the name strings
@@ -307,6 +368,7 @@ class Sunback:
 
         # Load the Fits File
         my_map = sunpy.map.Map(save_path)
+
         data = my_map.data
         pixels = my_map.dimensions[0].value
         dpi = pixels / inches
@@ -316,9 +378,9 @@ class Sunback:
 
         # Reject Outliers
         a = data.flatten()
-        remove_num = 3
+        remove_num = 10
         ind = np.argpartition(a, -remove_num)[-remove_num:]
-        a[ind] = np.nan
+        a[ind] = np.nanmean(a)*4
         data = a.reshape(data.shape)
 
 
@@ -327,10 +389,12 @@ class Sunback:
 
         # Annotate with Text
         buffer = '' if len(name) == 3 else '  '
-        title = "      AIA {}, {}{}".format(name, time_string, buffer)
+        buffer2 ='    ' if len(name) == 2 else ''
+        title = "{}      AIA {}, {}{}".format(buffer2, name, time_string, buffer)
+        title2 = "  AIA {}, {}".format(name, time_string)
         ax.annotate(title, (0.5, 0.95), xycoords='axes fraction', fontsize='large',
                     color='w', horizontalalignment='center')
-        ax.annotate(title, (0, 0.05), xycoords='axes fraction', fontsize='large', color='w')
+        ax.annotate(title2, (0, 0.05), xycoords='axes fraction', fontsize='large', color='w')
         the_time = strftime("%I:%M%p").lower()
         if the_time[0] == '0':
             the_time = the_time[1:]
@@ -344,6 +408,7 @@ class Sunback:
         plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
         plt.close(fig)
 
+        print("Success")
         return new_path
 
     def blankAxis(self, ax):
@@ -399,7 +464,6 @@ class Sunback:
             raise
         return 0
 
-
     # # Main Command Structure
 
     def run(self):
@@ -414,7 +478,7 @@ class Sunback:
                 self.execute()
             except (KeyboardInterrupt, SystemExit):
                 print("\n\nOk, I'll Stop.\n")
-                exit(0)
+                sys.exit(0)
             except Exception as error:
                 fail_count += 1
                 if fail_count < fail_max:
@@ -422,7 +486,7 @@ class Sunback:
                     continue
                 else:
                     print("Too Many Failures, I Quit!")
-                    exit(1)
+                    sys.exit(1)
 
     def debug(self):
         """Run the program in a way that will break"""
@@ -451,8 +515,8 @@ class Sunback:
         # Gather Data + Print
         self.params.start_time = time()
         this_name = self.fido_get_name_by_index(ii)
-        if '94' in this_name and self.params.is_first_run: return
-        print("Image: {}, at {}".format(this_name, asctime()))
+        # if '94' in this_name and self.params.is_first_run: return
+        print("Image: {}".format(this_name))
 
         # Download the Image
         image_data = self.fido_retrieve_by_index(ii)
@@ -482,7 +546,7 @@ def run(delay=30, resolution=2048, debug=False):
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run(15, debug=debug)
+    run(1, debug=debug)
 
 
 
@@ -529,7 +593,7 @@ if __name__ == "__main__":
     #                 self.loop(wave, web_path)
     #             except (KeyboardInterrupt, SystemExit):
     #                 print("\n\nOk, I'll Stop.\n")
-    #                 exit(0)
+    #                 sys.exit(0)
     #             except Exception as error:
     #                 print("Failure!")
     #                 fail_count += 1
@@ -538,7 +602,7 @@ if __name__ == "__main__":
     #                     continue
     #                 else:
     #                     print("Too Many Failures, I Quit!")
-    #                     exit(1)
+    #                     sys.exit(1)
     # def debug_old(self):
     #     """Run the program in a way that will break"""
     #     self.print_header()
