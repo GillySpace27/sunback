@@ -345,7 +345,9 @@ class Sunback:
         from time import mktime
         struct_time = (int(year), int(month), int(day), hour_raw, int(minute), 0, 0, 0, -1)
 
-        new_time_string = strftime("%H:%M%p %m/%d/%Y ", localtime(timegm(struct_time))).lower()
+        new_time_string = strftime("%I:%M%p %m/%d/%Y ", localtime(timegm(struct_time))).lower()
+        if new_time_string[0] == '0':
+            new_time_string[0] = ''
 
         # print(year, month, day, hour, minute)
         # new_time_string = "{}:{}{} {}/{}/{} ".format(hour, minute, suffix, month, day, year)
