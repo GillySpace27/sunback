@@ -347,7 +347,7 @@ class Sunback:
 
         new_time_string = strftime("%I:%M%p %m/%d/%Y ", localtime(timegm(struct_time))).lower()
         if new_time_string[0] == '0':
-            new_time_string[0] = ''
+            new_time_string = new_time_string[1:]
 
         # print(year, month, day, hour, minute)
         # new_time_string = "{}:{}{} {}/{}/{} ".format(hour, minute, suffix, month, day, year)
