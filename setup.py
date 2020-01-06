@@ -45,12 +45,12 @@ setup(
     setup_requires=[] + pytest_runner,
 
     # Required packages, pulls from pip if needed; do not use for Conda deployment
-    install_requires=["sunpy[net]", "matplotlib"],
+    install_requires=["sunpy[net]", "matplotlib", "twine"],
 
     platforms=['Windows'],            # Valid platforms your code works on, adjust to your flavor
                                         #'Linux','Mac OS-X','Unix',
 
-    python_requires=">=3.0",          # Python version restrictions
+    python_requires=">=3.0,<3.8",          # Python version restrictions
 
     classifiers=[
         # How mature is this project? Common values are

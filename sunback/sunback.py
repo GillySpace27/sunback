@@ -498,8 +498,8 @@ class Sunback:
     def print_header(self):
         print("\nSunback: Live SDO Background Updater \nWritten by Chris R. Gilly")
         print("Check out my website: http://gilly.space\n")
-        print("Delay: {} Seconds".format(self.params.background_update_delay_seconds))
-        print("Resolution: {}\n".format(self.params.resolution))
+        print("Delay: {} Seconds\n".format(self.params.background_update_delay_seconds))
+        # print("Resolution: {}\n".format(self.params.resolution))
 
         if debug:
             print("DEBUG MODE\n")
@@ -546,7 +546,7 @@ def run(delay=30, resolution=2048, debug=False):
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run(1, debug=debug)
+    run(30, debug=debug)
 
 
 
