@@ -380,7 +380,7 @@ class Sunback:
 
         # Reject Outliers
         a = data.flatten()
-        remove_num = 10
+        remove_num = 2
         ind = argpartition(a, -remove_num)[-remove_num:]
         a[ind] = nanmean(a)*4
         data = a.reshape(data.shape)
@@ -517,7 +517,7 @@ class Sunback:
         # Gather Data + Print
         self.params.start_time = time()
         this_name = self.fido_get_name_by_index(ii)
-        # if '94' in this_name and self.params.is_first_run: return
+        if '94' in this_name and self.params.is_first_run: return
         print("Image: {}".format(this_name))
 
         # Download the Image
@@ -535,7 +535,7 @@ class Sunback:
         print('')
 
 
-def run(delay=30, resolution=2048, debug=False):
+def run(delay=20, resolution=2048, debug=False):
     p = Parameters()
     p.set_update_delay_seconds(delay)
     p.set_download_resolution(resolution)
@@ -548,7 +548,7 @@ def run(delay=30, resolution=2048, debug=False):
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run(30, debug=debug)
+    run(20, debug=debug)
 
 
 
