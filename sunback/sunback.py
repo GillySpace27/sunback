@@ -149,7 +149,8 @@ class Parameters:
     @staticmethod
     def discover_best_default_directory():
         """Determine where to store the images"""
-        subdirectory_name = r"data\images"
+
+        subdirectory_name = join("data", "images")
         if __file__ in globals():
             directory = join(dirname(abspath(__file__)), subdirectory_name)
         else:
@@ -442,6 +443,7 @@ class Sunback:
         """
         print("Updating Background...", end='', flush=True)
         assert isinstance(local_path, str)
+        local_path = normpath(local_path)
 
         import platform
         this_system = platform.system()
@@ -455,8 +457,8 @@ class Sunback:
                 app('Finder').desktop_picture.set(mactypes.File(local_path))
             elif this_system == "Linux":
                 import os
-                os.system(
-                    "/usr/bin/gsettings set org.gnome.desktop.background picture-uri {}".format(local_path))
+                command ="/usr/bin/gsettings set org.gnome.desktop.background picture-uri {}".format(local_path)
+                os.system(command)
             else:
                 raise OSError("Operating System Not Supported")
 
