@@ -19,7 +19,7 @@ from sunpy.net import Fido, attrs as a
 import sunpy.cm
 import sunpy.map
 
-debug = False
+debug = True
 
 
 class Parameters:
@@ -462,7 +462,6 @@ class Sunback:
                 os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-uri {}".format(local_path))
             else:
                 raise OSError("Operating System Not Supported")
-
             print("Success")
         except:
             print("Failed")
