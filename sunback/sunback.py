@@ -19,7 +19,7 @@ from sunpy.net import Fido, attrs as a
 import sunpy.cm
 import sunpy.map
 
-debug = True
+debug = False
 
 
 class Parameters:
@@ -185,12 +185,37 @@ class Parameters:
             fps = 10
             for ii in (range(int(fps * delay))):
                 sleep(1 / fps)
+                # self.check_for_skip()
 
             print("Done")
 
     def sleep_until_delay_elapsed(self):
         """ Make sure that the loop takes the right amount of time """
         self.wait_if_required(self.determine_delay())
+
+    # def check_for_skip(self):
+    #
+    #     import curses
+    #     import os
+    #
+    #     def main(win):
+    #         win.nodelay(True)
+    #         key = ""
+    #         win.clear()
+    #         win.addstr("Detected key:")
+    #         while 1:
+    #             try:
+    #                 key = win.getkey()
+    #                 win.clear()
+    #                 win.addstr("Detected key:")
+    #                 win.addstr(str(key))
+    #                 if key == os.linesep:
+    #                     break
+    #             except Exception as e:
+    #                 # No input
+    #                 pass
+    #
+    #     curses.wrapper(main)
 
 
 class Sunback:
@@ -452,6 +477,8 @@ class Sunback:
             if this_system == "Windows":
                 import ctypes
                 ctypes.windll.user32.SystemParametersInfoW(20, 0, local_path, 0)
+                # ctypes.windll.user32.SystemParametersInfoW(19, 0, 'Fill', 0)
+
             elif this_system == "Darwin":
                 from appscript import app, mactypes
                 app('Finder').desktop_picture.set(mactypes.File(local_path))
@@ -519,7 +546,9 @@ class Sunback:
         # Gather Data + Print
         self.params.start_time = time()
         this_name = self.fido_get_name_by_index(ii)
-        if '94' in this_name and self.params.is_first_run: return
+        if '94' in this_name and self.params.is_first_run:
+            return
+
         print("Image: {}".format(this_name))
 
         # Download the Image
