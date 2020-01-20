@@ -457,8 +457,9 @@ class Sunback:
                 app('Finder').desktop_picture.set(mactypes.File(local_path))
             elif this_system == "Linux":
                 import os
-                command ="/usr/bin/gsettings set org.gnome.desktop.background picture-uri {}".format(local_path)
-                os.system(command)
+                os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-options 'scaled'")
+                os.system("/usr/bin/gsettings set org.gnome.desktop.background primary-color 'black'")
+                os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-uri {}".format(local_path))
             else:
                 raise OSError("Operating System Not Supported")
 
