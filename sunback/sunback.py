@@ -19,7 +19,7 @@ from sunpy.net import Fido, attrs as a
 import sunpy.cm
 import sunpy.map
 
-debug = False
+debugg = False
 
 
 class Parameters:
@@ -499,7 +499,7 @@ class Sunback:
 
     def run(self):
         """Run the program in a way that won't break"""
-        self.print_header()
+        self.print_header(debug=False)
 
         fail_count = 0
         fail_max = 10
@@ -521,12 +521,12 @@ class Sunback:
 
     def debug(self):
         """Run the program in a way that will break"""
-        self.print_header()
+        self.print_header(debug=True)
 
         while True:
             self.execute()
 
-    def print_header(self):
+    def print_header(self, debug):
         print("\nSunback: Live SDO Background Updater \nWritten by Chris R. Gilly")
         print("Check out my website: http://gilly.space\n")
         print("Delay: {} Seconds\n".format(self.params.background_update_delay_seconds))
@@ -579,7 +579,7 @@ def run(delay=20, resolution=2048, debug=False):
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run(20, debug=debug)
+    run(20, debug=debugg)
 
 
 
