@@ -80,7 +80,7 @@ setup(
 
         # Platforms
         'Operating System :: Microsoft :: Windows',
-        'Operating System :: POSIX'
+        'Operating System :: POSIX',
         'Operating System :: MacOS',
     ]
 
