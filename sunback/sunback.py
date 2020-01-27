@@ -7,16 +7,18 @@ Then it sets each of the images to the desktop background in series.
 Handles the primary functions
 """
 
-from time import localtime, altzone, timezone, strftime, sleep, time, asctime
+from time import localtime, timezone, strftime, sleep, time
+from urllib.request import urlretrieve
 from os import getcwd, makedirs, rename, remove
 from os.path import normpath, abspath, join, dirname, exists
 from calendar import timegm
 import sys
 from numpy import sqrt, argpartition, nanmean, abs
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 from sunpy.net import Fido, attrs as a
-import sunpy.cm
+import sunpy.visualization.colormaps
 import sunpy.map
 
 debugg = False
@@ -80,7 +82,7 @@ class Parameters:
         self.append_to_web_paths(new_web_path_1, 'PFSS')
 
         # Select File Ending
-        self.set_file_ending("{}_Now.jpg")
+        self.set_file_ending("{}_Now.png")
 
         return 0
 
@@ -179,15 +181,13 @@ class Parameters:
             pass
         else:
             # print("Took {:0.1f} seconds. ".format(self.run_time_offset), end='')
-            print("Waiting for {:0.0f} seconds ({} total)... ".format(delay, self.background_update_delay_seconds),
-                  end='', flush=True)
+            print("Waiting for {:0.0f} seconds ({} total)".format(delay, self.background_update_delay_seconds),
+                  flush=True)
 
             fps = 10
             for ii in (range(int(fps * delay))):
                 sleep(1 / fps)
                 # self.check_for_skip()
-
-            print("Done")
 
     def sleep_until_delay_elapsed(self):
         """ Make sure that the loop takes the right amount of time """
@@ -229,6 +229,7 @@ class Sunback:
     """
     def __init__(self, parameters=None):
         """Initialize a new parameter object or use the provided one"""
+        self.indexNow = 0
         if parameters:
             self.params = parameters
         else:
@@ -242,33 +243,48 @@ class Sunback:
 
     # # Image Stuff
 
-    def fido_search(self):
+    def fido_search_hmi(self):
         """ Find the Most Recent Images """
 
-        minute_range = 18
+        minute_range = 6215
         self.fido_num = 0
 
-        while not 3 < self.fido_num < 13:
+        min_num = 1
+        max_num = 1
+
+        while True:
             # Define Time Range
             fmt_str = '%Y/%m/%d %H:%M'
             early = strftime(fmt_str, localtime(time() - minute_range*60 + timezone))
             now = strftime(fmt_str, localtime(time() + timezone))
 
             # Find Results
-            self.fido_result = Fido.search(a.Time(early, now), a.Instrument('aia'))
+            # print(early, now)
+            print(minute_range)
+            #            # self.fido_result = Fido.search(a.Time(early, now), a.Instrument('LASCO'), a.Detector('C3'))
+
+            # self.fido_result = Fido.search(a.Time(early, now), a.Instrument('LASCO'), a.Detector('C3'))
+            self.fido_result = Fido.search(a.Time(early, now),
+                                           a.Instrument('hmi'),
+                                           a.vso.Physobs('LOS_magnetic_field'))
+            # self.fido_result = Fido.search(a.Instrument('HMI'))
             self.fido_num = self.fido_result.file_num
 
+            print(self.fido_result)
             # Change time range if wrong number of records
-            if self.fido_num > 13:
-                minute_range -= 2
-            elif self.fido_num < 3:
-                minute_range += 2
 
-            if self.fido_num == 0:
+            # if minute_range > 200:
+            #     raise sys.exit(1)
+            if self.fido_num > max_num:
+                minute_range -= 1
+                continue
+            if self.fido_num < min_num:
+                minute_range += 1
                 continue
 
             self.this_time = int(self.fido_result.get_response(0)[0].time.start)
             self.new_images = self.last_time < self.this_time
+            break
 
         if self.new_images:
             print("Search Found {} new images at {}\n".format(self.fido_num, self.parse_time_string(str(self.this_time),2)), flush=True)
@@ -280,6 +296,59 @@ class Sunback:
         with open(self.params.time_file, 'w') as fp:
             fp.write(str(self.this_time)+'\n')
             fp.write(str(self.fido_num)+'\n')
+            fp.write(str(self.fido_result.get_response(0)))
+
+    def fido_search(self):
+        """ Find the Most Recent Images """
+
+        self.fido_num = 0
+        tries = 0
+        minute_range = 18
+
+        max_tries = 15
+        min_num = 3
+        max_num = 13
+
+        while True:
+            #
+            if tries > max_tries:
+                raise FileNotFoundError
+
+            # Define Time Range
+            fmt_str = '%Y/%m/%d %H:%M'
+            early = strftime(fmt_str, localtime(time() - minute_range * 60 + timezone))
+            now = strftime(fmt_str, localtime(time() + timezone))
+
+            # Find Results
+            self.fido_result = Fido.search(a.Time(early, now), a.Instrument('aia'))
+            self.fido_num = self.fido_result.file_num
+
+            # Change time range if wrong number of records
+            if self.fido_num > max_num:
+                tries += 1
+                minute_range -= 1
+                continue
+            if self.fido_num < min_num:
+                tries += 1
+                minute_range += 1
+                continue
+
+            self.this_time = int(self.fido_result.get_response(0)[0].time.start)
+            self.new_images = self.last_time < self.this_time
+            break
+
+        if self.new_images:
+            print("Search Found {} new images at {}\n".format(self.fido_num,
+                                                              self.parse_time_string(str(self.this_time), 2)),
+                  flush=True)
+        else:
+            print("No New Images, using Cached Data\n")
+
+        self.last_time = self.this_time
+
+        with open(self.params.time_file, 'w') as fp:
+            fp.write(str(self.this_time) + '\n')
+            fp.write(str(self.fido_num) + '\n')
             fp.write(str(self.fido_result.get_response(0)))
 
     def fido_retrieve_by_index(self, ind):
@@ -389,17 +458,10 @@ class Sunback:
         while name[0] == '0':
             name = name[1:]
 
-        # Create the Figure
-        fig, ax = plt.subplots()
-        inches = 10
-        fig.set_size_inches((inches,inches))
-
         # Load the Fits File
         my_map = sunpy.map.Map(save_path)
-
         data = my_map.data
-        pixels = my_map.dimensions[0].value
-        dpi = pixels / inches
+        # pixels = my_map.dimensions[0].value
 
         # Modify the data
         data = sqrt(abs(data))
@@ -411,27 +473,54 @@ class Sunback:
         a[ind] = nanmean(a)*4
         data = a.reshape(data.shape)
 
-
         # Plot the Data
-        plt.imshow(data, cmap='sdoaia{}'.format(name), origin='lower', interpolation=None)
+        new_path = self.plot_and_save( data, name, time_string, save_path)
+
+        return new_path
+
+    def plot_and_save(self, data, name, time_string, save_path):
+        # Create the Figure
+        fig, ax = plt.subplots()
+        self.blankAxis(ax)
+
+        inches = 10
+        fig.set_size_inches((inches,inches))
+
+        pixels = data.shape[0]
+        dpi = pixels / inches
+
+
+        if 'hmi' in name.casefold():
+            inst = ""
+            plt.imshow(data, origin='upper', interpolation=None)
+            # plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.1)
+            plt.tight_layout(pad=5.5)
+            height = 1.05
+
+        else:
+            inst = '  AIA'
+            plt.imshow(data, cmap='sdoaia{}'.format(name), origin='lower', interpolation=None)
+            plt.tight_layout(pad=0)
+            height = 0.95
 
         # Annotate with Text
         buffer = '' if len(name) == 3 else '  '
         buffer2 ='    ' if len(name) == 2 else ''
-        title = "{}      AIA {}, {}{}".format(buffer2, name, time_string, buffer)
-        title2 = "  AIA {}, {}".format(name, time_string)
-        ax.annotate(title, (0.5, 0.95), xycoords='axes fraction', fontsize='large',
+
+
+        title = "{}    {} {}, {}{}".format(buffer2, inst, name, time_string, buffer)
+        title2 = "{} {}, {}".format(inst, name, time_string)
+        ax.annotate(title, (0.5, height), xycoords='axes fraction', fontsize='large',
                     color='w', horizontalalignment='center')
         ax.annotate(title2, (0, 0.05), xycoords='axes fraction', fontsize='large', color='w')
         the_time = strftime("%I:%M%p").lower()
         if the_time[0] == '0':
             the_time = the_time[1:]
-        ax.annotate(the_time, (0.5, 0.97), xycoords='axes fraction', fontsize='large',
+        ax.annotate(the_time, (0.5, height + 0.02), xycoords='axes fraction', fontsize='large',
                     color='w', horizontalalignment='center')
 
         # Format the Plot and Save
         self.blankAxis(ax)
-        plt.tight_layout(pad=0)
         new_path = save_path[:-5]+".png"
         plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
         plt.close(fig)
@@ -513,7 +602,7 @@ class Sunback:
             except Exception as error:
                 fail_count += 1
                 if fail_count < fail_max:
-                    print("I failed, but I'm ignoring it. Count: {}/{}".format(fail_count, fail_max))
+                    print("I failed, but I'm ignoring it. Count: {}/{}\n\n".format(fail_count, fail_max))
                     continue
                 else:
                     print("Too Many Failures, I Quit!")
@@ -537,8 +626,14 @@ class Sunback:
 
     def execute(self):
         self.fido_search()
-        for ii in range(self.fido_num):
-            self.loop(ii)
+        while self.indexNow < self.fido_num:
+            self.loop(self.indexNow)
+            self.indexNow += 1
+        self.do_HMI()
+        self.do_HMI_white()
+
+        self.indexNow = 0
+
 
     def loop(self, ii):
         """The Main Loop"""
@@ -547,6 +642,9 @@ class Sunback:
         self.params.start_time = time()
         this_name = self.fido_get_name_by_index(ii)
         if '94' in this_name and self.params.is_first_run:
+            return
+        if '4500' in this_name:
+            # print("skipping")
             return
 
         print("Image: {}".format(this_name))
@@ -565,8 +663,93 @@ class Sunback:
 
         print('')
 
+    def do_HMI(self):
+        """The Secondary Loop"""
 
-def run(delay=20, resolution=2048, debug=False):
+        web_path = "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_HMIBC.jpg"
+
+        self.params.start_time = time()
+
+        print("Image: {}".format('HMIBC'))
+        # Define the Image
+        self.hmi_path = normpath(join(self.params.local_directory, "HMIBC_Now.jpg"))
+
+        # Download the Image
+        self.download_image(self.hmi_path, web_path)
+
+        # Modify the Image
+        print("Modifying Image...", end="")
+        new_path = self.plot_and_save(mpimg.imread(self.hmi_path), 'HMI', "Magnetic Field", self.hmi_path)
+
+        # Wait for a bit
+        self.params.sleep_until_delay_elapsed()
+
+        # Update the Background
+        self.update_background(new_path)
+
+        print('')
+
+    def do_HMI_white(self):
+        """The Secondary Loop"""
+
+        web_path = "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_HMIIF.jpg"
+
+        self.params.start_time = time()
+
+        print("Image: {}".format('HMIF'))
+        # Define the Image
+        self.hmi_path = normpath(join(self.params.local_directory, "HMIF_Now.jpg"))
+
+        # Download the Image
+        self.download_image(self.hmi_path, web_path)
+
+        # Modify the Image
+        print("Modifying Image...", end="")
+        new_path = self.plot_and_save(mpimg.imread(self.hmi_path), 'HMI', "White Light", self.hmi_path)
+
+        # Wait for a bit
+        self.params.sleep_until_delay_elapsed()
+
+        # Update the Background
+        self.update_background(new_path)
+
+        print('')
+
+
+    def download_image(self, local_path, web_path):
+        """
+        Download an image and save it to file
+
+        Go to the internet and download an image
+
+        Parameters
+        ----------
+        web_path : str
+            The web location of the image
+
+        local_path : str
+            The local save location of the image
+        """
+        tries = 3
+
+        for ii in range(tries):
+            try:
+                print("Downloading Image...", end='', flush=True)
+                urlretrieve(web_path, local_path)
+                print("Success", flush=True)
+                return 0
+            except KeyboardInterrupt:
+                raise
+            except Exception as exp:
+                print("Failed {} Time(s).".format(ii + 1), flush=True)
+                if ii == tries - 1:
+                    raise exp
+
+
+
+
+
+def run(delay=10, resolution=2048, debug=False):
     p = Parameters()
     p.set_update_delay_seconds(delay)
     p.set_download_resolution(resolution)
@@ -581,68 +764,7 @@ if __name__ == "__main__":
     # Do something if this file is invoked on its own
     run(20, debug=debugg)
 
-
-
-
-
-
-
-
-
-
-
-    # def loop_old(self, wave, web_path):
-    #     """The Main Loop"""
-    #     self.params.start_time = time()
-    #     print("Image: {}, at {}".format(wave, asctime()))
-    #     # Define the Image
-    #     local_path = self.params.get_local_path(wave)
     #
-    #     # Download the Image
-    #     self.download_image(local_path, web_path)
-    #
-    #     # Modify the Image
-    #     self.modify_image(local_path, wave, self.params.resolution)
-    #
-    #     # Wait for a bit
-    #     self.params.sleep_until_delay_elapsed(wave)
-    #
-    #     # Update the Background
-    #     self.update_background(local_path)
-    #
-    #     print('')
-    #
-    #     # print("\n----->>>>>Cycle {:0.1f} seconds\n".format(time()-self.params.start_time))
-    # def run_old(self):
-    #     """Run the program in a way that won't break"""
-    #     self.print_header()
-    #
-    #     fail_count = 0
-    #     fail_max = 10
-    #
-    #     while True:
-    #         for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
-    #             try:
-    #                 self.loop(wave, web_path)
-    #             except (KeyboardInterrupt, SystemExit):
-    #                 print("\n\nOk, I'll Stop.\n")
-    #                 sys.exit(0)
-    #             except Exception as error:
-    #                 print("Failure!")
-    #                 fail_count += 1
-    #                 if fail_count < fail_max:
-    #                     print("I failed, but I'm ignoring it. Count: {}/{}".format(fail_count, fail_max))
-    #                     continue
-    #                 else:
-    #                     print("Too Many Failures, I Quit!")
-    #                     sys.exit(1)
-    # def debug_old(self):
-    #     """Run the program in a way that will break"""
-    #     self.print_header()
-    #
-    #     while True:
-    #         for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
-    #             self.loop(wave, web_path)
     # @staticmethod
     # def modify_image(local_path, wave, resolution):
     #     """
@@ -741,35 +863,61 @@ if __name__ == "__main__":
     #     #     print("Failed");
     #     #     return 1
     #     return 0
+
+    # def loop_old(self, wave, web_path):
+    #     """The Main Loop"""
+    #     self.params.start_time = time()
+    #     print("Image: {}, at {}".format(wave, asctime()))
+    #     # Define the Image
+    #     local_path = self.params.get_local_path(wave)
     #
-    # def download_image(self, local_path, web_path):
-    #     """
-    #     Download an image and save it to file
+    #     # Download the Image
+    #     self.download_image(local_path, web_path)
     #
-    #     Go to the internet and download an image
+    #     # Modify the Image
+    #     self.modify_image(local_path, wave, self.params.resolution)
     #
-    #     Parameters
-    #     ----------
-    #     web_path : str
-    #         The web location of the image
+    #     # Wait for a bit
+    #     self.params.sleep_until_delay_elapsed(wave)
     #
-    #     local_path : str
-    #         The local save location of the image
-    #     """
-    #     tries = 3
+    #     # Update the Background
+    #     self.update_background(local_path)
     #
-    #     for ii in range(tries):
-    #         try:
-    #             print("Downloading Image...", end='', flush=True)
-    #             urlretrieve(web_path, local_path)
-    #             print("Success", flush=True)
-    #             return 0
-    #         except KeyboardInterrupt:
-    #             raise
-    #         except Exception as exp:
-    #             print("Failed {} Time(s).".format(ii + 1), flush=True)
-    #             if ii == tries-1:
-    #                 raise exp
+    #     print('')
+    #
+    #     # print("\n----->>>>>Cycle {:0.1f} seconds\n".format(time()-self.params.start_time))
+    # def run_old(self):
+    #     """Run the program in a way that won't break"""
+    #     self.print_header()
+    #
+    #     fail_count = 0
+    #     fail_max = 10
+    #
+    #     while True:
+    #         for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
+    #             try:
+    #                 self.loop(wave, web_path)
+    #             except (KeyboardInterrupt, SystemExit):
+    #                 print("\n\nOk, I'll Stop.\n")
+    #                 sys.exit(0)
+    #             except Exception as error:
+    #                 print("Failure!")
+    #                 fail_count += 1
+    #                 if fail_count < fail_max:
+    #                     print("I failed, but I'm ignoring it. Count: {}/{}".format(fail_count, fail_max))
+    #                     continue
+    #                 else:
+    #                     print("Too Many Failures, I Quit!")
+    #                     sys.exit(1)
+    # def debug_old(self):
+    #     """Run the program in a way that will break"""
+    #     self.print_header()
+    #
+    #     while True:
+    #         for wave, web_path in zip(self.params.use_wavelengths, self.params.web_paths):
+    #             self.loop(wave, web_path)
+
+
 
     # def fido_retrieve_all(self):
     #     """Retrieve all searched results and save them to file"""

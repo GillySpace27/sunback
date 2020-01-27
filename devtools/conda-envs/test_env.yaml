@@ -9,7 +9,8 @@ dependencies:
   - astropy
   - pathlib
   - numpy
-  - sunpy
+  - sunpy[net]
+  - pillow
 #  - appscript
 
     # Testing

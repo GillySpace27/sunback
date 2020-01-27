@@ -45,7 +45,7 @@ setup(
     setup_requires=[] + pytest_runner,
 
     # Required packages, pulls from pip if needed; do not use for Conda deployment
-    install_requires=["sunpy[net]", "matplotlib", "twine"],
+    install_requires=["sunpy[net]", "matplotlib", "twine", "pillow"],
 
     platforms=['Windows', 'Linux', 'Mac OS-X'],            # Valid platforms your code works on, adjust to your flavor
                                         #'Linux','Mac OS-X','Unix',
