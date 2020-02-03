@@ -46,6 +46,7 @@ class Parameters:
         self.file_ending = None
         self.run_time_offset = None
         self.time_file = None
+        self.debug_mode = False
 
         self.start_time = time()
         self.is_first_run = True
@@ -182,16 +183,24 @@ class Parameters:
         else:
             # print("Took {:0.1f} seconds. ".format(self.run_time_offset), end='')
             print("Waiting for {:0.0f} seconds ({} total)".format(delay, self.background_update_delay_seconds),
-                  flush=True)
+                  flush=True, end='')
 
-            fps = 10
+            fps = 3
             for ii in (range(int(fps * delay))):
                 sleep(1 / fps)
+                print('.', end='')
                 # self.check_for_skip()
+            print('Done')
 
     def sleep_until_delay_elapsed(self):
         """ Make sure that the loop takes the right amount of time """
         self.wait_if_required(self.determine_delay())
+
+    def is_debug(self, debug=None):
+        if debug is not None:
+            self.debug_mode=debug
+        return self.debug_mode
+
 
     # def check_for_skip(self):
     #
@@ -305,14 +314,13 @@ class Sunback:
         tries = 0
         minute_range = 18
 
-        max_tries = 15
+        max_tries = 20 if self.params.is_debug() else 10
         min_num = 3
         max_num = 13
 
         while True:
-            #
             if tries > max_tries:
-                raise FileNotFoundError
+                break
 
             # Define Time Range
             fmt_str = '%Y/%m/%d %H:%M'
@@ -322,15 +330,24 @@ class Sunback:
             # Find Results
             self.fido_result = Fido.search(a.Time(early, now), a.Instrument('aia'))
             self.fido_num = self.fido_result.file_num
-
+            if self.params.is_debug():
+                print(self.fido_num, '\t', minute_range)
             # Change time range if wrong number of records
             if self.fido_num > max_num:
-                tries += 1
-                minute_range -= 1
+                # tries += 1
+                minute_range -= 2
+                if tries > 3:
+                    if (tries - max_num) < 30:
+                        continue
+                    minute_range -= 4
                 continue
             if self.fido_num < min_num:
                 tries += 1
-                minute_range += 1
+                minute_range += 2
+                if tries > 3:
+                    minute_range += 10
+                if tries > 7:
+                    minute_range += 30
                 continue
 
             self.this_time = int(self.fido_result.get_response(0)[0].time.start)
@@ -359,7 +376,7 @@ class Sunback:
         if self.new_images:
             for ii in range(tries):
                 try:
-                    print("Downloading Image...", end='', flush=True)
+                    print("Downloading Fits Data...", end='', flush=True)
                     result = self.fido_retrieve_result(self.fido_result[0, ind])
                     print("Success", flush=True)
                     return result
@@ -368,19 +385,24 @@ class Sunback:
                 except Exception as exp:
                     print("Failed {} Time(s).".format(ii + 1), flush=True)
                     if ii == tries-1:
-                        raise exp
+                        return self.use_cached(ind)
         else:
-            print("Using Cached Data...", end='', flush=True)
-            result = self.list_files1(self.params.local_directory, 'fits')
-            print("Success", flush=True)
-            file_name = [x for x in result][ind]
-            full_name = file_name[:4]
+            return self.use_cached(ind)
 
-            with open(self.params.time_file, 'r') as fp:
-                time_stamp = fp.read()
-            time_string = self.parse_time_string(str(time_stamp), 2)
-            save_path = join(self.params.local_directory, file_name)
-            return full_name, save_path, time_string
+    def use_cached(self, ind):
+        print("Using Cached Data...", end='', flush=True)
+        result = self.list_files1(self.params.local_directory, 'fits')
+        file_name = [x for x in result][ind]
+        full_name = file_name[:4]
+
+        with open(self.params.time_file, 'r') as fp:
+            time_stamp = fp.read()
+        time_string = self.parse_time_string(str(time_stamp), 2)
+        save_path = join(self.params.local_directory, file_name)
+        print("Success", flush=True)
+        return full_name, save_path, time_string
+
+
 
     def list_files1(self, directory, extension):
         from os import listdir
@@ -410,7 +432,10 @@ class Sunback:
         if exists(save_path):
             remove(save_path)
 
-        time_string = self.parse_time_string(downloaded_files)
+        try:
+            time_string = self.parse_time_string(downloaded_files)
+        except:
+            time_string = "xxxx"
 
         rename(downloaded_files[0], save_path)
 
@@ -450,7 +475,7 @@ class Sunback:
 
     def fits_to_image(self, image_data):
         """Modify the Fits image into a nice png"""
-        print("Modifying Image...", end='', flush=True)
+        print("Generating Image...", end='', flush=True)
         full_name, save_path, time_string = image_data
 
         # Make the name strings
@@ -571,6 +596,7 @@ class Sunback:
             elif this_system == "Darwin":
                 from appscript import app, mactypes
                 app('Finder').desktop_picture.set(mactypes.File(local_path))
+
             elif this_system == "Linux":
                 import os
                 os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-options 'scaled'")
@@ -626,14 +652,12 @@ class Sunback:
 
     def execute(self):
         self.fido_search()
-        while self.indexNow < self.fido_num:
-            self.loop(self.indexNow)
+        while self.indexNow < (self.fido_num):
             self.indexNow += 1
+            self.loop(self.indexNow - 1)
+        self.indexNow = 0
         self.do_HMI()
         self.do_HMI_white()
-
-        self.indexNow = 0
-
 
     def loop(self, ii):
         """The Main Loop"""
@@ -641,19 +665,22 @@ class Sunback:
         # Gather Data + Print
         self.params.start_time = time()
         this_name = self.fido_get_name_by_index(ii)
-        if '94' in this_name and self.params.is_first_run:
-            return
+
         if '4500' in this_name:
             # print("skipping")
             return
 
         print("Image: {}".format(this_name))
 
-        # Download the Image
-        image_data = self.fido_retrieve_by_index(ii)
+        # Download the fits data
+        fits_data = self.fido_retrieve_by_index(ii)
 
-        # Modify the Image
-        image_path = self.fits_to_image(image_data)
+        if '94' in this_name and self.params.is_first_run:
+            print("Skip for Now\n")
+            return
+
+        # Generate a png image
+        image_path = self.fits_to_image(fits_data)
 
         # Wait for a bit
         self.params.sleep_until_delay_elapsed()
@@ -749,14 +776,15 @@ class Sunback:
 
 
 
-def run(delay=10, resolution=2048, debug=False):
+def run(delay=30, debug=False):
     p = Parameters()
-    p.set_update_delay_seconds(delay)
-    p.set_download_resolution(resolution)
 
     if debug:
+        p.is_debug(True)
+        p.set_update_delay_seconds(5)
         Sunback(p).debug()
     else:
+        p.set_update_delay_seconds(delay)
         Sunback(p).run()
 
 
