@@ -9,7 +9,7 @@ Handles the primary functions
 
 from time import localtime, timezone, strftime, sleep, time
 from urllib.request import urlretrieve
-from os import getcwd, makedirs, rename, remove
+from os import getcwd, makedirs, rename, remove, access, sep, W_OK
 from os.path import normpath, abspath, join, dirname, exists
 from calendar import timegm
 import sys
@@ -153,11 +153,17 @@ class Parameters:
     def discover_best_default_directory():
         """Determine where to store the images"""
 
-        subdirectory_name = join("data", "images")
+        subdirectory_name = "sunback_images"
         if __file__ in globals():
             directory = join(dirname(abspath(__file__)), subdirectory_name)
         else:
             directory = join(abspath(getcwd()), subdirectory_name)
+        # print(directory)
+        # while not access(directory, W_OK):
+        #     directory = directory.rsplit(sep)[0]
+        #
+        # print(directory)
+
         return directory
 
     def determine_delay(self):
@@ -499,7 +505,7 @@ class Sunback:
         data = a.reshape(data.shape)
 
         # Plot the Data
-        new_path = self.plot_and_save( data, name, time_string, save_path)
+        new_path = self.plot_and_save(data, name, time_string, save_path)
 
         return new_path
 
@@ -547,10 +553,16 @@ class Sunback:
         # Format the Plot and Save
         self.blankAxis(ax)
         new_path = save_path[:-5]+".png"
-        plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
+
+        try:
+            plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
+            print("Success")
+        except Exception as e:
+            print("Failed...using Cached")
+            if self.params.is_debug():
+                raise e
         plt.close(fig)
 
-        print("Success")
         return new_path
 
     def blankAxis(self, ax):
