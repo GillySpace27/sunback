@@ -45,12 +45,12 @@ setup(
     setup_requires=[] + pytest_runner,
 
     # Required packages, pulls from pip if needed; do not use for Conda deployment
-    install_requires=["pip", "pillow", "astropy", "pytesseract"],
+    install_requires=["sunpy[net]", "matplotlib", "twine", "pillow", "appscript;platform_system=='Darwin'"],
 
-    platforms=['Windows'],            # Valid platforms your code works on, adjust to your flavor
+    platforms=['Windows', 'Linux', 'Mac OS-X'],            # Valid platforms your code works on, adjust to your flavor
                                         #'Linux','Mac OS-X','Unix',
 
-    python_requires=">=3.0",          # Python version restrictions
+    python_requires=">=3.0,<3.8",          # Python version restrictions
 
     classifiers=[
         # How mature is this project? Common values are
@@ -59,7 +59,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 1 - Planning',
+        'Development Status :: 4 - Beta',
 
         # Indicate who your project is intended for
         'Intended Audience :: End Users/Desktop',
@@ -80,7 +80,8 @@ setup(
 
         # Platforms
         'Operating System :: Microsoft :: Windows',
-        'Environment :: Win32 (MS Windows)',
+        'Operating System :: POSIX',
+        'Operating System :: MacOS',
     ]
 
     # Manual control if final package is compressible or not, set False to prevent the .egg from being made

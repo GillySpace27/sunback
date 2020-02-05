@@ -6,11 +6,11 @@ dependencies:
     # Base depends
   - python
   - pip
-  - pillow
   - astropy
   - pathlib
   - numpy
-  - pytesseract
+  - sunpy[net]
+  - pillow
 #  - appscript
 
     # Testing
