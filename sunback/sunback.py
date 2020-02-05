@@ -12,14 +12,32 @@ from urllib.request import urlretrieve
 from os import getcwd, makedirs, rename, remove, access, sep, W_OK
 from os.path import normpath, abspath, join, dirname, exists
 from calendar import timegm
+import platform
 import sys
 from numpy import sqrt, argpartition, nanmean, abs
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
 from sunpy.net import Fido, attrs as a
-import sunpy.visualization.colormaps
 import sunpy.map
+
+
+this_system = platform.system()
+
+if this_system == "Windows":
+    #Windows Imports
+    import sunpy.visualization.colormaps
+
+elif this_system == "Linux":
+    #Linux Imports
+    import sunpy.visualization.colormaps
+
+elif this_system == "Darwin":
+    #Mac Imports
+    pass
+
+else:
+    raise OSError("Operating System Not Supported")
 
 debugg = False
 
@@ -596,7 +614,6 @@ class Sunback:
         assert isinstance(local_path, str)
         local_path = normpath(local_path)
 
-        import platform
         this_system = platform.system()
 
         try:
