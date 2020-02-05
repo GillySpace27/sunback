@@ -21,7 +21,6 @@ import matplotlib.image as mpimg
 from sunpy.net import Fido, attrs as a
 import sunpy.map
 
-
 this_system = platform.system()
 
 if this_system == "Windows":
