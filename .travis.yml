@@ -55,7 +55,7 @@ before_script:
   -
 script:
   - pytest -v --cov=sunback sunback/tests/
-  - bundle exec rspec
+#  - bundle exec rspec
 
 after_script:
   - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT

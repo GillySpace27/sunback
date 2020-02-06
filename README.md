@@ -28,7 +28,7 @@ python3
 import sunback as sb  
 sb.run(delay=20)  
 
-This only works on windows and linux at this time but I would love to expand it to mac as soon as I am able. Check contribute.md to see how you can help out!
+Check contribute.md to see how you can help out!
 
 ### Copyright
 
