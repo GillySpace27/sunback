@@ -41,13 +41,12 @@ install:
 
 #    # Create test environment for package
   #- python devtools/scripts/create_conda_env.py -n=test -p=$PYTHON_VER devtools/conda-envs/test_env_mac.yaml
-
+  - python devtools/conda-envs/pick_env.py
 #    # Activate the test environment
- # - conda activate test
+  - conda activate test
 
   # Build and install package
-  #- python setup.py develop
-    - pip install .
+  - python setup.py develop --no-deps
 
 before_script:
   - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
