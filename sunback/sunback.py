@@ -18,7 +18,10 @@ import platform
 import sys
 import numpy as np
 import matplotlib as mpl
-mpl.use('qt5agg')
+try:
+    mpl.use('qt5agg')
+except:
+    pass
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
