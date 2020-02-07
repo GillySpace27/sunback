@@ -11,17 +11,11 @@ language: python
 matrix:
   include:
     # Extra includes for OSX since python language is not available by default on OSX
-    - os: osx
-      language: generic
-      env: PYTHON_VER=3.6
+
     - os: osx
       language: generic
       env: PYTHON_VER=3.7
 
-
-    - os: linux
-      language: generic  # No need to set Python version since its conda
-      env: PYTHON_VER=3.6
     - os: linux
       language: generic
       env: PYTHON_VER=3.7
@@ -49,17 +43,14 @@ install:
   - python setup.py develop --no-deps
 
 before_script:
-  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
-  - chmod 777 ./cc-test-reporter
-  - ./cc-test-reporter before-build
-  -
+
+  - python devtools/conda-envs/start_coverage.py
 script:
   - pytest -v --cov=sunback sunback/tests/
 #  - bundle exec rspec
 
 after_script:
-  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
-
+  - python devtools/conda-envs/stop_coverage.py
 
 notifications:
     email: false
