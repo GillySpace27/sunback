@@ -25,6 +25,8 @@ wheels/
 /dist_old/
 /depricated/
 /sunback/data/images/
+/sunback/data/sunback_images/
+
 docs/_build
 *.egg-info/
 .installed.cfg
