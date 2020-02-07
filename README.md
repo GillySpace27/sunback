@@ -28,12 +28,13 @@ python3
 import sunback as sb  
 sb.run(delay=20, mode='a')  
 
-possible modes:
-'a' - cycle all modes
-'h' - cycle half disk modes
+New coronagraph feature added! 
+Possible modes:  
+'a' - cycle all modes  
+'h' - cycle half disk modes  
 'w' - cycle whole disk modes  
-'y' - only coronagraph mode
-'n' - no coronagraph mode
+'y' - only coronagraph mode  
+'n' - no coronagraph mode  
 
 Check contribute.md to see how you can help out!
 
