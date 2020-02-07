@@ -26,6 +26,7 @@ wheels/
 /depricated/
 /sunback/data/images/
 /sunback/data/sunback_images/
+/sunback/sunback_images/
 
 docs/_build
 *.egg-info/

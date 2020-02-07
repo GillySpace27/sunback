@@ -8,6 +8,7 @@ include sunback/_version.py
 
 prune sunback/data/images
 prune sunback/data/sunback_images
+prune sunback/sunback_images
 prune devtools
 prune sunback/.idea
 
