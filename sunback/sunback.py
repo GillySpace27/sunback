@@ -176,7 +176,7 @@ class Parameters:
     def discover_best_default_directory():
         """Determine where to store the images"""
 
-        subdirectory_name = join("data", "sunback_images")
+        subdirectory_name = "sunback_images"
         if __file__ in globals():
             directory = join(dirname(abspath(__file__)), subdirectory_name)
         else:
