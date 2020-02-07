@@ -20,7 +20,7 @@ class TestParameters(TestCase):
         self.assertFalse(sunback.Parameters().set_default_values())
 
     def test_set_update_delay_seconds(self):
-        self.real_number_test(sunback.Parameters().set_update_delay_seconds)
+        self.real_number_test(sunback.Parameters().set_delay_seconds)
 
     def test_set_time_multiplier(self):
         self.real_number_test(sunback.Parameters().set_time_multiplier)
