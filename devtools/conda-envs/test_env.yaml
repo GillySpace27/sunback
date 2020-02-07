@@ -11,7 +11,7 @@ dependencies:
   - numpy
   - sunpy[net]
   - pillow
-#  - appscript
+  - appscript;platform_system=='Darwin'
 
     # Testing
   - pytest
@@ -20,7 +20,7 @@ dependencies:
 
     # Pip-only installs
   - pip:
-      - ctypes
+      - ctypes;platform_system=='Windows'
       - urllib
       - time
 #      - mpi4py
