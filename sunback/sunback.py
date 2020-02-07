@@ -220,7 +220,7 @@ class Parameters:
             fps = 3
             for ii in (range(int(fps * delay))):
                 sleep(1 / fps)
-                print('.', end='')
+                print('.', end='', flush=True)
                 # self.check_for_skip()
             print('Done')
 
