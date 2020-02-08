@@ -267,7 +267,7 @@ class Sunback:
         self.fido_result = None
         self.fido_num = None
         self.renew_mask = True
-        self.mask_num = [2]
+        self.mask_num = [1, 2]
 
     # # Main Command Structure
     def start(self):
