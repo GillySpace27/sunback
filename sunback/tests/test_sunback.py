@@ -23,7 +23,7 @@ class TestSunback(TestCase):
 
     def test_update_background(self):
         local_path = "tests/test_171.jpg"
-        self.assertFalse(sunback.Sunback().update_background(local_path))
+        self.assertFalse(sunback.Sunback().update_background(local_path, test=True))
 
     # def test_modify_image(self):
     #     self.fail()

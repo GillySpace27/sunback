@@ -686,7 +686,7 @@ class Sunback:
         return new_path
 
     @staticmethod
-    def update_background(local_path):
+    def update_background(local_path, test=False):
         """
         Update the System Background
 
@@ -709,7 +709,13 @@ class Sunback:
 
             elif this_system == "Darwin":
                 from appscript import app, mactypes
-                app('Finder').desktop_picture.set(mactypes.File(local_path))
+                try:
+                    app('Finder').desktop_picture.set(mactypes.File(local_path))
+                except Exception as e:
+                    if test:
+                        pass
+                    else:
+                        raise e
 
             elif this_system == "Linux":
                 import os
@@ -719,9 +725,9 @@ class Sunback:
             else:
                 raise OSError("Operating System Not Supported")
             print("Success")
-        except:
+        except Exception as e:
             print("Failed")
-            raise
+            raise e
         return 0
 
 
