@@ -294,8 +294,8 @@ class Sunback:
             try:
                 self.execute()
             except (KeyboardInterrupt, SystemExit):
-                print("\n\nOk, I'll Stop.\n")
-                sys.exit(0)
+                print("\n\nOk, I'll Stop. Doot!\n")
+                break
             except Exception as error:
                 fail_count += 1
                 if fail_count < fail_max:
@@ -321,8 +321,8 @@ class Sunback:
             self.indexNow += 1
             self.run_AIA(self.indexNow - 1)
         if self.params.do_HMI():
-            self.run_HMI()
             self.indexNow = 0
+            self.run_HMI()
             self.run_HMI_white()
         self.indexNow = 0
 
@@ -336,9 +336,16 @@ class Sunback:
 
         if '4500' in this_name:
             return
-        if '94' in this_name and self.params.is_first_run:
+        if this_name in ['0094', '0131'] and self.params.is_first_run:
             # print("Skip for Now\n")
             return
+
+        if self.params.is_debug():
+            if this_name in ['1600', '1700']:
+                return
+
+        # if this_name not in ['211']:
+        #     return
 
         print("Image: {}".format(this_name))
 
@@ -369,7 +376,7 @@ class Sunback:
 
         # Modify the Image
         print("Modifying Image...", end="")
-        new_path = self.plot_and_save(mpimg.imread(self.hmi_path), ('HMI', self.hmi_path, "Magnetic Field", -1))
+        new_path = self.plot_and_save(mpimg.imread(self.hmi_path), ('HMI', self.hmi_path, "Magnetic Field", -1), None)
 
         # Wait for a bit
         self.params.sleep_until_delay_elapsed()
@@ -449,57 +456,85 @@ class Sunback:
 
         while True:
             if tries > max_tries:
+                self.new_images = False
                 break
+            try:
+                # Define Time Range
+                fmt_str = '%Y/%m/%d %H:%M'
+                early = strftime(fmt_str, localtime(time() - minute_range * 60 + timezone))
+                now = strftime(fmt_str, localtime(time() + timezone))
 
-            # Define Time Range
-            fmt_str = '%Y/%m/%d %H:%M'
-            early = strftime(fmt_str, localtime(time() - minute_range * 60 + timezone))
-            now = strftime(fmt_str, localtime(time() + timezone))
+                # Find Results
+                self.fido_result = Fido.search(a.Time(early, now), a.Instrument('aia'))
+                self.fido_num = self.fido_result.file_num
+                if self.params.is_debug():
+                    print(self.fido_num, '\t', minute_range)
+                # Change time range if wrong number of records
+                if self.fido_num > max_num:
+                    # tries += 1
+                    minute_range -= 2
+                    if tries > 3:
+                        if (tries - max_num) < 30:
+                            continue
+                        minute_range -= 4
+                    continue
+                if self.fido_num < min_num:
+                    tries += 1
+                    minute_range += 2
+                    if tries > 3:
+                        minute_range += 10
+                    if tries > 7:
+                        minute_range += 30
+                    continue
 
-            # Find Results
-            self.fido_result = Fido.search(a.Time(early, now), a.Instrument('aia'))
-            self.fido_num = self.fido_result.file_num
-            if self.params.is_debug():
-                print(self.fido_num, '\t', minute_range)
-            # Change time range if wrong number of records
-            if self.fido_num > max_num:
-                # tries += 1
-                minute_range -= 2
-                if tries > 3:
-                    if (tries - max_num) < 30:
-                        continue
-                    minute_range -= 4
-                continue
-            if self.fido_num < min_num:
-                tries += 1
-                minute_range += 2
-                if tries > 3:
-                    minute_range += 10
-                if tries > 7:
-                    minute_range += 30
-                continue
-
-            self.this_time = int(self.fido_result.get_response(0)[0].time.start)
-            self.new_images = self.last_time < self.this_time
-            break
+                self.this_time = int(self.fido_result.get_response(0)[0].time.start)
+                self.new_images = self.last_time < self.this_time
+                break
+            except ConnectionError:
+                self.new_images = False
+                break
 
         if self.new_images:
             print("Search Found {} new images at {}\n".format(self.fido_num,
-                                                              self.parse_time_string(str(self.this_time), 2)),
-                  flush=True)
+                                                              self.parse_time_string(str(self.this_time), 2)), flush=True)
+            self.last_time = self.this_time
+
+            with open(self.params.time_file, 'w') as fp:
+                fp.write(str(self.this_time) + '\n')
+                fp.write(str(self.fido_num) + '\n')
+                fp.write(str(self.fido_result.get_response(0)))
         else:
             print("No New Images, using Cached Data\n")
+            self.fido_result = []
 
-        self.last_time = self.this_time
+            with open(self.params.time_file, 'r') as fp:
+                self.this_time = int(fp.readline())
+                self.fido_num = int(fp.readline())
+                fp.readline()
+                fp.readline()
+                fp.readline()
+                while True:
+                    line = fp.readline()
+                    self.fido_result.append(line)
+                    if len(line) == 0:
+                        break
+                # print(self.fido_result)
+# fp.write(str(self.this_time) + '\n')
+                # fp.write(str(self.fido_num) + '\n')
+                # fp.write(str(self.fido_result.get_response(0)))
 
-        with open(self.params.time_file, 'w') as fp:
-            fp.write(str(self.this_time) + '\n')
-            fp.write(str(self.fido_num) + '\n')
-            fp.write(str(self.fido_result.get_response(0)))
+
 
     def fido_get_name_by_index(self, ind):
         self.params.start_time = time()
-        name = self.fido_result[0, ind].get_response(0)[0].wave.wavemin
+        if self.new_images:
+            name = self.fido_result[0, ind].get_response(0)[0].wave.wavemin
+        else:
+            name = self.fido_result[ind][-6:-2]
+            if name[-1] == '.':
+                name = name[:-1]
+            if name[0] == ' ':
+                name = name[1:]
         while len(name) < 4:
             name = '0' + name
         return name
@@ -584,13 +619,13 @@ class Sunback:
         """Modify the Fits image into a nice png"""
         print("Generating Image...", end='', flush=True)
 
-        data, image_data = self.load_fits(image_data)
+        originalData, image_data = self.load_fits(image_data)
 
         # Modify the data
-        data = self.image_modify(data)
+        data = self.image_modify(originalData)
 
         # Plot the Data
-        new_path = self.plot_and_save(data, image_data)
+        new_path = self.plot_and_save(data, image_data, originalData)
 
         return new_path
 
@@ -613,80 +648,93 @@ class Sunback:
         return data, image_data
 
     def image_modify(self, data):
-
+        data = data + 0
         self.radial_analyze(data, False)
         data = self.absqrt(data)
-        data = self.normalize(data)
         data = self.coronagraph(data)
         data = self.vignette(data)
 
         return data
 
-    def plot_and_save(self, data, image_data):
+    def plot_and_save(self, data, image_data, original_data=None):
         full_name, save_path, time_string, ii = image_data
         name = self.clean_name_string(full_name)
 
-        # Create the Figure
-        fig, ax = plt.subplots()
-        self.blankAxis(ax)
+        for processed in [False, True]:
 
-        inches = 10
-        fig.set_size_inches((inches,inches))
+            if not self.params.is_debug():
+                if not processed:
+                    continue
+            if not processed:
+                if original_data is None:
+                    continue
 
-        pixels = data.shape[0]
-        dpi = pixels / inches
+            # Create the Figure
+            fig, ax = plt.subplots()
+            self.blankAxis(ax)
 
+            inches = 10
+            fig.set_size_inches((inches,inches))
 
-        if 'hmi' in name.casefold():
-            inst = ""
-            plt.imshow(data, origin='upper', interpolation=None)
-            # plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.1)
-            plt.tight_layout(pad=5.5)
-            height = 1.05
-
-        else:
-            inst = '  AIA'
-            plt.imshow(data, cmap='sdoaia{}'.format(name), origin='lower', interpolation=None, vmin=0, vmax=2)
-            plt.tight_layout(pad=0)
-            height = 0.95
-
-        # Annotate with Text
-        buffer = '' if len(name) == 3 else '  '
-        buffer2 ='    ' if len(name) == 2 else ''
+            pixels = data.shape[0]
+            dpi = pixels / inches
 
 
-        title = "{}    {} {}, {}{}".format(buffer2, inst, name, time_string, buffer)
-        title2 = "{} {}, {}".format(inst, name, time_string)
-        ax.annotate(title, (0.5, height), xycoords='axes fraction', fontsize='large',
-                    color='w', horizontalalignment='center')
-        ax.annotate(title2, (0, 0.05), xycoords='axes fraction', fontsize='large', color='w')
-        the_time = strftime("%I:%M%p").lower()
-        if the_time[0] == '0':
-            the_time = the_time[1:]
-        ax.annotate(the_time, (0.5, height + 0.02), xycoords='axes fraction', fontsize='large',
-                    color='w', horizontalalignment='center')
+            if 'hmi' in name.casefold():
+                inst = ""
+                plt.imshow(data, origin='upper', interpolation=None)
+                # plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.1)
+                plt.tight_layout(pad=5.5)
+                height = 1.05
 
-        # Format the Plot and Save
-        self.blankAxis(ax)
-        new_path = save_path[:-5]+".png"
+            else:
+                inst = '  AIA'
+                plt.imshow(data if processed else self.normalize(original_data), cmap='sdoaia{}'.format(name), origin='lower', interpolation=None,
+                           vmin=self.vmin_plot, vmax=self.vmax_plot)
+                plt.tight_layout(pad=0)
+                height = 0.95
 
-        try:
-            plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
-            print("Success")
-        except PermissionError:
-            new_path = save_path[:-5]+"_b.png"
-            plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
-            print("Success")
-        except Exception as e:
-            print("Failed...using Cached")
-            if self.params.is_debug():
-                raise e
-        plt.close(fig)
+            # Annotate with Text
+            buffer = '' if len(name) == 3 else '  '
+            buffer2 ='    ' if len(name) == 2 else ''
+
+
+            title = "{}    {} {}, {}{}".format(buffer2, inst, name, time_string, buffer)
+            title2 = "{} {}, {}".format(inst, name, time_string)
+            ax.annotate(title, (0.125, height + 0.02), xycoords='axes fraction', fontsize='large',
+                        color='w', horizontalalignment='center')
+            # ax.annotate(title2, (0, 0.05), xycoords='axes fraction', fontsize='large', color='w')
+            the_time = strftime("%I:%M%p").lower()
+            if the_time[0] == '0':
+                the_time = the_time[1:]
+            ax.annotate(the_time, (0.125, height), xycoords='axes fraction', fontsize='large',
+                        color='w', horizontalalignment='center')
+
+
+
+
+            # Format the Plot and Save
+            self.blankAxis(ax)
+            middle = '' if processed else "_orig"
+            new_path = save_path[:-5]+middle+".png"
+
+
+            try:
+                plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
+                print("Success")
+            except PermissionError:
+                new_path = save_path[:-5]+"_b.png"
+                plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
+                print("Success")
+            except Exception as e:
+                print("Failed...using Cached")
+                if self.params.is_debug():
+                    raise e
+            plt.close(fig)
 
         return new_path
 
-    @staticmethod
-    def update_background(local_path, test=False):
+    def update_background(self, local_path, test=False):
         """
         Update the System Background
 
@@ -728,6 +776,10 @@ class Sunback:
         except Exception as e:
             print("Failed")
             raise e
+
+        if self.params.is_debug():
+            self.plot_stats()
+
         return 0
 
 
@@ -739,12 +791,12 @@ class Sunback:
         return (f for f in listdir(directory) if f.endswith('.' + extension))
 
     def get_paths(self, this_result):
-        name = this_result.get_response(0)[0].wave.wavemin
-        while len(name)<4:
-            name = '0'+ name
-        file_name = '{}_Now.fits'.format(name)
+        self.name = this_result.get_response(0)[0].wave.wavemin
+        while len(self.name)<4:
+            self.name = '0'+ self.name
+        file_name = '{}_Now.fits'.format(self.name)
         save_path = join(self.params.local_directory, file_name)
-        return name, save_path
+        return self.name, save_path
 
     @staticmethod
     def parse_time_string(downloaded_files, which=0):
@@ -826,8 +878,8 @@ class Sunback:
 
     @staticmethod
     def normalize(data):
-        high = 99.5
-        low = 4
+        high = 98
+        low = 15
 
         lowP = np.nanpercentile(data, low)
         highP = np.nanpercentile(data, high)
@@ -835,9 +887,17 @@ class Sunback:
 
     def vignette(self, data):
 
-        mask = self.radius > (self.sRadius*1.28)
+        mask = self.radius > (self.noise_radii)
         data[mask] = np.nan
-        # import pdb; pdb.set_trace()
+        return data
+
+    def vignette2(self, data):
+
+        mask = np.isclose(self.radius, self.tRadius, atol = 2)
+        data[mask] = 1
+
+        mask = np.isclose(self.radius, self.noise_radii, atol = 2)
+        data[mask] = 1
         return data
 
     def coronagraph(self, data):
@@ -850,11 +910,28 @@ class Sunback:
 
         sys.stderr = original
 
+        # Deal with too hot things
+        self.vmax = 1
+        self.vmax_plot = 1.8
+
+        hot = dat_corona>self.vmax
+        dat_corona[hot] = dat_corona[hot]**(1/2)
+
+        # Deal with too cold things
+        self.vmin = 0.06
+        self.vmin_plot = -0.03
+
+        cold = dat_corona < self.vmin
+        dat_corona[cold] = -((np.abs(dat_corona[cold]-self.vmin)+1)**(1/2)-1)+self.vmin
+
+        self.dat_coronagraph = dat_corona
         dat_corona_square = dat_corona.reshape(data.shape)
 
         if self.renew_mask:
             self.corona_mask = self.get_mask(data)
             self.renew_mask = False
+
+        data = self.normalize(data)
 
         data[self.corona_mask] = dat_corona_square[self.corona_mask]
 
@@ -943,6 +1020,10 @@ class Sunback:
     # Basic Analysis
 
     def radial_analyze(self, data, plotStats=False):
+        self.offset = np.abs(np.min(data))
+
+        data += self.offset
+
         self.make_radius(data)
         self.sort_radially(data)
         self.bin_radially()
@@ -952,13 +1033,19 @@ class Sunback:
             self.plot_stats()
 
     def make_radius(self, data):
-        self.sRadius = 400
+
 
         self.rez = data.shape[0]
         centerPt = self.rez / 2
         xx, yy = np.meshgrid(np.arange(self.rez), np.arange(self.rez))
         xc, yc = xx - centerPt, yy - centerPt
-        self.radius = np.sqrt(xc * xc + yc * yc)
+
+        self.extra_rez = 4
+
+        self.sRadius = 400 * self.extra_rez
+        self.tRadius = self.sRadius * 1.28
+        self.radius = np.sqrt(xc * xc + yc * yc) * self.extra_rez
+        self.rez*= self.extra_rez
 
     def sort_radially(self, data):
         # Create arrays sorted by radius
@@ -984,11 +1071,15 @@ class Sunback:
 
         for ii, it in enumerate(self.radBins):
             item = np.asarray(it)
+
             idx = np.isfinite(item)
-            subItems = item[idx]
+            finite = item[idx]
+            idx2 = np.nonzero(finite-self.offset)
+            subItems = finite[idx2]
+
             if len(subItems)>0:
-                self.binMax[ii] = np.percentile(subItems, 99) #np.nanmax(subItems)
-                self.binMin[ii] = np.percentile(subItems, 0.5) #np.min(subItems)
+                self.binMax[ii] = np.percentile(subItems, 97) #np.nanmax(subItems)
+                self.binMin[ii] = np.percentile(subItems, 2) #np.min(subItems)
                 self.binMean[ii] = np.mean(subItems)
                 self.binMed[ii] = np.median(subItems)
             else:
@@ -998,56 +1089,137 @@ class Sunback:
                 self.binMed[ii] = np.nan
 
     def fit_curves(self):
-        self.limb_radii = np.argmax(self.binMean[300:500]) + 300
+        # Input Stuff
         self.radAbss = np.arange(self.rez)
+        self.highCut = 730 * self.extra_rez
+        theMin = 380 * self.extra_rez
+        near_limb = np.arange(theMin, theMin + 50 * self.extra_rez)
 
-        self.highCut = 730
+        # Find the derivative of the binned mean
+        self.diff_mean = np.diff(self.binMean)
+        self.diff_mean += np.abs(np.nanmin(self.diff_mean))
+        self.diff_mean /= np.nanmean(self.diff_mean) / 100
 
-        self.low_abs = self.radAbss[:self.limb_radii]
-        self.low_max = self.binMax[:self.limb_radii]
-        self.low_min = self.binMin[:self.limb_radii]
+        # Locate the Limb
+        self.limb_radii = np.argmin(self.diff_mean[near_limb]) + theMin
+        self.lCut = self.limb_radii - 10 * self.extra_rez
+        self.hCut = self.limb_radii + 10 * self.extra_rez
 
-        p = np.polyfit(self.low_abs, self.low_max, 3)
-        self.low_max_fit = np.polyval(p, self.low_abs)
-        p = np.polyfit(self.low_abs, self.low_min, 5)
-        self.low_min_fit = np.polyval(p, self.low_abs)
 
-        self.high_abs = self.radAbss[self.limb_radii:self.highCut]
-        self.high_max = self.binMax[self.limb_radii:self.highCut]
-        self.high_min = self.binMin[self.limb_radii:self.highCut]
+        # Split into three regions
+        self.low_abs = self.radAbss[:self.lCut]
+        self.low_max = self.binMax[:self.lCut]
+        self.low_min = self.binMin[:self.lCut]
 
-        idx = np.isfinite(self.high_abs) & np.isfinite(self.high_max)
-        p = np.polyfit(self.high_abs[idx], self.high_max[idx], 2)
-        self.high_max_fit = np.polyval(p, self.high_abs)
+        self.mid_abs = self.radAbss[self.lCut:self.hCut]
+        self.mid_max = self.binMax[self.lCut:self.hCut]
+        self.mid_min = self.binMin[self.lCut:self.hCut]
 
-        idx = np.isfinite(self.high_abs) & np.isfinite(self.high_min)
-        p = np.polyfit(self.high_abs[idx], self.high_min[idx], 2)
-        self.high_min_fit = np.polyval(p, self.high_abs)
+        self.high_abs = self.radAbss[self.hCut:]
+        self.high_max = self.binMax[self.hCut:]
+        self.high_min = self.binMin[self.hCut:]
 
-        self.radAbss2 = np.hstack((self.low_abs, self.high_abs))
-        self.fakeMax = np.hstack((self.low_max_fit, self.high_max))
-        self.fakeMin = np.hstack((self.low_min_fit, self.high_min))
+        # Filter the regions separately
+        from scipy.signal import savgol_filter
+
+        lWindow = 20 * self.extra_rez + 1
+        mWindow = 4 * self.extra_rez + 1
+        hWindow = 30 * self.extra_rez + 1
+        fWindow = int(3 * self.extra_rez) + 1
+
+        rank = 3
+
+        low_max_filt = savgol_filter(self.low_max, lWindow, rank)
+
+        mid_max_filt = savgol_filter(self.mid_max, mWindow, rank)
+        # mid_max_filt = savgol_filter(mid_max_filt, mWindow, rank)
+        # mid_max_filt = savgol_filter(mid_max_filt, mWindow, rank)
+        # mid_max_filt = savgol_filter(mid_max_filt, mWindow, rank)
+
+        high_max_filt = savgol_filter(self.high_max, hWindow, rank)
+
+        low_min_filt = savgol_filter(self.low_min, lWindow, rank)
+        mid_min_filt =  savgol_filter(self.mid_min, mWindow, rank)
+        high_min_filt = savgol_filter(self.high_min, hWindow, rank)
+
+        # Fit the low curves
+        p = np.polyfit(self.low_abs, self.fill_start(low_max_filt), 9)
+        low_max_fit = np.polyval(p, self.low_abs)
+        p = np.polyfit(self.low_abs, self.fill_start(low_min_filt), 9)
+        low_min_fit = np.polyval(p, self.low_abs)
+
+
+        # Build output curves
+        self.fakeAbss = np.hstack((self.low_abs, self.mid_abs, self.high_abs))
+        self.fakeMax = np.hstack((low_max_fit, mid_max_filt, high_max_filt))
+        self.fakeMin = np.hstack((low_min_fit, mid_min_filt, high_min_filt))
+
+        # Filter again to smooth boundaraies
+        self.fakeMax = self.fill_end(self.fill_start(savgol_filter(self.fakeMax, fWindow, rank)))
+        self.fakeMin = self.fill_end(self.fill_start(savgol_filter(self.fakeMin, fWindow, rank)))
+
+        # Locate the Noise Floor
+        noiseMin = 550 * self.extra_rez - self.hCut
+        near_noise = np.arange(noiseMin, noiseMin + 100 * self.extra_rez)
+        self.diff_max_abs = self.high_abs[near_noise]
+        self.diff_max = np.diff(high_max_filt)[near_noise]
+        self.diff_max += np.abs(np.nanmin(self.diff_max))
+        self.diff_max /= np.nanmean(self.diff_max) / 100
+        self.noise_radii = np.argmin(self.diff_max) + noiseMin + self.hCut
+        self.noise_radii = 565 * self.extra_rez
+
+    def fill_end(self, use):
+        iii = -1
+        val = use[iii]
+        while np.isnan(val):
+            iii -= 1
+            val = use[iii]
+        use[iii:] = val
+        return use
+
+    def fill_start(self, use):
+        iii = 0
+        val = use[iii]
+        while np.isnan(val):
+            iii += 1
+            val = use[iii]
+        use[:iii] = val
+        return use
 
     def plot_stats(self):
 
-        plt.figure()
-        # plt.yscale('log')
-        plt.scatter(self.rad_sort[::30], self.dat_sort[::30], c='k')
-        plt.axvline(self.limb_radii)
+        fig, (ax0, ax1) = plt.subplots(2, 1, True)
+        ax0.scatter(self.n2r(self.rad_sort[::30]), self.dat_sort[::30], c='k', s=2)
+        ax0.axvline(self.n2r(self.limb_radii), ls='--', label="Limb")
+        ax0.axvline(self.n2r(self.noise_radii), c='r', ls='--', label="Scope Edge")
+        ax0.axvline(self.n2r(self.lCut), ls=':')
+        ax0.axvline(self.n2r(self.hCut), ls=':')
+        # ax0.axvline(self.tRadius, c='r')
+        ax0.axvline(self.n2r(self.highCut))
 
-        # plt.plot(self.low_abs, self.low_max, 'm')
-        # plt.plot(self.low_abs, self.low_min, 'm')
+
+        # plt.plot(self.diff_max_abs + 0.5, self.diff_max, 'r')
+        # plt.plot(self.radAbss[:-1] + 0.5, self.diff_mean, 'r:')
+
+        ax0.plot(self.n2r(self.low_abs), self.low_max, 'm', label="Percentile")
+        ax0.plot(self.n2r(self.low_abs), self.low_min, 'm')
         # plt.plot(self.low_abs, self.low_max_fit, 'r')
         # plt.plot(self.low_abs, self.low_min_fit, 'r')
-        #
-        # plt.plot(self.high_abs, self.high_max, 'c')
-        # plt.plot(self.high_abs, self.high_min, 'c')
-        # plt.plot(self.high_abs, self.high_min_fit, 'b')
-        # plt.plot(self.high_abs, self.high_max_fit, 'b')
 
-        plt.plot(self.radAbss2, self.fakeMax, 'g')
-        plt.plot(self.radAbss2, self.fakeMin, 'g')
+        ax0.plot(self.n2r(self.high_abs), self.high_max, 'c', label="Percentile")
+        ax0.plot(self.n2r(self.high_abs), self.high_min, 'c')
 
+        ax0.plot(self.n2r(self.mid_abs), self.mid_max, 'y', label="Percentile")
+        ax0.plot(self.n2r(self.mid_abs), self.mid_min, 'y')
+        # plt.plot(self.high_abs, self.high_min_fit, 'r')
+        # plt.plot(self.high_abs, self.high_max_fit, 'r')
+
+        try:
+            ax0.plot(self.n2r(self.fakeAbss), self.fakeMax, 'g', label="Smoothed")
+            ax0.plot(self.n2r(self.fakeAbss), self.fakeMin, 'g')
+        except:
+            ax0.plot(self.n2r(self.radAbss), self.fakeMax, 'g', label="Smoothed")
+            ax0.plot(self.n2r(self.radAbss), self.fakeMin, 'g')
 
         # plt.plot(radAbss, binMax, 'c')
         # plt.plot(self.radAbss, self.binMin, 'm')
@@ -1055,9 +1227,50 @@ class Sunback:
         # plt.plot(radAbss, binMed, 'r')
         # plt.plot(self.radAbss, self.binMax, 'b')
         # plt.plot(radAbss, fakeMin, 'r')
+        # plt.ylim((-100, 10**3))
+        # plt.xlim((380* self.extra_rez ,(380+50)* self.extra_rez ))
+        ax0.set_xlim((0,self.n2r(self.highCut)))
+        ax0.legend()
+        fig.set_size_inches((8,12))
+        ax0.set_yscale('log')
 
-        plt.show(True)
+        ax1.scatter(self.n2r(self.rad_flat[::10]), self.dat_coronagraph[::10], c='k', s=2)
+        ax1.set_ylim((-0.25,2))
 
+        ax1.axhline(self.vmax, c='r', label='Confinement')
+        ax1.axhline(self.vmin, c='r')
+        ax1.axhline(self.vmax_plot, c='orange', label='Plot Range')
+        ax1.axhline(self.vmin_plot, c='orange')
+
+        # locs = np.arange(self.rez)[::int(self.rez/5)]
+        # ax1.set_xticks(locs)
+        # ax1.set_xticklabels(self.n2r(locs))
+
+        ax1.legend()
+        ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
+        ax1.set_ylabel(r"Normalized Intensity")
+        ax0.set_ylabel(r"Absolute Intensity (Counts)")
+
+        plt.tight_layout()
+        if self.params.is_debug():
+            file_name = '{}_Radial.png'.format(self.name)
+            save_path = join(self.params.local_directory, file_name)
+            plt.savefig(save_path)
+
+            file_name = '{}_Radial_zoom.png'.format(self.name)
+            ax0.set_xlim((0.9,1.1))
+            save_path = join(self.params.local_directory, file_name)
+            plt.savefig(save_path)
+            # plt.show()
+            plt.close(fig)
+        else:
+            plt.show()
+
+    def n2r(self, n):
+        if True:
+            return n / self.limb_radii
+        else:
+            return n
 
 def run(delay=20, mode='all', debug=False):
     p = Parameters()
@@ -1079,4 +1292,5 @@ def where():
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run(20, debug=debugg)
+    where()
+    run(20, 'a', debug=debugg)
