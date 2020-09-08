@@ -7,12 +7,12 @@
       <excludeFolder url="file://$MODULE_DIR$/depricated" />
       <excludeFolder url="file://$MODULE_DIR$/dist" />
       <excludeFolder url="file://$MODULE_DIR$/dist_old" />
+      <excludeFolder url="file://$MODULE_DIR$/sunback/sunback_images" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.7 (sunback_proj)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.8 (sunback)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="ReSTService">
-    <option name="workdir" value="C:\Users\chgi7364\Dropbox\Interesting Stuff\sunback\docs" />
     <option name="DOC_DIR" value="C:\Users\chgi7364\Dropbox\Interesting Stuff\sunback\docs" />
   </component>
   <component name="TemplatesService">
@@ -23,7 +23,6 @@
     </option>
   </component>
   <component name="TestRunnerService">
-    <option name="projectConfiguration" value="pytest" />
     <option name="PROJECT_TEST_RUNNER" value="pytest" />
   </component>
 </module>
