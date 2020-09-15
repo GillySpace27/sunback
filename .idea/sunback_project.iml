@@ -8,9 +8,13 @@
       <excludeFolder url="file://$MODULE_DIR$/dist" />
       <excludeFolder url="file://$MODULE_DIR$/dist_old" />
       <excludeFolder url="file://$MODULE_DIR$/sunback/sunback_images" />
+      <excludeFolder url="file://$MODULE_DIR$/venv2" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.8 (sunback)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.8 (sunback_env)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+  <component name="PackageRequirementsSettings">
+    <option name="requirementsPath" value="req.txt" />
   </component>
   <component name="ReSTService">
     <option name="DOC_DIR" value="C:\Users\chgi7364\Dropbox\Interesting Stuff\sunback\docs" />

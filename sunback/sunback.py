@@ -68,7 +68,7 @@ else:
 
 # Main
 
-debugg = True
+debugg = False
 
 
 
@@ -375,7 +375,7 @@ class Parameters:
         """ Determine how long to wait """
 
         delay = self.background_update_delay_seconds + 0
-
+        # import pdb; pdb.set_trace()
         # if 'temp' in wave:
         #     delay *= self.time_multiplier_for_long_display
 
@@ -458,10 +458,19 @@ class Sunback:
         else:
             self.run_mode()
 
+    def print_header(self):
+        print("\nSunback: Live SDO Background Updater \nWritten by Chris R. Gilly")
+        print("Check out my website: http://gilly.space\n")
+        print("Delay: {} Seconds".format(self.params.background_update_delay_seconds))
+        print("Coronagraph Mode: {} \n".format(self.params.mode()))
+
+        if self.params.is_debug():
+            print("DEBUG MODE\n")
+
     def debug_mode(self):
         """Run the program in a way that will break"""
         while True:
-            self.execute()
+            self.execute_switch()
 
     def run_mode(self):
         """Run the program in a way that won't break"""
@@ -471,7 +480,7 @@ class Sunback:
 
         while True:
             try:
-                self.execute()
+                self.execute_switch()
             except (KeyboardInterrupt, SystemExit):
                 print("\n\nOk, I'll Stop. Doot!\n")
                 break
@@ -484,16 +493,560 @@ class Sunback:
                     print("Too Many Failures, I Quit!")
                     sys.exit(1)
 
-    def print_header(self):
-        print("\nSunback: Live SDO Background Updater \nWritten by Chris R. Gilly")
-        print("Check out my website: http://gilly.space\n")
-        print("Delay: {} Seconds".format(self.params.background_update_delay_seconds))
-        print("Coronagraph Mode: {} \n".format(self.params.mode()))
+    def execute_switch(self):
 
-        if self.params.is_debug():
-            print("DEBUG MODE\n")
+        self.mr_execute()
+        # self.jp_execute()
+        # self.fido_execute()
 
-    def execute(self):
+    def image_modify(self, data):
+        data = data + 0
+        self.radial_analyze(data, False)
+        data = self.absqrt(data)
+
+        data = self.coronagraph(data)
+        if not self.params.do_mirror():
+            data = self.vignette(data)
+        if True: #plotStats:
+            self.plot_stats()
+
+        return data.astype('float32')
+
+    def plot_and_save(self, data, image_data, original_data=None):
+        full_name, save_path, time_string, ii = image_data
+        time_string2 = self.clean_time_string(time_string)
+        name = self.clean_name_string(full_name)
+
+        for processed in [False, True]:
+
+            if not self.params.is_debug():
+                if not processed:
+                    continue
+            if not processed:
+                if original_data is None:
+                    continue
+
+            # Create the Figure
+            fig, ax = plt.subplots()
+            self.blankAxis(ax)
+
+            inches = 10
+            fig.set_size_inches((inches, inches))
+
+            pixels = data.shape[0]
+            dpi = pixels / inches
+
+            if 'hmi' in name.casefold():
+                inst = ""
+                plt.imshow(data, origin='upper', interpolation=None)
+                # plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.1)
+                plt.tight_layout(pad=5.5)
+                height = 1.05
+
+            else:
+                inst = '  AIA'
+                plt.imshow(data if processed else self.normalize(original_data), cmap='sdoaia{}'.format(name), origin='lower', interpolation=None,  vmin=self.vmin_plot, vmax=self.vmax_plot)
+                plt.tight_layout(pad=0)
+                height = 0.95
+
+            # Annotate with Text
+            buffer = '' if len(name) == 3 else '  '
+            buffer2 = '    ' if len(name) == 2 else ''
+
+            title = "{}    {} {}, {}{}".format(buffer2, inst, name, time_string2, buffer)
+            title2 = "{} {}, {}".format(inst, name, time_string2)
+            ax.annotate(title, (0.15, height + 0.02), xycoords='axes fraction', fontsize='large',
+                        color='w', horizontalalignment='center')
+            # ax.annotate(title2, (0, 0.05), xycoords='axes fraction', fontsize='large', color='w')
+            the_time = strftime("%I:%M%p").lower()
+            if the_time[0] == '0':
+                the_time = the_time[1:]
+            ax.annotate(the_time, (0.15, height), xycoords='axes fraction', fontsize='large',
+                        color='w', horizontalalignment='center')
+
+            # Format the Plot and Save
+            self.blankAxis(ax)
+            middle = '' if processed else "_orig"
+            new_path = save_path[:-5] + middle + ".png"
+            # plt.show()
+            try:
+                plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
+                print("\tSaved {} Image".format('Processed' if processed else "Unprocessed"))
+            except PermissionError:
+                new_path = save_path[:-5] + "_b.png"
+                plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
+                print("Success")
+            except Exception as e:
+                print("Failed...using Cached")
+                if self.params.is_debug():
+                    raise e
+            plt.close(fig)
+
+        return new_path
+
+    def update_background(self, local_path, test=False):
+        """
+        Update the System Background
+
+        Parameters
+        ----------
+        local_path : str
+            The local save location of the image
+            :param test:
+        """
+        local_path = abspath(local_path)
+        # print(local_path)
+        assert isinstance(local_path, str)
+        print("Updating Background...", end='', flush=True)
+        this_system = system()
+
+        try:
+            if this_system == "Windows":
+                import ctypes
+                SPI_SETDESKWALLPAPER = 0x14     #which command (20)
+                SPIF_UPDATEINIFILE   = 0x2 #forces instant update
+                ctypes.windll.user32.SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, local_path, SPIF_UPDATEINIFILE)
+                # for ii in np.arange(100):
+                #     ctypes.windll.user32.SystemParametersInfoW(19, 0, 'Fit', SPIF_UPDATEINIFILE)
+            elif this_system == "Darwin":
+                from appscript import app, mactypes
+                try:
+                    app('Finder').desktop_picture.set(mactypes.File(local_path))
+                except Exception as e:
+                    if test:
+                        pass
+                    else:
+                        raise e
+
+            elif this_system == "Linux":
+                import os
+                os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-options 'scaled'")
+                os.system("/usr/bin/gsettings set org.gnome.desktop.background primary-color 'black'")
+                os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-uri {}".format(local_path))
+            else:
+                raise OSError("Operating System Not Supported")
+            print("Success")
+        except Exception as e:
+            print("Failed")
+            raise e
+        #
+        # if self.params.is_debug():
+        #     self.plot_stats()
+
+        return 0
+
+
+    # MR Version
+
+    def mr_execute(self):
+
+        self.mr_get()
+        self.mr_run()
+        
+    def mr_get(self):
+
+        local_dir = self.params.discover_best_default_directory()
+        local_time_path = abspath(local_dir+r"/times.txt")
+        local_fileBox_path = abspath(local_dir +r'/fileBox.dat')
+
+        # Retrieve the file names
+        web_path = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"
+        # import pdb; pdb.set_trace()
+
+        # local_path = abspath(r"C:\Users\chgi7364\Dropbox\AB_Interesting_Stuff\Projects\sunback_proj\sunback\data\images\times.txt")
+        self.fileBox = []
+
+        #Find the time of the previous images
+        try:
+            with open(local_time_path) as fp:
+                header = fp.readline()
+                _, old_datetime = header.split()
+        except:
+            old_datetime = '20200101_000000'
+
+        # Find the time of the newest images
+        print("Checking for New Images...", end='', flush=True)
+        urlretrieve(web_path + "image_times", local_time_path)
+
+        with open(local_time_path) as fp:
+            line = fp.readline()
+            name, now = line.split()
+            self.time_stamp = now
+
+            # Decide if new images are required
+            if now <= old_datetime:
+                # Use old images
+                self.new_images = False
+                try:
+                    with open(local_fileBox_path, 'r') as fp2:
+                        for line in fp2:
+                            a, b = line.split()
+                            self.fileBox.append([a,b])
+                    print("None found!\n", flush=True)
+
+                    need = False
+                    for label, file in self.fileBox:
+                        if exists(file):
+                            pass
+                        else:
+                            need = True
+                    if len(self.fileBox) == 0: need = True
+                    if not need:
+                        return self.fileBox
+                    else:
+                        print("Images Missing!\n", flush=True)
+                except FileNotFoundError:
+                    print("New Images Required")
+
+            if False:
+                print("Skipping!")
+                return self.fileBox
+
+            # Get new images
+            print("New images found!\n", flush=True)
+            self.new_images = True
+
+            labels = [94, 131, 171, 193, 211, 304, 335, 1600, 1700]
+            import urllib
+
+            for name in tqdm(labels, unit="img", desc="Downloading Images", total=len(labels)):
+
+                # Ingest new images
+                label = "{:04d}".format(int(name))
+                webfile_name = r"AIAsynoptic{}.fits".format(label)
+                directory_path = local_dir
+                local_path = directory_path + r"/{}_MR.fits".format(label)
+
+                tries = 3
+                for ii in np.arange(tries):
+                    try:
+                        urlretrieve(web_path+webfile_name, local_path)
+                        break
+                    except urllib.error.ContentTooShortError:
+                        print("Failed Download...Retrying {} / {}".format(ii, tries))
+                        pass
+
+
+                self.fileBox.append([label, local_path])
+            used = []
+            # self.fileBox = list(set(self.fileBox))
+            self.fileBox = [x for x in self.fileBox if x not in used and (used.append(x) or True)]
+            self.fileBox = sorted(self.fileBox, key=lambda x: x[0])
+            with open(local_fileBox_path, 'w') as fp:
+                for a,b in self.fileBox:
+                    fp.write('{} {}\n'.format(a,b))
+        return self.fileBox
+
+    def mr_run(self):
+
+
+        for this_name, file_path in self.fileBox:
+            self.params.start_time = time()
+            self.name = this_name
+            if self.params.do_171() and "171" not in this_name:
+                continue
+            if self.params.do_304() and "304" not in this_name:
+                continue
+
+            print("Image: {}".format(this_name))
+
+            #Modify the Image
+            new_path = self.mr_modify(this_name, file_path)
+
+            # Wait for a bit
+            self.params.sleep_until_delay_elapsed()
+
+            # Update the Background
+            self.update_background(new_path)
+
+            if self.params.stop_after_one():
+                sys.exit()
+
+            print('')
+
+    def mr_modify(self, this_name, file_path):
+        if True:
+            print("Generating Image...", flush=True)
+
+            # Open the File
+            originalData, image_data = self.mr_open(this_name, file_path)
+
+            # Modify the data
+            data = self.image_modify(originalData)
+            # data = originalData
+
+            # Plot the Data
+            new_path = self.plot_and_save(data, image_data, originalData)
+
+        else:
+            new_path = file_path[:-4] + ".png"
+
+        return new_path
+
+    def mr_open(self, this_name, file_path):
+        # Load the Fits File from disk
+        from astropy.io import fits
+
+        for ind in np.arange(4):
+            try:
+                # Parse Inputs
+                with fits.open(file_path) as hdul:
+                    hdul.verify('fix')
+
+                    wave = hdul[0].header['WAVELNTH']
+                    t_rec = hdul[0].header['T_OBS']
+                    data = hdul[0].data
+                    # print(wave, t_rec)
+
+                    # plt.imshow(np.log10(img))
+                    # plt.title("{}\n{}".format(wave, t_rec))
+                    # plt.show()
+
+                image_data = this_name, file_path, t_rec, 0
+                break
+            except TypeError as e:
+                if ind < 3:
+                    pass
+                else:
+                    raise e
+        return data, image_data
+
+
+
+
+        from astropy.table import Table
+        # t = Table.read(file_path, format='fits')
+
+
+        # from PIL import Image
+        # originalData = np.asarray(Image.open(file_path))
+        # save_path = file_path[:-3]+".png"
+        # time_string = self.time_stamp
+        # return originalData, image_data
+
+        #
+        # url = 'http://jsoc.stanford.edu' + file
+        # ret = urlretrieve(url)
+        # # print(ret)
+        with fits.open(file_path) as hdul:
+            # hdul = fits.open(ret[0])
+            hdul.verify('fix')
+            # import pdb; pdb.set_trace()
+
+            wave = hdul[0].header['WAVELNTH']
+            t_rec = hdul[0].header['T_OBS']
+            img = hdul[0].data
+            # print(wave, t_rec)
+
+            # plt.imshow(np.log10(img))
+            # plt.title("{}\n{}".format(wave, t_rec))
+            # plt.show()
+
+
+        return img, image_data
+
+
+
+    # Jp Version 
+
+    def jp_execute(self):
+        self.jp_get()
+        self.jp_run()
+
+    def jp_get(self):
+
+        # Retrieve the file names
+        web_path = "http://jsoc2.stanford.edu/data/aia/images/image_times"
+        local_path = "times.txt"
+        self.fileBox = []
+
+
+        #Find the time of the last images
+        try:
+            with open(local_path) as fp:
+                header = fp.readline()
+                _, old_datetime = header.split()
+        except:
+            old_datetime = '20200101_000000'
+
+        # Find the time of the newest images
+        urlretrieve(web_path, local_path)
+        number_of_lines = len(open(local_path).readlines()) - 1
+
+        with open(local_path) as fp:
+            line = fp.readline()
+            name, now = line.split()
+            self.time_stamp = now
+            print("Checking for New Images...", end='', flush=True)
+            if now <= old_datetime and self.params.download_images():
+                self.new_images = False
+                try:
+                    with open('data/images/fileBox.dat', 'r') as fp2:
+                        for line in fp2:
+                            a, b = line.split()
+                            self.fileBox.append([a,b])
+                    print("None found!\n", flush=True)
+
+                    need = False
+                    for label, file in self.fileBox:
+                        if exists(file[:-3]+"png"):
+                            pass
+                        else:
+                            need = True
+                    if len(self.fileBox) == 0: need = True
+                    if not need:
+                        return self.fileBox
+                    else:
+                        print("Images Missing!\n", flush=True)
+                except FileNotFoundError:
+                    print("New Images Required")
+
+
+            print("New images found!\n", flush=True)
+            self.new_images = True
+
+            for line in tqdm(fp, unit="img", desc="Downloading Images", total=number_of_lines):
+                name, value = line.split()
+
+                # Ingest new images
+                directory_path = "data/images"
+                label = "{:04d}".format(int(name))
+                file_name = "{}/AIA_{}.jp2".format(directory_path, label)
+                urlretrieve(value, file_name)
+
+                self.fileBox.append([label, file_name])
+            used = []
+            # self.fileBox = list(set(self.fileBox))
+            self.fileBox = [x for x in self.fileBox if x not in used and (used.append(x) or True)]
+            self.fileBox = sorted(self.fileBox, key=lambda x: x[0])
+            with open('data/images/fileBox.dat', 'w') as fp:
+                for a,b in self.fileBox:
+                    fp.write('{} {}\n'.format(a,b))
+        return self.fileBox
+
+    def jp_run(self):
+
+
+        for this_name, file_path in self.fileBox:
+            self.params.start_time = time()
+            self.name = this_name
+            if self.params.do_171() and "171" not in this_name:
+                continue
+            if self.params.do_304() and "304" not in this_name:
+                continue
+
+            print("Image: {}".format(this_name))
+
+            #Modify the Image
+            new_path = self.jp_modify(this_name, file_path)
+
+            # Wait for a bit
+            self.params.sleep_until_delay_elapsed()
+
+            # Update the Background
+            self.update_background(new_path)
+
+            if self.params.stop_after_one():
+                sys.exit()
+
+            print('')
+
+    def jp_open(self, this_name, file_path):
+
+        from PIL import Image
+        originalData = np.asarray(Image.open(file_path))
+        save_path = file_path[:-3]+".png"
+        time_string = self.time_stamp
+        image_data = this_name, save_path, time_string, 0
+        return originalData, image_data
+
+    def jp_modify(self, this_name, file_path):
+        if True:
+            print("Generating Image...", flush=True)
+
+            # Open the File
+            originalData, image_data = self.jp_open(this_name, file_path)
+
+            # Modify the data
+            data = self.image_modify(originalData)
+            # data = originalData
+
+            # Plot the Data
+            new_path = self.plot_and_save(data, image_data, originalData)
+
+        else:
+            new_path = file_path[:-4] + ".png"
+
+        return new_path
+
+    def save_raw(self, label, file_name):
+        from PIL import Image
+        data = Image.open(file_name)
+        save_path = file_name[:-3]+".png"
+        name = self.clean_name_string(label)
+        time_string = self.time_stamp
+
+        # Create the Figure
+        fig, ax = plt.subplots()
+        self.blankAxis(ax)
+
+        inches = 10
+        fig.set_size_inches((inches, inches))
+
+        pixels = data.size[0]
+        dpi = pixels / inches
+
+        if 'hmi' in name.casefold():
+            inst = ""
+            plt.imshow(data, origin='upper', interpolation=None)
+            # plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.1)
+            plt.tight_layout(pad=5.5)
+            height = 1.05
+
+        else:
+            inst = '  AIA'
+            plt.imshow(data, cmap='sdoaia{}'.format(name), origin='lower', interpolation=None, vmin=self.vmin_plot, vmax=self.vmax_plot)
+            plt.tight_layout(pad=0)
+            height = 0.95
+
+        # Annotate with Text
+        buffer = '' if len(name) == 3 else '  '
+        buffer2 = '    ' if len(name) == 2 else ''
+
+        title = "{}    {} {}, {}{}".format(buffer2, inst, name, time_string, buffer)
+        title2 = "{} {}, {}".format(inst, name, time_string)
+        ax.annotate(title, (0.125, height + 0.02), xycoords='axes fraction', fontsize='large',
+                    color='w', horizontalalignment='center')
+        # ax.annotate(title2, (0, 0.05), xycoords='axes fraction', fontsize='large', color='w')
+        the_time = strftime("%I:%M%p").lower()
+        if the_time[0] == '0':
+            the_time = the_time[1:]
+        ax.annotate(the_time, (0.125, height), xycoords='axes fraction', fontsize='large',
+                    color='w', horizontalalignment='center')
+
+        # Format the Plot and Save
+        self.blankAxis(ax)
+        middle = '' if False else "_orig"
+        new_path = save_path[:-5] + middle + ".png"
+
+        try:
+            plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
+            # print("\tSaved {} Image".format('Processed' if False else "Unprocessed"))
+        except PermissionError:
+            new_path = save_path[:-5] + "_b.png"
+            plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
+            print("Success")
+        except Exception as e:
+            print("Failed...using Cached")
+            if self.params.is_debug():
+                raise e
+        plt.close(fig)
+
+        return new_path
+
+    # # Main Loops
+
+    def fido_execute(self):
         # if self.params.time_period():
         self.fido_range()
         # else:
@@ -501,16 +1054,14 @@ class Sunback:
 
         while self.indexNow < self.fido_num:
             self.indexNow += 1
-            self.run_AIA(self.indexNow - 1)
+            self.fido_run(self.indexNow - 1)
         if self.params.do_HMI():
             self.indexNow = 0
             self.run_HMI()
             self.run_HMI_white()
         self.indexNow = 0
 
-    # # Main Loops
-
-    def run_AIA(self, ii):
+    def fido_run(self, ii):
         """The Main Loop"""
 
         # Gather Data + Print
@@ -739,7 +1290,6 @@ class Sunback:
             plt.title("{}\n{}".format(wave, t_rec))
             plt.show()
 
-
     def drms_download(self):
         pass
 
@@ -831,8 +1381,6 @@ class Sunback:
         #             if len(line) == 0:
         #                 break
         #         # print(self.fido_result)
-
-
 
     def fido_search(self):
         """ Find the Most Recent Images """
@@ -1061,135 +1609,7 @@ class Sunback:
         data = my_map.data
         return data, image_data
 
-    def image_modify(self, data):
-        data = data + 0
-        self.radial_analyze(data, False)
-        data = self.absqrt(data)
-        data = self.coronagraph(data)
-        # if not self.params.do_mirror():
-        data = self.vignette(data)
 
-        return data
-
-    def plot_and_save(self, data, image_data, original_data=None):
-        full_name, save_path, time_string, ii = image_data
-        name = self.clean_name_string(full_name)
-
-        for processed in [False, True]:
-
-            if not self.params.is_debug():
-                if not processed:
-                    continue
-            if not processed:
-                if original_data is None:
-                    continue
-
-            # Create the Figure
-            fig, ax = plt.subplots()
-            self.blankAxis(ax)
-
-            inches = 10
-            fig.set_size_inches((inches, inches))
-
-            pixels = data.shape[0]
-            dpi = pixels / inches
-
-            if 'hmi' in name.casefold():
-                inst = ""
-                plt.imshow(data, origin='upper', interpolation=None)
-                # plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.1)
-                plt.tight_layout(pad=5.5)
-                height = 1.05
-
-            else:
-                inst = '  AIA'
-                plt.imshow(data if processed else self.normalize(original_data), cmap='sdoaia{}'.format(name), origin='lower', interpolation=None,
-                           vmin=self.vmin_plot, vmax=self.vmax_plot)
-                plt.tight_layout(pad=0)
-                height = 0.95
-
-            # Annotate with Text
-            buffer = '' if len(name) == 3 else '  '
-            buffer2 = '    ' if len(name) == 2 else ''
-
-            title = "{}    {} {}, {}{}".format(buffer2, inst, name, time_string, buffer)
-            title2 = "{} {}, {}".format(inst, name, time_string)
-            ax.annotate(title, (0.125, height + 0.02), xycoords='axes fraction', fontsize='large',
-                        color='w', horizontalalignment='center')
-            # ax.annotate(title2, (0, 0.05), xycoords='axes fraction', fontsize='large', color='w')
-            the_time = strftime("%I:%M%p").lower()
-            if the_time[0] == '0':
-                the_time = the_time[1:]
-            ax.annotate(the_time, (0.125, height), xycoords='axes fraction', fontsize='large',
-                        color='w', horizontalalignment='center')
-
-            # Format the Plot and Save
-            self.blankAxis(ax)
-            middle = '' if processed else "_orig"
-            new_path = save_path[:-5] + middle + ".png"
-
-            try:
-                plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
-                print("\tSaved {} Image".format('Processed' if processed else "Unprocessed"))
-            except PermissionError:
-                new_path = save_path[:-5] + "_b.png"
-                plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
-                print("Success")
-            except Exception as e:
-                print("Failed...using Cached")
-                if self.params.is_debug():
-                    raise e
-            plt.close(fig)
-
-        return new_path
-
-    def update_background(self, local_path, test=False):
-        """
-        Update the System Background
-
-        Parameters
-        ----------
-        local_path : str
-            The local save location of the image
-        """
-        print("Updating Background...", end='', flush=True)
-        assert isinstance(local_path, str)
-        local_path = normpath(local_path)
-        print(local_path)
-        this_system = system()
-
-        try:
-            if this_system == "Windows":
-                import ctypes
-                ctypes.windll.user32.SystemParametersInfoW(20, 0, local_path, 0)
-                ctypes.windll.user32.SystemParametersInfoW(19, 0, 'Fill', 0)
-
-            elif this_system == "Darwin":
-                from appscript import app, mactypes
-                try:
-                    app('Finder').desktop_picture.set(mactypes.File(local_path))
-                except Exception as e:
-                    if test:
-                        pass
-                    else:
-                        raise e
-
-            elif this_system == "Linux":
-                import os
-                os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-options 'scaled'")
-                os.system("/usr/bin/gsettings set org.gnome.desktop.background primary-color 'black'")
-                os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-uri {}".format(local_path))
-            else:
-                raise OSError("Operating System Not Supported")
-            print("Success")
-        except Exception as e:
-            print("Failed")
-            raise e
-        #
-        # if self.params.is_debug():
-        #     self.plot_stats()
-
-        return 0
 
     # Level 4
 
@@ -1247,6 +1667,22 @@ class Sunback:
         return name
 
     @staticmethod
+    def clean_time_string(time_string):
+        # Make the name strings
+        import sunpy.time as time
+        from datetime import datetime, timezone
+        from astropy.time import Time
+        # import pdb; pdb.set_trace()
+        # cleaned = time_string.replace(tzinfo=timezone.utc).astimezone(tz=None)
+        cleaned = Time(time_string).datetime.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%I:%M%p, %b-%d, %Y")
+
+        return cleaned
+        # name = full_name + ''
+        # while name[0] == '0':
+        #     name = name[1:]
+        # return name
+
+    @staticmethod
     def blankAxis(ax):
         ax.patch.set_alpha(0)
         ax.spines['top'].set_color('none')
@@ -1294,7 +1730,7 @@ class Sunback:
 
     def vignette(self, data):
 
-        mask = self.radius > (int(0.9* self.rez // 2)) #(3.5 * self.noise_radii)
+        mask = self.radius > (int(1.1* self.rez // 2)) #(3.5 * self.noise_radii)
         data[mask] = np.nan
         return data
 
@@ -1308,14 +1744,15 @@ class Sunback:
         return data
 
     def coronagraph(self, data):
-        original = sys.stderr
-        sys.stderr = open(join(self.params.local_directory, 'log.txt'), 'w+')
-
+        # original = sys.stderr
+        # sys.stderr = open(join(self.params.local_directory, 'log.txt'), 'w+')
+        # print(data.dtype)
         radius_bin = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
+        # import pdb; pdb.set_trace()
         dat_corona = (self.dat_flat - self.fakeMin[radius_bin]) / \
                      (self.fakeMax[radius_bin] - self.fakeMin[radius_bin])
 
-        sys.stderr = original
+        # sys.stderr = original
 
         # Deal with too hot things
         self.vmax = 1
@@ -1351,8 +1788,8 @@ class Sunback:
             data[~self.corona_mask] = flipped.flatten() # np.flip(newDat)
 
         data[self.corona_mask] = dat_corona_square[self.corona_mask]
-
-
+        # print(data.dtype)
+        # import pdb; pdb.set_trace()
         # inds = np.argsort(self.rad_flat)
         # rad_sorted = self.rad_flat[inds]
         # dat_sort = dat_corona[inds]
@@ -1451,9 +1888,6 @@ class Sunback:
         self.bin_radially()
         self.fit_curves()
 
-        if plotStats:
-            self.plot_stats()
-
     def make_radius(self, data):
 
         self.rez = data.shape[0]
@@ -1461,7 +1895,7 @@ class Sunback:
         xx, yy = np.meshgrid(np.arange(self.rez), np.arange(self.rez))
         xc, yc = xx - centerPt, yy - centerPt
 
-        self.extra_rez = 4
+        self.extra_rez = 2
 
         self.sRadius = 400 * self.extra_rez
         self.tRadius = self.sRadius * 1.28
@@ -1489,6 +1923,7 @@ class Sunback:
         self.binMin = np.zeros(self.rez)
         self.binMid = np.zeros(self.rez)
         self.binMed = np.zeros(self.rez)
+        self.radAbss = np.arange(self.rez)
 
         for ii, it in enumerate(self.radBins):
             item = np.asarray(it)
@@ -1509,22 +1944,46 @@ class Sunback:
                 self.binMid[ii] = np.nan
                 self.binMed[ii] = np.nan
 
-    def fit_curves(self):
-        # Input Stuff
-        self.radAbss = np.arange(self.rez)
-        self.highCut = 730 * self.extra_rez
-        theMin = 380 * self.extra_rez
-        near_limb = np.arange(theMin, theMin + 50 * self.extra_rez)
+        #Remove NANs
+        idx = np.isfinite(self.binMax) & np.isfinite(self.binMin)
+        self.binMax = self.binMax[idx]
+        self.binMin = self.binMin[idx]
+        self.binMid = self.binMid[idx]
+        self.binMed = self.binMed[idx]
+        self.radAbss = self.radAbss[idx]
+
+
+
+
 
         # Find the derivative of the binned Mid
-        self.diff_Mid = np.diff(self.binMid)
-        self.diff_Mid += np.abs(np.nanmin(self.diff_Mid))
-        self.diff_Mid /= np.nanmean(self.diff_Mid) / 100
+        # self.diff_Mid = np.diff(self.binMid)
+        # self.diff_Mid += np.abs(np.nanmin(self.diff_Mid))
+        # self.diff_Mid /= np.nanmean(self.diff_Mid) / 100
+        # diff_mid_filt = np.unique(self.diff_Mid[~np.isnan(self.diff_Mid)])
+        # low_max_filt = savgol_filter(diff_mid_filt, 11, 3)
+        # self.limb_radii = np.argmin(self.diff_Mid[near_limb]) + theMin
+        # import pdb; pdb.set_trace()
+
+
+    def fit_curves(self):
+        # Input Stuff
+        self.highCut = 0.8 * self.rez
 
         # Locate the Limb
-        self.limb_radii = np.argmin(self.diff_Mid[near_limb]) + theMin
-        self.lCut = self.limb_radii - 10 * self.extra_rez
-        self.hCut = self.limb_radii + 10 * self.extra_rez
+        theMin = int(0.35*self.rez)
+        theMax = int(0.45*self.rez)
+        near_limb = np.arange(theMin, theMax)
+
+        r1 = self.radAbss[np.argmax(self.binMid[near_limb]) + theMin]
+        r2 = self.radAbss[np.argmax(self.binMax[near_limb]) + theMin]
+        r3 = self.radAbss[np.argmax(self.binMed[near_limb]) + theMin]
+
+        self.limb_radii = int(np.mean([r1, r2, r3]))
+        # print(self.limb_radii)
+        self.lCut = int(self.limb_radii - 0.01 * self.rez)
+        self.hCut = int(self.limb_radii + 0.01 * self.rez)
+
 
         # Split into three regions
         self.low_abs = self.radAbss[:self.lCut]
@@ -1539,53 +1998,136 @@ class Sunback:
         self.high_max = self.binMax[self.hCut:]
         self.high_min = self.binMin[self.hCut:]
 
+
+        if False:
+
+            # plt.axvline(r1, c='g')
+            # plt.axvline(r2, c='g')
+            # plt.axvline(r3, c='g')
+
+            plt.plot(self.radAbss, self.binMax, label="Max")
+            plt.plot(self.radAbss, self.binMin, label="Min")
+            plt.plot(self.radAbss, self.binMid, label="Mid")
+            plt.plot(self.radAbss, self.binMed, label="Med")
+
+            plt.axvline(theMin)
+            plt.axvline(theMax)
+
+            plt.axvline(self.limb_radii)
+            plt.axvline(self.lCut, ls=':')
+            plt.axvline(self.hCut, ls=':')
+            plt.xlim([self.lCut, self.hCut])
+            plt.legend()
+            plt.show()
+
+
         # Filter the regions separately
+
         from scipy.signal import savgol_filter
 
-        lWindow = 20 * self.extra_rez + 1
-        mWindow = 4 * self.extra_rez + 1
-        hWindow = 30 * self.extra_rez + 1
-        fWindow = int(3 * self.extra_rez) + 1
-
+        lWindow = 7 # 4 * self.extra_rez + 1
+        mWindow = 7 # 4 * self.extra_rez + 1
+        hWindow = 7 # 30 * self.extra_rez + 1
+        fWindow = 7  # int(3 * self.extra_rez) + 1
         rank = 3
 
-        low_max_filt = savgol_filter(self.low_max, lWindow, rank)
 
-        mid_max_filt = savgol_filter(self.mid_max, mWindow, rank)
+        # print(self.count_nan(self.throw_nan(self.low_max)))
+        mode = 'nearest'
+        low_max_filt = savgol_filter(self.low_max, lWindow, rank, mode=mode)
+        # import pdb; pdb.set_trace()
+
+        mid_max_filt = savgol_filter(self.mid_max, mWindow, rank, mode=mode)
         # mid_max_filt = savgol_filter(mid_max_filt, mWindow, rank)
         # mid_max_filt = savgol_filter(mid_max_filt, mWindow, rank)
         # mid_max_filt = savgol_filter(mid_max_filt, mWindow, rank)
 
-        high_max_filt = savgol_filter(self.high_max, hWindow, rank)
+        high_max_filt = savgol_filter(self.high_max, hWindow, rank, mode=mode)
 
-        low_min_filt = savgol_filter(self.low_min, lWindow, rank)
-        mid_min_filt = savgol_filter(self.mid_min, mWindow, rank)
-        high_min_filt = savgol_filter(self.high_min, hWindow, rank)
+        low_min_filt = savgol_filter(self.low_min, lWindow, rank, mode=mode)
+        mid_min_filt = savgol_filter(self.mid_min, mWindow, rank, mode=mode)
+        high_min_filt = savgol_filter(self.high_min, hWindow, rank, mode=mode)
 
+        # import pdb; pdb.set_trace()
         # Fit the low curves
-        p = np.polyfit(self.low_abs, self.fill_start(low_max_filt), 9)
+        degree = 8
+        # print(self.count_nan(low_max_filt))
+        p = np.polyfit(self.low_abs, low_max_filt, degree)
         low_max_fit = np.polyval(p, self.low_abs)
-        p = np.polyfit(self.low_abs, self.fill_start(low_min_filt), 9)
+        p = np.polyfit(self.low_abs, low_min_filt, degree)
         low_min_fit = np.polyval(p, self.low_abs)
+
+        
+        ind = 10
+        low_max_fit[0:ind] = low_max_fit[ind]
+        low_min_fit[0:ind] = low_min_fit[ind]
+
+        if False:
+            plt.plot(self.low_abs, low_max_filt, lw=4)
+            plt.plot(self.mid_abs, mid_max_filt, lw=4)
+            plt.plot(self.high_abs, high_max_filt, lw=4)
+
+            plt.plot(self.radAbss, self.binMax, label="Max")
+
+
+            plt.plot(self.low_abs, low_min_filt, lw=4)
+            plt.plot(self.mid_abs, mid_min_filt, lw=4)
+            plt.plot(self.high_abs, high_min_filt, lw=4)
+
+            plt.plot(self.radAbss, self.binMin, label="Min")
+
+
+            plt.plot(self.low_abs, low_min_fit, c='k')
+            plt.plot(self.low_abs, low_max_fit, c='k')
+
+            # plt.plot(self.radAbss, self.binMid, label="Mid")
+            # plt.plot(self.radAbss, self.binMed, label="Med")
+
+            plt.xlim([0.6*theMin,theMax*1.5])
+
+            plt.legend()
+            plt.show()
+
+
 
         # Build output curves
         self.fakeAbss = np.hstack((self.low_abs, self.mid_abs, self.high_abs))
-        self.fakeMax = np.hstack((low_max_fit, mid_max_filt, high_max_filt))
-        self.fakeMin = np.hstack((low_min_fit, mid_min_filt, high_min_filt))
+        self.fakeMax0 = np.hstack((low_max_fit, mid_max_filt, high_max_filt))
+        self.fakeMin0 = np.hstack((low_min_fit, mid_min_filt, high_min_filt))
 
         # Filter again to smooth boundaraies
-        self.fakeMax = self.fill_end(self.fill_start(savgol_filter(self.fakeMax, fWindow, rank)))
-        self.fakeMin = self.fill_end(self.fill_start(savgol_filter(self.fakeMin, fWindow, rank)))
+        self.fakeMax0 = self.fill_end(self.fill_start(savgol_filter(self.fakeMax0, fWindow, rank)))
+        self.fakeMin0 = self.fill_end(self.fill_start(savgol_filter(self.fakeMin0, fWindow, rank)))
 
-        # Locate the Noise Floor
-        noiseMin = 550 * self.extra_rez - self.hCut
-        near_noise = np.arange(noiseMin, noiseMin + 100 * self.extra_rez)
-        self.diff_max_abs = self.high_abs[near_noise]
-        self.diff_max = np.diff(high_max_filt)[near_noise]
-        self.diff_max += np.abs(np.nanmin(self.diff_max))
-        self.diff_max /= np.nanmean(self.diff_max) / 100
-        self.noise_radii = np.argmin(self.diff_max) + noiseMin + self.hCut
-        self.noise_radii = 565 * self.extra_rez
+        # Put the nans back in
+        self.fakeMax = np.empty(self.rez)
+        self.fakeMax.fill(np.nan)
+        self.fakeMin = np.empty(self.rez)
+        self.fakeMin.fill(np.nan)
+
+        self.fakeMax[self.fakeAbss] = self.fakeMax0
+        self.fakeMin[self.fakeAbss] = self.fakeMin0
+
+            # plt.plot(np.arange(self.rez), self.fakeMax)
+            # plt.plot(np.arange(self.rez), self.fakeMin)
+            # plt.show()
+
+
+        # # Locate the Noise Floor
+        # noiseMin = 550 * self.extra_rez - self.hCut
+        # near_noise = np.arange(noiseMin, noiseMin + 100 * self.extra_rez)
+        # self.diff_max_abs = self.high_abs[near_noise]
+        # self.diff_max = np.diff(high_max_filt)[near_noise]
+        # self.diff_max += np.abs(np.nanmin(self.diff_max))
+        # self.diff_max /= np.nanmean(self.diff_max) / 100
+        # self.noise_radii = np.argmin(self.diff_max) + noiseMin + self.hCut
+        # self.noise_radii = 565 * self.extra_rez
+
+    def throw_nan(self, array):
+        return array[~np.isnan(array)]
+
+    def count_nan(self, array):
+        return np.sum(np.isnan(array))
 
     def fill_end(self, use):
         iii = -1
@@ -1610,7 +2152,7 @@ class Sunback:
         fig, (ax0, ax1) = plt.subplots(2, 1, True)
         ax0.scatter(self.n2r(self.rad_sorted[::30]), self.dat_sort[::30], c='k', s=2)
         ax0.axvline(self.n2r(self.limb_radii), ls='--', label="Limb")
-        ax0.axvline(self.n2r(self.noise_radii), c='r', ls='--', label="Scope Edge")
+        # ax0.axvline(self.n2r(self.noise_radii), c='r', ls='--', label="Scope Edge")
         ax0.axvline(self.n2r(self.lCut), ls=':')
         ax0.axvline(self.n2r(self.hCut), ls=':')
         # ax0.axvline(self.tRadius, c='r')
@@ -1632,12 +2174,12 @@ class Sunback:
         # plt.plot(self.high_abs, self.high_min_fit, 'r')
         # plt.plot(self.high_abs, self.high_max_fit, 'r')
 
-        try:
-            ax0.plot(self.n2r(self.fakeAbss), self.fakeMax, 'g', label="Smoothed")
-            ax0.plot(self.n2r(self.fakeAbss), self.fakeMin, 'g')
-        except:
-            ax0.plot(self.n2r(self.radAbss), self.fakeMax, 'g', label="Smoothed")
-            ax0.plot(self.n2r(self.radAbss), self.fakeMin, 'g')
+        # try:
+        #     ax0.plot(self.n2r(self.fakeAbss), self.fakeMax, 'g', label="Smoothed")
+        #     ax0.plot(self.n2r(self.fakeAbss), self.fakeMin, 'g')
+        # except:
+        #     ax0.plot(self.n2r(self.radAbss), self.fakeMax, 'g', label="Smoothed")
+        #     ax0.plot(self.n2r(self.radAbss), self.fakeMin, 'g')
 
         # plt.plot(radAbss, binMax, 'c')
         # plt.plot(self.radAbss, self.binMin, 'm')
@@ -1647,7 +2189,7 @@ class Sunback:
         # plt.plot(radAbss, fakeMin, 'r')
         # plt.ylim((-100, 10**3))
         # plt.xlim((380* self.extra_rez ,(380+50)* self.extra_rez ))
-        ax0.set_xlim((0, self.n2r(self.highCut)))
+        # ax0.set_xlim((0, self.n2r(self.highCut)))
         ax0.legend()
         fig.set_size_inches((8, 12))
         ax0.set_yscale('log')
@@ -1670,14 +2212,15 @@ class Sunback:
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
 
         plt.tight_layout()
-        if False: #self.params.is_debug():
+        if True: #self.params.is_debug():
             file_name = '{}_Radial.png'.format(self.name)
-            save_path = join(self.params.local_directory, file_name)
+            # print("Saving {}".format(file_name))
+            save_path = join(r"data\images\radial", file_name)
             plt.savefig(save_path)
 
             file_name = '{}_Radial_zoom.png'.format(self.name)
             ax0.set_xlim((0.9, 1.1))
-            save_path = join(self.params.local_directory, file_name)
+            save_path = join(r"data\images\radial", file_name)
             plt.savefig(save_path)
             # plt.show()
             plt.close(fig)
@@ -1758,6 +2301,7 @@ class SunbackMovie:
                 fail_count += 1
                 if fail_count < fail_max:
                     print("I failed, but I'm ignoring it. Count: {}/{}\n\n".format(fail_count, fail_max))
+                    self.need = True
                     continue
                 else:
                     print("Too Many Failures, I Quit!")
@@ -4329,11 +4873,11 @@ def run(delay=20, mode='all', debug=False):
     p = Parameters()
     p.mode(mode)
     p.set_delay_seconds(delay)
-    p.do_mirror(True)
+    p.do_mirror(False)
 
     if debug:
         p.is_debug(True)
-        p.set_delay_seconds(1)
+        p.set_delay_seconds(10)
         p.do_HMI(False)
 
     # p.time_period(period=['2019/12/21 04:20', '2019/12/21 04:40'])
@@ -4350,6 +4894,7 @@ def run(delay=20, mode='all', debug=False):
     p.make_compressed(True)
     p.sonify_images(True, True)
     # p.sonify_images(False, False)
+    # p._stop_after_one = True
     # p.do_171(True)
     # p.do_304(True)
 
@@ -4366,7 +4911,7 @@ def where():
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     where()
-    run(5, 6, debug=debugg)
+    run(20, 'y', debug=debugg)
 
 
 

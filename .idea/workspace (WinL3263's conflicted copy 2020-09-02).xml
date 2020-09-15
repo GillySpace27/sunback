@@ -1,0 +1,558 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="2917f5ae-fa93-4d31-93c7-e3381dc4bc6e" name="Default Changelist" comment="" />
+    <list id="6c926018-3b0b-42b3-85b3-641c6d79f531" name="$2" comment="" />
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="DatabaseView">
+    <option name="SHOW_INTERMEDIATE" value="true" />
+    <option name="GROUP_DATA_SOURCES" value="true" />
+    <option name="GROUP_SCHEMA" value="true" />
+    <option name="GROUP_CONTENTS" value="false" />
+    <option name="SORT_POSITIONED" value="false" />
+    <option name="SHOW_EMPTY_GROUPS" value="false" />
+    <option name="AUTO_SCROLL_FROM_SOURCE" value="false" />
+    <option name="HIDDEN_KINDS">
+      <set />
+    </option>
+    <expand />
+    <select />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="CSS File" />
+        <option value="HTML File" />
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="PUSH_TAGS">
+      <GitPushTagMode>
+        <option name="argument" value="--tags" />
+        <option name="title" value="All" />
+      </GitPushTagMode>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectId" id="1TuVqDhhGsWrP1a4zpDCTA6YiWr" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
+    <property name="ASKED_SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="DefaultHtmlFileTemplate" value="HTML File" />
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="TODO_SCOPE" value="All Places" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="com.intellij.ide.scratch.LRUPopupBuilder$1/New Scratch File" value="Ini&#10;Python" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/sunback/tests" />
+    <property name="list.type.of.created.stylesheet" value="CSS" />
+    <property name="settings.editor.selected.configurable" value="File.Encoding" />
+    <property name="two.files.diff.last.used.file" value="$PROJECT_DIR$/sunback/versioneer.py" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\chgi7364\Dropbox\Interesting Stuff\sunback\devtools\scripts" />
+      <recent name="C:\Users\chgi7364\" />
+      <recent name="C:\Users\chgi7364\Dropbox\Interesting Stuff\sunback\docs\_static" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\chgi7364\Dropbox\Interesting_Stuff\sunback_proj\devtools\scripts" />
+      <recent name="C:\Users\chgi7364\Dropbox\Interesting Stuff\sunback\depricated" />
+      <recent name="C:\Users\chgi7364\Dropbox\Interesting Stuff\sunback\docs\_build\html\_static\css" />
+      <recent name="C:\Users\chgi7364\Dropbox\Interesting Stuff\sunback\docs\_build\html\_static" />
+      <recent name="C:\Users\chgi7364\Dropbox\Interesting Stuff\sunback" />
+    </key>
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="RunManager" selected="Python tests.pytest">
+    <configuration name="Build Distribution" type="BatchConfigurationType" factoryName="Batch" editBeforeRun="true">
+      <module name="sunback_project" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/devtools/scripts/buildDistribution.bat" />
+      <option name="PARAMETERS" value="0.0.31 &quot;Things&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Real Upload" type="BatchConfigurationType" factoryName="Batch" editBeforeRun="true">
+      <module name="sunback_project" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/devtools/scripts/fullUpload.bat" />
+      <option name="PARAMETERS" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Test Upload" type="BatchConfigurationType" factoryName="Batch" editBeforeRun="true">
+      <module name="sunback_project" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/devtools/scripts/testUpload.bat" />
+      <option name="PARAMETERS" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Sunback" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="sunback_project" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="C:\Users\chgi7364\AppData\Local\Continuum\anaconda3\envs\sunback\python.exe" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/sunback" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sunback/sunback.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="sphinx-build-script" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="sunback_project" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="C:\Users\chgi7364\AppData\Local\Continuum\anaconda3\envs\sunback\python.exe" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/docs" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$USER_HOME$/AppData/Local/Continuum/anaconda3/envs/sunback/Scripts/sphinx-build-script.py" />
+      <option name="PARAMETERS" value="-b html -d _build/doctrees . _build/html" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="test registry" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="sunback_project" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/sunback/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sunback/tests/test registry.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest" type="tests" factoryName="py.test">
+      <module name="sunback_project" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="C:\Users\chgi7364\AppData\Local\Continuum\anaconda3\envs\sunback\python.exe" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/sunback" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/sunback/tests&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Batch.Test Upload" />
+      <item itemvalue="Batch.Real Upload" />
+      <item itemvalue="Batch.Build Distribution" />
+      <item itemvalue="Python.sphinx-build-script" />
+      <item itemvalue="Python.Sunback" />
+      <item itemvalue="Python.test registry" />
+      <item itemvalue="Python tests.pytest" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.test registry" />
+        <item itemvalue="Python.Sunback" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="2917f5ae-fa93-4d31-93c7-e3381dc4bc6e" name="Default Changelist" comment="" />
+      <changelist id="6c926018-3b0b-42b3-85b3-641c6d79f531" name="$2" comment="" />
+      <created>1574310155855</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1574310155855</updated>
+      <workItem from="1574310160491" duration="1885000" />
+      <workItem from="1574312053790" duration="41000" />
+      <workItem from="1574312095553" duration="927000" />
+      <workItem from="1574313926037" duration="35406000" />
+      <workItem from="1574380552354" duration="4007000" />
+      <workItem from="1574384838115" duration="2318000" />
+      <workItem from="1574387173546" duration="3309000" />
+      <workItem from="1574390743528" duration="1914000" />
+      <workItem from="1574443772296" duration="1966000" />
+      <workItem from="1574445980231" duration="27866000" />
+      <workItem from="1574478495909" duration="8370000" />
+      <workItem from="1574577784529" duration="25809000" />
+      <workItem from="1574799628897" duration="695000" />
+    </task>
+    <task id="LOCAL-00001" summary="First Code Commit">
+      <created>1574311599205</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1574311599205</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Restructure">
+      <created>1574312193881</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1574312193881</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Readme Update, Badges">
+      <created>1574317583279</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1574317583279</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Dependencies">
+      <created>1574318964429</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1574318964429</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Dependencies Again">
+      <created>1574319739958</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1574319739958</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Dependencies Again2">
+      <created>1574320401129</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1574320401129</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Dependencies Again3">
+      <created>1574320787417</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1574320787417</updated>
+    </task>
+    <task id="LOCAL-00008" summary="Dependencies Again4">
+      <created>1574321418210</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1574321418210</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Dependencies Again5">
+      <created>1574321698310</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1574321698310</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Dependencies Again6">
+      <created>1574322117737</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1574322117737</updated>
+    </task>
+    <task id="LOCAL-00011" summary="Dependencies Again7">
+      <created>1574322736689</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1574322736689</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Dependencies Again8">
+      <created>1574322996859</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1574322996859</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Dependencies Again9">
+      <created>1574350938660</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1574350938660</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Dependencies Again10">
+      <created>1574351541056</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1574351541056</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Dependencies Again11">
+      <created>1574351943166</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1574351943166</updated>
+    </task>
+    <task id="LOCAL-00016" summary="Dependencies Again12">
+      <created>1574352271716</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1574352271716</updated>
+    </task>
+    <task id="LOCAL-00017" summary="Dependencies Again13">
+      <created>1574354029823</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1574354029823</updated>
+    </task>
+    <task id="LOCAL-00018" summary="Dependencies Again14">
+      <created>1574354297784</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1574354297784</updated>
+    </task>
+    <task id="LOCAL-00019" summary="Dependencies Again15">
+      <created>1574354822861</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1574354822861</updated>
+    </task>
+    <task id="LOCAL-00020" summary="Dependencies Again16">
+      <created>1574355160976</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1574355160976</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Dependencies Again17">
+      <created>1574355388278</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1574355388278</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Sphinx First Build">
+      <created>1574361760539</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1574361760539</updated>
+    </task>
+    <task id="LOCAL-00023" summary="Documentation 2">
+      <created>1574364682103</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1574364682103</updated>
+    </task>
+    <task id="LOCAL-00024" summary="Documentation 3">
+      <created>1574366149147</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1574366149147</updated>
+    </task>
+    <task id="LOCAL-00025" summary="Package Compliance">
+      <created>1574369852554</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1574369852554</updated>
+    </task>
+    <task id="LOCAL-00026" summary="Package Compliance 2">
+      <created>1574371232569</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1574371232569</updated>
+    </task>
+    <task id="LOCAL-00027" summary="new versioneer stuff">
+      <created>1574378863734</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1574378863734</updated>
+    </task>
+    <task id="LOCAL-00028" summary="Early Version">
+      <created>1574379686659</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1574379686659</updated>
+    </task>
+    <task id="LOCAL-00029" summary="Early Version b">
+      <created>1574380225710</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1574380225710</updated>
+    </task>
+    <task id="LOCAL-00030" summary="A">
+      <created>1574380739419</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1574380739419</updated>
+    </task>
+    <task id="LOCAL-00031" summary="F">
+      <created>1574381600709</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1574381600709</updated>
+    </task>
+    <task id="LOCAL-00032" summary="Added Some Tests">
+      <created>1574588230115</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1574588230116</updated>
+    </task>
+    <task id="LOCAL-00033" summary="More Testing">
+      <created>1574590850342</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1574590850342</updated>
+    </task>
+    <task id="LOCAL-00034" summary="Testing!">
+      <created>1574673720558</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1574673720558</updated>
+    </task>
+    <task id="LOCAL-00035" summary="Code Coverage!">
+      <created>1574674383442</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1574674383442</updated>
+    </task>
+    <option name="localTasksCounter" value="36" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="1" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="COLUMN_ORDER" />
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="RECENT_FILTERS">
+      <map>
+        <entry key="Branch">
+          <value>
+            <list>
+              <RecentGroup>
+                <option name="FILTER_VALUES">
+                  <option value="HEAD" />
+                </option>
+              </RecentGroup>
+            </list>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
+    <MESSAGE value="Dependencies Again7" />
+    <MESSAGE value="Dependencies Again8" />
+    <MESSAGE value="Dependencies Again9" />
+    <MESSAGE value="Dependencies Again10" />
+    <MESSAGE value="Dependencies Again11" />
+    <MESSAGE value="Dependencies Again12" />
+    <MESSAGE value="Dependencies Again13" />
+    <MESSAGE value="Dependencies Again14" />
+    <MESSAGE value="Dependencies Again15" />
+    <MESSAGE value="Dependencies Again16" />
+    <MESSAGE value="Dependencies Again17" />
+    <MESSAGE value="Sphinx First Build" />
+    <MESSAGE value="Documentation 2" />
+    <MESSAGE value="Documentation 3" />
+    <MESSAGE value="Package Compliance" />
+    <MESSAGE value="Package Compliance 2" />
+    <MESSAGE value="new versioneer stuff" />
+    <MESSAGE value="Early Version" />
+    <MESSAGE value="Early Version b" />
+    <MESSAGE value="A" />
+    <MESSAGE value="F" />
+    <MESSAGE value="Added Some Tests" />
+    <MESSAGE value="More Testing" />
+    <MESSAGE value="Testing!" />
+    <MESSAGE value="Code Coverage!" />
+    <option name="LAST_COMMIT_MESSAGE" value="Code Coverage!" />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/sunback$sphinx_build.coverage" NAME="sphinx-build-script Coverage Results" MODIFIED="1574366001811" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/docs" />
+    <SUITE FILE_PATH="coverage/sunback$setup_py_sdist.coverage" NAME="setup.py sdist Coverage Results" MODIFIED="1574384385388" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/sunback_project$sphinx_build_script.coverage" NAME="sphinx-build-script Coverage Results" MODIFIED="1574473551559" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/docs" />
+    <SUITE FILE_PATH="coverage/sunback_project$pytest.coverage" NAME="pytest Coverage Results" MODIFIED="1574673436423" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/sunback" />
+    <SUITE FILE_PATH="coverage/sunback$sphinx_task_in_sphinx_task_in_.coverage" NAME="Update Sphinx Coverage Results" MODIFIED="1574361028174" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/sunback$create_conda_env.coverage" NAME="create_conda_env Coverage Results" MODIFIED="1574310289423" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/devtools/scripts" />
+    <SUITE FILE_PATH="coverage/sunback_project$Sunback.coverage" NAME="Sunback Coverage Results" MODIFIED="1574582254363" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/sunback" />
+    <SUITE FILE_PATH="coverage/sunback$Build_Package.coverage" NAME="setup.py sdist Coverage Results" MODIFIED="1574380294444" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/sunback$Sunback.coverage" NAME="Sunback Coverage Results" MODIFIED="1574444017189" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/sunback" />
+    <SUITE FILE_PATH="coverage/sunback_project$test_registry.coverage" NAME="test registry Coverage Results" MODIFIED="1574671495002" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/sunback/tests" />
+  </component>
+</project>
