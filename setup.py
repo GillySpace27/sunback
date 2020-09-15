@@ -50,7 +50,7 @@ setup(
     platforms=['Windows', 'Linux', 'Mac OS-X'],            # Valid platforms your code works on, adjust to your flavor
                                         #'Linux','Mac OS-X','Unix',
 
-    python_requires=">=3.0,<3.8",          # Python version restrictions
+    python_requires=">=3.0",          # Python version restrictions
 
     classifiers=[
         # How mature is this project? Common values are
