@@ -507,7 +507,7 @@ class Sunback:
         data = self.coronagraph(data)
         if not self.params.do_mirror():
             data = self.vignette(data)
-        if True: #plotStats:
+        if False: #plotStats:
             self.plot_stats()
 
         return data.astype('float32')
