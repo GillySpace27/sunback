@@ -489,9 +489,9 @@ class Sunback:
 
     def image_modify(self, data):
         """Perform the image normalization on the input array"""
-        data = data + 0
-        self.radial_analyze(data, False)
-        data = self.absqrt(data)
+        data = self.radial_analyze(data, False)
+        data = self.vignette(data)
+        # data = self.absqrt(data)
         data = self.coronagraph(data)
 
         if not self.params.do_mirror():
@@ -499,7 +499,15 @@ class Sunback:
         if False: #plotStats:
             self.plot_stats()
 
-        return data.astype('float32')
+        dat = data.astype('float32')
+        # dat2 = self.renormalize(dat)
+        # half = int(dat.shape[0]/2)
+        # dat[:, :half] = dat2[:, :half]
+        # dat[:, half:] = dat2[:, half:]
+        # return dat
+
+        return dat
+
 
     def plot_and_save(self, data, image_data, original_data=None):
         full_name, save_path, time_string, ii = image_data
@@ -508,7 +516,7 @@ class Sunback:
 
         for processed in [False, True]:
 
-            if not self.params.is_debug():
+            if not True:
                 if not processed:
                     continue
             if not processed:
@@ -534,7 +542,13 @@ class Sunback:
 
             else:
                 inst = '  AIA'
-                plt.imshow(data if processed else self.normalize(original_data), cmap='sdoaia{}'.format(name), origin='lower', interpolation=None,  vmin=self.vmin_plot, vmax=self.vmax_plot)
+                if processed:
+                    plt.imshow(data , cmap='sdoaia{}'.format(name), origin='lower', interpolation=None,  vmin=self.vmin_plot, vmax=self.vmax_plot)
+                else:
+                    toprint = self.normalize(self.absqrt(original_data))
+                    plt.imshow(toprint , cmap='sdoaia{}'.format(name), origin='lower', interpolation=None) #,  vmin=self.vmin_plot, vmax=self.vmax_plot)
+
+
                 plt.tight_layout(pad=0)
                 height = 0.95
 
@@ -1676,12 +1690,13 @@ class Sunback:
         return np.sqrt(np.abs(data))
 
     @staticmethod
-    def normalize(data):
-        high = 98
-        low = 15
-
-        lowP = np.nanpercentile(data, low)
+    def normalize(data, high=98, low=15):
+        if low is None:
+            lowP = 0
+        else:
+            lowP = np.nanpercentile(data, low)
         highP = np.nanpercentile(data, high)
+
         return (data - lowP) / (highP - lowP)
 
     def vignette(self, data):
@@ -1703,36 +1718,48 @@ class Sunback:
         # original = sys.stderr
         # sys.stderr = open(join(self.params.local_directory, 'log.txt'), 'w+')
         # print(data.dtype)
+        data[data==0] = np.nan
         radius_bin = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
         # import pdb; pdb.set_trace()
-        dat_corona = (self.dat_flat - self.fakeMin[radius_bin]) / \
+        dat_corona = (data.flatten() - self.fakeMin[radius_bin]) / \
                      (self.fakeMax[radius_bin] - self.fakeMin[radius_bin])
+
 
         # sys.stderr = original
 
         # Deal with too hot things
-        self.vmax = 1
-        self.vmax_plot = 1.8
+        self.vmax = 0.95
+        self.vmax_plot = 0.85 #np.max(dat_corona)
+        hotpowr = 1/1.5
+
 
         hot = dat_corona > self.vmax
-        dat_corona[hot] = dat_corona[hot] ** (1 / 2)
+        # dat_corona[hot] = dat_corona[hot] ** hotpowr
 
         # Deal with too cold things
-        self.vmin = 0.06
-        self.vmin_plot = -0.03
+        self.vmin = 0.3
+        self.vmin_plot = -0.05 #np.min(dat_corona)# 0.3# -0.03
+        coldpowr = 1/2
 
         cold = dat_corona < self.vmin
-        dat_corona[cold] = -((np.abs(dat_corona[cold] - self.vmin) + 1) ** (1 / 2) - 1) + self.vmin
+        dat_corona[cold] = -((np.abs(dat_corona[cold] - self.vmin) + 1) ** coldpowr - 1) + self.vmin
 
         self.dat_coronagraph = dat_corona
         dat_corona_square = dat_corona.reshape(data.shape)
+
 
         if self.renew_mask or self.params.mode() == 'r':
             self.corona_mask = self.get_mask(data)
             self.renew_mask = False
 
-        data = self.normalize(data)
 
+
+        dat_corona_square = dat_corona_square ** (1/5)
+        data = self.normalize(data, high = 100, low=0)
+        dat_corona_square = self.normalize(dat_corona_square, high = 100, low=1)
+
+
+        # import pdb; pdb.set_trace()
         if self.params.do_mirror():
             #Do stuff
             xx, yy = self.corona_mask.shape[0], int(self.corona_mask.shape[1]/2)
@@ -1754,6 +1781,14 @@ class Sunback:
         # # plt.yscale('log')
         # plt.scatter(rad_sorted[::30], dat_sort[::30], c='k')
         # plt.show()
+
+        # data = data / np.mean(data)
+
+        # data = data**(1/2)
+        # data = np.log(data)
+
+        # data = self.normalize(data, high=85, low=5)
+
 
         return data
 
@@ -1835,14 +1870,15 @@ class Sunback:
     # Basic Analysis
 
     def radial_analyze(self, data, plotStats=False):
-        self.offset = np.abs(np.min(data))
+        self.offset = np.min(data)
 
-        data += self.offset
+        data -= self.offset
 
         self.make_radius(data)
         self.sort_radially(data)
         self.bin_radially()
         self.fit_curves()
+        return data
 
     def make_radius(self, data):
 
@@ -1907,20 +1943,6 @@ class Sunback:
         self.binMid = self.binMid[idx]
         self.binMed = self.binMed[idx]
         self.radAbss = self.radAbss[idx]
-
-
-
-
-
-        # Find the derivative of the binned Mid
-        # self.diff_Mid = np.diff(self.binMid)
-        # self.diff_Mid += np.abs(np.nanmin(self.diff_Mid))
-        # self.diff_Mid /= np.nanmean(self.diff_Mid) / 100
-        # diff_mid_filt = np.unique(self.diff_Mid[~np.isnan(self.diff_Mid)])
-        # low_max_filt = savgol_filter(diff_mid_filt, 11, 3)
-        # self.limb_radii = np.argmin(self.diff_Mid[near_limb]) + theMin
-        # import pdb; pdb.set_trace()
-
 
     def fit_curves(self):
         # Input Stuff
@@ -2009,7 +2031,7 @@ class Sunback:
         degree = 5
         # print(self.count_nan(low_max_filt))
         p = np.polyfit(self.low_abs, low_max_filt, degree)
-        low_max_fit = np.polyval(p, self.low_abs) * 1.1
+        low_max_fit = np.polyval(p, self.low_abs) #* 1.1
         p = np.polyfit(self.low_abs, low_min_filt, degree)
         low_min_fit = np.polyval(p, self.low_abs)
 
@@ -2195,7 +2217,7 @@ def run(delay=20, mode='all', debug=False):
     p.mode(mode)
     p.set_delay_seconds(delay)
     p.do_mirror(False)
-    p.do_171(True)
+    # p.do_171(True)
 
     if debug:
         p.is_debug(True)
@@ -2205,7 +2227,7 @@ def run(delay=20, mode='all', debug=False):
     # p.time_period(period=['2019/12/21 04:20', '2019/12/21 04:40'])
     p.resolution(2048)
     p.range(days=5)#0.060)
-    p.download_images(True)
+    # p.download_images(False)
     p.cadence(3)
     p.frames_per_second(20)
     p.bpm(150)
