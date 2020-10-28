@@ -1,4 +1,4 @@
 #  - index-url https://pypi.python.org/simple/
 matplotlib
-
+astropy
 -e .

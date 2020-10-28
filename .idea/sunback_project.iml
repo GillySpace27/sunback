@@ -15,6 +15,7 @@
   </component>
   <component name="PackageRequirementsSettings">
     <option name="requirementsPath" value="req.txt" />
+    <option name="versionSpecifier" value="Don't specify version" />
   </component>
   <component name="ReSTService">
     <option name="DOC_DIR" value="C:\Users\chgi7364\Dropbox\Interesting Stuff\sunback\docs" />

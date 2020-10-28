@@ -678,6 +678,7 @@ class Sunback:
 
             # Decide if new images are required
             there_arent_images = now <= old_datetime
+
             if there_arent_images or not self.params.download_images():
                 # Use old images
                 self.new_images = False
@@ -770,22 +771,15 @@ class Sunback:
 
     def mr_modify(self, this_name, file_path):
         """Load the image, modify it, then plot and save"""
-        if True:
-            print("Generating Image...", flush=True)
+        print("Generating Image...", flush=True)
 
-            # Open the File
-            originalData, image_data = self.mr_open(this_name, file_path)
+        # Open the File
+        originalData, image_data = self.mr_open(this_name, file_path)
 
-            # Modify the data
-            data = self.image_modify(originalData)
-            # data = originalData
-
-            # Plot the Data
-            new_path = self.plot_and_save(data, image_data, originalData)
-
-        else:
-            new_path = file_path[:-4] + ".png"
-
+        # Modify the data
+        from modify import Modify
+        mod_obj = Modify(originalData, image_data)
+        new_path = mod_obj.get_path()
         return new_path
 
     def mr_open(self, this_name, file_path):
@@ -796,7 +790,7 @@ class Sunback:
             try:
                 # Parse Inputs
                 with fits.open(file_path) as hdul:
-                    hdul.verify('fix')
+                    hdul.verify('silentfix+warn')
 
                     wave = hdul[0].header['WAVELNTH']
                     t_rec = hdul[0].header['T_OBS']
@@ -2212,7 +2206,7 @@ class Sunback:
             return n
 
 # Helper Functions
-def run(delay=20, mode='all', debug=False):
+def run(delay=20, mode='y', debug=False):
     p = Parameters()
     p.mode(mode)
     p.set_delay_seconds(delay)
@@ -2227,7 +2221,7 @@ def run(delay=20, mode='all', debug=False):
     # p.time_period(period=['2019/12/21 04:20', '2019/12/21 04:40'])
     p.resolution(2048)
     p.range(days=5)#0.060)
-    # p.download_images(False)
+    p.download_images(True)
     p.cadence(3)
     p.frames_per_second(20)
     p.bpm(150)
@@ -2255,7 +2249,7 @@ def where():
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     where()
-    run(20, 'y', debug=debugg)
+    run(5, 'y', debug=debugg)
 
 
 
