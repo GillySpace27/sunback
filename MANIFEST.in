@@ -13,6 +13,8 @@ prune devtools
 prune sunback/.idea
 prune sunback/data/compare
 prune sunback/data/images
+prune sunback/fits
+prune sunback/renders
 
 # prune sunback/Images
 # prune images

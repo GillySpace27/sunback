@@ -7,6 +7,9 @@
       <excludeFolder url="file://$MODULE_DIR$/depricated" />
       <excludeFolder url="file://$MODULE_DIR$/dist" />
       <excludeFolder url="file://$MODULE_DIR$/dist_old" />
+      <excludeFolder url="file://$MODULE_DIR$/sunback/data" />
+      <excludeFolder url="file://$MODULE_DIR$/sunback/fits" />
+      <excludeFolder url="file://$MODULE_DIR$/sunback/renders" />
       <excludeFolder url="file://$MODULE_DIR$/sunback/sunback_images" />
       <excludeFolder url="file://$MODULE_DIR$/venv2" />
     </content>
