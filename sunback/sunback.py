@@ -7,9 +7,9 @@ Handles the primary functions
 """
 
 # Imports
-from time import localtime, timezone, strftime, sleep, time, struct_time
+from time import localtime, timezone, strftime, sleep, time
 from urllib.request import urlretrieve
-from os import getcwd, makedirs, rename, remove, listdir, startfile
+from os import getcwd, makedirs, rename, remove
 from os.path import normpath, abspath, join, dirname, exists
 from calendar import timegm
 import astropy.units as u
@@ -17,11 +17,10 @@ import astropy.units as u
 start = time()
 from sunpy.net import Fido, attrs as a
 import sunpy.map
-from threading import Thread, Barrier
+from threading import Barrier
 bbb = Barrier(3, timeout=100)
 
 from tqdm import tqdm
-from warnings import warn
 from platform import system
 import sys
 import numpy as np
@@ -33,7 +32,6 @@ except:
     pass
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-import matplotlib.cm as cm
 
 this_system = system()
 
@@ -1611,7 +1609,6 @@ class Sunback:
         if hour == '0':
             hour = 12
         suffix = 'pm' if hour_raw > 12 else 'am'
-        from time import mktime
         struct_time = (int(year), int(month), int(day), hour_raw, int(minute), 0, 0, 0, -1)
 
         new_time_string = strftime("%I:%M%p %m/%d/%Y ", localtime(timegm(struct_time))).lower()
@@ -1633,8 +1630,7 @@ class Sunback:
     @staticmethod
     def clean_time_string(time_string):
         # Make the name strings
-        import sunpy.time as time
-        from datetime import datetime, timezone
+        from datetime import timezone
         from astropy.time import Time
         # import pdb; pdb.set_trace()
         # cleaned = time_string.replace(tzinfo=timezone.utc).astimezone(tz=None)
