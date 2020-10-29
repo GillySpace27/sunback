@@ -12,10 +12,10 @@ start = time()
 
 try:
     from .modify.modify import Modify
-    print("A")
+    # print("A")
 except (ModuleNotFoundError, ImportError):
     from modify.modify import Modify
-    print("D")
+    # print("D")
 
 from urllib.request import urlretrieve
 from os import getcwd, makedirs, rename, remove
