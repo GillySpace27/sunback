@@ -7,7 +7,7 @@ Handles the primary functions
 """
 
 # Imports
-from modify import Modify
+from modify.modify import Modify
 from time import localtime, timezone, strftime, sleep, time
 from urllib.request import urlretrieve
 from os import getcwd, makedirs, rename, remove
