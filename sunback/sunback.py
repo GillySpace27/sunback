@@ -7,30 +7,23 @@ Handles the primary functions
 """
 
 # Imports
+from time import localtime, timezone, strftime, sleep, time
+start = time()
+
 try:
     from .modify.modify import Modify
     print("A")
 except (ModuleNotFoundError, ImportError):
-    try:
-        from modify.modify import Modify
-        print("B")
-    except (ModuleNotFoundError, ImportError):
-        try:
-            from .modify import Modify
-            print("C")
-        except (ModuleNotFoundError, ImportError):
-            from modify import Modify
-            print("D")
+    from modify.modify import Modify
+    print("D")
 
-
-from time import localtime, timezone, strftime, sleep, time
 from urllib.request import urlretrieve
 from os import getcwd, makedirs, rename, remove
 from os.path import normpath, abspath, join, dirname, exists
 from calendar import timegm
 import astropy.units as u
 
-start = time()
+
 # from sunpy.net import Fido, attrs as a
 import sunpy.map
 from threading import Barrier
