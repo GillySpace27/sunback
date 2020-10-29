@@ -29,7 +29,7 @@ wheels/
 /sunback/sunback_images/
 /sunback/fits
 /sunback/renders
-/function.zip
+/sunback/function.zip
 
 docs/_build
 *.egg-info/
