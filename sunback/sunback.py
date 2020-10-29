@@ -2245,7 +2245,7 @@ def where():
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     where()
-    run(5, 'y', debug=debugg)
+    run(10, 'y', debug=debugg)
 
 
 
