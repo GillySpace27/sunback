@@ -5,6 +5,7 @@ include versioneer.py
 graft sunback
 global-exclude *.py[cod] sunback/_version.py
 include sunback/_version.py
+include sunback/modify.py
 
 # prune sunback/data/images
 # prune sunback/data/sunback_images

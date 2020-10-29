@@ -7,6 +7,7 @@ Handles the primary functions
 """
 
 # Imports
+from modify import Modify
 from time import localtime, timezone, strftime, sleep, time
 from urllib.request import urlretrieve
 from os import getcwd, makedirs, rename, remove
@@ -775,7 +776,6 @@ class Sunback:
         originalData, image_data = self.mr_open(this_name, file_path)
 
         # Modify the data
-        from modify import Modify
         mod_obj = Modify(originalData, image_data)
         new_path = mod_obj.get_path()
         return new_path
