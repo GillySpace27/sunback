@@ -8,9 +8,20 @@ Handles the primary functions
 
 # Imports
 try:
-    from modify.modify import Modify
-except ModuleNotFoundError:
-    from modify import Modify
+    from .modify.modify import Modify
+    print("A")
+except (ModuleNotFoundError, ImportError):
+    try:
+        from modify.modify import Modify
+        print("B")
+    except (ModuleNotFoundError, ImportError):
+        try:
+            from .modify import Modify
+            print("C")
+        except (ModuleNotFoundError, ImportError):
+            from modify import Modify
+            print("D")
+
 
 from time import localtime, timezone, strftime, sleep, time
 from urllib.request import urlretrieve
@@ -20,7 +31,7 @@ from calendar import timegm
 import astropy.units as u
 
 start = time()
-from sunpy.net import Fido, attrs as a
+# from sunpy.net import Fido, attrs as a
 import sunpy.map
 from threading import Barrier
 bbb = Barrier(3, timeout=100)
@@ -648,7 +659,7 @@ class Sunback:
         """Download the images and run the algorithm on them"""
         self.mr_get()
         self.mr_run()
-        
+
     def mr_get(self):
         """Download the images if there are new ones"""
         local_dir = self.params.discover_best_default_directory()
@@ -813,7 +824,7 @@ class Sunback:
         return data, image_data
 
 
-    # Jp Version 
+    # Jp Version
 
     def jp_execute(self):
         self.jp_get()
@@ -2029,7 +2040,7 @@ class Sunback:
         p = np.polyfit(self.low_abs, low_min_filt, degree)
         low_min_fit = np.polyval(p, self.low_abs)
 
-        
+
         ind = 10
         low_max_fit[0:ind] = low_max_fit[ind]
         low_min_fit[0:ind] = low_min_fit[ind]
