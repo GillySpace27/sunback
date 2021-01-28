@@ -1,4 +1,4 @@
 #  - index-url https://pypi.python.org/simple/
-matplotlib
+boto3
 
 -e .
