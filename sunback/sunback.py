@@ -1,39 +1,21 @@
 """
 sunback.py
-A program that downloads the most current images of the sun from the SDO satellite,
-then sets each of the images to the desktop background in series.
+A program that downloads recent png images from Gilly's S3 bucket and sets them to the desktop background
 
 Handles the primary functions
 """
 
 # Imports
-from time import localtime, timezone, strftime, sleep, time, struct_time
-from urllib.request import urlretrieve
-from os import getcwd, makedirs, rename, remove, listdir, startfile
-from os.path import normpath, abspath, join, dirname, exists
-from calendar import timegm
+from time import sleep, time
+from os import getcwd, makedirs
+from os.path import normpath, abspath, join, dirname
 import astropy.units as u
-
 start = time()
-from sunpy.net import Fido, attrs as a
-import sunpy.map
-from threading import Thread, Barrier
+from threading import Barrier
 bbb = Barrier(3, timeout=100)
-
-from tqdm import tqdm
-from warnings import warn
 from platform import system
 import sys
 import numpy as np
-import matplotlib as mpl
-
-try:
-    mpl.use('qt5agg')
-except:
-    pass
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-import matplotlib.cm as cm
 
 this_system = system()
 
@@ -53,16 +35,9 @@ else:
     raise OSError("Operating System Not Supported")
 
 # Main
-
 debugg = False
 
 print("Import took {:0.2f} seconds".format(time() - start))
-
-
-def tr():
-    import pdb;
-    pdb.set_trace()
-
 
 class Parameters:
     """
