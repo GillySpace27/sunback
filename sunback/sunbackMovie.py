@@ -3070,10 +3070,10 @@ def run(delay=20, mode='all', debug=False):
         p.do_HMI(False)
 
     # p.time_period(period=['2019/12/21 04:20', '2019/12/21 04:40'])
-    p.resolution(2048)
+    p.resolution(1028)
     p.range(days=5)#0.060)
     p.download_images(True)
-    p.cadence(3)
+    p.cadence(10)
     p.frames_per_second(20)
     p.bpm(150)
     # p.download_images(False)
