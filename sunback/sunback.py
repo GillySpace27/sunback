@@ -8,7 +8,7 @@ Handles the primary functions
 # Imports
 from time import sleep, time
 from os import getcwd, makedirs
-from os.path import normpath, abspath, join, dirname
+from os.path import normpath, abspath, join, dirname, isdir
 import astropy.units as u
 start = time()
 from threading import Barrier
@@ -35,7 +35,7 @@ else:
     raise OSError("Operating System Not Supported")
 
 # Main
-debugg = False
+debugg = True
 
 print("Import took {:0.2f} seconds".format(time() - start))
 
@@ -325,6 +325,8 @@ class Parameters:
             ddd = abspath(join(ddd, ".."))
 
         directory = join(ddd, subdirectory_name)
+        if not isdir(directory):
+            makedirs(directory)
 
         # print("Image Location: {}".format(directory))
         # while not access(directory, W_OK):
@@ -471,7 +473,6 @@ class Sunback:
         assert isinstance(local_path, str)
         print("Updating Background...", end='', flush=True)
         this_system = system()
-
         try:
             if this_system == "Windows":
                 import ctypes
@@ -522,6 +523,7 @@ class Sunback:
         """Loop over the wavelengths and normalize, set background, and wait"""
 
         for file_path in self.fileBox:
+            print(file_path)
             self.params.start_time = time()
             self.name = file_path[-8:-4]
             if self.params.do_171() and "171" not in self.name:
@@ -557,8 +559,9 @@ class Sunback:
             if 'orig' in obj.key or 'archive' in obj.key or "thumbs" in obj.key or "4500" in obj.key:
                 continue
             print('    ', filename)
-            my_bucket.download_file(obj.key, join(local_dir, filename))
-            self.fileBox.append(obj.key)
+            loc = join(local_dir, filename)
+            my_bucket.download_file(obj.key, loc)
+            self.fileBox.append(loc)
         print("All Downloads Complete\n\n")
         
 
