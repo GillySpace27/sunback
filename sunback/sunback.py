@@ -1,7 +1,6 @@
 """
 sunback.py
-A program that downloads the most current images of the sun from the SDO satellite,
-then sets each of the images to the desktop background in series.
+A program that downloads recent png images from Gilly's S3 bucket and sets them to the desktop background
 
 Handles the primary functions
 """
@@ -55,7 +54,6 @@ else:
     raise OSError("Operating System Not Supported")
 
 # Main
-
 debugg = False
 
 # print("Import took {:0.2f} seconds".format(time() - start))
