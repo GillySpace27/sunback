@@ -381,12 +381,9 @@ class Parameters:
     def wait_if_required(self, delay):
         """ Wait if Required """
 
-        if self.is_first_run:
-            self.is_first_run = False
-        elif delay <= 0:
+        if delay <= 0:
             pass
         else:
-            # print("Took {:0.1f} seconds. ".format(self.run_time_offset), end='')
             print("Waiting for {:0.0f} seconds ({} total)".format(delay, self.background_update_delay_seconds),
                   flush=True, end='')
 
@@ -489,111 +486,8 @@ class Sunback:
 
     def execute_switch(self):
         """Select which data source to draw from"""
-
         self.web_execute()
-        # self.mr_execute()
-        # self.jp_execute()
-        # self.fido_execute()
-
-    def image_modify(self, data):
-        """Perform the image normalization on the input array"""
-        data = self.radial_analyze(data, False)
-        data = self.vignette(data)
-        # data = self.absqrt(data)
-        data = self.coronagraph(data)
-
-        if not self.params.do_mirror():
-            data = self.vignette(data)
-        if False: #plotStats:
-            self.plot_stats()
-
-        dat = data.astype('float32')
-        # dat2 = self.renormalize(dat)
-        # half = int(dat.shape[0]/2)
-        # dat[:, :half] = dat2[:, :half]
-        # dat[:, half:] = dat2[:, half:]
-        # return dat
-
-        return dat
-
-    def plot_and_save(self, data, image_data, original_data=None):
-        full_name, save_path, time_string, ii = image_data
-        time_string2 = self.clean_time_string(time_string)
-        name = self.clean_name_string(full_name)
-
-        for processed in [False, True]:
-
-            if not True:
-                if not processed:
-                    continue
-            if not processed:
-                if original_data is None:
-                    continue
-
-            # Create the Figure
-            fig, ax = plt.subplots()
-            self.blankAxis(ax)
-
-            inches = 10
-            fig.set_size_inches((inches, inches))
-
-            pixels = data.shape[0]
-            dpi = pixels / inches
-
-            if 'hmi' in name.casefold():
-                inst = ""
-                plt.imshow(data, origin='upper', interpolation=None)
-                # plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.1)
-                plt.tight_layout(pad=5.5)
-                height = 1.05
-
-            else:
-                inst = '  AIA'
-                if processed:
-                    plt.imshow(data , cmap='sdoaia{}'.format(name), origin='lower', interpolation=None,  vmin=self.vmin_plot, vmax=self.vmax_plot)
-                else:
-                    toprint = self.normalize(self.absqrt(original_data))
-                    plt.imshow(toprint , cmap='sdoaia{}'.format(name), origin='lower', interpolation=None) #,  vmin=self.vmin_plot, vmax=self.vmax_plot)
-
-
-                plt.tight_layout(pad=0)
-                height = 0.95
-
-            # Annotate with Text
-            buffer = '' if len(name) == 3 else '  '
-            buffer2 = '    ' if len(name) == 2 else ''
-
-            title = "{}    {} {}, {}{}".format(buffer2, inst, name, time_string2, buffer)
-            title2 = "{} {}, {}".format(inst, name, time_string2)
-            ax.annotate(title, (0.15, height + 0.02), xycoords='axes fraction', fontsize='large',
-                        color='w', horizontalalignment='center')
-            # ax.annotate(title2, (0, 0.05), xycoords='axes fraction', fontsize='large', color='w')
-            the_time = strftime("%I:%M%p").lower()
-            if the_time[0] == '0':
-                the_time = the_time[1:]
-            ax.annotate(the_time, (0.15, height), xycoords='axes fraction', fontsize='large',
-                        color='w', horizontalalignment='center')
-
-            # Format the Plot and Save
-            self.blankAxis(ax)
-            middle = '' if processed else "_orig"
-            new_path = save_path[:-5] + middle + ".png"
-            # plt.show()
-            try:
-                plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
-                print("\tSaved {} Image".format('Processed' if processed else "Unprocessed"))
-            except PermissionError:
-                new_path = save_path[:-5] + "_b.png"
-                plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
-                print("Success")
-            except Exception as e:
-                print("Failed...using Cached")
-                if self.params.is_debug():
-                    raise e
-            plt.close(fig)
-
-        return new_path
-
+ 
     def update_background(self, local_path, test=False):
         """
         Update the System Background
@@ -657,14 +551,11 @@ class Sunback:
         self.download_all_objects_in_aws_folder()
         
     def web_run(self):
-
         """Loop over the wavelengths and normalize, set background, and wait"""
 
         for file_path in self.fileBox:
-            # import pdb; pdb.set_trace()
-            
             self.params.start_time = time()
-            self.name = file_path[-8:-3]
+            self.name = file_path[-8:-4]
             if self.params.do_171() and "171" not in self.name:
                 continue
             if self.params.do_304() and "304" not in self.name:
@@ -672,11 +563,11 @@ class Sunback:
 
             print("Image: {}".format(self.name))
 
-            # Wait for a bit
-            self.params.sleep_until_delay_elapsed()
-
             # Update the Background
             self.update_background(file_path)
+
+            # Wait for a bit
+            self.params.sleep_until_delay_elapsed()
 
             if self.params.stop_after_one():
                 sys.exit()
@@ -2363,12 +2254,11 @@ class Sunback:
             return n
 
 # Helper Functions
-def run(delay=20, mode='y', debug=False):
+def run(delay=60, mode='y', debug=False, do171=False, do304=False):
     p = Parameters()
-    p.mode(mode)
     p.set_delay_seconds(delay)
-    p.do_mirror(False)
-    # p.do_171(True)
+    p.do_171(do171)
+    p.do_304(do304)
 
     if debug:
         p.is_debug(True)
@@ -2394,8 +2284,6 @@ def run(delay=20, mode='y', debug=False):
     # p.do_304(True)
 
     Sunback(p).start()
-    # SunbackMovie(p).start()
-
 
 def where():
     """Prints the location that the images are stored in."""

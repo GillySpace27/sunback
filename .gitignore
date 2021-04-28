@@ -114,3 +114,7 @@ ENV/
 # mypy
 .mypy_cache/
 
+/aws/
+/devtools/scripts/
+/resources/jythonMusic/
+/venv2/
