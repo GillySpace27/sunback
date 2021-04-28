@@ -8,26 +8,18 @@ Handles the primary functions
 
 # Imports
 from time import localtime, timezone, strftime, sleep, time
-start = time()
+# start = time()
 
-try:
-    from .modify.modify import Modify
-    # print("A")
-except (ModuleNotFoundError, ImportError):
-    from modify.modify import Modify
-    # print("D")
-
+from modify import Modify
 from urllib.request import urlretrieve
 from os import getcwd, makedirs, rename, remove
 from os.path import normpath, abspath, join, dirname, exists
 from calendar import timegm
 import astropy.units as u
 
-
-# from sunpy.net import Fido, attrs as a
+from sunpy.net import Fido, attrs
 import sunpy.map
 from threading import Barrier
-bbb = Barrier(3, timeout=100)
 
 from tqdm import tqdm
 from platform import system
@@ -37,10 +29,13 @@ import matplotlib as mpl
 
 try:
     mpl.use('qt5agg')
-except:
-    pass
+except Exception as e:
+    print(e)
+
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+
+bbb = Barrier(3, timeout=100)
 
 this_system = system()
 
@@ -63,11 +58,11 @@ else:
 
 debugg = False
 
-print("Import took {:0.2f} seconds".format(time() - start))
+# print("Import took {:0.2f} seconds".format(time() - start))
 
 
 def tr():
-    import pdb;
+    import pdb
     pdb.set_trace()
 
 
@@ -507,8 +502,8 @@ class Sunback:
         try:
             if this_system == "Windows":
                 import ctypes
-                SPI_SETDESKWALLPAPER = 0x14     #which command (20)
-                SPIF_UPDATEINIFILE   = 0x2 #forces instant update
+                SPI_SETDESKWALLPAPER = 0x14     #  which command (20)
+                SPIF_UPDATEINIFILE   = 0x2  #  forces instant update
                 ctypes.windll.user32.SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, local_path, SPIF_UPDATEINIFILE)
                 # for ii in np.arange(100):
                 #     ctypes.windll.user32.SystemParametersInfoW(19, 0, 'Fit', SPIF_UPDATEINIFILE)
@@ -754,9 +749,8 @@ class Sunback:
                 except FileNotFoundError:
                     print("New Images Required")
 
-            if False:
-                print("Skipping!")
-                return self.fileBox
+            # print("Skipping!")
+            # return self.fileBox
 
             # Get new images
             print("New images found!\n", flush=True)
@@ -1332,7 +1326,7 @@ class Sunback:
         #             early = time_period[0] #'2020/05/26 00:00'
         #             now = time_period[1] #'2020/05/30 00:00'
         #         # Find Results
-        #         self.fido_result = Fido.search(a.Time(early, now), a.Instrument('aia'))
+        #         self.fido_result = Fido.search(attrs.Time(early, now), attrs.Instrument('aia'))
         #         self.fido_num = self.fido_result.file_num
         #         self.new_images = True
         #         self.this_time = int(self.fido_result.get_response(0)[0].time.start)
@@ -1340,7 +1334,7 @@ class Sunback:
         #         break
         #         # else:
         #         #     # Find Results
-        #         #     self.fido_result = Fido.search(a.Time(early, now), a.Instrument('aia'))
+        #         #     self.fido_result = Fido.search(attrs.Time(early, now), attrs.Instrument('aia'))
         #         #     self.fido_num = self.fido_result.file_num
         #         #     if self.params.is_debug():
         #         #         print(self.fido_num, '\t', minute_range)
@@ -1421,7 +1415,7 @@ class Sunback:
                     early = '2020/05/26 00:00'
                     now = '2020/05/30 00:00'
                     # Find Results
-                    self.fido_result = Fido.search(a.Time(early, now), a.Instrument('aia'), a.Resolution(self.params.resolution()))
+                    self.fido_result = Fido.search(attrs.Time(early, now), attrs.Instrument('aia'), attrs.Resolution(self.params.resolution()))
                     self.fido_num = self.fido_result.file_num
                     self.new_images = True
                     self.this_time = int(self.fido_result.get_response(0)[0].time.start)
@@ -1429,7 +1423,7 @@ class Sunback:
                     break
                 else:
                     # Find Results
-                    self.fido_result = Fido.search(a.Time(early, now), a.Instrument('aia'))
+                    self.fido_result = Fido.search(attrs.Time(early, now), attrs.Instrument('aia'))
                     self.fido_num = self.fido_result.file_num
                     if self.params.is_debug():
                         print(self.fido_num, '\t', minute_range)
@@ -1721,7 +1715,7 @@ class Sunback:
         # remove_num = 20
         # ind = argpartition(a, -remove_num)[-remove_num:]
         # a[ind] = nanmean(a)*4
-        # data = a.reshape(data.shape)
+        # data = attrs.reshape(data.shape)
 
         data[data > 10] = np.nan
 

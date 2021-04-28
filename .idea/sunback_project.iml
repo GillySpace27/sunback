@@ -3,14 +3,29 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/sunback" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/.pytest_cache" />
       <excludeFolder url="file://$MODULE_DIR$/build" />
       <excludeFolder url="file://$MODULE_DIR$/depricated" />
       <excludeFolder url="file://$MODULE_DIR$/dist" />
       <excludeFolder url="file://$MODULE_DIR$/dist_old" />
+      <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/__MACOSX" />
+      <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/cachedir" />
+      <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/imgscalr-lib-4.2/javadoc/org" />
+      <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/imgscalr-lib-4.2/javadoc/resources" />
+      <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/imgscalr-lib-4.2/javadoc/src-html" />
+      <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/jsyn" />
+      <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/jython2.5.3/Demo" />
+      <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/jython2.5.3/Doc/javadoc/com/xhaus" />
+      <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/jython2.5.3/Doc/javadoc/org/python/util" />
+      <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/jython2.5.3/Doc/javadoc/resources" />
+      <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/jython2.5.3/Lib" />
+      <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/jython2.5.3/tests/java/javatests" />
+      <excludeFolder url="file://$MODULE_DIR$/sunback.egg-info" />
       <excludeFolder url="file://$MODULE_DIR$/sunback/data" />
       <excludeFolder url="file://$MODULE_DIR$/sunback/fits" />
       <excludeFolder url="file://$MODULE_DIR$/sunback/renders" />
       <excludeFolder url="file://$MODULE_DIR$/sunback/sunback_images" />
+      <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/venv2" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.8 (sunback_env)" jdkType="Python SDK" />
