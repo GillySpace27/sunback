@@ -13,7 +13,6 @@ from copy import copy
 from color_tables import aia_color_table
 import warnings
 warnings.filterwarnings("ignore")
-print("NONSENSE")
 
 class Modify:
     renew_mask = True

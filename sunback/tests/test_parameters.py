@@ -1,5 +1,6 @@
 from unittest import TestCase
 
+import parameters
 import sunback
 
 
@@ -14,16 +15,16 @@ class TestParameters(TestCase):
         self.assertRaises(AssertionError, func, 'f')
 
     def test_check_real_number(self):
-        self.real_number_test(sunback.Parameters().check_real_number)
+        self.real_number_test(parameters.Parameters().check_real_number)
 
     def test_set_default_values(self):
-        self.assertFalse(sunback.Parameters().set_default_values())
+        self.assertFalse(parameters.Parameters().set_default_values())
 
     def test_set_update_delay_seconds(self):
-        self.real_number_test(sunback.Parameters().set_delay_seconds)
+        self.real_number_test(parameters.Parameters().set_delay_seconds)
 
     def test_set_time_multiplier(self):
-        self.real_number_test(sunback.Parameters().set_time_multiplier)
+        self.real_number_test(parameters.Parameters().set_time_multiplier)
 
 
 
@@ -34,7 +35,7 @@ class TestParameters(TestCase):
     #     self.fail()
 
     def test_set_download_resolution(self):
-        self.real_number_test(sunback.Parameters().set_download_resolution)
+        self.real_number_test(parameters.Parameters().set_download_resolution)
 
     # def test_set_web_image_frame(self):
     #     self.fail()
