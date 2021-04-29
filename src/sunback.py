@@ -964,9 +964,11 @@ class Sunback:
 
     def fido_download(self, this_result, save_path):
         original = sys.stderr
-        sys.stderr = open(join(self.params.local_directory, 'log.txt'), 'w')
+        
+        #  TODO make the error print to a log instead of console
+        # sys.stderr = open(join(self.params.local_directory, 'log.txt'), 'w')
         downloaded_files = Fido.fetch(this_result, path=self.params.local_directory)
-        sys.stderr = original
+        # sys.stderr = original
 
         if exists(save_path):
             remove(save_path)
