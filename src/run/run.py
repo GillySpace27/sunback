@@ -1,4 +1,4 @@
-from web_crawler import WebExecute
+from WebExecute import WebExecute
 import sys
 import sunback as sb
 

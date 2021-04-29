@@ -10,7 +10,7 @@ from astropy.io import fits
 import datetime
 from copy import copy
 
-from color_tables import aia_color_table
+from .color_tables import aia_color_table
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -631,7 +631,7 @@ class Modify:
             
             else:
                 
-                # from color_tables import aia_wave_dict
+                # from .color_tables import aia_wave_dict
                 # aia_wave_dict(wave)
                 
                 inst = '  AIA'

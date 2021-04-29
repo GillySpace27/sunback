@@ -2,7 +2,7 @@
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/sunback" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.pytest_cache" />
       <excludeFolder url="file://$MODULE_DIR$/build" />
       <excludeFolder url="file://$MODULE_DIR$/depricated" />
@@ -21,10 +21,10 @@
       <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/jython2.5.3/Lib" />
       <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/jython2.5.3/tests/java/javatests" />
       <excludeFolder url="file://$MODULE_DIR$/sunback.egg-info" />
-      <excludeFolder url="file://$MODULE_DIR$/sunback/data" />
-      <excludeFolder url="file://$MODULE_DIR$/sunback/fits" />
-      <excludeFolder url="file://$MODULE_DIR$/sunback/renders" />
-      <excludeFolder url="file://$MODULE_DIR$/sunback/sunback_images" />
+      <excludeFolder url="file://$MODULE_DIR$/src/data" />
+      <excludeFolder url="file://$MODULE_DIR$/src/fits" />
+      <excludeFolder url="file://$MODULE_DIR$/src/renders" />
+      <excludeFolder url="file://$MODULE_DIR$/src/sunback_images" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/venv2" />
     </content>

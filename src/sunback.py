@@ -7,7 +7,7 @@ Handles the primary functions
 
 # Imports
 from time import localtime, timezone, strftime, time
-from modify import Modify
+from science.modify import Modify
 from urllib.request import urlretrieve
 from os import rename, remove
 from os.path import normpath, abspath, join, exists
@@ -23,7 +23,7 @@ from platform import system
 import sys
 import numpy as np
 import matplotlib as mpl
-from parameters import Parameters
+from science.parameters import Parameters
 
 try:
     mpl.use('qt5agg')

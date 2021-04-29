@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
-from modify import Modify
+from science.modify import Modify
 from astropy.io import fits
 from tqdm import tqdm
 

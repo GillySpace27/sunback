@@ -1,5 +1,4 @@
-from parameters import Parameters
-from sunback import Sunback
+from science.parameters import Parameters
 from run import start
 
 
