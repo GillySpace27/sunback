@@ -13,12 +13,14 @@ from copy import copy
 from .color_tables import aia_color_table
 import warnings
 warnings.filterwarnings("ignore")
+from astropy.nddata import block_reduce
 
 
 class Modify:
     renew_mask = True
     image_data = None
-    def __init__(self, image=None, image_data=None, orig=False, show=False, verb=False):
+    
+    def __init__(self, image=None, image_data=None, orig=False, show=False, verb=False, resolution=False):
         """Initialize the main class"""
         
         # Parse Inputs
@@ -26,11 +28,20 @@ class Modify:
         self.image_data = image_data
         self.verb = verb
         self.do_orig = orig
-        self.parse_input_type(image)
+        self.resolution = resolution
+        self.reduceby = 1
         
-        # Run the Reduction Algorithm
-        self.image_modify()  # Primary Algorithm
-        self.plot_and_save()
+        try:
+            self.parse_input_type(image)
+            
+            if self.original is not None:
+            
+                # Run the Reduction Algorithm
+                self.image_modify() # Primary Algorithm
+                self.plot_and_save()
+        except KeyError as e:
+            print(e)
+            pass
         
         if self.verb: print("Done")
     
@@ -46,8 +57,18 @@ class Modify:
             self.original = self.load_file(path)
         elif type(image) in [np.array, np.ndarray]:
             self.original=image
+            
         else:
             raise TypeError("Invalid Input Data: {}".format(type(image)))
+        
+        if self.original is None:
+            return None
+        
+        if self.resolution:
+            self.reduceby  = int(self.original.shape[0] / self.resolution)
+            if self.reduceby > 1:
+                self.original = block_reduce(image, self.reduceby)
+        
         
         # Copy the input array
         self.changed = copy(self.original)
@@ -56,6 +77,8 @@ class Modify:
             # Use default Metadata
             self.image_data = self.def_data(self.changed)
         self.name = self.image_data[0]
+        self.file_path = self.image_data[1]
+        
         
     
     def test(self):
@@ -67,13 +90,45 @@ class Modify:
     
     def load_file(self, path):
         """Load a fits file from disk"""
-        with fits.open(path, cache=False) as hdul:
-            hdul.verify('silentfix+warn')
-            wave, t_rec = hdul[0].header['WAVELNTH'],  hdul[0].header['T_OBS']
-            image = hdul[0].data
-            self.image_data = str(wave), str(wave), t_rec, image.shape
-        return image
+        
+        try:
+            with fits.open(path, cache=False) as hdul:
+                hdul.verify('silentfix+ignore')
+                # Get data out of the header, and grab the data array
+                try:
+                    wave, t_rec = hdul[0].header['WAVELNTH'],  hdul[0].header['T_OBS']
+                    image = hdul[0].data
+                except Exception as e:
+                    wave, t_rec = hdul[1].header['WAVELNTH'],  hdul[1].header['T_OBS']
+                    image = hdul[1].data
+                if self.reduceby:
+                    image = block_reduce(image, self.reduceby)
+                    reduce = self.reduceby
+                else:
+                    reduce = 1
+                    
+                # Make sure the frame is good
+                total_counts = np.nansum(image)
+                if total_counts < 0:
+                    return None
+                    
+                try:
+                    self.center = hdul[0].header['X0_MP']/reduce, hdul[0].header['Y0_MP']/reduce
+                except:
+                    self.center = hdul[1].header['X0_MP']/reduce, hdul[1].header['Y0_MP']/reduce
+                    
+                while self.center[0] > 0.9*self.resolution:
+                    self.center = np.asarray(self.center) / 2
     
+                self.image_data = str(wave), path, t_rec, image.shape
+            
+        except (TypeError, OSError) as e:
+            # from os import remove
+            # remove(path)
+            return None
+            
+        return image
+        
     def def_data(self, hdul):
         """Use Defaults Values for Data"""
         try:
@@ -110,11 +165,11 @@ class Modify:
     def make_radius_array(self):
         """Build an r-coordinate array of shape(image)"""
         self.rez = self.changed.shape[0]
-        centerPt = self.rez / 2
+        # centerPt = self.rez / 2
         xx, yy = np.meshgrid(np.arange(self.rez), np.arange(self.rez))
-        xc, yc = xx - centerPt, yy - centerPt
+        xc, yc = xx - self.center[0], yy - self.center[1]
         
-        self.extra_rez = 2 # An attempt to give extra resolution
+        self.extra_rez = 1 # An attempt to give extra resolution
         self.sRadius = 400 * self.extra_rez
         self.tRadius = self.sRadius * 1.28
         self.radius = np.sqrt(xc * xc + yc * yc) * self.extra_rez
@@ -137,9 +192,11 @@ class Modify:
         """Bin the intensities by radius """
         self.radBins = [[] for x in np.arange(self.rez)]
         binInds = np.asarray(np.floor(self.rad_sorted), dtype=np.int32)
-        for ii, binI in enumerate(binInds):
-            self.radBins[binI].append(self.dat_sort[ii])
-    
+        try:
+            for ii, binI in enumerate(binInds):
+                self.radBins[binI].append(self.dat_sort[ii])
+        except IndexError as e:
+            a = 1
     def radial_statistics(self):
         """ Find the statistics in each radial bin"""
         self.binMax = np.zeros(self.rez)
@@ -158,8 +215,8 @@ class Modify:
             
             # Do statistics
             if len(subItems) > 0:
-                self.binMax[ii] = np.percentile(subItems, 75)  # np.nanmax(subItems)
-                self.binMin[ii] = np.percentile(subItems, 2)  # np.min(subItems)
+                self.binMax[ii] = np.percentile(subItems, 85)  # np.nanmax(subItems)
+                self.binMin[ii] = np.percentile(subItems, 1)  # np.min(subItems)
                 self.binMid[ii] = np.mean(subItems)
                 self.binMed[ii] = np.median(subItems)
             else:
@@ -309,6 +366,7 @@ class Modify:
         """Normalize the image using the radial percentile curves"""
         
         # Collect Arrays
+        self.changed = self.changed.astype('float32')
         self.changed[self.changed==0] = np.nan
         flat_image = self.changed.flatten()
         self.dat_corona = np.ones_like(flat_image)
@@ -334,15 +392,13 @@ class Modify:
         """Deal with pixel outliers. Lots of adjustable parameters in here"""
         
         # Deal with too hot things
-        self.vmax = 0.95
-        self.vmax_plot = 0.85 #np.max(dat_corona)
-        hotpowr = 1/1.5
+        self.vmax = 1.0
+        hotpowr = 1/2
         hot = self.dat_corona > self.vmax
-        # self.dat_corona[hot] = self.dat_corona[hot] ** hotpowr
+        self.dat_corona[hot] = self.dat_corona[hot] ** hotpowr
         
         # Deal with too cold things
-        self.vmin = 0.3
-        self.vmin_plot = -0.05 #np.min(dat_corona)# 0.3# -0.03
+        self.vmin = 0.5
         coldpowr = 1/2
         cold = self.dat_corona < self.vmin
         self.dat_corona[cold] = -((np.abs(self.dat_corona[cold] - self.vmin) + 1) ** coldpowr - 1) + self.vmin
@@ -352,7 +408,10 @@ class Modify:
         # Some More Normalization
         dat_corona_square = np.sign(dat_corona_square) * np.power(np.abs(dat_corona_square), (1/5))
         self.changed = self.normalize(self.changed, high = 100, low=0)
-        dat_corona_square = self.normalize(dat_corona_square, high = 100, low=1)
+        
+        self.vmax_plot = 1.3  #np.max(dat_corona)
+        self.vmin_plot = 0.75 #np.min(dat_corona)# 0.3# -0.03
+        # dat_corona_square = self.normalize(dat_corona_square, high=99, low=1, mid=None)
         
         
         # Allows you to only show sub-sections of the image as reduced images
@@ -360,7 +419,7 @@ class Modify:
             self.corona_mask = self.get_mask(self.changed)
             self.renew_mask = False
         
-        # Allows you to mirror horizontally, with only one half rfeduced
+        # Allows you to mirror horizontally, with only one half reduced
         do_mirror = False
         if do_mirror:
             #Do stuff
@@ -477,7 +536,7 @@ class Modify:
     
     def plot_stats(self, do):
         if not do: return
-        fig, (ax0, ax1) = plt.subplots(2, 1, "True")
+        fig, (ax0, ax1) = plt.subplots(2, 1, True)
         ax0.scatter(self.n2r(self.rad_sorted[::30]), self.dat_sort[::30], c='k', s=2)
         ax0.axvline(self.n2r(self.limb_radii), ls='--', label="Limb")
         # ax0.axvline(self.n2r(self.noise_radii), c='r', ls='--', label="Scope Edge")
@@ -554,6 +613,7 @@ class Modify:
             # plt.show()
             plt.close(fig)
         else:
+            plt.show(block=True)
             plt.show()
     
     def n2r(self, n):
@@ -578,12 +638,18 @@ class Modify:
         return use
     
     @staticmethod
-    def normalize(image, high=98, low=15):
+    def normalize(image, high=98, low=15, mid=None):
+
+        if mid is not None:
+            midP = np.nanpercentile(image, mid)
+            image /= midP
+        
         if low is None:
             lowP = 0
         else:
             lowP = np.nanpercentile(image, low)
         highP = np.nanpercentile(image, high)
+
         import warnings
         with warnings.catch_warnings():
             warnings.filterwarnings('error')
@@ -632,7 +698,7 @@ class Modify:
             
             else:
                 
-                # from .color_tables import aia_wave_dict
+                # from color_tables import aia_wave_dict
                 # aia_wave_dict(wave)
                 
                 inst = '  AIA'
@@ -670,6 +736,7 @@ class Modify:
             self.blankAxis(ax)
             self.figbox.append([fig, ax, processed])
             if self.show:
+                print("hooooo")
                 plt.show()
     
     def export(self):
@@ -717,16 +784,19 @@ class Modify:
         self.pathBox = []
         try:
             for fig, ax, processed in self.figbox:
+                
                 middle = '' if processed else "_orig"
                 
-                name, wave = self.clean_name_string(full_name)
-                new_path = save_path[:-5] + name + middle + ".png"
-                directory = "renders/"
+                # name, wave = self.clean_name_string(full_name)
+                abPath, fileName = save_path.rsplit("\\", 1)
+                new_path = fileName[:-5] + middle + ".png"
+                directory = abPath + "\\renders\\"
                 path = directory + new_path
+                
                 os.makedirs(directory, exist_ok=True)
                 fig.savefig(path, facecolor='black', edgecolor='black', dpi=dpi)
                 # print("\tSaved {} Image:{}".format('Processed' if processed else "Unprocessed", name))
-                self.pathBox.append(path)
+                self.pathBox.append(path) #changed this from path
         except Exception as e:
             raise e
         finally:
@@ -807,7 +877,10 @@ class Modify:
     def clean_time_string(time_string):
         # Make the name strings
         
-        cleaned = datetime.datetime.strptime(time_string[:-4], "%Y-%m-%dT%H:%M:%S")
+        try:
+            cleaned = datetime.datetime.strptime(time_string[:-4], "%Y-%m-%dT%H:%M:%S")
+        except ValueError as e:
+            cleaned = datetime.datetime.strptime(time_string, "%H:%M%p %m/%d/%Y")
         cleaned += timedelta(hours=-7)
         
         # tz = timezone(timedelta(hours=-1))

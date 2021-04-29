@@ -1,13 +1,14 @@
 
 import numpy as np
-import sunpy.map
 import os
 import matplotlib.pyplot as plt
 from time import strftime
-from datetime import timezone
-from astropy.time import Time
+from datetime import timedelta
 from scipy.signal import savgol_filter
+import astropy.units as u
+import datetime
 
+from color_tables import aia_color_table
 
 class Modify:
 
@@ -29,7 +30,9 @@ class Modify:
 
     def image_modify(self, data):
         """Perform the image normalization on the input array"""
+
         data = self.radial_analyze(data, False)
+
         data = self.vignette(data)
         # data = self.absqrt(data)
         data = self.coronagraph(data)
@@ -206,7 +209,6 @@ class Modify:
         # 
         # Fit the low curves
         degree = 5
-        # print(self.count_nan(low_max_filt))
         p = np.polyfit(self.low_abs, low_max_filt, degree)
         low_max_fit = np.polyval(p, self.low_abs) #* 1.1
         p = np.polyfit(self.low_abs, low_min_filt, degree)
@@ -263,7 +265,6 @@ class Modify:
 
         self.fakeMax[self.fakeAbss] = self.fakeMax0
         self.fakeMin[self.fakeAbss] = self.fakeMin0
-
         # plt.plot(np.arange(self.rez), self.fakeMax)
         # plt.plot(np.arange(self.rez), self.fakeMin)
         # plt.show()
@@ -285,15 +286,40 @@ class Modify:
         data[mask] = np.nan
         return data
 
-    def coronagraph(self, data):
-        # original = sys.stderr
-        # sys.stderr = open(join(self.params.local_directory, 'log.txt'), 'w+')
-        # print(data.dtype)
+    def coronaNorm(self, data):
         data[data==0] = np.nan
+
         radius_bin = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
-        # 
-        dat_corona = (data.flatten() - self.fakeMin[radius_bin]) / \
-                     (self.fakeMax[radius_bin] - self.fakeMin[radius_bin])
+        flat_data = data.flatten()
+
+        the_min = self.fakeMin[radius_bin]
+        # plt.plot(self.fakeMin)
+        # plt.show()
+        # import pdb; pdb.set_trace()
+        # the_min = np.asarray([self.fakeMin[r] for r in radius_bin])
+        # print('d3', the_min)
+        the_max = self.fakeMax[radius_bin]
+        # the_max = np.asarray([self.fakeMax[r] for r in radius_bin])
+
+        # the_max = self.fakeMax[radius_bin]
+        top = bottom = dat_corona = np.ones_like(flat_data)
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error')
+            try:
+
+                top = np.subtract(flat_data, the_min)
+                bottom = np.subtract(the_max, the_min)
+
+                dat_corona = np.divide(top, bottom)
+            except RuntimeWarning as e:
+                pass
+
+        return dat_corona
+
+    def coronagraph(self, data):
+
+        dat_corona = self.coronaNorm(data)
 
 
         # sys.stderr = original
@@ -545,14 +571,20 @@ class Modify:
         else:
             lowP = np.nanpercentile(data, low)
         highP = np.nanpercentile(data, high)
-
-        return (data - lowP) / (highP - lowP)
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error')
+            try:
+                out = (data - lowP) / (highP - lowP)
+            except RuntimeWarning as e:
+                out = data
+        return out
 
     def plot_and_save(self):
 
         self.render()
 
-        self.export()
+        self.export_files()
 
     def render(self):
         """Generate the plots"""
@@ -561,21 +593,15 @@ class Modify:
 
         full_name, save_path, time_string, ii = self.image_data
         time_string2 = self.clean_time_string(time_string)
-        name = self.clean_name_string(full_name)
+        name, wave = self.clean_name_string(full_name)
 
         self.figbox = []
         for processed in [False, True]:
 
-            if not True:
-                if not processed:
-                    continue
-            if not processed:
-                if original_data is None:
-                    continue
-
             # Create the Figure
             fig, ax = plt.subplots()
             self.blankAxis(ax)
+            fig.set_facecolor("k")
 
             self.inches = 10
             fig.set_size_inches((self.inches, self.inches))
@@ -590,12 +616,21 @@ class Modify:
                 height = 1.05
 
             else:
+                
+                # from color_tables import aia_wave_dict
+                # aia_wave_dict(wave)
+                
                 inst = '  AIA'
+                cmap = 'sdoaia{}'.format(wave)
+                cmap = aia_color_table(int(wave)*u.angstrom)
                 if processed:
-                    plt.imshow(data , cmap='sdoaia{}'.format(name), origin='lower', interpolation=None,  vmin=self.vmin_plot, vmax=self.vmax_plot)
+                    plt.imshow(data, cmap=cmap, origin='lower', interpolation=None,  vmin=self.vmin_plot, vmax=self.vmax_plot)
                 else:
                     toprint = self.normalize(self.absqrt(original_data))
-                    plt.imshow(toprint , cmap='sdoaia{}'.format(name), origin='lower', interpolation=None) #,  vmin=self.vmin_plot, vmax=self.vmax_plot)
+                    # plt.imshow(toprint, cmap='sdoaia{}'.format(wave), origin='lower', interpolation=None) #,  vmin=self.vmin_plot, vmax=self.vmax_plot)
+                    
+                    
+                    plt.imshow(self.absqrt(original_data), cmap=cmap, origin='lower', interpolation=None) #,  vmin=self.vmin_plot, vmax=self.vmax_plot)
 
 
                 plt.tight_layout(pad=0)
@@ -605,12 +640,12 @@ class Modify:
             buffer = '' if len(name) == 3 else '  '
             buffer2 = '    ' if len(name) == 2 else ''
 
-            title = "{}    {} {}, {}{}".format(buffer2, inst, name, time_string2, buffer)
-            title2 = "{} {}, {}".format(inst, name, time_string2)
+            title = "{}    {} {}, {}{}".format(buffer2, inst, wave, time_string2, buffer)
             ax.annotate(title, (0.15, height + 0.02), xycoords='axes fraction', fontsize='large',
                         color='w', horizontalalignment='center')
+            # title2 = "{} {}, {}".format(inst, name, time_string2)
             # ax.annotate(title2, (0, 0.05), xycoords='axes fraction', fontsize='large', color='w')
-            the_time = strftime("%I:%M%p").lower()
+            the_time = strftime("%Z %I:%M%p")
             if the_time[0] == '0':
                 the_time = the_time[1:]
             ax.annotate(the_time, (0.15, height), xycoords='axes fraction', fontsize='large',
@@ -618,34 +653,112 @@ class Modify:
 
             # Format the Plot and Save
             self.blankAxis(ax)
-            self.figbox.append([fig, processed])
+            # plt.show()
+            self.figbox.append([fig, ax, processed])
+            # plt.show()
 
     def export(self):
         full_name, save_path, time_string, ii = self.image_data
         pixels = self.changed.shape[0]
         dpi = pixels / self.inches
         try:
-            for fig, processed in self.figbox:
-                middle = '' if processed else "_orig"
+            self.img_box = []
+            for fig, ax, processed in self.figbox:
+                # middle = '' if processed else "_orig"
+                #
+                # new_path = save_path[:-5] + middle + ".png"
+                # name = self.clean_name_string(full_name)
+                # directory = "renders/"
+                # path = directory + new_path.rsplit('/')[1]
+                # os.makedirs(directory, exist_ok=True)
+                # plt.close(fig)
+                # self.newPath = path
 
-                new_path = save_path[:-5] + middle + ".png"
-                name = self.clean_name_string(full_name)
-                directory = "renders/"
-                path = directory + new_path.rsplit('/')[1]
-                os.makedirs(directory, exist_ok=True)
-                plt.close(fig)
-                self.newPath = path
-                fig.savefig(path, facecolor='black', edgecolor='black', dpi=dpi)
-                print("\tSaved {} Image:{}".format('Processed' if processed else "Unprocessed", name))
+                # Image from plot
+                ax.axis('off')
+                fig.tight_layout(pad=0)
+                # To remove the huge white borders
+                ax.margins(0)
+                ax.set_facecolor('k')
 
+                fig.canvas.draw()
+
+                image_from_plot = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+                image_from_plot = image_from_plot.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+
+                self.img_box.append(image_from_plot)
+                # fig.savefig(path, facecolor='black', edgecolor='black', dpi=dpi)
+                # print("\tSaved {} Image:{}".format('Processed' if processed else "Unprocessed", name))
         except Exception as e:
             raise e
         finally:
-            for fig, processed in self.figbox:
+            for fig, ax, processed in self.figbox:
                 plt.close(fig)
 
+    def export_files(self):
+        full_name, save_path, time_string, ii = self.image_data
+        pixels = self.changed.shape[0]
+        dpi = pixels / self.inches
+        self.pathBox = []
+        try:
+            for fig, ax, processed in self.figbox:
+                middle = '' if processed else "_orig"
+
+                name, wave = self.clean_name_string(full_name)
+                new_path = save_path[:-5] + name + middle + ".png"
+                directory = "renders/"
+                path = directory + new_path
+                os.makedirs(directory, exist_ok=True)
+                fig.savefig(path, facecolor='black', edgecolor='black', dpi=dpi)
+                # print("\tSaved {} Image:{}".format('Processed' if processed else "Unprocessed", name))
+                self.pathBox.append(path)
+        except Exception as e:
+            raise e
+        finally:
+            for fig, ax, processed in self.figbox:
+                plt.close(fig)
+            if True:
+                self.save_concatinated()
+
+    def save_concatinated(self):
+            name = self.pathBox[1][:-4] + "_cat.png"
+            fmtString = "ffmpeg -i {} -i {} -y -filter_complex hstack {} -hide_banner -loglevel warning"
+            os.system(fmtString.format(self.pathBox[1], self.pathBox[0], name))
 
 
+    # def export_files2(self):
+    #     full_name, save_path, time_string, ii = self.image_data
+    #     pixels = self.changed.shape[0]
+    #     dpi = pixels / self.inches
+    #     paths = []
+    #     try:
+    #         for fig, ax, processed in self.figbox:
+    #             middle = '' if processed else "_orig"
+    #
+    #             new_path = save_path[:-5] + middle + ".png"
+    #             name = self.clean_name_string(full_name)
+    #             directory = "renders/"
+    #             path = directory + new_path.rsplit('/')[1]
+    #             os.makedirs(directory, exist_ok=True)
+    #             self.newPath = path
+    #             fig.savefig(path, facecolor='black', edgecolor='black', dpi=dpi)
+    #             print("\tSaved {} Image:{}".format('Processed' if processed else "Unprocessed", name))
+    #             paths.append(path)
+    #
+    #     except Exception as e:
+    #         raise e
+    #     finally:
+    #         for fig, ax, processed in self.figbox:
+    #             plt.close(fig)
+
+    def get_figs(self):
+        return self.figbox
+
+    def get_imgs(self):
+        return self.img_box
+
+    def get_paths(self):
+        return self.pathBox
 
     @staticmethod
     def blankAxis(ax):
@@ -670,19 +783,27 @@ class Modify:
         digits = ''.join(i for i in full_name if i.isdigit())
         # Make the name strings
         name = digits + ''
-        while name[0] == '0':
-            name = name[1:]
-        return name
+        digits = "{:04d}".format(int(name))
+        # while name[0] == '0':
+        #     name = name[1:]
+        return digits, name
 
     @staticmethod
     def clean_time_string(time_string):
         # Make the name strings
 
-        # 
-        # cleaned = time_string.replace(tzinfo=timezone.utc).astimezone(tz=None)
-        cleaned = Time(time_string).datetime.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%I:%M%p, %b-%d, %Y")
+        cleaned = datetime.datetime.strptime(time_string[:-4], "%Y-%m-%dT%H:%M:%S")
+        cleaned += timedelta(hours=-7)
 
-        return cleaned
+        # tz = timezone(timedelta(hours=-1))
+        # import pdb; pdb.set_trace()
+        # cleaned = time_string.replace(tzinfo=timezone.utc).astimezone(tz=None)
+        # cleaned = Time(time_string).datetime.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%I:%M%p, %b-%d, %Y")
+        # cleaned = Time(time_string).datetime.replace(tzinfo=timezone.utc).astimezone(tz=tz).strftime("%I:%M%p, %b-%d, %Y")
+        # cleaned = Time(time_string).datetime.strftime("%I:%M%p, %b-%d, %Y")
+        # print("----------->", cleaned)
+        # import pdb; pdb.set_trace()
+        return cleaned.strftime("%m-%d-%Y %I:%M%p")
         # name = full_name + ''
         # while name[0] == '0':
         #     name = name[1:]

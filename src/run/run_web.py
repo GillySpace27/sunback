@@ -2,7 +2,7 @@ from science.parameters import Parameters
 from run import start
 
 
-def run(delay=30, debug=False, do_one=False, stop=False, mode="web"):
+def run_web(delay=30, debug=False, do_one=False, stop=False, mode="web"):
     p = Parameters()
     p.set_delay_seconds(delay)
     p.do_one(do_one, stop)
@@ -12,7 +12,6 @@ def run(delay=30, debug=False, do_one=False, stop=False, mode="web"):
     start(p)
 
 
-
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run()
+    run_web()
