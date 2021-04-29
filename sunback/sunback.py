@@ -12,7 +12,6 @@ from urllib.request import urlretrieve
 from os import rename, remove
 from os.path import normpath, abspath, join, exists
 from calendar import timegm
-from web_crawler import WebExecute
 
 
 from sunpy.net import Fido, attrs
@@ -74,7 +73,7 @@ class Sunback:
         a class specifying run options
     """
 
-    def __init__(self, parameters=None):
+    def __init__(self, parameters):
         """Initialize a new parameter object or use the provided one"""
         self.indexNow = 0
         if parameters:
@@ -89,61 +88,9 @@ class Sunback:
         self.renew_mask = True
         self.mask_num = [1, 2]
 
-    # # Main Command Structure
-    def start(self):
-        """Select whether to run or to debug"""
-        self.print_header()
 
-        if self.params.is_debug():
-            self.debug_mode()
-        else:
-            self.run_mode()
-
-    def print_header(self):
-        print("\nSunback: Live SDO Background Updater \nWritten by Chris R. Gilly")
-        print("Check out my website: http://gilly.space\n")
-        print("Delay: {} Seconds".format(self.params.background_update_delay_seconds))
-        # print("Coronagraph Mode: {} \n".format(self.params.mode()))
-
-        if self.params.is_debug():
-            print("DEBUG MODE\n")
-
-    def debug_mode(self):
-        """Run the program in a way that will break"""
-        while True:
-            self.execute_switch()
-
-    def run_mode(self):
-        """Run the program in a way that won't break"""
-
-        fail_count = 0
-        fail_max = 10
-
-        while True:
-            try:
-                self.execute_switch()
-            except (KeyboardInterrupt, SystemExit):
-                print("\n\nOk, I'll Stop. Doot!\n")
-                break
-            except Exception as error:
-                fail_count += 1
-                if fail_count < fail_max:
-                    print("I failed, but I'm ignoring it. Count: {}/{}\n\n".format(fail_count, fail_max))
-                    continue
-                else:
-                    print("Too Many Failures, I Quit!")
-                    sys.exit(1)
-
-    def execute_switch(self):
-        """Select which data source to draw from"""
-        if self.params.run_type().casefold() == "web".casefold():
-            WebExecute(self.params).execute()
-        elif self.params.run_type().casefold() == "mr".casefold():
-            self.mr_execute()
-        elif self.params.run_type().casefold() == "jp".casefold():
-            self.jp_execute()
-        elif self.params.run_type().casefold() == "fido".casefold():
-            self.fido_execute()
+ 
+ 
  
     # MR Version
 

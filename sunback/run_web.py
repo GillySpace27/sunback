@@ -1,5 +1,6 @@
 from parameters import Parameters
 from sunback import Sunback
+from run import start
 
 
 def run(delay=30, debug=False, do_one=False, stop=False, mode="web"):
@@ -9,7 +10,8 @@ def run(delay=30, debug=False, do_one=False, stop=False, mode="web"):
     p.run_type(mode)
     p.is_debug(debug)
     
-    Sunback(p).start()
+    start(p)
+
 
 
 if __name__ == "__main__":
