@@ -1,0 +1,18 @@
+from science.parameters import Parameters
+from run import start
+
+
+def run_aws(delay=30, debug=False, do_one=False, stop=False, mode="aws"):
+    
+    p = Parameters()
+    p.set_delay_seconds(delay)
+    p.do_one(do_one, stop)
+    p.run_type(mode)
+    p.is_debug(debug)
+
+    start(p)
+
+
+if __name__ == "__main__":
+    # Do something if this file is invoked on its own
+    run_aws()

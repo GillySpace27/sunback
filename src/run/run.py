@@ -1,7 +1,8 @@
+from execute.AwsExecute import AwsExecute
 from execute.WebExecute import WebExecute
 import sys
 import sunback as sb
-
+from traceback import print_tb
 
 # # Main Command Structure
 def start(params):
@@ -46,7 +47,7 @@ def __run_mode(params):
             fail_count += 1
             if fail_count < fail_max:
                 print("I failed, but I'm ignoring it. Count: {}/{}\n\n".format(fail_count, fail_max))
-                print(error)
+                print_tb(error)
                 continue
             else:
                 print("Too Many Failures, I Quit!")
@@ -58,6 +59,8 @@ def __execute_switch(params):
     theSun = sb.Sunback(params)
     if params.run_type().casefold() == "web".casefold():
         WebExecute(params).execute()
+    elif params.run_type().casefold() == 'aws'.casefold():
+        AwsExecute(params).execute()
     elif params.run_type().casefold() == "mr".casefold():
         theSun.mr_execute()
     elif params.run_type().casefold() == "jp".casefold():

@@ -16,7 +16,7 @@ __all__ = [
     'sot_color_table', 'hmi_mag_color_table', 'suvi_color_table'
 ]
 
-cmap_data_dir = pathlib.Path(__file__).parent.absolute() / 'data'
+cmap_data_dir = pathlib.Path(__file__).parent.absolute() / '../../data'
 
 # The following values describe color table 3 for IDL (Red Temperature)
 idl_3 = np.loadtxt(cmap_data_dir / 'idl_3.csv', delimiter=',')

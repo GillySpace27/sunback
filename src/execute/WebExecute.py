@@ -10,14 +10,6 @@ class WebExecute:
         self.params = params
     
     def execute(self):
-        # self.get()
-        self.run()
-    
-    def get(self):
-        """Download the images if there are new ones"""
-        self.download_all_objects_in_aws_folder()
-    
-    def run(self):
         """Loop over the wavelengths and normalize, set background, and wait"""
         
         for file_path in self.download_all_objects_in_aws_folder():
@@ -25,19 +17,18 @@ class WebExecute:
             name = file_path[-8:-4]
             if self.params.do_one() and self.params.do_one() not in name:
                 continue
-    
+            
             print("Image: {} at {}".format(name, file_path))
-    
+            
             # Update the Background
             self.update_background(file_path)
-    
+            
             if self.params.stop_after_one():
                 sys.exit()
-                
+            
             # Wait for a bit
             self.params.sleep_until_delay_elapsed()
-    
-    
+            
             print('')
     
     def download_all_objects_in_aws_folder(self):
@@ -191,7 +182,7 @@ class WebExecute:
                         pass
                     else:
                         raise e
-            
+                print("Screw you, Mac")
             elif this_system == "Linux":
                 import os
                 os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-options 'scaled'")

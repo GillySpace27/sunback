@@ -15,7 +15,7 @@ __all__ = [
     'sxt_color_table', 'xrt_color_table', 'trace_color_table',
     'sot_color_table', 'hmi_mag_color_table', 'suvi_color_table'
 ]
-
+# TODO make this betta
 cmap_data_dir = pathlib.Path(__file__).parent.absolute() / '../../data'
 
 # The following values describe color table 3 for IDL (Red Temperature)

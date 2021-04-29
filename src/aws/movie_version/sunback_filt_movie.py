@@ -10,7 +10,7 @@ from astropy.io import fits
 import datetime
 from copy import copy
 
-from .color_tables import aia_color_table
+from aws.color_tables import aia_color_table
 import warnings
 warnings.filterwarnings("ignore")
 from astropy.nddata import block_reduce

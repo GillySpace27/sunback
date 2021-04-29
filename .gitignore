@@ -118,3 +118,8 @@ ENV/
 /devtools/scripts/
 /resources/jythonMusic/
 /venv2/
+
+/renders/
+/src/run/renders
+/src/run/image_times
+/image_times

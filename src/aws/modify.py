@@ -8,7 +8,8 @@ from scipy.signal import savgol_filter
 import astropy.units as u
 import datetime
 
-from color_tables import aia_color_table
+from aws.color_tables import aia_color_table
+plt.ioff()
 
 class Modify:
 
