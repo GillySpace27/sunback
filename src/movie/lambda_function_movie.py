@@ -71,7 +71,7 @@ def modify_img_series():
 def save_times():
     """Saves the Time file to S3 so we know when images were taken"""
     image_times = requests.get(archive_url+"image_times").text[9:25]
-    path = "../image_times"
+    path = "../aws/image_times"
     with open(path, 'w') as fp:
         fp.write(image_times)
     bucket.upload_file(path, path,

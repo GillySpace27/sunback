@@ -1,69 +1,68 @@
-from execute.AwsExecute import AwsExecute
-from execute.WebExecute import WebExecute
+from execute.AwsExecutor import AwsExecutor
+from execute.BackgroundExecutor import BackgroundExecutor
 import sys
 import sunback as sb
 from traceback import print_tb
 
+
 # # Main Command Structure
-def start(params):
-    """Select whether to run or to debug"""
-    __print_header(params)
+
+class Runner:
+    def __init__(self, params):
+        self.params = params
     
-    if params.is_debug():
-        __debug_mode(params)
-    else:
-        __run_mode(params)
-
-
-def __print_header(params):
-    print("\nSunback: Live SDO Background Updater \nWritten by Chris R. Gilly")
-    print("Check out my website: http://gilly.space\n")
-    print("Delay: {} Seconds".format(params.background_update_delay_seconds))
-    # print("Coronagraph Mode: {} \n".format(params.mode()))
+    def start(self):
+        """Select whether to run or to debug"""
+        self.__print_header()
+        
+        if self.params.is_debug():
+            self.__debug_mode()
+        else:
+            self.__run_mode()
     
-    if params.is_debug():
-        print("DEBUG MODE\n")
-
-
-def __debug_mode(params):
-    """Run the program in a way that will break"""
-    while True:
-        params.__execute_switch()
-
-
-def __run_mode(params):
-    """Run the program in a way that won't break"""
+    def __print_header(self):
+        print("\nSunback SDO Image Manipulator \nWritten by Chris R. Gilly")
+        print("Check out my website: http://gilly.space\n")
+        print("Delay: {} Seconds".format(self.params.delay_seconds()))
+        # print("Coronagraph Mode: {} \n".format(params.mode()))
+        
+        if self.params.is_debug():
+            print("DEBUG MODE\n")
     
-    fail_count = 0
-    fail_max = 10
+    def __debug_mode(self):
+        """Run the program in a way that will break"""
+        while True:
+            self.__execute()
     
-    while True:
-        try:
-            __execute_switch(params)
-        except (KeyboardInterrupt, SystemExit):
-            print("\n\nOk, I'll Stop. Doot!\n")
-            break
-        except Exception as error:
-            fail_count += 1
-            if fail_count < fail_max:
-                print("I failed, but I'm ignoring it. Count: {}/{}\n\n".format(fail_count, fail_max))
-                print_tb(error)
-                continue
-            else:
-                print("Too Many Failures, I Quit!")
-                sys.exit(1)
-
-
-def __execute_switch(params):
-    """Select which data source to draw from"""
-    theSun = sb.Sunback(params)
-    if params.run_type().casefold() == "web".casefold():
-        WebExecute(params).execute()
-    elif params.run_type().casefold() == 'aws'.casefold():
-        AwsExecute(params).execute()
-    elif params.run_type().casefold() == "mr".casefold():
-        theSun.mr_execute()
-    elif params.run_type().casefold() == "jp".casefold():
-        theSun.jp_execute()
-    elif params.run_type().casefold() == "fido".casefold():
-        theSun.fido_execute()
+    def __run_mode(self):
+        """Run the program in a way that won't break"""
+        
+        fail_count = 0
+        fail_max = 10
+        
+        while True:
+            try:
+                self.__execute()
+                fail_count -= 1
+            except (KeyboardInterrupt, SystemExit):
+                print("\n\nOk, I'll Stop. Doot!\n")
+                break
+            except Exception as error:
+                fail_count += 1
+                if fail_count < fail_max:
+                    print("I failed, but I'm ignoring it. Count: {}/{}\n\n".format(fail_count, fail_max))
+                    # print_tb(error)
+                    continue
+                else:
+                    print("Too Many Failures, I Quit!")
+                    sys.exit(1)
+    
+    def __execute(self):
+        """Use the provided fetcher and executor to do the thing"""
+        
+        # Get the paths to the files to be worked upon
+        if self.params.fetcher() is not None:
+            paths = self.params.fetcher().download_fits_files()
+        else:
+            paths = []
+        self.params.executor().execute(paths)

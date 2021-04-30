@@ -5,11 +5,17 @@ from time import time
 
 
 # Web Version
-class WebExecute:
+from execute.Executor import Executor
+from fetch.WebFetch import WebFetch
+
+
+class BackgroundExecutor(Executor):
     def __init__(self, params):
         self.params = params
-    
-    def execute(self):
+        print("BACKGROUND EXECUTOR")
+        
+        
+    def execute(self, paths):
         """Loop over the wavelengths and normalize, set background, and wait"""
         
         for file_path in self.download_all_objects_in_aws_folder():
@@ -30,7 +36,7 @@ class WebExecute:
             self.params.sleep_until_delay_elapsed()
             
             print('')
-    
+            
     def download_all_objects_in_aws_folder(self):
         import boto3
         import os
@@ -161,7 +167,6 @@ class WebExecute:
             :param test:
         """
         local_path = abspath(local_path)
-        # print(local_path)
         assert isinstance(local_path, str)
         print("Updating Background...", end='', flush=True)
         this_system = system()
@@ -174,14 +179,14 @@ class WebExecute:
                 # for ii in np.arange(100):
                 #     ctypes.windll.user32.SystemParametersInfoW(19, 0, 'Fit', SPIF_UPDATEINIFILE)
             elif this_system == "Darwin":
-                from appscript import app, mactypes
-                try:
-                    app('Finder').desktop_picture.set(mactypes.File(local_path))
-                except Exception as e:
-                    if test:
-                        pass
-                    else:
-                        raise e
+                # from appscript import app, mactypes
+                # try:
+                #     app('Finder').desktop_picture.set(mactypes.File(local_path))
+                # except Exception as e:
+                #     if test:
+                #         pass
+                #     else:
+                #         raise e
                 print("Screw you, Mac")
             elif this_system == "Linux":
                 import os

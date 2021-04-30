@@ -1,18 +1,20 @@
+from execute.AwsExecutor import AwsExecutor
+from fetch.WebFetch import WebFetch
 from science.parameters import Parameters
-from run import start
+import run
 
 
-def run_aws(delay=30, debug=False, do_one=False, stop=False, mode="aws"):
-    
+def run_aws(delay=10, debug=False, do_one=False, stop=False):
     p = Parameters()
-    p.set_delay_seconds(delay)
+    p.delay_seconds(delay)
     p.do_one(do_one, stop)
-    p.run_type(mode)
     p.is_debug(debug)
-
-    start(p)
+    p.executor(AwsExecutor(p))
+    p.fetcher(WebFetch())
+    
+    run.Runner(p).start()
 
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run_aws()
+    run_aws(debug=True)

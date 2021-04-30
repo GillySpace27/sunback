@@ -23,10 +23,12 @@ A program that downloads the most current images of the sun from the SDO satelli
 
 
 Basic Usage:  
+``` bash
 pip install sunback  
 python3  
 import sunback as sb  
 sb.run(delay=20)  
+```
 
 Check contribute.md to see how you can help out!
 

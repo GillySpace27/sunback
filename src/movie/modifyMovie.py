@@ -364,7 +364,7 @@ class Parameters:
             ddd = abspath(getcwd())
 
         while "dropbox".casefold() in ddd.casefold():
-            ddd = abspath(join(ddd, "../.."))
+            ddd = abspath(join(ddd, ".."))
 
         directory = join(ddd, subdirectory_name)
 

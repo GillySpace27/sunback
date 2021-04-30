@@ -10,11 +10,13 @@ from PIL import Image
 from astropy.io import fits
 from bs4 import BeautifulSoup
 from tqdm import tqdm
-from aws.modify import Modify
+
+from execute.Executor import Executor
+from science.modify import Modify
+from utils.file_util import discover_best_data_directory
 
 # Flags
 set_local_background = False
-background_update_delay_seconds = 10
 
 # Select Amazon Resources
 s3 = boto3.resource('s3')
@@ -28,72 +30,56 @@ archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"
 last_time = time()
 start_time = last_time
 
+default_sleep = 30
+
 
 # Web Version
-class AwsExecute:
+class AwsExecutor(Executor):
     def __init__(self, params):
         self.params = params
+        self.data_path = discover_best_data_directory()
+        print("AWS EXECUTOR")
     
-    def execute(self):
-        """Loop over the wavelengths and normalize, set background, and wait"""
+    def execute(self, paths):
+        """Loop over the wavelengths and normalize, then wait"""
         
-        links = self.modify_img_series()
-        self.sleep_until_delay_elapsed(links)
+        self.modify_upload_img_series(paths)
+        sleep(self.params.delay_seconds())
     
-    def modify_img_series(self):
+    def modify_upload_img_series(self, paths):
         """Processes the img series"""
-        global last_time
-        last_time = time()
-        print("\nProcessing Images at {}".format(str(datetime.now())[:-7]), flush=True)
+        print("\nProcessing Images...", flush=True)
         self.save_times()
-        links = []
-        for link in tqdm(self.get_img_links()):
-            with fits.open(link, cache=False) as hdul:
-                links.append(self.modify_img(hdul))
-        return links
-        
-    @staticmethod
-    def save_times():
+        for path in tqdm(paths):
+            with fits.open(path) as hdul:
+                self.modify_upload(hdul)
+    
+    def save_times(self):
         """Saves the Time file to S3 so we know when images were taken"""
         image_times = requests.get(archive_url + "image_times").text[9:25]
         
-        path = "image_times"
+        path = self.data_path + "\\image_times"
         with open(path, 'w') as fp:
             fp.write(image_times)
         bucket.upload_file(path, path,
                            ExtraArgs={'ACL': 'public-read', "ContentType": "image/png"})
     
-    @staticmethod
-    def get_img_links():
-        """gets the list of files to pull"""
-        # create response object
-        r = requests.get(archive_url)
-        
-        # create beautiful-soup object
-        soup = BeautifulSoup(r.content, 'html5lib')
-        
-        # find all links on web-page
-        links = soup.findAll('a')
-        
-        # filter the link sending with .fits
-        img_links = [archive_url + link['href'] for link in links if link['href'].endswith('fits')]
-        img_links = [lnk for lnk in img_links if '4500' not in lnk]
-        # return [img_links[0]]
-        return img_links
     
-    def modify_img(self, hdul):
+    def modify_upload(self, hdul):
         """modifies and uploads the image"""
         hdul.verify('silentfix+warn')
         
         wave, t_rec = hdul[0].header['WAVELNTH'], hdul[0].header['T_OBS']
         data = hdul[0].data
-        
         image_meta = str(wave), str(wave), t_rec, data.shape
-        return self.upload_imgs(Modify(data, image_meta).get_paths())
+        
+        img_paths = Modify(data, image_meta).get_paths()
+        
+        return self.upload_imgs(img_paths)
     
-    def upload_imgs(self, imgs):
+    def upload_imgs(self, img_paths):
         """uploads all imgs in input to the s3 bucket"""
-        for rtPath in imgs:
+        for rtPath in img_paths:
             smallPath, bigPath, arcPath = self.make_thumb(rtPath)
             
             # Upload large File
@@ -128,11 +114,10 @@ class AwsExecute:
         """ Make sure that the loop takes the right amount of time """
         self.wait_if_required(self.determine_delay(), links)
     
-    @staticmethod
-    def determine_delay():
+
+    def determine_delay(self):
         """ Determine how long to wait """
-        delay = background_update_delay_seconds + 0
-        global last_time
+        delay = self.params.delay_seconds() + 0
         # return delay
         run_time_offset = time() - last_time
         delay -= run_time_offset
