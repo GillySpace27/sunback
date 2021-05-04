@@ -4,7 +4,7 @@ from science.parameters import Parameters
 import run
 
 
-def run_aws(delay=10, debug=False, do_one=False, stop=False):
+def run_aws(delay=100, debug=False, do_one=False, stop=False):
     p = Parameters()
     p.delay_seconds(delay)
     p.do_one(do_one, stop)

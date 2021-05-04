@@ -44,7 +44,8 @@ class AwsExecutor(Executor):
         """Loop over the wavelengths and normalize, then wait"""
         
         self.modify_upload_img_series(paths)
-        sleep(self.params.delay_seconds())
+        self.sleep_until_delay_elapsed()
+
     
     def modify_upload_img_series(self, paths):
         """Processes the img series"""
@@ -52,7 +53,9 @@ class AwsExecutor(Executor):
         self.save_times()
         for path in tqdm(paths):
             with fits.open(path) as hdul:
-                self.modify_upload(hdul)
+                img_paths = self.modify_img(hdul)
+                self.upload(img_paths)
+                
     
     def save_times(self):
         """Saves the Time file to S3 so we know when images were taken"""
@@ -65,7 +68,7 @@ class AwsExecutor(Executor):
                            ExtraArgs={'ACL': 'public-read', "ContentType": "image/png"})
     
     
-    def modify_upload(self, hdul):
+    def modify_img(self, hdul):
         """modifies and uploads the image"""
         hdul.verify('silentfix+warn')
         
@@ -75,7 +78,7 @@ class AwsExecutor(Executor):
         
         img_paths = Modify(data, image_meta).get_paths()
         
-        return self.upload_imgs(img_paths)
+        return img_paths
     
     def upload_imgs(self, img_paths):
         """uploads all imgs in input to the s3 bucket"""
@@ -110,7 +113,7 @@ class AwsExecutor(Executor):
         imgDat.save(smallPath)
         return smallPath, bigPath, arcPath
     
-    def sleep_until_delay_elapsed(self, links):
+    def sleep_until_delay_elapsed(self, links=None):
         """ Make sure that the loop takes the right amount of time """
         self.wait_if_required(self.determine_delay(), links)
     
@@ -124,7 +127,7 @@ class AwsExecutor(Executor):
         delay = max(delay, 0)
         return delay
     
-    def wait_if_required(self, delay, links):
+    def wait_if_required(self, delay, links=None):
         """ Wait if Required """
         
         # print("Waiting for {:0.0f} seconds ({} total)".format(delay, background_update_delay_seconds),
@@ -133,9 +136,11 @@ class AwsExecutor(Executor):
         # sys.stdout.flush()
         global picNum
         picNum = 0
-        for ii in tqdm((range(int(delay))), desc="Waiting for {:0.0f} seconds".format(delay)):
+        print("", flush=True)
+        for ii in tqdm((range(int(delay))), desc="Waiting for {:0.0f} seconds".format(delay-1)):
             sleep(1)
             self.background_handler(ii, links, picNum)
+        print("~~``~~\n")
     
     def background_handler(self, ii, links, picNum):
         """Change the desktop background every 60 seconds"""
