@@ -5,8 +5,8 @@ from time import time
 
 
 # Web Version
-from execute.Executor import Executor
-from fetch.WebFetch import WebFetch
+from Executor.Executor import Executor
+from Fetcher.WebFetcher import WebFetcher
 
 
 class BackgroundExecutor(Executor):

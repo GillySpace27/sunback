@@ -62,8 +62,15 @@ class Parameters:
         self._do_one = False
         
         # TODO remove this from params or something
-        self._executor = None
+        self._archive_url = None
+        self._download_path = None
+        self._time_path = None
+        self._local_img_paths = None
+        self._local_fits_paths = None
         self._fetcher = None
+        self._executor = None
+        self._putter = None
+        
         
         self.set_default_values()
     
@@ -78,6 +85,36 @@ class Parameters:
         if _executor is not None:
             self._executor = _executor
         return self._executor
+
+    def putter(self, _putter=None):
+        if _putter is not None:
+            self._putter = _putter
+        return self._putter
+    
+    def archive_url(self, _archive_url=None):
+        if _archive_url is not None:
+            self._archive_url = _archive_url
+        return self._archive_url
+ 
+    def download_path(self, _download_path=None):
+        if _download_path is not None:
+            self._download_path = _download_path
+        return self._download_path
+    
+    def time_path(self, _time_path=None):
+        if _time_path is not None:
+            self._time_path = _time_path
+        return self._time_path
+
+    def local_fits_paths(self, _local_fits_paths=None):
+        if _local_fits_paths is not None:
+            self._local_fits_paths = _local_fits_paths
+        return self._local_fits_paths
+    
+    def local_img_paths(self, _local_img_paths=None):
+        if _local_img_paths is not None:
+            self._local_img_paths = _local_img_paths
+        return self._local_img_paths
     
     def run_type(self, _type=None):
         if _type is not None:

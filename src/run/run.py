@@ -1,5 +1,5 @@
-from execute.AwsExecutor import AwsExecutor
-from execute.BackgroundExecutor import BackgroundExecutor
+from Executor.ModifyExecutor import ModifyExecutor
+from Executor.DisplayExecutor import BackgroundExecutor
 import sys
 import sunback as sb
 from traceback import print_tb
@@ -33,6 +33,8 @@ class Runner:
         """Run the program in a way that will break"""
         while True:
             self.__execute()
+            if self.params.stop_after_one():
+                break
     
     def __run_mode(self):
         """Run the program in a way that won't break"""
@@ -56,13 +58,17 @@ class Runner:
                 else:
                     print("Too Many Failures, I Quit!")
                     sys.exit(1)
+            if self.params.stop_after_one():
+                break
     
     def __execute(self):
-        """Use the provided fetcher and executor to do the thing"""
+        """Use the provided fetcher, executor, and putter to do the thing"""
         
-        # Get the paths to the files to be worked upon
-        if self.params.fetcher() is not None:
-            paths = self.params.fetcher().download_fits_files()
-        else:
-            paths = []
-        self.params.executor().execute(paths)
+        self.params.fetcher().fetch()
+        self.params.executor().execute()
+        self.params.putter().put()
+
+        mode_string = "" if self.params.stop_after_one() else ", Restarting Loop"
+        print("\n_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_")
+        print("Program Complete{}".format(mode_string))
+        print("_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_\n\n")
