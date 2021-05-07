@@ -66,11 +66,12 @@ class Parameters:
         self._download_path = None
         self._time_path = None
         self._local_img_paths = None
-        self._local_fits_paths = None
+        self._local_fits_paths = []
         self._fetcher = None
         self._executor = None
         self._putter = None
-        
+        self._post_processor = []
+        self._do_recent = True
         
         self.set_default_values()
     
@@ -85,6 +86,14 @@ class Parameters:
         if _executor is not None:
             self._executor = _executor
         return self._executor
+
+    def post_processor(self, _post_processor=None):
+        if _post_processor is not None:
+            if type(_post_processor) not in [list]:
+                self._post_processor = [_post_processor]
+            else:
+                self._post_processor = _post_processor
+        return self._post_processor
 
     def putter(self, _putter=None):
         if _putter is not None:
@@ -221,6 +230,12 @@ class Parameters:
                 total_days += hours / 24
             self._range_in_days = total_days
         return self._range_in_days
+    
+    def do_recent(self, _do_recent=None):
+        if _do_recent is not None:
+            assert type(_do_recent) in [bool]
+            self._do_recent = _do_recent
+        return self._do_recent
     
     def cadence(self, cad=None):
         if cad is not None:

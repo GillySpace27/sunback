@@ -6,13 +6,13 @@ import numpy as np
 import requests
 from bs4 import BeautifulSoup
 from utils.file_util import discover_best_data_directory
-from Fetcher.Fetcher import Fetch
+from fetcher.Fetcher import Fetcher
 from tqdm import tqdm
 
 archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
 
-class WebFetcher(Fetch):
+class WebFetcher(Fetcher):
     
     def __init__(self, params, base_url=archive_url, base_dir_path=discover_best_data_directory()):
         self.params = params

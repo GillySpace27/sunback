@@ -3,7 +3,7 @@ from platform import system
 
 from tqdm import tqdm
 
-from Putter.Putter import Putter
+from putter.Putter import Putter
 # Initialization
 from time import time, sleep
 
@@ -17,10 +17,10 @@ class LocalPutter(Putter):
         self.params = params
         self.delay = self.params.delay_seconds()
         # self.params.stop_after_one(False)
-        
     
     def put(self):
         print("Setting Desktop Background to...", flush=True)
+        sleep(0.1)
         for png_path in self.params.local_img_paths():
             self.update_background(png_path)
             self.sleep_until_delay_elapsed()
@@ -32,7 +32,6 @@ class LocalPutter(Putter):
         for ii in tqdm((range(int(delay))),
                        desc="{}, Waiting for {:0.0f} seconds".format(self.png_name, delay)):
             sleep(1)
-            
     
     def update_background(self, local_path):
         """
@@ -42,6 +41,8 @@ class LocalPutter(Putter):
         ----------
         local_path : str
          The local save location of the image
+         :param local_path:
+         :return:
         """
         local_path = abspath(local_path)
         self.png_name = local_path[-8:]

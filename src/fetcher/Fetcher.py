@@ -1,5 +1,5 @@
 
-class Fetch:
+class Fetcher:
     """Gets some data"""
     def fetch(self, url):
         raise NotImplementedError()

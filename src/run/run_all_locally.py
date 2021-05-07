@@ -10,7 +10,7 @@ from putter.NullPutter import NullPutter
 import run
 
 
-def run_aws(delay=10, debug=False, do_one=False, stop=False):
+def run_all_locally(delay=10, debug=False, do_one=False, stop=False):
     p = Parameters()
     p.delay_seconds(delay)
     p.do_one(do_one, stop)
@@ -26,8 +26,8 @@ def run_aws(delay=10, debug=False, do_one=False, stop=False):
     
     # p.processor(MovieProcessor(p)) # Makes the PNGs into a Movie
     
-    p.putter(AwsPutter(p))        # Uploads the PNGs to AWS
-    # p.putter(LocalPutter(p))        # Runs the Desktop Background Sequence on PNGs
+    # p.putter(AwsPutter(p))        # Uploads the PNGs to AWS
+    p.putter(LocalPutter(p))        # Runs the Desktop Background Sequence on PNGs
     # p.putter(NullPutter(p))       # Does Nothing with the PNGS
     
     run.Runner(p).start()
@@ -35,4 +35,4 @@ def run_aws(delay=10, debug=False, do_one=False, stop=False):
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run_aws(debug=True)
+    run_all_locally(debug=True)

@@ -7,7 +7,7 @@ from PIL import Image
 from astropy.io import fits
 from tqdm import tqdm
 
-from Executor.Executor import Executor
+from executor.Executor import Executor
 from science.modify import Modify
 from utils.file_util import discover_best_data_directory
 
@@ -40,18 +40,20 @@ class ModifyExecutor(Executor):
         img_paths = []
         for path in tqdm(self.params.local_fits_paths()):
             with fits.open(path) as hdul:
-                img_paths.extend(self.modify_img(hdul))
+                img_paths.extend(self.modify_img(hdul, path))
         self.params.local_img_paths(img_paths)
         print("Success!\n")
         sleep(1)
     
-    def modify_img(self, hdul):
+    def modify_img(self, hdul, path=None):
         """modifies and uploads the image"""
         hdul.verify('silentfix+warn')
         
+        save_path = path.replace("fits", "png")
         wave, t_rec = hdul[0].header['WAVELNTH'], hdul[0].header['T_OBS']
         data = hdul[0].data
-        image_meta = str(wave), str(wave), t_rec, data.shape
+        # image_meta = str(wave), str(wave), t_rec, data.shape
+        image_meta = str(wave), save_path, t_rec, data.shape
         
         img_paths = Modify(data, image_meta).get_paths()
         self.make_thumbs(img_paths[0])

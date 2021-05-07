@@ -721,9 +721,9 @@ class Modify:
                 
                 name, wave = self.clean_name_string(full_name)
                 new_path = save_path[:-5] + name + middle + ".png"
-                directory = "renders/"
+                directory = "" # "renders/"
                 path = directory + new_path
-                os.makedirs(directory, exist_ok=True)
+                # os.makedirs(directory, exist_ok=True)
                 fig.savefig(path, facecolor='black', edgecolor='black', dpi=dpi)
                 # print("\tSaved {} Image:{}".format('Processed' if processed else "Unprocessed", name))
                 self.pathBox.append(path)

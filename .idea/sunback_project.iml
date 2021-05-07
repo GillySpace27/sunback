@@ -24,6 +24,7 @@
       <excludeFolder url="file://$MODULE_DIR$/resources/jythonMusic/library/jython2.5.3/tests/java/javatests" />
       <excludeFolder url="file://$MODULE_DIR$/src/data" />
       <excludeFolder url="file://$MODULE_DIR$/src/fits" />
+      <excludeFolder url="file://$MODULE_DIR$/src/movie" />
       <excludeFolder url="file://$MODULE_DIR$/src/renders" />
       <excludeFolder url="file://$MODULE_DIR$/src/run/renders" />
       <excludeFolder url="file://$MODULE_DIR$/src/sunback_images" />

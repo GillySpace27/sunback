@@ -1,5 +1,4 @@
-from Executor.ModifyExecutor import ModifyExecutor
-from Executor.DisplayExecutor import BackgroundExecutor
+from executor.ModifyExecutor import ModifyExecutor
 import sys
 import sunback as sb
 from traceback import print_tb
@@ -67,7 +66,9 @@ class Runner:
         self.params.fetcher().fetch()
         self.params.executor().execute()
         self.params.putter().put()
-
+        self.print_end_banner()
+    
+    def print_end_banner(self):  # TODO Make this into a util file
         mode_string = "" if self.params.stop_after_one() else ", Restarting Loop"
         print("\n_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_")
         print("Program Complete{}".format(mode_string))

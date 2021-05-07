@@ -1,5 +1,5 @@
 from time import sleep
-from Putter.Putter import Putter
+from putter.Putter import Putter
 
 class NullPutter(Putter):
     def __init__(self, params):
