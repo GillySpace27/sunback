@@ -1,6 +1,7 @@
 import urllib
 from datetime import datetime
 from os import rename, remove
+from os.path import exists
 from urllib.request import urlretrieve
 import numpy as np
 import requests
@@ -34,7 +35,8 @@ class WebFetcher(Fetcher):
                 # Retry download
                 try:
                     urlretrieve(link, local_temp_path)
-                    remove(local_path)
+                    if exists(local_path):
+                        remove(local_path)
                     rename(local_temp_path, local_path)
                     break
                 except urllib.error.ContentTooShortError:

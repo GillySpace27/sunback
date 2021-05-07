@@ -1,7 +1,6 @@
 from unittest import TestCase
 
 import parameters
-import sunback
 
 
 class TestParameters(TestCase):

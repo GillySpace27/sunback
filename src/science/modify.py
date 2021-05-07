@@ -1,4 +1,3 @@
-
 import numpy as np
 import os
 import matplotlib.pyplot as plt
@@ -12,12 +11,15 @@ from copy import copy
 
 from .color_tables import aia_color_table
 import warnings
+
 warnings.filterwarnings("ignore")
 plt.ioff()
+
 
 class Modify:
     renew_mask = True
     image_data = None
+    
     def __init__(self, image=None, image_data=None, orig=False, show=False, verb=False):
         """Initialize the main class"""
         
@@ -45,7 +47,7 @@ class Modify:
             path = image
             self.original = self.load_file(path)
         elif type(image) in [np.array, np.ndarray]:
-            self.original=image
+            self.original = image
         else:
             raise TypeError("Invalid Input Data: {}".format(type(image)))
         
@@ -56,7 +58,6 @@ class Modify:
             # Use default Metadata
             self.image_data = self.def_data(self.changed)
         self.name = self.image_data[0]
-        
     
     def test(self):
         """Run the test case if no input is provided"""
@@ -69,7 +70,7 @@ class Modify:
         """Load a fits file from disk"""
         with fits.open(path, cache=False) as hdul:
             hdul.verify('silentfix+warn')
-            wave, t_rec = hdul[0].header['WAVELNTH'],  hdul[0].header['T_OBS']
+            wave, t_rec = hdul[0].header['WAVELNTH'], hdul[0].header['T_OBS']
             image = hdul[0].data
             self.image_data = str(wave), str(wave), t_rec, image.shape
         return image
@@ -114,17 +115,17 @@ class Modify:
         xx, yy = np.meshgrid(np.arange(self.rez), np.arange(self.rez))
         xc, yc = xx - centerPt, yy - centerPt
         
-        self.extra_rez = 2 # An attempt to give extra resolution
+        self.extra_rez = 2  # An attempt to give extra resolution
         self.sRadius = 400 * self.extra_rez
         self.tRadius = self.sRadius * 1.28
         self.radius = np.sqrt(xc * xc + yc * yc) * self.extra_rez
         self.rez *= self.extra_rez
-        
+    
     def remove_offset(self):
         """Set min of array to zero"""
         self.offset = np.min(self.changed)
         self.changed -= self.offset
-        
+    
     def sort_radially(self):
         """ Flatten the image and sort by pixel radius """
         self.rad_flat = self.radius.flatten()
@@ -183,16 +184,16 @@ class Modify:
         self.highCut = 0.8 * self.rez
         
         # Savgol window size
-        lWindow = 7 # 4 * self.extra_rez + 1
-        mWindow = 7 # 4 * self.extra_rez + 1
-        hWindow = 7 # 30 * self.extra_rez + 1
+        lWindow = 7  # 4 * self.extra_rez + 1
+        mWindow = 7  # 4 * self.extra_rez + 1
+        hWindow = 7  # 30 * self.extra_rez + 1
         fWindow = 7  # int(3 * self.extra_rez) + 1
         rank = 3
         
         ## Algorithm
         # Locate the Limb
-        self.theMin = int(0.35*self.rez)
-        self.theMax = int(0.45*self.rez)
+        self.theMin = int(0.35 * self.rez)
+        self.theMax = int(0.45 * self.rez)
         near_limb = np.arange(self.theMin, self.theMax)
         
         # Split the domain into three regions and treat seperately
@@ -236,7 +237,7 @@ class Modify:
         # Fit the lowest region with a polynomial to make it much smoother
         degree = 5
         p = np.polyfit(self.low_abs, low_max_filt, degree)
-        low_max_fit = np.polyval(p, self.low_abs) #* 1.1
+        low_max_fit = np.polyval(p, self.low_abs)  # * 1.1
         p = np.polyfit(self.low_abs, low_min_filt, degree)
         low_min_fit = np.polyval(p, self.low_abs)
         
@@ -253,13 +254,11 @@ class Modify:
             
             plt.plot(self.radAbss, self.binMax, label="Max")
             
-            
             plt.plot(self.low_abs, low_min_filt, lw=4)
             plt.plot(self.mid_abs, mid_min_filt, lw=4)
             plt.plot(self.high_abs, high_min_filt, lw=4)
             
             plt.plot(self.radAbss, self.binMin, label="Min")
-            
             
             plt.plot(self.low_abs, low_min_fit, c='k')
             plt.plot(self.low_abs, low_max_fit, c='k')
@@ -293,7 +292,6 @@ class Modify:
         # plt.plot(np.arange(self.rez), self.fakeMin)
         # plt.show()
         
-        
         # # Locate the Noise Floor
         # noiseMin = 550 * self.extra_rez - self.hCut
         # near_noise = np.arange(noiseMin, noiseMin + 100 * self.extra_rez)
@@ -309,7 +307,7 @@ class Modify:
         """Normalize the image using the radial percentile curves"""
         
         # Collect Arrays
-        self.changed[self.changed==0] = np.nan
+        self.changed[self.changed == 0] = np.nan
         flat_image = self.changed.flatten()
         self.dat_corona = np.ones_like(flat_image)
         
@@ -335,25 +333,24 @@ class Modify:
         
         # Deal with too hot things
         self.vmax = 0.95
-        self.vmax_plot = 0.85 #np.max(dat_corona)
-        hotpowr = 1/1.5
+        self.vmax_plot = 0.85  # np.max(dat_corona)
+        hotpowr = 1 / 1.5
         hot = self.dat_corona > self.vmax
         # self.dat_corona[hot] = self.dat_corona[hot] ** hotpowr
         
         # Deal with too cold things
         self.vmin = 0.3
-        self.vmin_plot = -0.05 #np.min(dat_corona)# 0.3# -0.03
-        coldpowr = 1/2
+        self.vmin_plot = -0.05  # np.min(dat_corona)# 0.3# -0.03
+        coldpowr = 1 / 2
         cold = self.dat_corona < self.vmin
         self.dat_corona[cold] = -((np.abs(self.dat_corona[cold] - self.vmin) + 1) ** coldpowr - 1) + self.vmin
         self.dat_coronagraph = self.dat_corona
         dat_corona_square = self.dat_corona.reshape(self.changed.shape)
         
         # Some More Normalization
-        dat_corona_square = np.sign(dat_corona_square) * np.power(np.abs(dat_corona_square), (1/5))
-        self.changed = self.normalize(self.changed, high = 100, low=0)
-        dat_corona_square = self.normalize(dat_corona_square, high = 100, low=1)
-        
+        dat_corona_square = np.sign(dat_corona_square) * np.power(np.abs(dat_corona_square), (1 / 5))
+        self.changed = self.normalize(self.changed, high=100, low=0)
+        dat_corona_square = self.normalize(dat_corona_square, high=100, low=1)
         
         # Allows you to only show sub-sections of the image as reduced images
         if self.renew_mask:
@@ -363,14 +360,14 @@ class Modify:
         # Allows you to mirror horizontally, with only one half rfeduced
         do_mirror = False
         if do_mirror:
-            #Do stuff
-            xx, yy = self.corona_mask.shape[0], int(self.corona_mask.shape[1]/2)
+            # Do stuff
+            xx, yy = self.corona_mask.shape[0], int(self.corona_mask.shape[1] / 2)
             #
             newDat = self.changed[self.corona_mask]
-            grid = newDat.reshape(xx,yy)
+            grid = newDat.reshape(xx, yy)
             # if self.
             flipped = np.fliplr(grid)
-            self.changed[~self.corona_mask] = flipped.flatten() # np.flip(newDat)
+            self.changed[~self.corona_mask] = flipped.flatten()  # np.flip(newDat)
         
         # Clean Outputs
         self.changed[self.corona_mask] = dat_corona_square[self.corona_mask]
@@ -378,7 +375,7 @@ class Modify:
     
     def vignette(self, r=1.1):
         """Truncate the image above a certain radis"""
-        mask = self.radius > (int(r * self.rez // 2)) #(3.5 * self.noise_radii)
+        mask = self.radius > (int(r * self.rez // 2))  # (3.5 * self.noise_radii)
         self.changed[mask] = np.nan
     
     def plot_curves(self, do=True):
@@ -541,7 +538,7 @@ class Modify:
         
         plt.tight_layout()
         doPlot = False
-        if doPlot: #self.params.is_debug():
+        if doPlot:  # self.params.is_debug():
             file_name = '{}_Radial.png'.format(self.name)
             # print("Saving {}".format(file_name))
             # save_path = join(r"data\images\radial", file_name)
@@ -621,8 +618,6 @@ class Modify:
             self.inches = 10
             fig.set_size_inches((self.inches, self.inches))
             
-            
-            
             if 'hmi' in name.casefold():
                 inst = ""
                 plt.imshow(image, origin='upper', interpolation=None)
@@ -637,16 +632,14 @@ class Modify:
                 
                 inst = '  AIA'
                 cmap = 'sdoaia{}'.format(wave)
-                cmap = aia_color_table(int(wave)*u.angstrom)
+                cmap = aia_color_table(int(wave) * u.angstrom)
                 if processed:
-                    plt.imshow(image, cmap=cmap, origin='lower', interpolation=None,  vmin=self.vmin_plot, vmax=self.vmax_plot)
+                    plt.imshow(image, cmap=cmap, origin='lower', interpolation=None, vmin=self.vmin_plot, vmax=self.vmax_plot)
                 else:
                     toprint = self.normalize(self.absqrt(original_image))
                     # plt.imshow(toprint, cmap='sdoaia{}'.format(wave), origin='lower', interpolation=None) #,  vmin=self.vmin_plot, vmax=self.vmax_plot)
                     
-                    
-                    plt.imshow(self.absqrt(original_image), cmap=cmap, origin='lower', interpolation=None) #,  vmin=self.vmin_plot, vmax=self.vmax_plot)
-                
+                    plt.imshow(self.absqrt(original_image), cmap=cmap, origin='lower', interpolation=None)  # ,  vmin=self.vmin_plot, vmax=self.vmax_plot)
                 
                 plt.tight_layout(pad=0)
                 height = 0.95
@@ -719,14 +712,21 @@ class Modify:
             for fig, ax, processed in self.figbox:
                 middle = '' if processed else "_orig"
                 
+                
                 name, wave = self.clean_name_string(full_name)
-                new_path = save_path[:-5] + name + middle + ".png"
-                directory = "" # "renders/"
-                path = directory + new_path
-                # os.makedirs(directory, exist_ok=True)
-                fig.savefig(path, facecolor='black', edgecolor='black', dpi=dpi)
+                
+                save_directory = os.path.dirname(save_path)
+                if "fits" in save_directory:
+                    save_directory = os.path.join(save_directory, "fits")
+                else:
+                    save_directory = os.path.join(save_directory, "renders\\")
+                
+                new_path = os.path.join(save_directory, name + middle + ".png")
+                
+                os.makedirs(save_directory, exist_ok=True)
+                fig.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
                 # print("\tSaved {} Image:{}".format('Processed' if processed else "Unprocessed", name))
-                self.pathBox.append(path)
+                self.pathBox.append(new_path)
         except Exception as e:
             raise e
         finally:
@@ -739,7 +739,6 @@ class Modify:
         name = self.pathBox[1][:-4] + "_cat.png"
         fmtString = "ffmpeg -i {} -i {} -y -filter_complex hstack {} -hide_banner -loglevel warning"
         os.system(fmtString.format(self.pathBox[1], self.pathBox[0], name))
-    
     
     # def export_files2(self):
     #     full_name, save_path, time_string, ii = self.image_data
@@ -834,7 +833,7 @@ def load_file(path):
     """Load a fits file from disk"""
     with fits.open(path, cache=False) as hdul:
         hdul.verify('silentfix+warn')
-        wave, t_rec = hdul[0].header['WAVELNTH'],  hdul[0].header['T_OBS']
+        wave, t_rec = hdul[0].header['WAVELNTH'], hdul[0].header['T_OBS']
         image = hdul[0].data
         image_data = str(wave), str(wave), t_rec, image.shape
     return image, image_data
@@ -860,21 +859,16 @@ def test_all(test_path="data/0171_MR.fits", show=True):
     test_mod3 = Modify(image, image_data, show=show)
     print("Success", flush=True)
     print("\nAll Tests Run Successfully\n")
-    
-    
+
+
 if __name__ == "__main__":
     test_all(show=False)
-
-    
-
-    
     
     """        # dat2 = self.renormalize(dat)
             # half = int(dat.shape[0]/2)
             # dat[:, :half] = dat2[:, :half]
             # dat[:, half:] = dat2[:, half:]
             # return dat"""
-    
     
     # print(image.dtype)
     #
@@ -886,10 +880,10 @@ if __name__ == "__main__":
     # # plt.yscale('log')
     # plt.scatter(rad_sorted[::30], dat_sort[::30], c='k')
     # plt.show()
-
+    
     # image = image / np.mean(image)
-
+    
     # image = image**(1/2)
     # image = np.log(image)
-
+    
     # image = self.normalize(image, high=85, low=5)

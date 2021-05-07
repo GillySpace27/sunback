@@ -18,7 +18,7 @@ import sys
 sys.path.insert(0, os.path.abspath('..'))
 # sys.path.append('../')
 
-from sunback._version import get_versions
+from movie.dep.sunback import get_versions
 versions = get_versions()
 __version__ = versions['version']
 __git_revision__ = versions['full-revisionid']

@@ -31,6 +31,7 @@ except Exception as e:
     print(e)
 
 import matplotlib.pyplot as plt
+plt.ioff()
 import matplotlib.image as mpimg
 
 bbb = Barrier(3, timeout=100)

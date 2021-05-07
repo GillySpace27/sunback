@@ -5,8 +5,7 @@ Unit and regression test for the sunback package.
 # Import package, test suite, and other packages as needed
 from unittest import TestCase
 
-import sunback
-import pytest
+from movie.dep import sunback
 import sys
 
 
