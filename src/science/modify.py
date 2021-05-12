@@ -309,6 +309,7 @@ class Modify:
         """Normalize the image using the radial percentile curves"""
         
         # Collect Arrays
+        self.changed = self.changed.astype('float32')
         self.changed[self.changed == 0] = np.nan
         flat_image = self.changed.flatten()
         self.dat_corona = np.ones_like(flat_image)

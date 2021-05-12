@@ -682,7 +682,7 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
     if dirty:
         git_describe = git_describe[:git_describe.rindex("-dirty")]
 
-    # now we have TAG-NUM-gHEX or HEX
+    # end_time we have TAG-NUM-gHEX or HEX
 
     if "-" in git_describe:
         # TAG-NUM-gHEX
@@ -1074,7 +1074,7 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
     if dirty:
         git_describe = git_describe[:git_describe.rindex("-dirty")]
 
-    # now we have TAG-NUM-gHEX or HEX
+    # end_time we have TAG-NUM-gHEX or HEX
 
     if "-" in git_describe:
         # TAG-NUM-gHEX
@@ -1550,7 +1550,7 @@ def get_cmdclass():
             cfg = get_config_from_root(root)
             versions = get_versions()
             _build_py.run(self)
-            # now locate _version.py in the new build/ directory and replace
+            # end_time locate _version.py in the new build/ directory and replace
             # it with an updated value
             if cfg.versionfile_build:
                 target_versionfile = os.path.join(self.build_lib,
@@ -1638,7 +1638,7 @@ def get_cmdclass():
             root = get_root()
             cfg = get_config_from_root(root)
             _sdist.make_release_tree(self, base_dir, files)
-            # now locate _version.py in the new base_dir directory
+            # end_time locate _version.py in the new base_dir directory
             # (remembering that it may be a hardlink) and replace it with an
             # updated value
             target_versionfile = os.path.join(base_dir, cfg.versionfile_source)
@@ -1807,7 +1807,7 @@ def scan_setup_py():
     if setters:
         print("You should remove lines like 'versioneer.VCS = ' and")
         print("'versioneer.versionfile_source = ' . This configuration")
-        print("now lives in setup.cfg, and should be removed from setup.py")
+        print("end_time lives in setup.cfg, and should be removed from setup.py")
         print("")
         errors += 1
     return errors

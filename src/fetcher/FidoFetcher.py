@@ -17,6 +17,8 @@ import astropy.units as u
 
 from sunpy.instr.aia import aiaprep
 
+import datetime
+
 
 # aia1 = sunpy.map.Map(file_download[0])
 # aia = aiaprep(aia1)
@@ -38,8 +40,6 @@ class FidoFetcher(Fetcher):
         else:
             self.waves_to_do = self.wavelengths
         
-
-    
         # Set class variables
         self.local_wave_directory = None
         self.image_folder = None
@@ -66,36 +66,51 @@ class FidoFetcher(Fetcher):
         else:
             self.get_time_range()
     
+    def set_start_time(self, start_struct):
+        try:
+            self.start_time = start_struct.strftime('%Y/%m/%d %H:%M')
+            self.start_time_long = int(start_struct.strftime('%Y%m%d%H%M%S'))
+        except AttributeError:
+            self.start_time = strftime('%Y/%m/%d %H:%M', start_struct)
+            self.start_time_long = int(strftime('%Y%m%d%H%M%S', start_struct))
+        
+        self.start_string = self.parse_time_string_to_local(str(self.start_time_long), 2)[0]
+    
+    def set_end_time(self, end_struct):
+        try:
+            
+            self.end_time = end_struct.strftime('%Y/%m/%d %H:%M')
+            self.end_time_long = int(end_struct.strftime('%Y%m%d%H%M%S'))
+        except AttributeError:
+            self.end_time = strftime('%Y/%m/%d %H:%M', end_struct)
+            self.end_time_long = int(strftime('%Y%m%d%H%M%S', end_struct))
+        
+        self.end_time_string = self.parse_time_string_to_local(str(self.end_time_long), 2)[0]
+    
+    def get_time_range(self):
+        start, end = self.params.time_period()
+        
+        start_struct = datetime.datetime.strptime(start, '%Y/%m/%d %H:%M')
+        end_struct = datetime.datetime.strptime(end, '%Y/%m/%d %H:%M')
+        
+        self.set_start_time(start_struct)
+        self.set_end_time(end_struct)
+    
     def get_recent_range(self):
         # Get the Start Time
         current_time = time() + timezone
         start_list = list(localtime(current_time - (self.params.range() + 2 / 24) * 60 * 60 * 24))
-        
-        # Truncate the minutes and seconds
-        # start_list[2] -= 0 # Days
-        
         start_list[4] = 0  # Minutes
         start_list[5] = 0  # Seconds
         start_struct = struct_time(start_list)
+        self.set_start_time(start_struct)
         
-        # Make Output Products
-        self.early = strftime('%Y/%m/%d %H:%M', start_struct)
-        self.earlyLong = int(strftime('%Y%m%d%H%M%S', start_struct))
-        self.earlyString = self.parse_time_string_to_local(str(self.earlyLong), 2)[0]
-        # print(self.early, self.earlyLong, self.earlyString)
         # Get the Current Time
         now_list = list(localtime(current_time - 2 * 60 * 60))
-        
-        # Truncate the minutes and seconds
         now_list[4] = 0  # Minutes
         now_list[5] = 0  # Seconds
-        now_struct = struct_time(now_list)
-        
-        # Make Output Products
-        self.now = strftime('%Y/%m/%d %H:%M', now_struct)
-        self.nowLong = int(strftime('%Y%m%d%H%M%S', now_struct))
-        self.nowString = self.parse_time_string_to_local(str(self.nowLong), 2)[0]
-        # print(self.now, self.nowLong, self.nowString)
+        end_struct = struct_time(now_list)
+        self.set_end_time(end_struct)
     
     @staticmethod
     def parse_time_string_to_local(downloaded_files, which=0, local=True):
@@ -151,7 +166,7 @@ class FidoFetcher(Fetcher):
             self.fido_get_fits()
             # self.set_fits_list()
         self.set_output_paths()
-
+    
     def set_output_paths(self):
         # self.params.local_fits_paths(self.final_fits_paths)
         for wave in self.waves_to_do:
@@ -161,21 +176,18 @@ class FidoFetcher(Fetcher):
             self.final_fits_paths.extend(abs_paths)
         self.params.local_fits_paths(self.final_fits_paths)
         pass
-        
-        
+    
     # def set_fits_list(self):
     #     abs_paths = [join(self.fits_folder, st) for st in self.local_fits_paths]
     #     self.final_fits_paths.extend(abs_paths)
     #     print("file box= {}".format(len(self.final_fits_paths)))
-        # local_paths = self.params.local_fits_paths()
-        # local_paths.extend()
-        
-        
+    # local_paths = self.params.local_fits_paths()
+    # local_paths.extend()
+    
     def fido_get_fits(self):
         if self.params.download_images():
             self.download_fits_series()
             self.validate_download()
-
     
     def build_paths(self):
         """Make the file structure to hold the images"""
@@ -196,10 +208,10 @@ class FidoFetcher(Fetcher):
     def fido_check_for_fits(self):
         """Find the science images"""
         print("\n>Looking for Science Images of {} from {} to {}...".format(
-                self.current_wave, self.earlyString, self.nowString), flush=True)
+                self.current_wave, self.start_string, self.end_time_string), flush=True)
         
         # Search for records from the internet
-        self.fido_result = Fido.search(attrs.Time(self.early, self.now), attrs.Instrument('aia'),
+        self.fido_result = Fido.search(attrs.Time(self.start_time, self.end_time), attrs.Instrument('aia'),
                                        attrs.Wavelength(int(self.current_wave) * u.angstrom),
                                        attrs.Sample(self.params.cadence()))  # , a.vso.Provider('jsoc'))
         self.fido_num = self.fido_result.file_num
@@ -239,15 +251,15 @@ class FidoFetcher(Fetcher):
             # sys.stderr = err
             print("Success!")
         except Exception as e:
-            print(e)
+            print('1 + ', e)
     
     def validate_download(self):
         self.list_requested_files()
         self.local_fits_paths = self.list_files_in_directory()
         self.remove_all_old_fits_pngs()
         self.remove_all_old_pngs()
-        self.validate_fits()
-        self.redownload_bad_fits()
+        # self.validate_fits()
+        # self.redownload_bad_fits()
         
         # self.fido_download_fits()
         
@@ -256,8 +268,10 @@ class FidoFetcher(Fetcher):
     
     def list_requested_files(self):
         self.requested_files = []
+        self.requested_response = []
         for ii in np.arange(self.fido_num):
             self.requested_files.append(self.fido_result.get_response(0)[ii]['fileid'].casefold())
+            self.requested_files.append(self.fido_result.get_response(0)[ii]['time']['start'])
     
     def list_files_in_directory(self, directory=None, extension="fits"):
         directory = self.fits_folder if directory is None else directory
@@ -276,34 +290,53 @@ class FidoFetcher(Fetcher):
     
     def remove_all_old_pngs(self):
         requested_pngs = [x.replace('fits', 'png') for x in self.local_fits_paths]
-        png_directory = join(self.params.download_path(), self.name, 'png')
+        png_directory = join(self.params.download_path(), self.current_wave, 'png')
         got_png = self.list_files_in_directory(png_directory, 'png')
         remove_count = 0
         for png_path in got_png:
             if png_path not in requested_pngs:
                 try:
-                    remove(join(png_directory,png_path))
+                    remove(join(png_directory, png_path))
                     remove_count += 1
                 except FileNotFoundError as e:
                     # print(e)
                     pass
         if remove_count > 0:
             print("{} old pngs deleted".format(remove_count))
+    
     def remove_all_old_fits_pngs(self):
         keep = []
         self.file_size = []
         for local_file in self.local_fits_paths:
-            png_path = local_file.replace('fits', 'png')
             if local_file not in self.requested_files:
-                self.remove_fits_and_png(local_file)
+                start = self.parse_filename_to_time(local_file)
+                if start not in self.requested_files:
+                    self.remove_fits_and_png(local_file)
             else:
                 keep.append(local_file)
                 self.file_size.append(stat(join(self.fits_folder, local_file)).st_size)
             self.params.local_fits_paths(keep)
         
-        if len(self.redownload)>0:
+        if len(self.redownload) > 0:
             print("        Deleting old files...", end='')
             print("Success! Deleted {} old images".format(len(self.redownload)))
+    
+    def parse_filename_to_time(self, local_file):
+        try:
+            ifirst = 13 if '94' in local_file else 14
+            stub = local_file[ifirst:-20]
+            fmt_A = '%Y_%m_%dt%H_%M_%S'
+            fmt_B = '%Y%m%d%H%M%S'
+            # return stub.replace(['_', 't'], '')
+            return datetime.datetime.strptime(stub, fmt_A).strftime(fmt_B)
+        except:
+            stub = local_file[3:-10].replace('_', '')
+            return stub
+    
+    def out_of_range(self, hdul):
+        print('A')
+        pass
+        return False
     
     def remove_and_mark_redownload(self, filename):
         fitsPath = join(self.fits_folder, filename[:-5] + '.fits')
@@ -311,182 +344,43 @@ class FidoFetcher(Fetcher):
         remove(fitsPath)
     
     def remove_fits_and_png(self, filename):
+        print("DESTROY")
         fitsPath = join(self.fits_folder, filename[:-5] + '.fits')
         pngPath = join(self.image_folder, filename[:-5] + '.png')
         remove(fitsPath)
         try:
             remove(pngPath)
         except FileNotFoundError as e:
-            print(e)
+            # print(e)
             pass
     
-    def validate_fits(self):
-        from statistics import mode
-        self.file_size_mode = mode(self.file_size)
-        self.redownload = []
-        for local_file in self.params.local_fits_paths():
-            abs_path = join(self.fits_folder, local_file)
-            with fits.open(abs_path) as hdul:
-                hdul.verify('silentfix+warn')
-                delete = False
-                try:
-                    total_counts = np.nansum(hdul[0].data)
-                    this_size = stat(abs_path).st_size
-                    if total_counts < 0 or not this_size == self.file_size_mode:
-                        delete = True
-                except TypeError as e:
-                    # print(e)
-                    delete = True
-            if delete:
-                self.remove_and_mark_redownload(local_file)
-        n_corrupt = len(self.redownload)
-        if n_corrupt:
-            print("        Deleted {} corrupted files. Re-downloading...".format(n_corrupt))
-    
-    def redownload_bad_fits(self):
-        if len(self.redownload) > 0:
-            self.redownload = []
-            self.fido_get_fits()
-    
-    # LEGACY CODE
-    
-    def find_missing_images(self):
-        """Define what we still need"""
-        self.to_get = np.empty(self.fido_num)
-        self.to_get.fill(True)
-        
-        for ii, file_name in enumerate(self.requested_files):
-            if file_name in self.local_fits_paths:
-                self.to_get[ii] = False
-        
-        self.getNum = int(np.sum(self.to_get)) - 1
-        self.need = np.nonzero(self.to_get)[0]
-        self.new_images = False
-        
-        if self.getNum > 1:
-            self.new_images = True
-            
-            # Make groups
-            start = self.need[0]
-            end = start
-            box2 = []
-            box1 = []
-            
-            for ii in np.arange(len(self.need) - 1):
-                end = self.need[ii] + 1
-                if self.need[ii] == self.need[ii + 1] - 1:
-                    continue
-                box2.append(self.fido_result[0, start:end])
-                box1.append((start, end))
-                start = self.need[ii + 1]
-            if end - start > 1:
-                box2.append(self.fido_result[0, start:end])
-                box1.append((start, end))
-            
-            # thing = []
-            # for st in box1:
-            #     thing.extend(np.arange(st[0], st[1]))
-            
-            self.get_box = box2
-    
-    def get_missing_images(self):
-        """Download the missing images"""
-        if self.new_images:
-            
-            print("  Search Found {} Images {}...".format(self.fido_num, self.extra_string), flush=True)
-            # print("    From {} to {}".format())
-            # print("    Downloading {} New, in {} batches:".format(self.getNum, len(self.get_box)), flush=True)
-            
-            # for st in self.get_box:
-            out = Fido.fetch(self.fido_result, path=self.save_path, downloader=Downloader(progress=True, file_progress=False),
-                             overwrite=False)
-            # print(st)
-            # print(out)
-            # print("Short took {:0.3f} seconds.".format(time()-startT))
-            # import pdb; pdb.set_trace()
-        
-        else:
-            self.new_images = False
-            print("   Success: All Images Already Downloaded", flush=True)
-    
-    def apply_func_to_directory(self, func, doAll=False, desc="Work Done", unit="it", limit=False):
-        work_list = []
-        files = listdir(self.save_path)
-        file_idx = -1
-        for filename in files:
-            if filename.endswith(".fits") and "norm" not in filename:
-                # Define the image
-                single_image_data = self.define_single_image(filename)
-                pngPath = join(self.save_path, filename[:-4] + 'png')
-                
-                # Delete it if it is too old
-                if self.remove_old_files(single_image_data):
-                    continue
-                
-                file_idx += 1
-                if doAll or not exists(pngPath) or self.params.overwrite_pngs():
-                    if not limit or self.soni.frame_on_any_beat(file_idx):
-                        work_list.append([single_image_data, file_idx])
-                    else:
-                        work_list.append(None)
-        
-        self.nRem = len(work_list)
-        
-        if self.nRem > 0:
-            with tqdm(total=self.nRem, desc=desc, unit=unit) as pbar:
-                for image in work_list:
-                    if image:
-                        func(image)
-                    pbar.update()
-            # # pbar.close()
-            # from pymp import Parallel
-            # with tqdm(total=self.nRem, desc=desc, unit=unit) as pbar:
-            #     with Parallel(self.nRem) as p:
-            #         for i in p.range(self.nRem):
-            #             image = work_list[i]
-            #             if image:
-            #                 func(image)
-            #             pbar.update()
-            #     # pbar.close()
-            # from joblib import Parallel, delayed
-            
-            # results = Parallel(n_jobs=-1, verbose=verbosity_level, backend="threading")(
-            #     map(delayed(myfun), arg_instances))
-            
-            # import threading as mp
-            # from multiprocessing.pool import ThreadPool
-            # pool = ThreadPool()
-            # pool.map(func, work_list)
-    
-    def time_from_filename(self, filename, local=True):
-        # import pdb; pdb.set_trace()
-        # fname = filename[3:18]
-        # time_code = fname.replace("_", "")
-        return self.parse_time_string_to_local(filename, 3, local)
-        
-        # fitsPath2 = join(self.save_path, filename[:-5] + '_norm.fits')
-        
-        # try:
-        #     remove(fitsPath2)
-        # except:
-        #     pass
-        
-        # files = listdir(self.save_path)
-        # file_idx = 0
-        # for filename in files:
-        #     if filename.endswith(".fits") and "norm" not in filename:
-        #         if self.remove_old_files(self.define_single_image(filename)):
-        #             file_idx += 1
-        #             continue
-        # if file_idx > 0:
-        #     if self.params.remove_old_images():
-        #         print("Deleted {} old images".format(file_idx))
-        #     # else:
-        #     #     print("Excluding {} old images".format(file_idx))
-    
-    # def define_single_image(self, filename):
-    #     time_code, time_string = self.time_from_filename(filename)
-    #     image_path = join(self.save_path, filename)
-    #     single_image_data = (self.this_name, image_path, time_string, time_code, filename)
-    #     return single_image_data
-
+    # def validate_fits(self):
+    #     from statistics import mode
+    #     # self.file_size_mode = mode(self.file_size)
+    #     self.redownload = []
+    #     for local_file in self.params.local_fits_paths():
+    #         abs_path = join(self.fits_folder, local_file)
+    #         with fits.open(abs_path) as hdul:
+    #             hdul.verify('silentfix+warn')
+    #             delete = False
+    #             try:
+    #                 total_counts = np.nansum(hdul[0].data)
+    #                 this_size = stat(abs_path).st_size
+    #                 if total_counts < 0 or not this_size == self.file_size_mode:
+    #                     delete = True
+    #             except TypeError as e:
+    #                 # print(e)
+    #                 delete = True
+    #             # if self.out_of_range(hdul):
+    #             #     self.remove_fits_and_png(local_file)
+    #             #     delete = False
+    #         if delete:
+    #             self.remove_and_mark_redownload(local_file)
+    #     n_corrupt = len(self.redownload)
+    #     if n_corrupt:
+    #         print("        Deleted {} corrupted files. Re-downloading...".format(n_corrupt))
+    #
+    # def redownload_bad_fits(self):
+    #     if len(self.redownload) > 0:
+    #         self.redownload = []
+    #         self.fido_get_fits()

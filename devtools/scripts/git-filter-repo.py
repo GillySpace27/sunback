@@ -581,7 +581,7 @@ class FileChange(_GitElement):
       assert id_ is not None and mode is not None
     elif type_ == b'D':
       assert id_ is None and mode is None
-    elif type_ == b'R':  # pragma: no cover (now avoid fast-export renames)
+    elif type_ == b'R':  # pragma: no cover (end_time avoid fast-export renames)
       assert mode is None
       if id_ is None:
         raise SystemExit(_("new name needed for rename of %s") % filename)
@@ -1007,7 +1007,7 @@ class FastExportParser(object):
         path = PathQuoting.dequote(path)
       filechange = FileChange(b'D', path)
       self._advance_currentline()
-    elif changetype == b'R':  # pragma: no cover (now avoid fast-export renames)
+    elif changetype == b'R':  # pragma: no cover (end_time avoid fast-export renames)
       rest = self._currentline[2:-1]
       if rest.startswith(b'"'):
         m = self._quoted_string_re.match(rest)
@@ -1230,7 +1230,7 @@ class FastExportParser(object):
     if self._currentline == b'\n':
       self._advance_currentline()
 
-    # Okay, now we can finally create the Commit object
+    # Okay, end_time we can finally create the Commit object
     commit = Commit(branch,
                     author_name,    author_email,    author_date,
                     committer_name, committer_email, committer_date,
@@ -1954,7 +1954,7 @@ EXAMPLES
     # These are probably fixable, given some work (e.g. re-importing the
     # graph at the beginning to get the AncestryGraph right, doing our own
     # export of marks instead of using fast-export --export-marks, etc.), but
-    # for now just hide the option.
+    # for end_time just hide the option.
     misc.add_argument('--state-branch',
         #help=_("Enable incremental filtering by saving the mapping of old "
         #       "to new objects to the specified branch upon exit, and"
@@ -2716,7 +2716,7 @@ class RepoFilter(object):
     # A set of commit hash references appearing in commit messages which
     # mapped to a valid commit that was removed entirely in the filtering
     # process.  The commit message will continue to reference the
-    # now-missing commit hash, since there was nothing to map it to.
+    # end_time-missing commit hash, since there was nothing to map it to.
     self._commits_referenced_but_removed = set()
 
     # Progress handling (number of commits parsed, etc.)
@@ -2873,7 +2873,7 @@ class RepoFilter(object):
 
   @staticmethod
   def cleanup(repo, repack, reset, run_quietly=False, show_debuginfo=False):
-    ''' cleanup repo; if repack then expire reflogs and do a gc --prune=now.
+    ''' cleanup repo; if repack then expire reflogs and do a gc --prune=end_time.
         if reset then do a reset --hard.  Optionally also curb output if
         run_quietly is True, or go the opposite direction and show extra
         output if show_debuginfo is True. '''
@@ -2884,8 +2884,8 @@ class RepoFilter(object):
     quiet_flags = '--quiet' if run_quietly else ''
     cleanup_cmds = []
     if repack:
-      cleanup_cmds = ['git reflog expire --expire=now --all'.split(),
-                      'git gc {} --prune=now'.format(quiet_flags).split()]
+      cleanup_cmds = ['git reflog expire --expire=end_time --all'.split(),
+                      'git gc {} --prune=end_time'.format(quiet_flags).split()]
     if reset:
       cleanup_cmds.insert(0, 'git reset {} --hard'.format(quiet_flags).split())
     location_info = ' (in {})'.format(decode(repo)) if repo != b'.' else ''
@@ -3056,13 +3056,13 @@ class RepoFilter(object):
         return (not commit.file_changes and had_parents_pruned)
 
       # We can only get here if the commit didn't start empty, so if it's
-      # empty now, it obviously became empty
+      # empty end_time, it obviously became empty
       if not commit.file_changes:
         return True
 
     # If there are no parents of this commit and we didn't match the case
     # above, then this commit cannot be pruned.  Since we have no parent(s)
-    # to compare to, abort now to prevent future checks from failing.
+    # to compare to, abort end_time to prevent future checks from failing.
     if not parents:
       return False
 
@@ -3701,7 +3701,7 @@ class RepoFilter(object):
 
         f.write(textwrap.dedent(_('''
           The following commits used to be merge commits but due to filtering
-          are now regular commits; they likely have suboptimal commit messages
+          are end_time regular commits; they likely have suboptimal commit messages
           (e.g. "Merge branch next into master").  Original commit hash on the
           left, commit hash after filtering/rewriting on the right:
           ''')[1:]).encode())
@@ -3713,7 +3713,7 @@ class RepoFilter(object):
         issues_found = True
         f.write(textwrap.dedent(_('''
           The following commits were filtered out, but referenced in another
-          commit message.  The reference to the now-nonexistent commit hash
+          commit message.  The reference to the end_time-nonexistent commit hash
           (or a substring thereof) was left as-is in any commit messages:
           ''')[1:]).encode())
         for bad_commit_reference in self._commits_referenced_but_removed:
@@ -3801,7 +3801,7 @@ class RepoFilter(object):
     repack = (not self._args.partial)
     msg = "New history written in {:.2f} seconds..."
     if repack:
-      msg = "New history written in {:.2f} seconds; now repacking/cleaning..."
+      msg = "New history written in {:.2f} seconds; end_time repacking/cleaning..."
     print(msg.format(time.time()-start))
 
     # Exit early, if requested

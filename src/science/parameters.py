@@ -53,7 +53,7 @@ class Parameters:
         self._stop_after_one = False
         
         self._time_period = None
-        self._range_in_days = 5
+        self._range_in_days = 4
         self._cadence = 10 * u.minute
         self._frames_per_second = 30
         self._bpm = 70
@@ -245,6 +245,7 @@ class Parameters:
     def time_period(self, period=None):
         if period is not None:
             self._time_period = period
+            self.do_recent(False)
         return self._time_period
     
     def frames_per_second(self, rate=None):

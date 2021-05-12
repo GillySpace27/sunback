@@ -71,9 +71,14 @@ class ModifyExecutor(Executor):
         if filename.casefold() in self.done_paths:
             if not self.params.overwrite_pngs():
                 return save_path
+        try:
+            hh = 0
+            wave, t_rec = hdul[hh].header['WAVELNTH'], hdul[hh].header['T_OBS']
+        except:
+            hh = 1
+            wave, t_rec = hdul[hh].header['WAVELNTH'], hdul[hh].header['T_OBS']
             
-        wave, t_rec = hdul[0].header['WAVELNTH'], hdul[0].header['T_OBS']
-        data = hdul[0].data
+        data = hdul[hh].data
         # image_meta = str(wave), str(wave), t_rec, data.shape
         image_meta = str(wave), save_path, t_rec, data.shape
         
