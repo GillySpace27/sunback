@@ -22,18 +22,18 @@ def run_movie(delay=10, debug=False, do_one=False, stop=False):
     # p.do_upload_to_S3(False)
     
     # p.time_period(period=['2019/12/21 04:20', '2019/12/21 04:40'])
-    p.resolution(1024)
-    p.range(days=1)
-    p.download_images(True)
-    p.cadence(30)
-    p.frames_per_second(20)
-    p.bpm(150)
-    # p.download_images(False)
-    # p.overwrite_pngs(False)
-    p.sonify_limit(False)
-    p.remove_old_images(False)
-    p.make_compressed(True)
-    p.sonify_images(True, True)
+    # p.resolution(1024)
+    p.range(days=0.25)
+    p.download_images(False)
+    p.overwrite_pngs(False)
+    p.cadence(60)
+    p.frames_per_second(30)
+    # p.bpm(150)
+    
+    # p.sonify_limit(False)
+    # p.remove_old_images(False)
+    # p.make_compressed(True)
+    # p.sonify_images(True, True)
     # p.sonify_images(False, False)
     # p.do_171(True)
     # p.do_304(True)
@@ -43,10 +43,10 @@ def run_movie(delay=10, debug=False, do_one=False, stop=False):
     # p.fetcher(AwsFetcher(p))        # Gets PNGs from S3 Daemon
     # p.fetcher(LocalFetcher(p))      # Gets Fits from Disk
     
-    p.executor(ModifyExecutor(p)) # Makes the PNGs from Fits
+    p.executor(ModifyExecutor(p))  # Makes the PNGs from Fits
     # p.executor(LocalExecutor(p))    # Gets the PNGs from Disk
     
-    # p.post_processor([VideoPostProcessor(p),])  # Makes the PNGs into a Movie
+    p.post_processor([VideoPostProcessor(p),])  # Makes the PNGs into a Movie
     
     # p.putter(AwsPutter(p))        # Uploads the PNGs to AWS
     # p.putter(LocalPutter(p))        # Runs the Desktop Background Sequence on PNGs

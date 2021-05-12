@@ -276,7 +276,7 @@ class Parameters:
         self.index_file = join(self.local_directory, 'index.txt')
         
         # Set Wavelengths
-        self.set_wavelengths(['0171', '0193', '0211', '0304', '0131', '0335', '0094', 'HMIBC', 'HMIIF'])
+        self.set_wavelengths(['0171', '0193', '0211', '0304', '0131', '0335', '0094'])
         
         # Set Resolution
         self.set_download_resolution(2048)
@@ -284,9 +284,9 @@ class Parameters:
         # Set Web Location
         self.set_web_image_frame("https://sdo.gsfc.nasa.gov/assets/img/latest/latest_{}_{}")
         
-        # Add extra images
-        new_web_path_1 = "https://sdo.gsfc.nasa.gov/assets/img/latest/f_211_193_171pfss_{}.jpg".format(self.resolution)
-        self.append_to_web_paths(new_web_path_1, 'PFSS')
+        # # Add extra images
+        # new_web_path_1 = "https://sdo.gsfc.nasa.gov/assets/img/latest/f_211_193_171pfss_{}.jpg".format(self.resolution)
+        # self.append_to_web_paths(new_web_path_1, 'PFSS')
         
         # Select File Ending
         self.set_file_ending("{}_Now.png")

@@ -21,6 +21,7 @@ class Runner:
         print("Check out my website: http://gilly.space\n")
         print("Delay: {} Seconds".format(self.params.delay_seconds()))
         # print("Coronagraph Mode: {} \n".format(params.mode()))
+        print("Base Directory: {}".format(self.params.download_path()))
         
         if self.params.is_debug():
             print("DEBUG MODE\n")
@@ -62,6 +63,10 @@ class Runner:
         
         self.params.fetcher().fetch()
         self.params.executor().execute()
+
+        for proc in self.params.post_processor():
+            proc.process()
+            
         self.params.putter().put()
         self.print_end_banner()
     

@@ -1,3 +1,5 @@
+from os.path import dirname
+
 import numpy as np
 import os
 import matplotlib.pyplot as plt
@@ -134,14 +136,14 @@ class Modify:
         self.rad_sorted = self.rad_flat[inds]
         self.dat_sort = self.dat_flat[inds]
     
-    def bin_radially(self):
+    def bin_radially(self): # TODO Make this much faster
         """Bin the intensities by radius """
         self.radBins = [[] for x in np.arange(self.rez)]
         binInds = np.asarray(np.floor(self.rad_sorted), dtype=np.int32)
         for ii, binI in enumerate(binInds):
             self.radBins[binI].append(self.dat_sort[ii])
     
-    def radial_statistics(self):
+    def radial_statistics(self): # TODO Make this much faster
         """ Find the statistics in each radial bin"""
         self.binMax = np.zeros(self.rez)
         self.binMin = np.zeros(self.rez)
@@ -159,7 +161,7 @@ class Modify:
             
             # Do statistics
             if len(subItems) > 0:
-                self.binMax[ii] = np.percentile(subItems, 75)  # np.nanmax(subItems)
+                self.binMax[ii] = np.percentile(subItems, 80)  # np.nanmax(subItems)
                 self.binMin[ii] = np.percentile(subItems, 2)  # np.min(subItems)
                 self.binMid[ii] = np.mean(subItems)
                 self.binMed[ii] = np.median(subItems)
@@ -723,7 +725,11 @@ class Modify:
                 
                 new_path = os.path.join(save_directory, name + middle + ".png")
                 
-                os.makedirs(save_directory, exist_ok=True)
+                if 'aia' in save_path:
+                    os.makedirs(dirname(save_path), exist_ok=True)
+                    new_path = save_path
+                else:
+                    os.makedirs(save_directory, exist_ok=True)
                 fig.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
                 # print("\tSaved {} Image:{}".format('Processed' if processed else "Unprocessed", name))
                 self.pathBox.append(new_path)

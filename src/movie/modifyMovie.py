@@ -623,38 +623,7 @@ class SunbackMovie:
         self.soni.generate_track(self.soni.wav_path)
             # self.soni.play()
 
-    def pngs_to_movie(self):
-        """Combines all png files into an avi movie"""
-        try:
-            videoclip_full = VideoFileClip(self.video_name_stem.format("_raw.avi"))
-            invalid_movie=False
-        except:
-            invalid_movie=True
 
-        if self.new_images or invalid_movie:
-            # logger = open(join(self.params.local_directory, 'log.txt'), 'w+')
-            try:
-                images = [img for img in listdir(self.image_folder) if img.endswith(".png") and self.check_valid_png(img)]
-                # import pdb; pdb.set_trace()
-                if len(images) > 0:
-                    frame = cv2.imread(join(self.image_folder, images[0]))
-                    height, width, layers = frame.shape
-                    video_avi = cv2.VideoWriter(self.video_name_stem.format("_raw.avi"), 0, self.params.frames_per_second(), (width, height))
-
-                    for image in tqdm(images, desc=">Writing Movie", unit="frame"):
-                        # Delete it if it is too old
-                            im = cv2.imread(join(self.image_folder, image))
-                            # import pdb; pdb.set_trace()
-                            video_avi.write(im)
-
-
-                    cv2.destroyAllWindows()
-                    video_avi.release()
-
-                else:
-                    print("No png Images Found")
-            except FileNotFoundError:
-                print("Images Not Found")
 
     def movie_to_audio_movie(self):
         """Multiplexes the generated wav and avi files into a single movie"""

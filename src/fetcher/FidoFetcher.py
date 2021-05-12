@@ -1,6 +1,6 @@
 from calendar import timegm
 from os import makedirs, listdir, remove
-from os.path import join, abspath, exists
+from os.path import join, abspath, exists, dirname
 from time import time, timezone, localtime, struct_time, strftime, sleep
 import sys
 from parfive import Downloader
@@ -38,6 +38,8 @@ class FidoFetcher(Fetcher):
         else:
             self.waves_to_do = self.wavelengths
         
+
+    
         # Set class variables
         self.local_wave_directory = None
         self.image_folder = None
@@ -141,6 +143,9 @@ class FidoFetcher(Fetcher):
     
     def fetch(self):
         """ Find the Most Recent Images """
+        if not self.params.download_images():
+            print("Using Local Files... \n")
+        
         for self.current_wave in self.waves_to_do:
             self.build_paths()
             self.fido_get_fits()
@@ -170,6 +175,7 @@ class FidoFetcher(Fetcher):
         if self.params.download_images():
             self.download_fits_series()
             self.validate_download()
+
     
     def build_paths(self):
         """Make the file structure to hold the images"""
@@ -239,6 +245,7 @@ class FidoFetcher(Fetcher):
         self.list_requested_files()
         self.local_fits_paths = self.list_files_in_directory()
         self.remove_all_old_fits_pngs()
+        self.remove_all_old_pngs()
         self.validate_fits()
         self.redownload_bad_fits()
         
@@ -267,10 +274,26 @@ class FidoFetcher(Fetcher):
         #     timeString = filename[3:11] + filename[12:16]
         # print(str(timeString)[-4:])
     
+    def remove_all_old_pngs(self):
+        requested_pngs = [x.replace('fits', 'png') for x in self.local_fits_paths]
+        png_directory = join(self.params.download_path(), self.name, 'png')
+        got_png = self.list_files_in_directory(png_directory, 'png')
+        remove_count = 0
+        for png_path in got_png:
+            if png_path not in requested_pngs:
+                try:
+                    remove(join(png_directory,png_path))
+                    remove_count += 1
+                except FileNotFoundError as e:
+                    # print(e)
+                    pass
+        if remove_count > 0:
+            print("{} old pngs deleted".format(remove_count))
     def remove_all_old_fits_pngs(self):
         keep = []
         self.file_size = []
         for local_file in self.local_fits_paths:
+            png_path = local_file.replace('fits', 'png')
             if local_file not in self.requested_files:
                 self.remove_fits_and_png(local_file)
             else:
@@ -294,6 +317,7 @@ class FidoFetcher(Fetcher):
         try:
             remove(pngPath)
         except FileNotFoundError as e:
+            print(e)
             pass
     
     def validate_fits(self):

@@ -1,5 +1,5 @@
-from os import makedirs
-from os.path import abspath, split
+from os import makedirs, listdir
+from os.path import abspath, split, basename, dirname
 from platform import system
 from time import sleep, time
 from PIL import Image
@@ -28,19 +28,36 @@ default_sleep = 30
 class ModifyExecutor(Executor):
     def __init__(self, params):
         self.params = params
+        self.done_paths = []
     
     def execute(self):
         """Loop over the wavelengths and normalize, then wait"""
         print("Processing Images...", flush=True)
-        sleep(0.1)
+        sleep(0.2)
         self.modify_img_series()
+    
+    def find_done_paths(self, full_path):
+        """Find pngs that have already been made"""
+        path = dirname(full_path)
+        save_path = path.replace("fits", "png")
+        self.done_paths = [x.casefold() for x in listdir(save_path)]
+        return self.done_paths
     
     def modify_img_series(self):
         """Processes the img series"""
         img_paths = []
-        for path in tqdm(self.params.local_fits_paths()):
-            with fits.open(path) as hdul:
-                img_paths.extend(self.modify_img(hdul, path))
+        for full_path in tqdm(self.params.local_fits_paths()):
+            self.find_done_paths(full_path)
+            name = basename(full_path).casefold().replace("fits", "png")
+            if name in self.done_paths and not self.params.overwrite_pngs():
+                one_path = full_path
+            else:
+                with fits.open(full_path) as hdul:
+                    one_path = self.modify_img(hdul, full_path)
+            if type(one_path) not in [list]:
+                one_path = [one_path]
+            img_paths.extend(one_path)
+            # break
         self.params.local_img_paths(img_paths)
         print("Success!\n")
         sleep(1)
@@ -50,6 +67,11 @@ class ModifyExecutor(Executor):
         hdul.verify('silentfix+warn')
         
         save_path = path.replace("fits", "png")
+        filename = basename(save_path)
+        if filename.casefold() in self.done_paths:
+            if not self.params.overwrite_pngs():
+                return save_path
+            
         wave, t_rec = hdul[0].header['WAVELNTH'], hdul[0].header['T_OBS']
         data = hdul[0].data
         # image_meta = str(wave), str(wave), t_rec, data.shape
