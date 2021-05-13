@@ -58,6 +58,7 @@ class ModifyExecutor(Executor):
                         one_path = self.modify_img(hdul, full_path)
                     except TypeError as e:
                         skipped += 1
+                        print(e)
                         continue
             if type(one_path) not in [list]:
                 one_path = [one_path]

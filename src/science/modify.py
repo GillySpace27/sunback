@@ -132,17 +132,20 @@ class Modify:
         """ Flatten the image and sort by pixel radius """
         self.rad_flat = self.radius.flatten()
         self.dat_flat = self.changed.flatten()
-        inds = np.argsort(self.rad_flat)
-        self.rad_sorted = self.rad_flat[inds]
-        self.dat_sort = self.dat_flat[inds]
+        self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
+        self.radBins = [[] for x in np.arange(self.rez)]
     
     def bin_radially(self): # TODO Make this much faster
         """Bin the intensities by radius """
-        self.radBins = [[] for x in np.arange(self.rez)]
-        binInds = np.asarray(np.floor(self.rad_sorted), dtype=np.int32)
-        for ii, binI in enumerate(binInds):
-            self.radBins[binI].append(self.dat_sort[ii])
-    
+        # for binI, dat in zip(self.binInds, self.dat_flat):
+        #     self.radBins[binI].append(dat)
+        # for i in range(len(self.rad_flat)):
+        #     self.radBins[self.binInds[i]].append(self.dat_flat[i])
+        for i in range(len(self.rad_flat)):
+            index = np.floor(self.rad_flat[i]).astype(np.int32)
+            self.radBins[index].append(self.dat_flat[i])
+
+            
     def radial_statistics(self): # TODO Make this much faster
         """ Find the statistics in each radial bin"""
         self.binMax = np.zeros(self.rez)

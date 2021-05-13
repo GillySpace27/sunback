@@ -213,7 +213,7 @@ class FidoFetcher(Fetcher):
         # Search for records from the internet
         self.fido_result = Fido.search(attrs.Time(self.start_time, self.end_time), attrs.Instrument('aia'),
                                        attrs.Wavelength(int(self.current_wave) * u.angstrom),
-                                       attrs.Sample(self.params.cadence())) #, attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
+                                       attrs.Sample(self.params.cadence_minutes())) #, attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
         self.fido_num = self.fido_result.file_num
         print("Found {}".format(self.fido_num))
     

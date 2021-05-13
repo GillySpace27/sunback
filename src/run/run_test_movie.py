@@ -26,10 +26,10 @@ def run_movie(delay=10, debug=False, do_one=False, stop=False):
     p.time_period(period=['2013/10/31 12:00', '2013/11/01 12:00'])
     p.resolution(1024)
     # p.range(days=0.25)
-    p.download_images(True)
+    p.download_images(False)
     p.overwrite_pngs(True)
-    p.cadence_minutes(30)
-    p.frames_per_second(5)
+    p.cadence_minutes(60 * 12)
+    p.frames_per_second(10)
     # p.bpm(150)
     
     # p.sonify_limit(False)
@@ -55,7 +55,7 @@ def run_movie(delay=10, debug=False, do_one=False, stop=False):
     p.putter(NullPutter(p))       # Does Nothing with the PNGS
     
     tt = time.time()
-    # run.Runner(p).start()
+    run.Runner(p).start()
     ttt =time.time() - tt
     print("Program took {} seconds, or {} minutes".format(ttt, ttt/60))
 

@@ -237,7 +237,7 @@ class Parameters:
             self._do_recent = _do_recent
         return self._do_recent
     
-    def cadence(self, cad=None):
+    def cadence_minutes(self, cad=None):
         if cad is not None:
             self._cadence = cad * u.minute
         return self._cadence

@@ -26,7 +26,7 @@ def run_movie(delay=10, debug=False, do_one=False, stop=False):
     p.range(days=0.25)
     p.download_images(True)
     p.overwrite_pngs(True)
-    p.cadence(20)
+    p.cadence_minutes(20)
     p.frames_per_second(15)
     # p.bpm(150)
     
