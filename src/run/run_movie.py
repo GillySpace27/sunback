@@ -1,3 +1,5 @@
+import time
+
 from executor.LocalExecutor import LocalExecutor
 from executor.ModifyExecutor import ModifyExecutor
 from fetcher.AwsFetcher import AwsFetcher
@@ -21,13 +23,13 @@ def run_movie(delay=10, debug=False, do_one=False, stop=False):
     p.do_recent(False)
     # p.do_upload_to_S3(False)
     
-    p.time_period(period=['2013/12/21 04:00', '2013/12/21 10:00'])
+    p.time_period(period=['2013/10/31 12:00', '2013/11/01 12:00'])
     p.resolution(1024)
     # p.range(days=0.25)
     p.download_images(True)
-    p.overwrite_pngs(False)
-    p.cadence(60)
-    p.frames_per_second(15)
+    p.overwrite_pngs(True)
+    p.cadence(30)
+    p.frames_per_second(5)
     # p.bpm(150)
     
     # p.sonify_limit(False)
@@ -52,8 +54,10 @@ def run_movie(delay=10, debug=False, do_one=False, stop=False):
     # p.putter(LocalPutter(p))        # Runs the Desktop Background Sequence on PNGs
     p.putter(NullPutter(p))       # Does Nothing with the PNGS
     
-    run.Runner(p).start()
-
+    tt = time.time()
+    # run.Runner(p).start()
+    ttt =time.time() - tt
+    print("Program took {} seconds, or {} minutes".format(ttt, ttt/60))
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own

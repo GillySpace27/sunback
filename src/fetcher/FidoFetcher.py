@@ -208,13 +208,14 @@ class FidoFetcher(Fetcher):
     def fido_check_for_fits(self):
         """Find the science images"""
         print("\n>Looking for Science Images of {} from {} to {}...".format(
-                self.current_wave, self.start_string, self.end_time_string), flush=True)
+                self.current_wave, self.start_string, self.end_time_string), flush=True, end='')
         
         # Search for records from the internet
         self.fido_result = Fido.search(attrs.Time(self.start_time, self.end_time), attrs.Instrument('aia'),
                                        attrs.Wavelength(int(self.current_wave) * u.angstrom),
-                                       attrs.Sample(self.params.cadence()))  # , a.vso.Provider('jsoc'))
+                                       attrs.Sample(self.params.cadence())) #, attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
         self.fido_num = self.fido_result.file_num
+        print("Found {}".format(self.fido_num))
     
     def fido_parse_result(self):
         """Examine the search results"""
@@ -345,7 +346,6 @@ class FidoFetcher(Fetcher):
         remove(fitsPath)
     
     def remove_fits_and_png(self, filename):
-        print("DESTROY")
         fitsPath = join(self.fits_folder, filename[:-5] + '.fits')
         pngPath = join(self.image_folder, filename[:-5] + '.png')
         remove(fitsPath)
