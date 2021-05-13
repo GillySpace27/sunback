@@ -166,16 +166,8 @@ class FidoFetcher(Fetcher):
             self.fido_get_fits()
             # self.set_fits_list()
         self.set_output_paths()
-    
-    def set_output_paths(self):
-        # self.params.local_fits_paths(self.final_fits_paths)
-        for wave in self.waves_to_do:
-            fit_folder = join(self.params.download_path(), wave, 'fits')
-            list_of_files = self.list_files_in_directory(fit_folder)
-            abs_paths = [join(fit_folder, ff) for ff in list_of_files]
-            self.final_fits_paths.extend(abs_paths)
         self.params.local_fits_paths(self.final_fits_paths)
-        pass
+
     
     # def set_fits_list(self):
     #     abs_paths = [join(self.fits_folder, st) for st in self.local_fits_paths]
@@ -188,6 +180,14 @@ class FidoFetcher(Fetcher):
         if self.params.download_images():
             self.download_fits_series()
             self.validate_download()
+  
+    def set_output_paths(self):
+        # self.params.local_fits_paths(self.final_fits_paths)
+        # for wave in self.waves_to_do:
+            fit_folder = join(self.params.download_path(), self.current_wave, 'fits')
+            list_of_files = self.list_files_in_directory(fit_folder)
+            abs_paths = [join(fit_folder, ff) for ff in list_of_files]
+            self.final_fits_paths.extend(abs_paths)
     
     def build_paths(self):
         """Make the file structure to hold the images"""
@@ -254,12 +254,13 @@ class FidoFetcher(Fetcher):
             print('1 + ', e)
     
     def validate_download(self):
+        self.set_output_paths()
         self.list_requested_files()
         self.local_fits_paths = self.list_files_in_directory()
         self.remove_all_old_fits_pngs()
         self.remove_all_old_pngs()
-        # self.validate_fits()
-        # self.redownload_bad_fits()
+        self.validate_fits()
+        self.redownload_bad_fits()
         
         # self.fido_download_fits()
         
@@ -354,33 +355,41 @@ class FidoFetcher(Fetcher):
             # print(e)
             pass
     
-    # def validate_fits(self):
-    #     from statistics import mode
-    #     # self.file_size_mode = mode(self.file_size)
-    #     self.redownload = []
-    #     for local_file in self.params.local_fits_paths():
-    #         abs_path = join(self.fits_folder, local_file)
-    #         with fits.open(abs_path) as hdul:
-    #             hdul.verify('silentfix+warn')
-    #             delete = False
-    #             try:
-    #                 total_counts = np.nansum(hdul[0].data)
-    #                 this_size = stat(abs_path).st_size
-    #                 if total_counts < 0 or not this_size == self.file_size_mode:
-    #                     delete = True
-    #             except TypeError as e:
-    #                 # print(e)
-    #                 delete = True
-    #             # if self.out_of_range(hdul):
-    #             #     self.remove_fits_and_png(local_file)
-    #             #     delete = False
-    #         if delete:
-    #             self.remove_and_mark_redownload(local_file)
-    #     n_corrupt = len(self.redownload)
-    #     if n_corrupt:
-    #         print("        Deleted {} corrupted files. Re-downloading...".format(n_corrupt))
-    #
-    # def redownload_bad_fits(self):
-    #     if len(self.redownload) > 0:
-    #         self.redownload = []
-    #         self.fido_get_fits()
+    def validate_fits(self):
+        from statistics import mode
+        # self.file_size_mode = mode(self.file_size)
+        self.redownload = []
+        for local_file in self.params.local_fits_paths():
+            abs_path = join(self.fits_folder, local_file)
+            with fits.open(abs_path) as hdul:
+                hdul.verify('silentfix+warn')
+                delete = False
+                try:
+                    try:
+                        hh=0
+                        total_counts = np.nansum(hdul[hh].data)
+                    except Exception as e:
+                        print(e)
+                        hh=1
+                        delete = True
+                        total_counts = np.nansum(hdul[hh].data)
+                        delete = False
+                    this_size = stat(abs_path).st_size
+                    data = hdul[hh].data
+                    if total_counts < 0: # or not this_size == self.file_size_mode:
+                        delete = True
+                except TypeError as e:
+                    print(e)
+                    delete = True
+
+            if delete:
+                print("KILL")
+                self.remove_and_mark_redownload(local_file)
+        n_corrupt = len(self.redownload)
+        if n_corrupt:
+            print("        Deleted {} corrupted files. Re-downloading...".format(n_corrupt))
+
+    def redownload_bad_fits(self):
+        if len(self.redownload) > 0:
+            self.redownload = []
+            self.fido_get_fits()

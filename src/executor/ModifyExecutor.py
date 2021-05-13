@@ -46,6 +46,7 @@ class ModifyExecutor(Executor):
     def modify_img_series(self):
         """Processes the img series"""
         img_paths = []
+        skipped = 0
         for full_path in tqdm(self.params.local_fits_paths()):
             self.find_done_paths(full_path)
             name = basename(full_path).casefold().replace("fits", "png")
@@ -53,13 +54,17 @@ class ModifyExecutor(Executor):
                 one_path = full_path
             else:
                 with fits.open(full_path) as hdul:
-                    one_path = self.modify_img(hdul, full_path)
+                    try:
+                        one_path = self.modify_img(hdul, full_path)
+                    except TypeError as e:
+                        skipped += 1
+                        continue
             if type(one_path) not in [list]:
                 one_path = [one_path]
             img_paths.extend(one_path)
             # break
         self.params.local_img_paths(img_paths)
-        print("Success!\n")
+        print("Success! But {} were skipped\n".format(skipped))
         sleep(1)
     
     def modify_img(self, hdul, path=None):
