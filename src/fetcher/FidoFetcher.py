@@ -36,7 +36,7 @@ class FidoFetcher(Fetcher):
         self.params.download_path(base_dir_path)
         
         if self.params.do_one():
-            self.waves_to_do = [self.do_one()]
+            self.waves_to_do = [self.params.do_one()]
         else:
             self.waves_to_do = self.wavelengths
         
@@ -258,8 +258,9 @@ class FidoFetcher(Fetcher):
         self.set_output_paths()
         self.list_requested_files()
         self.local_fits_paths = self.list_files_in_directory()
-        self.remove_all_old_fits_pngs()
-        self.remove_all_old_pngs()
+        if self.params.delete_old():
+            self.remove_all_old_fits_pngs()
+            self.remove_all_old_pngs()
         self.validate_fits()
         self.redownload_bad_fits()
         
@@ -383,7 +384,6 @@ class FidoFetcher(Fetcher):
                     delete = True
 
             if delete:
-                print("KILL")
                 self.remove_and_mark_redownload(local_file)
         n_corrupt = len(self.redownload)
         if n_corrupt:

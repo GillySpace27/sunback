@@ -12,21 +12,23 @@ from putter.NullPutter import NullPutter
 import run
 
 
-def run_movie(delay=10, debug=False, do_one=False, stop=False):
+def run_recent_movie(delay=10, debug=False, do_one=False, stop=False):
     p = Parameters()
     p.delay_seconds(delay)
     p.do_one(do_one, stop)
     p.stop_after_one(stop)
     p.is_debug(debug)
     p.do_recent(True)
+    p.resolution(1024)
     # p.do_upload_to_S3(False)
     
     # p.time_period(period=['2013/12/21 04:00', '2013/12/24 08:00'])
     # p.resolution(1024)
-    p.range(days=0.25)
-    p.download_images(True)
+    p.range(days=4)
+    p.download_images(False)
     p.overwrite_pngs(True)
-    p.cadence_minutes(20)
+    p.delete_old(True)
+    p.cadence_minutes(60)
     p.frames_per_second(15)
     # p.bpm(150)
     
@@ -57,4 +59,4 @@ def run_movie(delay=10, debug=False, do_one=False, stop=False):
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run_movie(debug=True)
+    run_recent_movie(do_one='0171', stop=True, debug=True)

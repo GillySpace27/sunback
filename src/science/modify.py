@@ -107,7 +107,7 @@ class Modify:
         self.coronaNorm()  # Use curves to rescale the image
         self.coronagraph_touchup()  # Deal with some outliers
         self.vignette()  # Truncate the image above given radius
-        self.plot_stats(False)  # Plot Extra Details
+        self.plot_stats(True)  # Plot Extra Details
     
     # Analysis
     def make_radius_array(self):
@@ -137,13 +137,13 @@ class Modify:
     
     def bin_radially(self): # TODO Make this much faster
         """Bin the intensities by radius """
-        # for binI, dat in zip(self.binInds, self.dat_flat):
-        #     self.radBins[binI].append(dat)
+        for binI, dat in zip(self.binInds, self.dat_flat):
+            self.radBins[binI].append(dat)
         # for i in range(len(self.rad_flat)):
         #     self.radBins[self.binInds[i]].append(self.dat_flat[i])
-        for i in range(len(self.rad_flat)):
-            index = np.floor(self.rad_flat[i]).astype(np.int32)
-            self.radBins[index].append(self.dat_flat[i])
+        # for i in range(len(self.rad_flat)):
+        #     index = np.floor(self.rad_flat[i]).astype(np.int32)
+        #     self.radBins[index].append(self.dat_flat[i])
 
             
     def radial_statistics(self): # TODO Make this much faster
@@ -192,7 +192,7 @@ class Modify:
         lWindow = 7  # 4 * self.extra_rez + 1
         mWindow = 7  # 4 * self.extra_rez + 1
         hWindow = 7  # 30 * self.extra_rez + 1
-        fWindow = 7  # int(3 * self.extra_rez) + 1
+        fWindow = 11  # int(3 * self.extra_rez) + 1
         rank = 3
         
         ## Algorithm
@@ -249,8 +249,30 @@ class Modify:
         ind = 10
         low_max_fit[0:ind] = low_max_fit[ind]
         low_min_fit[0:ind] = low_min_fit[ind]
+
         
-        doPlot = False
+        # Build output curves - max and min as a function of radius
+        self.fakeAbss = np.hstack((self.low_abs, self.mid_abs, self.high_abs))
+        self.fakeMax0 = np.hstack((low_max_fit, mid_max_filt, high_max_filt))
+        self.fakeMin0 = np.hstack((low_min_fit, mid_min_filt, high_min_filt))
+        
+        # Filter again to smooth boundaraies
+        self.fakeMax0 = self.fill_end(self.fill_start(savgol_filter(self.fakeMax0, fWindow, rank)))
+        self.fakeMin0 = self.fill_end(self.fill_start(savgol_filter(self.fakeMin0, fWindow, rank)))
+        
+        # Put the nans back in
+        self.fakeMax = np.empty(self.rez)
+        self.fakeMax.fill(np.nan)
+        self.fakeMin = np.empty(self.rez)
+        self.fakeMin.fill(np.nan)
+        
+        self.fakeMax[self.fakeAbss] = self.fakeMax0
+        self.fakeMin[self.fakeAbss] = self.fakeMin0
+        # plt.plot(np.arange(self.rez), self.fakeMax)
+        # plt.plot(np.arange(self.rez), self.fakeMin)
+        # plt.show()
+ 
+        doPlot = True
         if doPlot:
             # Plot the filtered curves
             plt.plot(self.low_abs, low_max_filt, lw=4)
@@ -275,27 +297,8 @@ class Modify:
             
             plt.legend()
             plt.show()
-        
-        # Build output curves - max and min as a function of radius
-        self.fakeAbss = np.hstack((self.low_abs, self.mid_abs, self.high_abs))
-        self.fakeMax0 = np.hstack((low_max_fit, mid_max_filt, high_max_filt))
-        self.fakeMin0 = np.hstack((low_min_fit, mid_min_filt, high_min_filt))
-        
-        # Filter again to smooth boundaraies
-        self.fakeMax0 = self.fill_end(self.fill_start(savgol_filter(self.fakeMax0, fWindow, rank)))
-        self.fakeMin0 = self.fill_end(self.fill_start(savgol_filter(self.fakeMin0, fWindow, rank)))
-        
-        # Put the nans back in
-        self.fakeMax = np.empty(self.rez)
-        self.fakeMax.fill(np.nan)
-        self.fakeMin = np.empty(self.rez)
-        self.fakeMin.fill(np.nan)
-        
-        self.fakeMax[self.fakeAbss] = self.fakeMax0
-        self.fakeMin[self.fakeAbss] = self.fakeMin0
-        # plt.plot(np.arange(self.rez), self.fakeMax)
-        # plt.plot(np.arange(self.rez), self.fakeMin)
-        # plt.show()
+ 
+ 
         
         # # Locate the Noise Floor
         # noiseMin = 550 * self.extra_rez - self.hCut
@@ -355,8 +358,8 @@ class Modify:
         
         # Some More Normalization
         dat_corona_square = np.sign(dat_corona_square) * np.power(np.abs(dat_corona_square), (1 / 5))
-        self.changed = self.normalize(self.changed, high=100, low=0)
-        dat_corona_square = self.normalize(dat_corona_square, high=100, low=1)
+        self.changed = self.normalize(self.changed, high=99.99, low=0)
+        dat_corona_square = self.normalize(dat_corona_square, high=99.99, low=1)
         
         # Allows you to only show sub-sections of the image as reduced images
         if self.renew_mask:
@@ -480,8 +483,8 @@ class Modify:
     
     def plot_stats(self, do):
         if not do: return
-        fig, (ax0, ax1) = plt.subplots(2, 1, "True")
-        ax0.scatter(self.n2r(self.rad_sorted[::30]), self.dat_sort[::30], c='k', s=2)
+        fig, (ax0, ax1) = plt.subplots(2, 1, "all")
+        ax0.scatter(self.n2r(self.rad_flat[::30]), self.dat_flat[::30], c='k', s=2)
         ax0.axvline(self.n2r(self.limb_radii), ls='--', label="Limb")
         # ax0.axvline(self.n2r(self.noise_radii), c='r', ls='--', label="Scope Edge")
         ax0.axvline(self.n2r(self.lCut), ls=':')

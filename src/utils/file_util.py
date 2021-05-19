@@ -5,7 +5,7 @@ from os import makedirs, getcwd
 def discover_best_data_directory():
     """Determine where to store the images"""
     # TODO find a good directory
-    subdirectory_name = "sunback_images/test"
+    subdirectory_name = "sunback_images\\test"
     if __file__ in globals():
         ddd = dirname(abspath(__file__))
     else:

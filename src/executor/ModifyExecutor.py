@@ -3,6 +3,7 @@ from os.path import abspath, split, basename, dirname
 from platform import system
 from time import sleep, time
 from PIL import Image
+from astropy.nddata import block_reduce
 
 from astropy.io import fits
 from tqdm import tqdm
@@ -85,6 +86,16 @@ class ModifyExecutor(Executor):
             wave, t_rec = hdul[hh].header['WAVELNTH'], hdul[hh].header['T_OBS']
             
         data = hdul[hh].data
+        
+        # Reduce the size of the array
+        resolution = data.shape[0]
+        desired = self.params.resolution()
+        
+        if resolution >= desired:
+            reduce_amount = int(resolution / desired)
+            data = block_reduce(data, reduce_amount)
+        
+        
         # image_meta = str(wave), str(wave), t_rec, data.shape
         image_meta = str(wave), save_path, t_rec, data.shape
         

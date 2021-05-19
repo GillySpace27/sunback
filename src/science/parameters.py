@@ -40,6 +40,7 @@ class Parameters:
         # Movie Defaults
         self._download_images = True
         self._overwrite_pngs = False
+        self._delete = True
         self._make_compressed = False
         self._remove_old_images = False
         self._sonify_images = True
@@ -293,6 +294,11 @@ class Parameters:
         self.set_file_ending("{}_Now.png")
         
         return 0
+    
+    def delete_old(self, _delete=None):
+        if _delete is not None:
+            self._delete = _delete
+        return self._delete
     
     def delay_seconds(self, _delay=None):
         if _delay is not None:
