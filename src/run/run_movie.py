@@ -6,7 +6,7 @@ from fetcher.AwsFetcher import AwsFetcher
 from fetcher.FidoFetcher import FidoFetcher
 from fetcher.WebFetcher import WebFetcher
 from fetcher.LocalFetcher import LocalFetcher
-from post_processor.VideoPostProcessor import VideoPostProcessor
+from processor.VideoProcessor import VideoPostProcessor
 from putter.LocalPutter import LocalPutter
 from science.parameters import Parameters
 from putter.AwsPutter import AwsPutter

@@ -72,6 +72,7 @@ class Parameters:
         self._executor = None
         self._putter = None
         self._post_processor = []
+        self._pre_processor = []
         self._do_recent = True
         
         self.set_default_values()
@@ -82,6 +83,14 @@ class Parameters:
         if _fetcher is not None:
             self._fetcher = _fetcher
         return self._fetcher
+    
+    def pre_processor(self, _pre_processor=None):
+        if _pre_processor is not None:
+            if type(_pre_processor) not in [list]:
+                self._pre_processor = [_pre_processor]
+            else:
+                self._pre_processor = _pre_processor
+        return self._pre_processor
     
     def executor(self, _executor=None):
         if _executor is not None:

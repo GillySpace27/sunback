@@ -62,6 +62,10 @@ class Runner:
         """Use the provided fetcher, executor, and putter to do the thing"""
         
         self.params.fetcher().fetch()
+        
+        for proc in self.params.pre_processor():
+            proc.process()
+        
         self.params.executor().execute()
 
         for proc in self.params.post_processor():

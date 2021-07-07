@@ -6,10 +6,10 @@ import cv2
 from moviepy.video.io.VideoFileClip import VideoFileClip
 from tqdm import tqdm
 
-from post_processor.PostProcessor import PostProcessor
+from processor.Processor import Processor
 
 
-class VideoPostProcessor(PostProcessor):
+class VideoProcessor(Processor):
     def __init__(self, p):
         self.params = p
         
@@ -22,7 +22,7 @@ class VideoPostProcessor(PostProcessor):
         # self.soni = Sonifier(self.params, self.save_path, name, self.video_name_stem, frames_per_second=self.params.frames_per_second())
         
         # print("\nMovie: {}".format(self.this_name))
-    
+        
     def process(self):
         """Combines all png files into an avi movie"""
         

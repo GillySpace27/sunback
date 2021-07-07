@@ -4,13 +4,15 @@ from fetcher.AwsFetcher import AwsFetcher
 from fetcher.FidoFetcher import FidoFetcher
 from fetcher.WebFetcher import WebFetcher
 from fetcher.LocalFetcher import LocalFetcher
-from post_processor.VideoPostProcessor import VideoPostProcessor
+from processor.NoiseGateProcessor import NoiseGateProcessor
+from processor.VideoProcessor import VideoProcessor
 from putter.LocalPutter import LocalPutter
 from science.parameters import Parameters
 from putter.AwsPutter import AwsPutter
 from putter.NullPutter import NullPutter
 import run
-
+import matplotlib.pyplot as plt
+plt.ioff()
 
 def run_recent_movie(delay=10, debug=False, do_one=False, stop=False):
     p = Parameters()
@@ -25,11 +27,11 @@ def run_recent_movie(delay=10, debug=False, do_one=False, stop=False):
     # p.time_period(period=['2013/12/21 04:00', '2013/12/24 08:00'])
     # p.resolution(1024)
     p.range(days=4)
-    p.download_images(False)
-    p.overwrite_pngs(True)
-    p.delete_old(True)
-    p.cadence_minutes(60)
-    p.frames_per_second(15)
+    p.download_images(True)
+    p.overwrite_pngs(False)
+    p.delete_old(False)
+    p.cadence_minutes(10)
+    p.frames_per_second(18)
     # p.bpm(150)
     
     # p.sonify_limit(False)
@@ -45,10 +47,12 @@ def run_recent_movie(delay=10, debug=False, do_one=False, stop=False):
     # p.fetcher(AwsFetcher(p))        # Gets PNGs from S3 Daemon
     # p.fetcher(LocalFetcher(p))      # Gets Fits from Disk
     
+    # p.pre_processor([NoiseGateProcessor(p),])  #
+    
     p.executor(ModifyExecutor(p))  # Makes the PNGs from Fits
     # p.executor(LocalExecutor(p))    # Gets the PNGs from Disk
     
-    p.post_processor([VideoPostProcessor(p),])  # Makes the PNGs into a Movie
+    p.post_processor([VideoProcessor(p),])  # Makes the PNGs into a Movie
     
     # p.putter(AwsPutter(p))        # Uploads the PNGs to AWS
     # p.putter(LocalPutter(p))        # Runs the Desktop Background Sequence on PNGs

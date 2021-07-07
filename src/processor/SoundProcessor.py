@@ -1,7 +1,7 @@
-from post_processor.PostProcessor import PostProcessor
+from processor.Processor import Processor
 
 
-class SoundPostProcessor(PostProcessor):
+class SoundProcessor(Processor):
     def __init__(self):
         pass
     

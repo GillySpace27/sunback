@@ -1,5 +1,5 @@
 from os import makedirs, listdir
-from os.path import abspath, split, basename, dirname
+from os.path import abspath, split, basename, dirname, join
 from platform import system
 from time import sleep, time
 from PIL import Image
@@ -8,6 +8,7 @@ from astropy.nddata import block_reduce
 from astropy.io import fits
 from tqdm import tqdm
 
+# from fetcher.FidoFetcher im
 from executor.Executor import Executor
 from science.modify import Modify
 from utils.file_util import discover_best_data_directory
@@ -43,11 +44,25 @@ class ModifyExecutor(Executor):
         save_path = path.replace("fits", "png")
         self.done_paths = [x.casefold() for x in listdir(save_path)]
         return self.done_paths
+
+    def list_files_in_directory(self, directory=None, extension="fits"):
+        directory = self.fits_folder if directory is None else directory
+        makedirs(directory, exist_ok=True)
+        return [f.casefold() for f in listdir(directory) if f.endswith('.' + extension)]
+    
+    def get_paths(self):
+        if len(self.params.local_fits_paths()) == 0:
+            wave_bucket = []
+            for wave in self.params.use_wavelengths:
+                wave_bucket.append(join(self.params.download_path(), wave))
+            self.params.local_fits_paths(wave_bucket)
     
     def modify_img_series(self):
         """Processes the img series"""
         img_paths = []
         skipped = 0
+        self.get_paths()
+        
         for full_path in tqdm(self.params.local_fits_paths()):
             self.find_done_paths(full_path)
             name = basename(full_path).casefold().replace("fits", "png")
@@ -55,12 +70,12 @@ class ModifyExecutor(Executor):
                 one_path = full_path
             else:
                 with fits.open(full_path) as hdul:
-                    try:
-                        one_path = self.modify_img(hdul, full_path)
-                    except TypeError as e:
-                        skipped += 1
-                        print(e)
-                        continue
+                # try:
+                    one_path = self.modify_img(hdul, full_path)
+                # except [TypeError(), IndexError()] as e:
+                #     skipped += 1
+                #     print(e)
+                #     continue
             if type(one_path) not in [list]:
                 one_path = [one_path]
             img_paths.extend(one_path)
@@ -84,22 +99,31 @@ class ModifyExecutor(Executor):
         except:
             hh = 1
             wave, t_rec = hdul[hh].header['WAVELNTH'], hdul[hh].header['T_OBS']
+            # center = [hdul[hh].header[], hdul[hh].header[]]
             
+        center = [hdul[hh].header['X0_MP'], hdul[hh].header['Y0_MP']]
+        
         data = hdul[hh].data
         
         # Reduce the size of the array
         resolution = data.shape[0]
         desired = self.params.resolution()
         
-        if resolution >= desired:
+        if resolution > desired:
             reduce_amount = int(resolution / desired)
             data = block_reduce(data, reduce_amount)
+            center[0] /= reduce_amount
+            center[1] /= reduce_amount
+            
+        # while center[0] > 0.9 * desired:
+        #     center[0] /= 2
+        #     center[1] /= 2
         
         
         # image_meta = str(wave), str(wave), t_rec, data.shape
         image_meta = str(wave), save_path, t_rec, data.shape
         
-        img_paths = Modify(data, image_meta).get_paths()
+        img_paths = Modify(data, image_meta, center=center).get_paths()
         self.make_thumbs(img_paths[0])
         return img_paths
     

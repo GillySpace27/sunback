@@ -2,6 +2,8 @@ from os.path import dirname
 
 import numpy as np
 import os
+import matplotlib as mpl
+mpl.use("qt5agg")
 import matplotlib.pyplot as plt
 from time import strftime
 from datetime import timedelta
@@ -22,7 +24,7 @@ class Modify:
     renew_mask = True
     image_data = None
     
-    def __init__(self, image=None, image_data=None, orig=False, show=False, verb=False):
+    def __init__(self, image=None, image_data=None, orig=False, show=False, verb=False, center=None):
         """Initialize the main class"""
         
         # Parse Inputs
@@ -30,6 +32,7 @@ class Modify:
         self.image_data = image_data
         self.verb = verb
         self.do_orig = orig
+        self.center = center
         self.parse_input_type(image)
         
         # Run the Reduction Algorithm
@@ -100,6 +103,7 @@ class Modify:
         """Perform the image normalization on the input array"""
         self.make_radius_array()  # Assign Each Pixel its Radius Value
         self.remove_offset()  # Additive Shift of input array
+        # self.noise_gate()
         self.sort_radially()  # Build Flattened and Sorted Intensity Arrays
         self.bin_radially()  # Create a cloud of intesity values for each radial bin
         self.radial_statistics()  # Find mean and percentiles vs height
@@ -107,15 +111,17 @@ class Modify:
         self.coronaNorm()  # Use curves to rescale the image
         self.coronagraph_touchup()  # Deal with some outliers
         self.vignette()  # Truncate the image above given radius
-        self.plot_stats(True)  # Plot Extra Details
+        self.plot_stats(False)  # Plot Extra Details
     
     # Analysis
     def make_radius_array(self):
         """Build an r-coordinate array of shape(image)"""
         self.rez = self.changed.shape[0]
-        centerPt = self.rez / 2
+        if self.center is None:
+            self.center = [self.rez / 2, self.rez / 2]
+            
         xx, yy = np.meshgrid(np.arange(self.rez), np.arange(self.rez))
-        xc, yc = xx - centerPt, yy - centerPt
+        xc, yc = xx - self.center[0], yy - self.center[1]
         
         self.extra_rez = 2  # An attempt to give extra resolution
         self.sRadius = 400 * self.extra_rez
@@ -127,6 +133,9 @@ class Modify:
         """Set min of array to zero"""
         self.offset = np.min(self.changed)
         self.changed -= self.offset
+    
+
+    
     
     def sort_radially(self):
         """ Flatten the image and sort by pixel radius """
@@ -191,8 +200,8 @@ class Modify:
         # Savgol window size
         lWindow = 7  # 4 * self.extra_rez + 1
         mWindow = 7  # 4 * self.extra_rez + 1
-        hWindow = 7  # 30 * self.extra_rez + 1
-        fWindow = 11  # int(3 * self.extra_rez) + 1
+        hWindow = 51  # 30 * self.extra_rez + 1
+        fWindow = 7  # int(3 * self.extra_rez) + 1
         rank = 3
         
         ## Algorithm
@@ -272,7 +281,7 @@ class Modify:
         # plt.plot(np.arange(self.rez), self.fakeMin)
         # plt.show()
  
-        doPlot = True
+        doPlot = False
         if doPlot:
             # Plot the filtered curves
             plt.plot(self.low_abs, low_max_filt, lw=4)
@@ -289,6 +298,9 @@ class Modify:
             
             plt.plot(self.low_abs, low_min_fit, c='k')
             plt.plot(self.low_abs, low_max_fit, c='k')
+            
+            plt.plot(self.fakeAbss, self.fakeMax0, label="FinalMax", lw=5)
+            plt.plot(self.fakeAbss, self.fakeMin0, label="FinalMin", lw=5)
             
             # plt.plot(self.radAbss, self.binMid, label="Mid")
             # plt.plot(self.radAbss, self.binMed, label="Med")
@@ -341,9 +353,9 @@ class Modify:
         """Deal with pixel outliers. Lots of adjustable parameters in here"""
         
         # Deal with too hot things
-        self.vmax = 0.95
-        self.vmax_plot = 0.85  # np.max(dat_corona)
-        hotpowr = 1 / 1.5
+        self.vmax = 1
+        self.vmax_plot = 0.95  # np.max(dat_corona)
+        hotpowr = 1 / 2
         hot = self.dat_corona > self.vmax
         # self.dat_corona[hot] = self.dat_corona[hot] ** hotpowr
         
@@ -507,6 +519,9 @@ class Modify:
         ax0.plot(self.n2r(self.mid_abs), self.mid_min, 'y')
         # plt.plot(self.high_abs, self.high_min_fit, 'r')
         # plt.plot(self.high_abs, self.high_max_fit, 'r')
+        
+        ax0.plot(self.n2r(self.fakeAbss), self.fakeMax0, label="FinalMax", lw=5)
+        ax0.plot(self.n2r(self.fakeAbss), self.fakeMin0, label="FinalMin", lw=5)
         
         # try:
         #     ax0.plot(self.n2r(self.fakeAbss), self.fakeMax, 'g', label="Smoothed")

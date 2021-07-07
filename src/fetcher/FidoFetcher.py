@@ -166,8 +166,6 @@ class FidoFetcher(Fetcher):
             self.fido_get_fits()
             # self.set_fits_list()
         self.set_output_paths()
-        self.params.local_fits_paths(self.final_fits_paths)
-
     
     # def set_fits_list(self):
     #     abs_paths = [join(self.fits_folder, st) for st in self.local_fits_paths]
@@ -182,12 +180,12 @@ class FidoFetcher(Fetcher):
             self.validate_download()
   
     def set_output_paths(self):
-        # self.params.local_fits_paths(self.final_fits_paths)
+        self.params.local_fits_paths(self.final_fits_paths)
         # for wave in self.waves_to_do:
-            fit_folder = join(self.params.download_path(), self.current_wave, 'fits')
-            list_of_files = self.list_files_in_directory(fit_folder)
-            abs_paths = [join(fit_folder, ff) for ff in list_of_files]
-            self.final_fits_paths.extend(abs_paths)
+        fit_folder = join(self.params.download_path(), self.current_wave, 'fits')
+        list_of_files = self.list_files_in_directory(fit_folder)
+        abs_paths = [join(fit_folder, ff) for ff in list_of_files]
+        self.final_fits_paths.extend(abs_paths)
     
     def build_paths(self):
         """Make the file structure to hold the images"""
@@ -261,8 +259,11 @@ class FidoFetcher(Fetcher):
         if self.params.delete_old():
             self.remove_all_old_fits_pngs()
             self.remove_all_old_pngs()
-        self.validate_fits()
-        self.redownload_bad_fits()
+            
+        working = False
+        if working:
+            self.validate_fits()
+            self.redownload_bad_fits()
         
         # self.fido_download_fits()
         
@@ -278,6 +279,7 @@ class FidoFetcher(Fetcher):
     
     def list_files_in_directory(self, directory=None, extension="fits"):
         directory = self.fits_folder if directory is None else directory
+        makedirs(directory, exist_ok=True)
         return [f.casefold() for f in listdir(directory) if f.endswith('.' + extension)]
         
         # files = listdir(self.fits_folder)
@@ -349,7 +351,10 @@ class FidoFetcher(Fetcher):
     def remove_fits_and_png(self, filename):
         fitsPath = join(self.fits_folder, filename[:-5] + '.fits')
         pngPath = join(self.image_folder, filename[:-5] + '.png')
-        remove(fitsPath)
+        try:
+            remove(fitsPath)
+        except PermissionError as e:
+            print(e)
         try:
             remove(pngPath)
         except FileNotFoundError as e:

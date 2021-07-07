@@ -17,9 +17,9 @@ def run_aws(delay=10, debug=False, do_one=False, stop=False):
     p.stop_after_one(stop)
     p.is_debug(debug)
     
-    p.fetcher(WebFetcher(p))      # Gets Fits from JSOC Most Recent
+    # p.fetcher(WebFetcher(p))      # Gets Fits from JSOC Most Recent
     # p.fetcher(AwsFetcher(p))        # Gets PNGs from S3 Daemon
-    # p.fetcher(LocalFetcher(p))      # Gets Fits from Disk
+    p.fetcher(LocalFetcher(p))      # Gets Fits from Disk
     
     p.executor(ModifyExecutor(p)) # Makes the PNGs from Fits
     # p.executor(LocalExecutor(p))    # Gets the PNGs from Disk
