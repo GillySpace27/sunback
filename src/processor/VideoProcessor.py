@@ -53,9 +53,9 @@ class VideoProcessor(Processor):
                 print("Images Not Found")
     
     def build_paths(self, wave):
-        self.local_wave_directory = join(self.params.download_path(), wave)
+        self.local_wave_directory = join(self.params.img_directory(), wave)
         self.image_folder = join(self.local_wave_directory, 'png')
-        self.movie_folder = abspath(join(self.params.download_path(), "movies\\"))
+        self.movie_folder = abspath(join(self.params.img_directory(), "movies\\"))
         self.video_name_stem = join(self.movie_folder, '{}_{}_movie{}'.format(wave, strftime('%m%d_%H%M'), '{}'))
         # print(self.video_name_stem)
         makedirs(self.movie_folder, exist_ok=True)

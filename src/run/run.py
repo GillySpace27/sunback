@@ -13,7 +13,7 @@ class Runner:
         """Select whether to run or to debug"""
         debug = self.params.is_debug()
         print_header(self.params.delay_seconds(),
-                     self.params.download_path(), debug)
+                     self.params.img_directory(), debug)
         
         if debug:
             self.__debug_mode()
@@ -56,13 +56,18 @@ class Runner:
         """Use the provided fetcher, executor,
         and putter to do the thing"""
         
-        self.params.fetcher().fetch()
-        
-        print("Processing Images...", flush=True)
-        for proc in self.params.processors():
-            proc.process()
+        print("Fetching Images...", flush=True)
+        for fet in self.params.fetchers():
+            fet.fetch()
+            
+        if len(self.params.processors()) > 0:
+            print("Processing Images...", flush=True)
+            for proc in self.params.processors():
+                proc.process()
 
-        self.params.putter().put()
+        print("Outputting Images...",flush=True)
+        for put in self.params.putters():
+            put.put()
         
         print_end_banner(self.params.stop_after_one())
     

@@ -16,16 +16,16 @@ archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Defau
 
 class LocalFetcher(Fetcher):
     
-    def __init__(self, params, base_url=archive_url, base_dir_path=discover_best_data_directory(), wave=None):
+    def __init__(self, params, base_dir_path=discover_best_data_directory(), wave=None):
         self.params = params
-        self.params.download_path(base_dir_path)
+        self.params.img_directory(base_dir_path)
         self.params.time_path(base_dir_path + "\\image_times")
         self.wave = '0171' if wave is None else wave
         
         
     def fetch(self):
         """Loads the img series from disk"""
-        download_path = join(self.params.download_path(), self.wave, 'fits')
+        download_path = join(self.params.img_directory(), self.wave, 'fits')
         print("Loading Local Fits Files from {}...".format(download_path), end='', flush=True)
         
         all_paths = listdir(download_path)

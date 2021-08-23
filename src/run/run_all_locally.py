@@ -12,7 +12,7 @@ def run_all_locally(delay=10, debug=False, do_one=False, stop=False):
     p.stop_after_one(stop)
     p.is_debug(debug)
     
-    p.fetcher(WebFetcher(p))      # Gets Fits from JSOC Most Recent
+    p.fetchers(WebFetcher(p))      # Gets Fits from JSOC Most Recent
     # p.fetcher(AwsFetcher(p))        # Gets PNGs from S3 Daemon
     # p.fetcher(LocalFetcher(p))      # Gets Fits from Disk
     
@@ -22,7 +22,7 @@ def run_all_locally(delay=10, debug=False, do_one=False, stop=False):
     # p.processor(MovieProcessor(p)) # Makes the PNGs into a Movie
     
     # p.putter(AwsPutter(p))        # Uploads the PNGs to AWS
-    p.putter(DesktopPutter(p))        # Runs the Desktop Background Sequence on PNGs
+    p.putters(DesktopPutter(p))        # Runs the Desktop Background Sequence on PNGs
     # p.putter(NullPutter(p))       # Does Nothing with the PNGS
     
     run.Runner(p).start()

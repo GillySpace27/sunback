@@ -1,6 +1,6 @@
 from os import makedirs, getcwd
 from os.path import join, normpath, dirname, abspath, isdir
-from time import time, sleep
+from time import time, sleep, strftime
 
 import numpy as np
 from astropy import units as u
@@ -70,19 +70,26 @@ class Parameters:
         self._time_path = None
         self._local_img_paths = None
         self._local_fits_paths = []
-        self._fetcher = None
-        self._putter = None
+        self._fetchers = None
+        self._putters = None
         self._processor = []
         self._do_recent = True
+        self._use_default_directories = True
         
-        self.set_default_values()
+        # self.set_default_values()
+        
+        
     
     # TODO: extract getter/setter logic
+    # Main Functions
     
-    def fetcher(self, _fetcher=None):
-        if _fetcher is not None:
-            self._fetcher = _fetcher
-        return self._fetcher
+    def fetchers(self, _fetchers=None):
+        if _fetchers is not None:
+            if type(_fetchers) not in [list]:
+                self._fetchers = [_fetchers]
+            else:
+                self._fetchers = _fetchers
+        return self._fetchers
     
     def processors(self, _processor=None):
         if _processor is not None:
@@ -91,21 +98,43 @@ class Parameters:
             else:
                 self._processor = _processor
         return self._processor
-
-    def putter(self, _putter=None):
-        if _putter is not None:
-            self._putter = _putter
-        return self._putter
+    
+    def putters(self, _putters=None):
+        if _putters is not None:
+            if type(_putters) not in [list]:
+                self._putters = [_putters]
+            else:
+                self._putters = _putters
+        return self._putters
+    
+    ## Other
+    
+    #Directories
+    
+    def base_directory(self, _base_directory=None):
+        if _base_directory is not None:
+            self._base_directory = _base_directory
+        return self._base_directory
+        
+    def batch_name(self, _batch_name=None):
+        if _batch_name is not None:
+            self._batch_name = _batch_name
+        return self._batch_name
     
     def archive_url(self, _archive_url=None):
         if _archive_url is not None:
             self._archive_url = _archive_url
         return self._archive_url
  
-    def download_path(self, _download_path=None):
-        if _download_path is not None:
-            self._download_path = _download_path
-        return self._download_path
+    def img_directory(self, _img_directory=None):
+        if _img_directory is not None:
+            self._img_directory = _img_directory
+        return self._img_directory
+
+    def fits_directory(self, _fits_directory=None):
+        if _fits_directory is not None:
+            self._fits_directory = _fits_directory
+        return self._fits_directory
     
     def time_path(self, _time_path=None):
         if _time_path is not None:
@@ -121,6 +150,9 @@ class Parameters:
         if _local_img_paths is not None:
             self._local_img_paths = _local_img_paths
         return self._local_img_paths
+    
+    #BOOLEANS
+    
     
     def run_type(self, _type=None):
         if _type is not None:
@@ -211,7 +243,19 @@ class Parameters:
             if self._do_304:
                 self.stop_after_one(True)
         return self._do_304
-    
+
+    def use_default_directories(self, boolean=None):
+        if boolean is not None:
+            assert type(boolean) in [bool]
+            self._use_default_directories = boolean
+        return self._use_default_directories
+
+    def stop_after_one(self, boolean=None):
+        if boolean is not None:
+            assert type(boolean) in [bool]
+            self._stop_after_one = boolean
+        return self._stop_after_one
+  
     def stop_after_one(self, boolean=None):
         if boolean is not None:
             assert type(boolean) in [bool]
@@ -258,38 +302,88 @@ class Parameters:
     def check_real_number(self, number):
         assert type(number) in [float, int]
         assert number > 0
-    
-    def set_default_values(self):
-        """Sets the Defaults for all the Parameters"""
-        # SunbackMovie Parameters
         
-        # Sunback Still Parameters
-        #  Set Delay Time for Background Rotation
-        self.delay_seconds(30 * self.seconds)
-        self.set_time_multiplier(3)
+    def build_paths_single(self, base_url=None, base_directory=None):
         
-        # Set File Paths
-        self.set_local_directory()
-        self.time_file = join(self.local_directory, 'time.txt')
-        self.index_file = join(self.local_directory, 'index.txt')
+        # Internet URL
+        self.archive_url(base_url)
         
-        # Set Wavelengths
-        self.set_wavelengths(['0171', '0193', '0211', '0304', '0131', '0335', '0094'])
+        # Local Base Path
+        if base_directory is None:
+            root = discover_best_data_directory()
+            name = self.batch_name() if self.batch_name() is not None else "Default"
+            base_directory = join(root, name)
         
-        # Set Resolution
-        self.set_download_resolution(2048)
+        # Time File
+        self.time_path(join(base_directory, "image_times"))
         
-        # Set Web Location
-        self.set_web_image_frame("https://sdo.gsfc.nasa.gov/assets/img/latest/latest_{}_{}")
+        #Sub Directories
+        self.img_directory(join(base_directory, 'png'))
+        self.fits_directory(join(base_directory, 'fits'))
         
-        # # Add extra images
-        # new_web_path_1 = "https://sdo.gsfc.nasa.gov/assets/img/latest/f_211_193_171pfss_{}.jpg".format(self.resolution)
-        # self.append_to_web_paths(new_web_path_1, 'PFSS')
+        makedirs(self.img_directory(), exist_ok=True)
+        makedirs(self.fits_directory(), exist_ok=True)
         
-        # Select File Ending
-        self.set_file_ending("{}_Now.png")
         
-        return 0
+        
+
+    def build_paths_range(self, wave=None, base_url=None, base_directory=None):
+        
+        # Internet URL
+        self.archive_url(base_url)
+        
+        # Local Base Path
+        if base_directory is None:
+            base_directory = discover_best_data_directory()
+            if self.batch_name() is not None:
+                base_directory = join(base_directory, self.batch_name())
+                
+                
+        time_path = join(base_directory, "image_times")
+        self.time_path(time_path)
+        
+        if not wave:
+            self.img_directory(base_directory)
+            
+        else:
+            self.wave_directory = join(self.img_directory(), wave)
+            self.image_folder = join(self.wave_directory, 'png')
+            self.movie_folder = abspath(join(self.img_directory(), "movies\\"))
+            self.video_name_stem = join(self.movie_folder, '{}_{}_movie{}'.format(wave, strftime('%m%d_%H%M'), '{}'))
+            
+            makedirs(self.wave_directory, exist_ok=True)
+            makedirs(self.image_folder, exist_ok=True)
+            makedirs(self.movie_folder, exist_ok=True)
+            
+        # # SunbackMovie Parameters
+        #
+        # # Sunback Still Parameters
+        # #  Set Delay Time for Background Rotation
+        # self.delay_seconds(30 * self.seconds)
+        # self.set_time_multiplier(3)
+        #
+        # # Set File Paths
+        # self.set_local_directory()
+        # self.time_file = join(self.local_directory, 'time.txt')
+        # self.index_file = join(self.local_directory, 'index.txt')
+        #
+        # # Set Wavelengths
+        # self.set_wavelengths(['0171', '0193', '0211', '0304', '0131', '0335', '0094'])
+        #
+        # # Set Resolution
+        # self.set_download_resolution(2048)
+        #
+        # # Set Web Location
+        # self.set_web_image_frame("https://sdo.gsfc.nasa.gov/assets/img/latest/latest_{}_{}")
+        #
+        # # # Add extra images
+        # # new_web_path_1 = "https://sdo.gsfc.nasa.gov/assets/img/latest/f_211_193_171pfss_{}.jpg".format(self.resolution)
+        # # self.append_to_web_paths(new_web_path_1, 'PFSS')
+        #
+        # # Select File Ending
+        # self.set_file_ending("{}_Now.png")
+        #
+        # return 0
     
     def delete_old(self, _delete=None):
         if _delete is not None:

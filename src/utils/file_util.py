@@ -7,15 +7,15 @@ from astropy.io import fits
 
 
 ##  PATHS
-def build_paths(self):
-  """Make the file structure to hold the images"""
-  self.local_wave_directory = join(self.params.download_path(), self.current_wave)
-  self.fits_folder = join(self.local_wave_directory, "fits\\")
-  self.image_folder = join(self.local_wave_directory, "png\\")
-  self.movie_folder = abspath(join(self.local_wave_directory, "..\\movies\\"))
-  makedirs(self.local_wave_directory, exist_ok=True)
-  makedirs(self.image_folder, exist_ok=True)
-  makedirs(self.movie_folder, exist_ok=True)
+# def build_paths(self):
+#   """Make the file structure to hold the images"""
+#   self.wave_directory = join(self.params.img_directory(), self.current_wave)
+#   self.fits_folder = join(self.wave_directory, "fits\\")
+#   self.image_folder = join(self.wave_directory, "png\\")
+#   self.movie_folder = abspath(join(self.wave_directory, "..\\movies\\"))
+#   makedirs(self.wave_directory, exist_ok=True)
+#   makedirs(self.image_folder, exist_ok=True)
+#   makedirs(self.movie_folder, exist_ok=True)
   
   
 def set_output_paths(self):
@@ -26,7 +26,7 @@ def set_output_paths(self):
 def discover_best_data_directory():
     """Determine where to store the images"""
     # TODO find a good directory
-    subdirectory_name = "sunback_images\\test"
+    subdirectory_name = "sunback_images"
     if __file__ in globals():
         ddd = dirname(abspath(__file__))
     else:
@@ -100,20 +100,34 @@ def save_fits_file(img_path, hdul, frame, name="gated"):
 
 archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
-def load_series(params, base_dir_path=discover_best_data_directory()):
+def load_imgs(params, base_dir_path=None):
     """Loads the img series from disk"""
-    download_path = params.download_path(base_dir_path)
+    if base_dir_path is None:
+        base_dir_path = discover_best_data_directory()
+
+    img_directory = params.img_directory(base_dir_path)
+    print("   Loading PNGs from {}...".format(img_directory), end='', flush=True)
+
+    list_files_in_directory(img_directory, 'png')
+
+    all_paths = listdir(img_directory)
+    png_paths = [join(img_directory, path)
+                  for path in all_paths if '.png' in path[-4:]]
+    print("Success! {} Found\n".format(len(png_paths)))
+    params.local_img_paths(png_paths)
+    return png_paths
+
+def load_fits(params, base_dir_path=discover_best_data_directory()):
+    """Loads the fits series from disk"""
+    download_path = params.img_directory(base_dir_path)
     print("Loading PNGs from {}...".format(download_path), end='', flush=True)
 
     all_paths = listdir(download_path)
     png_paths = [join(download_path, path)
-                  for path in all_paths if '.png' in path[-4:]]
+                  for path in all_paths if '.fits' in path[-4:]]
     print("Success! {} Found\n".format(len(png_paths)))
-    # sleep(1)
-    params.local_img_paths(png_paths)
+    params.local_fits_paths(png_paths)
     return png_paths
-
-
 
 
  ## PRINTING

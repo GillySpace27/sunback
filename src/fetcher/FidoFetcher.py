@@ -43,7 +43,7 @@ class FidoFetcher(Fetcher):
         """Sets the parameter object and initializes other inputs"""
         self.params = params
         self.params.archive_url(base_url)
-        self.params.download_path(base_dir_path)
+        self.params.img_directory(base_dir_path)
         
         self.set_wavelengths()
         self.define_range()
@@ -177,7 +177,7 @@ class FidoFetcher(Fetcher):
     
     def remove_all_old_pngs(self):
         requested_pngs = [x.replace('fits', 'png') for x in self.local_fits_paths]
-        png_directory = join(self.params.download_path(), self.current_wave, 'png')
+        png_directory = join(self.params.img_directory(), self.current_wave, 'png')
         got_png = list_files_in_directory(png_directory, 'png')
         remove_count = 0
         for png_path in got_png:

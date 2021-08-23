@@ -37,7 +37,7 @@ def run_recent_movie(delay=10, debug=False, do_one=False, stop=False):
     # p.do_304(True)
     
     # p.fetcher(WebFetcher(p))      # Gets Fits from JSOC Most Recent
-    p.fetcher(FidoFetcher(p))      # Gets Fits FIDO
+    p.fetchers(FidoFetcher(p))      # Gets Fits FIDO
     # p.fetcher(LocalFetcher(p))      # Gets Fits from Disk
     # p.fetcher(AwsFetcher(p))        # Gets PNGs from S3 Daemon
     
@@ -47,7 +47,7 @@ def run_recent_movie(delay=10, debug=False, do_one=False, stop=False):
 
     # p.putter(AwsPutter(p))        # Uploads the PNGs to AWS
     # p.putter(DesktopPutter(p))        # Runs the Desktop Background Sequence on PNGs
-    p.putter(NullPutter(p))       # Does Nothing with the PNGS
+    p.putters(NullPutter(p))       # Does Nothing with the PNGS
     
     run.Runner(p).start()
 

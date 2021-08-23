@@ -55,10 +55,10 @@ class NoiseGateProcessor(Processor):
         self.number = len(self.im_paths)
     
     def build_paths(self):
-        self.local_wave_directory = join(self.params.download_path(), self.wave)
+        self.local_wave_directory = join(self.params.img_directory(), self.wave)
         self.image_folder = join(self.local_wave_directory, 'png')
         self.fits_folder = join(self.local_wave_directory, 'fits')
-        self.movie_folder = abspath(join(self.params.download_path(), "movies\\"))
+        self.movie_folder = abspath(join(self.params.img_directory(), "movies\\"))
         self.video_name_stem = join(self.movie_folder, '{}_{}_movie{}'.format(self.wave, strftime('%m%d_%H%M'), '{}'))
         self.im_paths = [join(self.fits_folder, img) for img in listdir(self.fits_folder) if img.endswith(".fits")]
         makedirs(self.movie_folder, exist_ok=True)

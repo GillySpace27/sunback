@@ -12,6 +12,7 @@ class Fetcher:
         self.fido_num = None
         
         self.local_fits_paths = []
+        self.local_img_paths = []
         self.requested_files = []
         self.redownload = []
         self.file_size_mode = None
@@ -25,5 +26,11 @@ class Fetcher:
     def fetch(self, url):
         raise NotImplementedError()
     
-
+    def load_imgs(self):
+        from utils.file_util import load_imgs
+        load_imgs(self.params)
+    
+    def load_fits(self):
+        from utils.file_util import load_fits
+        load_fits(self.params)
     

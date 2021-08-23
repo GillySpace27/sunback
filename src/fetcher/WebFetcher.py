@@ -18,7 +18,7 @@ class WebFetcher(Fetcher):
     def __init__(self, params, base_url=archive_url, base_dir_path=discover_best_data_directory()):
         self.params = params
         self.params.archive_url(base_url)
-        self.params.download_path(base_dir_path)
+        self.params.img_directory(base_dir_path)
         self.params.time_path(base_dir_path + "\\image_times")
     
     def fetch(self, url=archive_url):
@@ -29,8 +29,8 @@ class WebFetcher(Fetcher):
         
         for link in tqdm(self.__get_fits_links(url)):
             # For each image
-            local_path = self.params.download_path() + '\\' + link.split('/')[-1]  # TODO make a better local path
-            local_temp_path = self.params.download_path() + '\\' + "download__" + link.split('/')[-1]
+            local_path = self.params.img_directory() + '\\' + link.split('/')[-1]  # TODO make a better local path
+            local_temp_path = self.params.img_directory() + '\\' + "download__" + link.split('/')[-1]
             for ii in np.arange(tries):
                 # Retry download
                 try:
