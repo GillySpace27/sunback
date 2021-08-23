@@ -3,12 +3,12 @@ from os import makedirs
 from time import time
 
 from tqdm import tqdm
-from executor.ModifyExecutor import ModifyExecutor as me
 from putter.Putter import Putter
 import boto3
-import requests
 
 # Select Amazon Resources
+from utils.file_util import get_thumblinks
+
 S3_UPLOAD_ARGS = {'ACL': 'public-read', "ContentType": "image/png"}
 s3 = boto3.resource('s3')
 bucket = s3.Bucket('gillyspace27-test-billboard')
@@ -25,7 +25,7 @@ class AwsPutter(Putter):
         print("Uploading PNGs to {}...".format(bucket), flush=True)
         sleep(0.1)
         for rtPath in tqdm(self.params.local_img_paths()):
-            smallPath, bigPath, arcPath = me.get_thumblinks(rtPath)
+            smallPath, bigPath, arcPath = get_thumblinks(rtPath)
             
             # Upload large File
             bucket.upload_file(rtPath, bigPath, ExtraArgs=S3_UPLOAD_ARGS)
@@ -51,14 +51,6 @@ class AwsPutter(Putter):
         self.__save_times()
         print("Success! Uploaded {} files\n".format(len(self.params.local_img_paths())))
         
-    def __get_thumblinks(self, rtPath):
-        name = split(rtPath)[-1]
-        arcPath = "renders/archive/" + "{}_{}".format(int(time()), name)
-        smallPath = "renders/thumbs/" + name
-        bigPath = 'renders/' + name
-        makedirs("renders/thumbs/", exist_ok=True)
-        return smallPath, bigPath, arcPath
-    
     def __save_times(self):
         """Saves the Time file to S3 so we know when images were taken"""
         path = self.params.time_path()

@@ -5,6 +5,8 @@ from time import time, sleep
 import numpy as np
 from astropy import units as u
 
+from utils.file_util import discover_best_data_directory
+
 
 class Parameters:
     """
@@ -69,10 +71,8 @@ class Parameters:
         self._local_img_paths = None
         self._local_fits_paths = []
         self._fetcher = None
-        self._executor = None
         self._putter = None
-        self._post_processor = []
-        self._pre_processor = []
+        self._processor = []
         self._do_recent = True
         
         self.set_default_values()
@@ -84,26 +84,13 @@ class Parameters:
             self._fetcher = _fetcher
         return self._fetcher
     
-    def pre_processor(self, _pre_processor=None):
-        if _pre_processor is not None:
-            if type(_pre_processor) not in [list]:
-                self._pre_processor = [_pre_processor]
+    def processors(self, _processor=None):
+        if _processor is not None:
+            if type(_processor) not in [list]:
+                self._processor = [_processor]
             else:
-                self._pre_processor = _pre_processor
-        return self._pre_processor
-    
-    def executor(self, _executor=None):
-        if _executor is not None:
-            self._executor = _executor
-        return self._executor
-
-    def post_processor(self, _post_processor=None):
-        if _post_processor is not None:
-            if type(_post_processor) not in [list]:
-                self._post_processor = [_post_processor]
-            else:
-                self._post_processor = _post_processor
-        return self._post_processor
+                self._processor = _processor
+        return self._processor
 
     def putter(self, _putter=None):
         if _putter is not None:
@@ -325,7 +312,7 @@ class Parameters:
         if path is not None:
             self.local_directory = path
         else:
-            self.local_directory = self.discover_best_default_directory()
+            self.local_directory = discover_best_data_directory()
         
         makedirs(self.local_directory, exist_ok=True)
     
@@ -378,29 +365,6 @@ class Parameters:
     def get_local_path(self, wave):
         return normpath(join(self.local_directory, self.file_ending.format(wave)))
     
-    @staticmethod
-    def discover_best_default_directory():
-        """Determine where to store the images"""
-        
-        subdirectory_name = "sunback_images"
-        if __file__ in globals():
-            ddd = dirname(abspath(__file__))
-        else:
-            ddd = abspath(getcwd())
-        
-        while "dropbox".casefold() in ddd.casefold():
-            ddd = abspath(join(ddd, ".."))
-        
-        directory = join(ddd, subdirectory_name)
-        if not isdir(directory):
-            makedirs(directory)
-        
-        # print("Image Location: {}".format(directory))
-        # while not access(directory, W_OK):
-        #     directory = directory.rsplit(sep)[0]
-        #
-        # print(directory)
-        return directory
     
     def determine_delay(self):
         """ Determine how long to wait """

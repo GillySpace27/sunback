@@ -12,13 +12,18 @@ start_time = last_time
 set_local_background = True
 
 
-class LocalPutter(Putter):
+class DesktopPutter(Putter):
     def __init__(self, params):
         self.params = params
         self.delay = self.params.delay_seconds()
-        # self.params.stop_after_one(False)
+        self.params.stop_after_one(False)
+
+    def load(self):
+        from utils.file_util import load_series
+        load_series(self.params)
     
     def put(self):
+        self.load()
         print("Setting Desktop Background to...", flush=True)
         sleep(0.1)
         for png_path in self.params.local_img_paths():

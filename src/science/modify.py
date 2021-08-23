@@ -3,6 +3,9 @@ from os.path import dirname
 import numpy as np
 import os
 import matplotlib as mpl
+
+from utils.file_util import load_file
+
 mpl.use("qt5agg")
 import matplotlib.pyplot as plt
 from time import strftime
@@ -33,6 +36,9 @@ class Modify:
         self.verb = verb
         self.do_orig = orig
         self.center = center
+        # if image is None:
+        #     self.test()
+        
         self.parse_input_type(image)
         
         # Run the Reduction Algorithm
@@ -41,6 +47,14 @@ class Modify:
         
         if self.verb: print("Done")
     
+        
+    def test(self):
+        """Run the test case if no input is provided"""
+        if self.verb: print("Running Test Case")
+        image = load_file("data/0171_MR.fits")
+        self.show = True
+        return image
+
     def parse_input_type(self, image):
         """Determine what kind of input image was provided and open it appropriately"""
         # Load the File
@@ -64,22 +78,6 @@ class Modify:
             self.image_data = self.def_data(self.changed)
         self.name = self.image_data[0]
     
-    def test(self):
-        """Run the test case if no input is provided"""
-        if self.verb: print("Running Test Case")
-        image = self.load_file("data/0171_MR.fits")
-        self.show = True
-        return image
-    
-    def load_file(self, path):
-        """Load a fits file from disk"""
-        with fits.open(path, cache=False) as hdul:
-            hdul.verify('silentfix+warn')
-            wave, t_rec = hdul[0].header['WAVELNTH'], hdul[0].header['T_OBS']
-            image = hdul[0].data
-            self.image_data = str(wave), str(wave), t_rec, image.shape
-        return image
-    
     def def_data(self, hdul):
         """Use Defaults Values for Data"""
         try:
@@ -98,6 +96,8 @@ class Modify:
     def get(self):
         """Returns the reduced image array"""
         return self.changed
+    
+    
     
     def image_modify(self):
         """Perform the image normalization on the input array"""
@@ -123,7 +123,7 @@ class Modify:
         xx, yy = np.meshgrid(np.arange(self.rez), np.arange(self.rez))
         xc, yc = xx - self.center[0], yy - self.center[1]
         
-        self.extra_rez = 2  # An attempt to give extra resolution
+        self.extra_rez = 1  # An attempt to give extra resolution
         self.sRadius = 400 * self.extra_rez
         self.tRadius = self.sRadius * 1.28
         self.radius = np.sqrt(xc * xc + yc * yc) * self.extra_rez
@@ -135,19 +135,22 @@ class Modify:
         self.changed -= self.offset
     
 
-    
-    
     def sort_radially(self):
         """ Flatten the image and sort by pixel radius """
         self.rad_flat = self.radius.flatten()
         self.dat_flat = self.changed.flatten()
         self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
-        self.radBins = [[] for x in np.arange(self.rez)]
+        self.more_rez = np.max(self.binInds)
+        self.radBins = [[] for x in np.arange(self.more_rez)]
+        pass
     
     def bin_radially(self): # TODO Make this much faster
         """Bin the intensities by radius """
         for binI, dat in zip(self.binInds, self.dat_flat):
-            self.radBins[binI].append(dat)
+            try:
+                self.radBins[binI].append(dat)
+            except:
+                pass
         # for i in range(len(self.rad_flat)):
         #     self.radBins[self.binInds[i]].append(self.dat_flat[i])
         # for i in range(len(self.rad_flat)):
@@ -157,11 +160,12 @@ class Modify:
             
     def radial_statistics(self): # TODO Make this much faster
         """ Find the statistics in each radial bin"""
-        self.binMax = np.zeros(self.rez)
-        self.binMin = np.zeros(self.rez)
-        self.binMid = np.zeros(self.rez)
-        self.binMed = np.zeros(self.rez)
-        self.radAbss = np.arange(self.rez)
+        moreRez = self.radBins
+        self.binMax = np.zeros(self.more_rez)
+        self.binMin = np.zeros(self.more_rez)
+        self.binMid = np.zeros(self.more_rez)
+        self.binMed = np.zeros(self.more_rez)
+        self.radAbss = np.arange(self.more_rez)
         
         for ii, it in enumerate(self.radBins):
             # For each radial bin
@@ -857,14 +861,7 @@ class Modify:
 
 
 # Test Functions
-def load_file(path):
-    """Load a fits file from disk"""
-    with fits.open(path, cache=False) as hdul:
-        hdul.verify('silentfix+warn')
-        wave, t_rec = hdul[0].header['WAVELNTH'], hdul[0].header['T_OBS']
-        image = hdul[0].data
-        image_data = str(wave), str(wave), t_rec, image.shape
-    return image, image_data
+
 
 
 def print_banner():

@@ -88,27 +88,7 @@ class NoiseGateProcessor(Processor):
             # self.load_file(img)
             if ii > small_fill:
                 break
-    
-    @staticmethod
-    def load_file(path):
-        """Load a fits file from disk"""
-        with fits.open(path, cache=False) as hdul:
-            hdul.verify('silentfix+warn')
-            image = hdul[0].data
-            # There is also
-            # hdul['primary']
-            # and
-            # hdul['gated']
-            
-        return image
-    
-    def save_file(self, img_path, frame):
-        """Load a fits file from disk"""
-        with fits.open(img_path, cache=False, mode="update") as hdul:
-            hdul.append(fits.ImageHDU(frame, name="gated"))
-            hdul.verify('silentfix+warn')
-            # hdul.writeto()
-    
+        
     def noise_gate(self):
         print("Beginning Noise Gating Procedure...", end='')
         max_use = 20

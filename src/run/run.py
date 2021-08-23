@@ -2,6 +2,8 @@ import sys
 
 
 # # Main Command Structure
+from utils.file_util import print_end_banner, print_header
+
 
 class Runner:
     def __init__(self, params):
@@ -9,27 +11,19 @@ class Runner:
     
     def start(self):
         """Select whether to run or to debug"""
-        self.__print_header()
+        debug = self.params.is_debug()
+        print_header(self.params.delay_seconds(),
+                     self.params.download_path(), debug)
         
-        if self.params.is_debug():
+        if debug:
             self.__debug_mode()
         else:
             self.__run_mode()
     
-    def __print_header(self):
-        print("\nSunback SDO Image Manipulator \nWritten by Chris R. Gilly")
-        print("Check out my website: http://gilly.space\n")
-        print("Delay: {} Seconds".format(self.params.delay_seconds()))
-        # print("Coronagraph Mode: {} \n".format(params.mode()))
-        print("Base Directory: {}".format(self.params.download_path()))
-        
-        if self.params.is_debug():
-            print("DEBUG MODE\n")
-    
     def __debug_mode(self):
         """Run the program in a way that will break"""
         while True:
-            self.__execute()
+            self.__process()
             if self.params.stop_after_one():
                 break
     
@@ -41,7 +35,7 @@ class Runner:
         
         while True:
             try:
-                self.__execute()
+                self.__process()
                 fail_count -= 1
             except (KeyboardInterrupt, SystemExit):
                 print("\n\nOk, I'll Stop. Doot!\n")
@@ -58,24 +52,18 @@ class Runner:
             if self.params.stop_after_one():
                 break
     
-    def __execute(self):
-        """Use the provided fetcher, executor, and putter to do the thing"""
+    def __process(self):
+        """Use the provided fetcher, executor,
+        and putter to do the thing"""
         
         self.params.fetcher().fetch()
         
-        for proc in self.params.pre_processor():
+        print("Processing Images...", flush=True)
+        for proc in self.params.processors():
             proc.process()
-        
-        self.params.executor().execute()
 
-        for proc in self.params.post_processor():
-            proc.process()
-            
         self.params.putter().put()
-        self.print_end_banner()
+        
+        print_end_banner(self.params.stop_after_one())
     
-    def print_end_banner(self):  # TODO Make this into a util file
-        mode_string = "" if self.params.stop_after_one() else ", Restarting Loop"
-        print("\n_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_")
-        print("Program Complete{}".format(mode_string))
-        print("_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_\n\n")
+

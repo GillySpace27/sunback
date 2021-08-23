@@ -12,191 +12,85 @@ from os import stat
 
 from fetcher.Fetcher import Fetcher
 # from movie.modifyMovie import Sonifier
-from utils.file_util import discover_best_data_directory
+from fetcher.LocalFetcher import LocalFetcher
+from utils.file_util import discover_best_data_directory, list_files_in_directory, build_paths, set_output_paths
+from utils.time_util import parse_time_string_to_local
 import astropy.units as u
 
 from sunpy.instr.aia import aiaprep
 
 import datetime
 
-
 # aia1 = sunpy.map.Map(file_download[0])
 # aia = aiaprep(aia1)
+from utils.time_util import define_time_range, define_recent_range
+
 
 class FidoFetcher(Fetcher):
     """Gets some data"""
     wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
     
     def __init__(self, params, base_url=None, base_dir_path=discover_best_data_directory()):
+        super().__init__()  # Initializes class variables
+        
+        # Timer
         self.beginTime = time()
         
         # Parse Inputs
+        self.load_params(params, base_url, base_dir_path)
+    
+    def load_params(self, params, base_url, base_dir_path):
+        """Sets the parameter object and initializes other inputs"""
         self.params = params
         self.params.archive_url(base_url)
         self.params.download_path(base_dir_path)
         
+        self.set_wavelengths()
+        self.define_range()
+    
+    def set_wavelengths(self):
+        """Selects which wavelengths to use"""
         if self.params.do_one():
             self.waves_to_do = [self.params.do_one()]
         else:
             self.waves_to_do = self.wavelengths
-        
-        # Set class variables
-        self.local_wave_directory = None
-        self.image_folder = None
-        self.movie_folder = None
-        self.fits_folder = None
-        
-        self.fido_result = None
-        self.fido_num = None
-        
-        self.select_time_range()
-        
-        self.local_fits_paths = []
-        self.requested_files = []
-        self.redownload = []
-        self.file_size_mode = None
-        
-        self.final_fits_paths = []
     
-    def select_time_range(self):
-        """Define Time Range, on the hour"""
-        
+    def define_range(self):
+        """Defines the time range of imagery desired"""
         if self.params.do_recent():
-            self.get_recent_range()
+            self.parse_time(*define_recent_range(self.params.range()))
         else:
-            self.get_time_range()
+            self.parse_time(*define_time_range(*self.params.time_period()))
     
-    def set_start_time(self, start_struct):
-        try:
-            self.start_time = start_struct.strftime('%Y/%m/%d %H:%M')
-            self.start_time_long = int(start_struct.strftime('%Y%m%d%H%M%S'))
-        except AttributeError:
-            self.start_time = strftime('%Y/%m/%d %H:%M', start_struct)
-            self.start_time_long = int(strftime('%Y%m%d%H%M%S', start_struct))
-        
-        self.start_string = self.parse_time_string_to_local(str(self.start_time_long), 2)[0]
+    def parse_time(self, start, end):
+        """Unpacks the time lists"""
+        self.start_time, self.start_time_long, self.start_string = start
+        self.end_time, self.end_time_long, self.end_time_string = end
     
-    def set_end_time(self, end_struct):
-        try:
-            
-            self.end_time = end_struct.strftime('%Y/%m/%d %H:%M')
-            self.end_time_long = int(end_struct.strftime('%Y%m%d%H%M%S'))
-        except AttributeError:
-            self.end_time = strftime('%Y/%m/%d %H:%M', end_struct)
-            self.end_time_long = int(strftime('%Y%m%d%H%M%S', end_struct))
-        
-        self.end_time_string = self.parse_time_string_to_local(str(self.end_time_long), 2)[0]
-    
-    def get_time_range(self):
-        start, end = self.params.time_period()
-        
-        start_struct = datetime.datetime.strptime(start, '%Y/%m/%d %H:%M')
-        end_struct = datetime.datetime.strptime(end, '%Y/%m/%d %H:%M')
-        
-        self.set_start_time(start_struct)
-        self.set_end_time(end_struct)
-    
-    def get_recent_range(self):
-        # Get the Start Time
-        current_time = time() + timezone
-        start_list = list(localtime(current_time - (self.params.range() + 2 / 24) * 60 * 60 * 24))
-        start_list[4] = 0  # Minutes
-        start_list[5] = 0  # Seconds
-        start_struct = struct_time(start_list)
-        self.set_start_time(start_struct)
-        
-        # Get the Current Time
-        now_list = list(localtime(current_time - 2 * 60 * 60))
-        now_list[4] = 0  # Minutes
-        now_list[5] = 0  # Seconds
-        end_struct = struct_time(now_list)
-        self.set_end_time(end_struct)
-    
-    @staticmethod
-    def parse_time_string_to_local(downloaded_files, which=0, local=True):
-        if which == 0:
-            time_string = downloaded_files[0][-25:-10]
-            year = time_string[:4]
-            month = time_string[4:6]
-            day = time_string[6:8]
-            hour_raw = int(time_string[9:11])
-            minute = time_string[11:13]
-        elif which == 3:
-            time_string = downloaded_files
-            split = time_string.split("_")
-            # import pdb; pdb.set_trace()
-            year = split[3]
-            month = split[4]
-            day = split[5].split('t')[0]
-            hour_raw = split[5].split('t')[1]
-            minute = split[6]
-        else:
-            time_string = downloaded_files
-            year = time_string[:4]
-            month = time_string[4:6]
-            day = time_string[6:8]
-            hour_raw = time_string[8:10]
-            minute = time_string[10:12]
-        
-        struct_time = (int(year), int(month), int(day), int(hour_raw), int(minute), 0, 0, 0, -1)
-        # print(struct_time)
-        
-        if local:
-            theTime = localtime(timegm(struct_time))
-        else:
-            theTime = struct_time
-        
-        new_time_string = strftime("%I:%M%p %m/%d/%Y", theTime).lower()
-        if new_time_string[0] == '0':
-            new_time_string = new_time_string[1:]
-        
-        # print(year, month, day, hour, minute)
-        # new_time_string = "{}:{}{} {}/{}/{} ".format(hour, minute, suffix, month, day, year)
-        time_code = strftime("%Y%m%d%I%M%S", theTime)
-        
-        return new_time_string, time_code
-    
+    ## Main Runner
     def fetch(self):
         """ Find the Most Recent Images """
-        if not self.params.download_images():
-            print("Using Local Files... \n")
-        
         for self.current_wave in self.waves_to_do:
-            self.build_paths()
             self.fido_get_fits()
-            # self.set_fits_list()
-        self.set_output_paths()
-    
-    # def set_fits_list(self):
-    #     abs_paths = [join(self.fits_folder, st) for st in self.local_fits_paths]
-    #     self.final_fits_paths.extend(abs_paths)
-    #     print("file box= {}".format(len(self.final_fits_paths)))
-    # local_paths = self.params.local_fits_paths()
-    # local_paths.extend()
+        self.params.local_fits_paths(self.temp_fits_pathbox)
+
+
+    ### Utils
     
     def fido_get_fits(self):
+        build_paths(self)
         if self.params.download_images():
             self.download_fits_series()
             self.validate_download()
-  
-    def set_output_paths(self):
-        self.params.local_fits_paths(self.final_fits_paths)
-        # for wave in self.waves_to_do:
-        fit_folder = join(self.params.download_path(), self.current_wave, 'fits')
-        list_of_files = self.list_files_in_directory(fit_folder)
-        abs_paths = [join(fit_folder, ff) for ff in list_of_files]
-        self.final_fits_paths.extend(abs_paths)
+        # else:
+            # LocalFetcher(self.params, self.current_wave).fetch()
+        set_output_paths(self)
+        
+
     
-    def build_paths(self):
-        """Make the file structure to hold the images"""
-        self.local_wave_directory = join(self.params.download_path(), self.current_wave)
-        self.fits_folder = join(self.local_wave_directory, "fits\\")
-        self.image_folder = join(self.local_wave_directory, "png\\")
-        self.movie_folder = abspath(join(self.local_wave_directory, "..\\movies\\"))
-        makedirs(self.local_wave_directory, exist_ok=True)
-        makedirs(self.image_folder, exist_ok=True)
-        makedirs(self.movie_folder, exist_ok=True)
     
+    
+    ## Work
     def download_fits_series(self):
         self.fido_check_for_fits()
         if self.fido_num:
@@ -211,7 +105,8 @@ class FidoFetcher(Fetcher):
         # Search for records from the internet
         self.fido_result = Fido.search(attrs.Time(self.start_time, self.end_time), attrs.Instrument('aia'),
                                        attrs.Wavelength(int(self.current_wave) * u.angstrom),
-                                       attrs.Sample(self.params.cadence_minutes())) #, attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
+                                       attrs.Sample(
+                                               self.params.cadence_minutes()))  # , attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
         self.fido_num = self.fido_result.file_num
         print("Found {}".format(self.fido_num))
     
@@ -226,15 +121,15 @@ class FidoFetcher(Fetcher):
         time_start = first_result.time.start
         time_end = last_result.time.end
         
-        begin_time = self.parse_time_string_to_local(''.join(i for i in time_start if i.isdigit()), 2)[0]
-        end_time = self.parse_time_string_to_local(''.join(i for i in time_end if i.isdigit()), 2)[0]
+        begin_time = parse_time_string_to_local(''.join(i for i in time_start if i.isdigit()), 2)[0]
+        end_time = parse_time_string_to_local(''.join(i for i in time_end if i.isdigit()), 2)[0]
         
         self.extra_string = "from {} to {}".format(begin_time, end_time)
         
         self.startTime = time_start  # #self.parse_time_string_to_local(str(time_start.fits), 2)[0]
         self.endTime = time_end  # ''.join(i for i in time_end.iso if i.isdigit())   #self.parse_time_string_to_local(str(time_end.fits), 2)[0]
         
-        print("    Search Found {} Images {}...".format(self.fido_num, self.extra_string), flush=True)
+        print("           Search Found {} Images {}...".format(self.fido_num, self.extra_string), flush=True)
         
         while len(self.name) < 4:
             self.name = '0' + self.name
@@ -253,13 +148,16 @@ class FidoFetcher(Fetcher):
             print('1 + ', e)
     
     def validate_download(self):
-        self.set_output_paths()
+        try:
+            self.set_output_paths()
+        except:
+            set_output_paths(self)
         self.list_requested_files()
-        self.local_fits_paths = self.list_files_in_directory()
+        self.local_fits_paths = list_files_in_directory(self.fits_folder)
         if self.params.delete_old():
             self.remove_all_old_fits_pngs()
             self.remove_all_old_pngs()
-            
+        
         working = False
         if working:
             self.validate_fits()
@@ -277,26 +175,10 @@ class FidoFetcher(Fetcher):
             self.requested_files.append(self.fido_result.get_response(0)[ii]['fileid'].casefold())
             self.requested_files.append(self.fido_result.get_response(0)[ii]['time']['start'])
     
-    def list_files_in_directory(self, directory=None, extension="fits"):
-        directory = self.fits_folder if directory is None else directory
-        makedirs(directory, exist_ok=True)
-        return [f.casefold() for f in listdir(directory) if f.endswith('.' + extension)]
-        
-        # files = listdir(self.fits_folder)
-        # self.already_downloaded = []
-        # for filename in files:
-        #     if filename.endswith(".fits"):
-        #         self.already_downloaded.append(filename.casefold()) #localtime
-        # try:
-        #     timeString = int(self.time_from_filename(filename, local=False)[1][:-2])
-        # except Exception as e:
-        #     timeString = filename[3:11] + filename[12:16]
-        # print(str(timeString)[-4:])
-    
     def remove_all_old_pngs(self):
         requested_pngs = [x.replace('fits', 'png') for x in self.local_fits_paths]
         png_directory = join(self.params.download_path(), self.current_wave, 'png')
-        got_png = self.list_files_in_directory(png_directory, 'png')
+        got_png = list_files_in_directory(png_directory, 'png')
         remove_count = 0
         for png_path in got_png:
             if png_path not in requested_pngs:
@@ -372,28 +254,28 @@ class FidoFetcher(Fetcher):
                 delete = False
                 try:
                     try:
-                        hh=0
+                        hh = 0
                         total_counts = np.nansum(hdul[hh].data)
                     except Exception as e:
                         print(e)
-                        hh=1
+                        hh = 1
                         delete = True
                         total_counts = np.nansum(hdul[hh].data)
                         delete = False
                     this_size = stat(abs_path).st_size
                     data = hdul[hh].data
-                    if total_counts < 0: # or not this_size == self.file_size_mode:
+                    if total_counts < 0:  # or not this_size == self.file_size_mode:
                         delete = True
                 except TypeError as e:
                     print(e)
                     delete = True
-
+            
             if delete:
                 self.remove_and_mark_redownload(local_file)
         n_corrupt = len(self.redownload)
         if n_corrupt:
             print("        Deleted {} corrupted files. Re-downloading...".format(n_corrupt))
-
+    
     def redownload_bad_fits(self):
         if len(self.redownload) > 0:
             self.redownload = []

@@ -1,14 +1,8 @@
-from executor.LocalExecutor import LocalExecutor
-from executor.ModifyExecutor import ModifyExecutor
-from fetcher.AwsFetcher import AwsFetcher
+from processor.RadialFiltProcessor import RadialFiltProcessor
 from fetcher.FidoFetcher import FidoFetcher
-from fetcher.WebFetcher import WebFetcher
-from fetcher.LocalFetcher import LocalFetcher
 from processor.NoiseGateProcessor import NoiseGateProcessor
 from processor.VideoProcessor import VideoProcessor
-from putter.LocalPutter import LocalPutter
 from science.parameters import Parameters
-from putter.AwsPutter import AwsPutter
 from putter.NullPutter import NullPutter
 import run
 
@@ -46,15 +40,15 @@ def run_test_noisegate(delay=10, debug=False, do_one=False, stop=False):
     # p.fetcher(AwsFetcher(p))        # Gets PNGs from S3 Daemon
     # p.fetcher(LocalFetcher(p))      # Gets Fits from Disk
     
-    p.pre_processor([NoiseGateProcessor(p),])  # Makes the PNGs into a Movie
+    p.processors([NoiseGateProcessor(p), ])  # Makes the PNGs into a Movie
     
-    p.executor(ModifyExecutor(p))  # Makes the PNGs from Fits
+    p.executor(RadialFiltProcessor(p))  # Makes the PNGs from Fits
     # p.executor(LocalExecutor(p))    # Gets the PNGs from Disk
     
     p.post_processor([VideoProcessor(p),])  # Makes the PNGs into a Movie
     
     # p.putter(AwsPutter(p))        # Uploads the PNGs to AWS
-    # p.putter(LocalPutter(p))        # Runs the Desktop Background Sequence on PNGs
+    # p.putter(DesktopPutter(p))        # Runs the Desktop Background Sequence on PNGs
     p.putter(NullPutter(p))       # Does Nothing with the PNGS
     
     run.Runner(p).start()
