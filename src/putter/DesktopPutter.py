@@ -23,7 +23,7 @@ class DesktopPutter(Putter):
     
     def put(self):
         self.load()
-        print("   Setting Desktop Background to...", flush=True)
+        print("  *Setting Desktop Background to...", flush=True)
         sleep(0.1)
         for png_path in self.params.local_img_paths():
             self.update_background(png_path)
@@ -34,7 +34,7 @@ class DesktopPutter(Putter):
         """ Make sure that the loop takes the right amount of time """
         delay = self.params.delay_seconds()
         for ii in tqdm((range(int(delay))),
-                       desc="     {}, Waiting for {:0.0f} seconds".format(self.png_name, delay)):
+                       desc="    {}, Waiting for {:0.0f} seconds".format(self.png_name, delay)):
             sleep(1)
     
     def update_background(self, local_path):

@@ -78,6 +78,7 @@ def save_frame_to_fits_file(fits_path, frame, field="filtered"):
         hdul.verify('silentfix+warn')  # Then Verify
         what = fits.ImageHDU(frame, name=field)
         hdul.append(what)  # Write
+        hdul[field] = what  # Write
 
 
 def load_fits_field(fits_path, field='primary'):

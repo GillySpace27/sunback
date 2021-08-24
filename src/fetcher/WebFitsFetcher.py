@@ -24,12 +24,12 @@ class WebFitsFetcher(Fetcher):
         print("  Downloading Fits Files from {}...".format(self.params.archive_url()), flush=True)
         img_links = self.__get_fits_links(self.params.archive_url())
         paths = []
-        for link in tqdm(img_links):
+        for link in tqdm(img_links, desc="  "):
             paths.append(self.grab(link))
             
         self.__get_img_time()
-        self.load_fits()
-        print("Success!\n", flush=True)
+        self.load()
+        print("  Success!\n", flush=True)
         return paths
     
     def grab(self, link):

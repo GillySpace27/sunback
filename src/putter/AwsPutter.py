@@ -23,9 +23,9 @@ class AwsPutter(Putter):
     
     def put(self):
         """uploads all imgs in input to the s3 bucket"""
-        print("Uploading PNGs to {}...".format(bucket), flush=True)
+        print("  *Uploading PNGs to {}...".format(bucket), flush=True)
         sleep(0.1)
-        for rtPath in tqdm(self.params.local_img_paths()):
+        for rtPath in tqdm(self.params.local_img_paths(), desc="  "):
             smallPath, bigPath, arcPath = get_thumblinks(rtPath)
             
             # Upload large File
@@ -38,11 +38,11 @@ class AwsPutter(Putter):
             if "orig" not in rtPath:
                 bucket.upload_file(rtPath, arcPath, ExtraArgs=S3_UPLOAD_ARGS)
         self.__save_times()
-        print("Success! Uploaded {} PNGs\n".format(len(self.params.local_img_paths())))
+        print("  Success! Uploaded {} PNGs\n".format(len(self.params.local_img_paths())))
         
     def put_ultimate(self):
         """uploads all imgs in input to the s3 bucket"""
-        print("Uploading files to {}...".format(bucket), flush=True)
+        print("   Uploading files to {}...".format(bucket), flush=True)
         sleep(0.1)
         for local, remote in tqdm(self.params.local_img_paths()):
             
@@ -50,7 +50,7 @@ class AwsPutter(Putter):
             bucket.upload_file(local, remote, ExtraArgs=S3_UPLOAD_ARGS)
 
         self.__save_times()
-        print("Success! Uploaded {} files\n".format(len(self.params.local_img_paths())))
+        print("  Success! Uploaded {} files\n".format(len(self.params.local_img_paths())))
         
     def __save_times(self):
         """Saves the Time file to S3 so we know when images were taken"""

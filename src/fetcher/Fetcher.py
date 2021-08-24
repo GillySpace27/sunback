@@ -1,4 +1,6 @@
 # from utils.file_util import load_path_set
+import sys
+
 from utils.file_util import load_img_paths, load_fits_paths #, load_all_paths
 
 
@@ -32,27 +34,46 @@ class Fetcher:
     def load_fits(self, fits_directory=None, absolute=True):
         load_fits_paths(self.params, fits_directory, absolute=absolute)
         self.params.n_fits = len(self.params.local_fits_paths())
-        print("   Loaded {} Fits Files From Disk".format(self.params.n_fits))
+        sys.stdout.flush()
+        # print("   Loaded {} Fits Files From Disk".format(self.params.n_fits))
     
     def load_imgs(self, img_directory=None, absolute=True):
         load_img_paths(self.params, img_directory, absolute=absolute)
         self.params.n_imgs = len(self.params.local_img_paths())
-        print("   Loaded {} Img Files From Disk".format(self.params.n_fits))
+        sys.stdout.flush()
+        # print("   Loaded {} Img Files From Disk".format(self.params.n_fits))
     
-    # def load_all(self):
-    #     load_all_paths(self.params)
+    def load(self, fits_directory=None, img_directory=None, absolute=True):
+        self.load_fits(fits_directory, absolute)
+        self.load_imgs(img_directory, absolute)
     
-    # def load_imgs(self, img_directory=None):
-    #     """Loads the img series from disk"""
-    #     ext = ".png"
-    #     fits_paths, abs_fits_paths = \
-    #         load_set(self.params.img_directory(img_directory), ext)
-    #     self.params.local_fits_paths(fits_paths)
-    #     return fits_paths, abs_fits_paths
-    #
-    # def load_fits(self, fits_directory=None):
-    #     """Loads the fits series from disk"""
-    #     ext = ".fits"
-    #     fits_paths, abs_fits_paths = \
-    #         load_set(self.params.fits_directory(fits_directory), ext)
-    #     self.params.local_fits_paths(fits_paths)
+
+
+
+
+
+
+
+
+
+
+
+
+
+# def load_all(self):
+#     load_all_paths(self.params)
+
+# def load_imgs(self, img_directory=None):
+#     """Loads the img series from disk"""
+#     ext = ".png"
+#     fits_paths, abs_fits_paths = \
+#         load_set(self.params.img_directory(img_directory), ext)
+#     self.params.local_fits_paths(fits_paths)
+#     return fits_paths, abs_fits_paths
+#
+# def load_fits(self, fits_directory=None):
+#     """Loads the fits series from disk"""
+#     ext = ".fits"
+#     fits_paths, abs_fits_paths = \
+#         load_set(self.params.fits_directory(fits_directory), ext)
+#     self.params.local_fits_paths(fits_paths)

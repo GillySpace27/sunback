@@ -143,7 +143,7 @@ class FidoFetcher(Fetcher):
                        downloader=Downloader(progress=True, file_progress=False, max_conn=20,
                                              overwrite=False))
             # sys.stderr = err
-            print("Success!")
+            print("  Success!")
         except Exception as e:
             print('1 + ', e)
     
@@ -206,7 +206,7 @@ class FidoFetcher(Fetcher):
         
         if len(self.redownload) > 0:
             print("        Deleting old files...", end='')
-            print("Success! Deleted {} old images".format(len(self.redownload)))
+            print("  Success! Deleted {} old images".format(len(self.redownload)))
     
     def parse_filename_to_time(self, local_file):
         try:
