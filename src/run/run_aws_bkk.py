@@ -1,6 +1,6 @@
 """This is the script to run on a server somewhere to process the images"""
 from processor.RadialFiltProcessor import RadialFiltProcessor
-from fetcher.LocalFetcher import LocalFetcher
+from fetcher.LocalFitsFetcher import LocalFitsFetcher
 from science.parameters import Parameters
 from putter.AwsPutter import AwsPutter
 from run import Runner
@@ -12,8 +12,8 @@ def run_aws(delay=10, debug=False, do_one=False, stop=False):
     p.stop_after_one(stop)
     p.is_debug(debug)
     
-    # p.fetcher(WebFetcher(p))      # Gets Fits from JSOC Most Recent
-    p.fetchers(LocalFetcher(p))      # Gets Fits from Disk
+    # p.fetcher(WebFitsFetcher(p))      # Gets Fits from JSOC Most Recent
+    p.fetchers(LocalFitsFetcher(p))      # Gets Fits from Disk
     
     p.executor(RadialFiltProcessor(p)) # Makes the PNGs from Fits
     # p.executor(LocalExecutor(p))    # Gets the PNGs from Disk

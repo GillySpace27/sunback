@@ -7,7 +7,8 @@ from putter.Putter import Putter
 import boto3
 
 # Select Amazon Resources
-from utils.file_util import get_thumblinks
+# from utils.file_util import get_thumblinks
+from utils.array_util import get_thumblinks
 
 S3_UPLOAD_ARGS = {'ACL': 'public-read', "ContentType": "image/png"}
 s3 = boto3.resource('s3')

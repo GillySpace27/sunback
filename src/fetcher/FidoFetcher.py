@@ -12,7 +12,7 @@ from os import stat
 
 from fetcher.Fetcher import Fetcher
 # from movie.modifyMovie import Sonifier
-from fetcher.LocalFetcher import LocalFetcher
+from fetcher.LocalFitsFetcher import LocalFitsFetcher
 from utils.file_util import discover_best_data_directory, list_files_in_directory, build_paths, set_output_paths
 from utils.time_util import parse_time_string_to_local
 import astropy.units as u
@@ -83,7 +83,7 @@ class FidoFetcher(Fetcher):
             self.download_fits_series()
             self.validate_download()
         # else:
-            # LocalFetcher(self.params, self.current_wave).fetch()
+            # LocalFitsFetcher(self.params, self.current_wave).fetch()
         set_output_paths(self)
         
 

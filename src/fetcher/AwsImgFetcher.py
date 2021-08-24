@@ -4,7 +4,7 @@ import boto3
 import os
 
 
-class AwsFetcher(Fetcher):
+class AwsImgFetcher(Fetcher):
     
     def __init__(self, params):
         self.params = params
@@ -15,10 +15,10 @@ class AwsFetcher(Fetcher):
     
     def fetch(self):
         """Get all the PNGs from the S3 Bucket"""
-        print("   Downloading PNGs from S3 to {}".format(self.params.img_directory()))
+        print("   Downloading PNGs from Amazon S3 to {}".format(self.params.img_directory()))
         for obj in self.objects:
             self.grab(obj)
-        print("   All Downloads Complete")
+        print("   All Downloads Complete\n")
         self.load_imgs()
     
     def grab(self, obj):
@@ -33,7 +33,7 @@ class AwsFetcher(Fetcher):
         # Identify File
         path, filename = os.path.split(obj.key)
         print('    ', filename)
-        loc = join(self.params.img_directory(), filename)
+        loc = join(self.params.img_directory(), "dl_"+filename)
         
         # Download File
         self.my_bucket.download_file(obj.key, loc)

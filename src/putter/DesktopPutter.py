@@ -10,7 +10,7 @@ from time import time, sleep
 last_time = time()
 start_time = last_time
 set_local_background = True
-# from utils.file_util import load_series
+from utils.file_util import load_img_paths
 
 class DesktopPutter(Putter):
     def __init__(self, params):
@@ -19,10 +19,7 @@ class DesktopPutter(Putter):
         self.params.stop_after_one(False)
 
     def load(self):
-        try:
-            self.params.local_img_paths()[0]
-        except ValueError:
-            load_series(self.params)
+        load_img_paths(self.params)
     
     def put(self):
         self.load()
@@ -37,7 +34,7 @@ class DesktopPutter(Putter):
         """ Make sure that the loop takes the right amount of time """
         delay = self.params.delay_seconds()
         for ii in tqdm((range(int(delay))),
-                       desc="{}, Waiting for {:0.0f} seconds".format(self.png_name, delay)):
+                       desc="     {}, Waiting for {:0.0f} seconds".format(self.png_name, delay)):
             sleep(1)
     
     def update_background(self, local_path):

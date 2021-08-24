@@ -35,10 +35,10 @@ def run_movie(delay=10, debug=False, do_one=False, stop=False):
     # p.do_171(True)
     # p.do_304(True)
     
-    # p.fetcher(WebFetcher(p))      # Gets Fits from JSOC Most Recent
+    # p.fetcher(WebFitsFetcher(p))      # Gets Fits from JSOC Most Recent
     p.fetchers(FidoFetcher(p))      # Gets Fits FIDO
-    # p.fetcher(AwsFetcher(p))        # Gets PNGs from S3 Daemon
-    # p.fetcher(LocalFetcher(p))      # Gets Fits from Disk
+    # p.fetcher(AwsImgFetcher(p))        # Gets PNGs from S3 Daemon
+    # p.fetcher(LocalFitsFetcher(p))      # Gets Fits from Disk
     
     p.executor(RadialFiltProcessor(p))  # Makes the PNGs from Fits
     # p.executor(LocalExecutor(p))    # Gets the PNGs from Disk

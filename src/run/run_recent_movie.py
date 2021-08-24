@@ -1,4 +1,4 @@
-from fetcher.LocalFetcher import LocalFetcher
+from fetcher.LocalFitsFetcher import LocalFitsFetcher
 from processor.RadialFiltProcessor import RadialFiltProcessor
 from fetcher.FidoFetcher import FidoFetcher
 from processor.VideoProcessor import VideoProcessor
@@ -36,10 +36,10 @@ def run_recent_movie(delay=10, debug=False, do_one=False, stop=False):
     # p.do_171(True)
     # p.do_304(True)
     
-    # p.fetcher(WebFetcher(p))      # Gets Fits from JSOC Most Recent
+    # p.fetcher(WebFitsFetcher(p))      # Gets Fits from JSOC Most Recent
     p.fetchers(FidoFetcher(p))      # Gets Fits FIDO
-    # p.fetcher(LocalFetcher(p))      # Gets Fits from Disk
-    # p.fetcher(AwsFetcher(p))        # Gets PNGs from S3 Daemon
+    # p.fetcher(LocalFitsFetcher(p))      # Gets Fits from Disk
+    # p.fetcher(AwsImgFetcher(p))        # Gets PNGs from S3 Daemon
     
     p.processors([RadialFiltProcessor(p)]) #, VideoProcessor(p)])  #
     

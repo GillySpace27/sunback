@@ -4,7 +4,8 @@ from time import time, sleep, strftime
 
 import numpy as np
 from astropy import units as u
-
+from fetcher.LocalFetcher import LocalFetcher
+from putter.NullPutter import NullPutter
 from utils.file_util import discover_best_data_directory
 
 
@@ -15,6 +16,7 @@ class Parameters:
     seconds = 1
     minutes = 60 * seconds
     hours = 60 * minutes
+    _batch_name = "data"
     
     def __init__(self):
         """Sets all the attributes to None"""
@@ -70,9 +72,9 @@ class Parameters:
         self._time_path = None
         self._local_img_paths = None
         self._local_fits_paths = []
-        self._fetchers = None
-        self._putters = None
-        self._processor = []
+        self._fetchers = [LocalFetcher(self)]
+        self._processors = []
+        self._putters = [NullPutter(self)]
         self._do_recent = True
         self._use_default_directories = True
         
@@ -91,13 +93,13 @@ class Parameters:
                 self._fetchers = _fetchers
         return self._fetchers
     
-    def processors(self, _processor=None):
-        if _processor is not None:
-            if type(_processor) not in [list]:
-                self._processor = [_processor]
+    def processors(self, _processors=None):
+        if _processors is not None:
+            if type(_processors) not in [list]:
+                self._processors = [_processors]
             else:
-                self._processor = _processor
-        return self._processor
+                self._processors = _processors
+        return self._processors
     
     def putters(self, _putters=None):
         if _putters is not None:
@@ -311,8 +313,8 @@ class Parameters:
         # Local Base Path
         if base_directory is None:
             root = discover_best_data_directory()
-            name = self.batch_name() if self.batch_name() is not None else "Default"
-            base_directory = join(root, name)
+            base_directory = join(root, self.batch_name())
+        self.base_directory(base_directory)
         
         # Time File
         self.time_path(join(base_directory, "image_times"))

@@ -4,7 +4,7 @@ import numpy as np
 import os
 import matplotlib as mpl
 
-from utils.file_util import load_file
+from utils.file_util import load_fits_field, open_fits_hdul
 
 mpl.use("qt5agg")
 import matplotlib.pyplot as plt
@@ -27,31 +27,37 @@ class Modify:
     renew_mask = True
     image_data = None
     
-    def __init__(self, image=None, image_data=None, orig=False, show=False, verb=False, center=None):
+    def __init__(self, fits_path, in_name="primary", orig=False, show=False, verb=False):
         """Initialize the main class"""
+        self.fits_path = fits_path
+        self.in_name = in_name
+    
+        frame, wave, t_rec, center = load_fits_field(fits_path, in_name)
+        self.image_data = str(wave), fits_path, t_rec, frame.shape
+        self.name = self.image_data[0]
+        self.center = center
+        
+        self.original = frame
+        self.changed = copy(self.original)
         
         # Parse Inputs
         self.show = show
-        self.image_data = image_data
         self.verb = verb
         self.do_orig = orig
-        self.center = center
-        # if image is None:
-        #     self.test()
         
-        self.parse_input_type(image)
+        self.confirm_centerpoint()
         
         # Run the Reduction Algorithm
         self.image_modify()  # Primary Algorithm
         self.plot_and_save()
-        
+    
         if self.verb: print("Done")
     
         
     def test(self):
         """Run the test case if no input is provided"""
         if self.verb: print("Running Test Case")
-        image = load_file("data/0171_MR.fits")
+        image = load_fits_field("data/0171_MR.fits")
         self.show = True
         return image
 
@@ -64,19 +70,33 @@ class Modify:
         elif type(image) in [str]:
             # Load the file at input path
             path = image
-            self.original = self.load_file(path)
+            self.original = load_fits_field(path, "primary")[0]
+            
         elif type(image) in [np.array, np.ndarray]:
             self.original = image
         else:
             raise TypeError("Invalid Input Data: {}".format(type(image)))
         
-        # Copy the input array
-        self.changed = copy(self.original)
+        self.clean_input()
         
-        if self.image_data is None:
-            # Use default Metadata
-            self.image_data = self.def_data(self.changed)
-        self.name = self.image_data[0]
+        
+    def confirm_centerpoint(self):
+        image_edge = self.original.shape
+        center_given = np.abs(self.center)
+        
+        Top_Tolerance = 0.65
+        Bottom_Tolerance = 0.35
+        count=0
+        while count < 100:
+            ratio = center_given/image_edge
+            if np.array(ratio > Top_Tolerance).any():
+                center_given *= 0.5
+            elif np.array(ratio < Bottom_Tolerance).any():
+                center_given *= 2
+            else:
+                break
+                
+        self.center = center_given
     
     def def_data(self, hdul):
         """Use Defaults Values for Data"""
@@ -123,11 +143,12 @@ class Modify:
         xx, yy = np.meshgrid(np.arange(self.rez), np.arange(self.rez))
         xc, yc = xx - self.center[0], yy - self.center[1]
         
-        self.extra_rez = 1  # An attempt to give extra resolution
-        self.sRadius = 400 * self.extra_rez
+        # self.extra_rez = 1
+        self.sRadius = 400 #* self.extra_rez
         self.tRadius = self.sRadius * 1.28
-        self.radius = np.sqrt(xc * xc + yc * yc) * self.extra_rez
-        self.rez *= self.extra_rez
+        self.radius = np.sqrt(xc * xc + yc * yc) #* self.extra_rez
+        
+        pass
     
     def remove_offset(self):
         """Set min of array to zero"""
@@ -321,7 +342,7 @@ class Modify:
         # near_noise = np.arange(noiseMin, noiseMin + 100 * self.extra_rez)
         # self.diff_max_abs = self.high_abs[near_noise]
         # self.diff_max = np.diff(high_max_filt)[near_noise]
-        # self.diff_max += np.abs(np.nanmin(self.diff_max))
+        # self.diff_max += np.absolute(np.nanmin(self.diff_max))
         # self.diff_max /= np.nanmean(self.diff_max) / 100
         # self.noise_radii = np.argmin(self.diff_max) + noiseMin + self.hCut
         # self.noise_radii = 565 * self.extra_rez
@@ -743,11 +764,11 @@ class Modify:
                 
                 name, wave = self.clean_name_string(full_name)
                 
-                save_directory = os.path.dirname(save_path)
+                save_directory = os.path.dirname(os.path.dirname(save_path))
                 if "fits" in save_directory:
                     save_directory = os.path.join(save_directory, "fits")
                 else:
-                    save_directory = os.path.join(save_directory, "renders\\")
+                    save_directory = os.path.join(save_directory, "png\\")
                 
                 new_path = os.path.join(save_directory, name + middle + ".png")
                 
@@ -880,7 +901,7 @@ def test_all(test_path="data/0171_MR.fits", show=True):
     test_mod2 = Modify(test_path, show=show)
     print("Success", flush=True)
     print("    Input Array Method...", end='')
-    image, image_data = load_file(test_path)
+    image, image_data = load_fits_field(test_path)
     test_mod3 = Modify(image, image_data, show=show)
     print("Success", flush=True)
     print("\nAll Tests Run Successfully\n")

@@ -1507,7 +1507,7 @@ class GitUtils(object):
 
   @staticmethod
   def determine_git_dir(repo_working_dir):
-    d = subproc.check_output('git rev-parse --git-dir'.split(),
+    d = subproc.check_output('git rev-parse --git-img_directory'.split(),
                              cwd=repo_working_dir).strip()
     if repo_working_dir==b'.' or d.startswith(b'/'):
       return d

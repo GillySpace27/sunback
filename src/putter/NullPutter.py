@@ -7,7 +7,7 @@ class NullPutter(Putter):
         self.params.stop_after_one(True)
     """Saves some data"""
     def put(self):
-        print("\nNot Sending any Images or Movies\n")
+        print("   No Output Selected\n")
         sleep(1)
         
         

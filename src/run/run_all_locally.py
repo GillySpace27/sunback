@@ -1,5 +1,5 @@
 from processor.RadialFiltProcessor import RadialFiltProcessor
-from fetcher.WebFetcher import WebFetcher
+from fetcher.WebFitsFetcher import WebFitsFetcher
 from putter.DesktopPutter import DesktopPutter
 from science.parameters import Parameters
 import run
@@ -12,9 +12,9 @@ def run_all_locally(delay=10, debug=False, do_one=False, stop=False):
     p.stop_after_one(stop)
     p.is_debug(debug)
     
-    p.fetchers(WebFetcher(p))      # Gets Fits from JSOC Most Recent
-    # p.fetcher(AwsFetcher(p))        # Gets PNGs from S3 Daemon
-    # p.fetcher(LocalFetcher(p))      # Gets Fits from Disk
+    p.fetchers(WebFitsFetcher(p))      # Gets Fits from JSOC Most Recent
+    # p.fetcher(AwsImgFetcher(p))        # Gets PNGs from S3 Daemon
+    # p.fetcher(LocalFitsFetcher(p))      # Gets Fits from Disk
     
     p.executor(RadialFiltProcessor(p)) # Makes the PNGs from Fits
     # p.executor(LocalExecutor(p))    # Gets the PNGs from Disk

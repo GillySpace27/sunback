@@ -5,6 +5,7 @@ from time import time, localtime, strftime
 
 from astropy.io import fits
 
+archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
 ##  PATHS
 # def build_paths(self):
@@ -16,17 +17,18 @@ from astropy.io import fits
 #   makedirs(self.wave_directory, exist_ok=True)
 #   makedirs(self.image_folder, exist_ok=True)
 #   makedirs(self.movie_folder, exist_ok=True)
-  
-  
-def set_output_paths(self):
-  # self.params.local_fits_paths(self.temp_fits_pathbox)
-  list_of_files = list_files_in_directory_absolute(self.fits_folder, 'fits')
-  self.temp_fits_pathbox.extend(list_of_files)
+
+
+# def set_output_paths(self):
+#     # self.params.local_fits_paths(self.temp_fits_pathbox)
+#     list_of_files = list_files_in_directory_absolute(self.fits_folder, 'fits')
+#     self.temp_fits_pathbox.extend(list_of_files)
+
 
 def discover_best_data_directory():
     """Determine where to store the images"""
-    # TODO find a good directory
     subdirectory_name = "sunback_images"
+    
     if __file__ in globals():
         ddd = dirname(abspath(__file__))
     else:
@@ -40,97 +42,107 @@ def discover_best_data_directory():
         makedirs(directory)
     return directory
 
+#
+# def find_done_paths(full_path):
+#     """Find pngs that have already been made"""
+#     path = dirname(full_path)
+#     save_path = path.replace("fits", "png")
+#     done_paths = [x.casefold() for x in listdir(save_path)]
+#     return done_paths
+#
+#
+# def list_files_in_directory(directory, extension="fits"):
+#     makedirs(directory, exist_ok=True)
+#     return [f.casefold() for f in listdir(directory) if f.endswith('.' + extension)]
+#
+#
+# def list_files_in_directory_absolute(directory, extension="fits"):
+#     makedirs(directory, exist_ok=True)
+#     out = [directory + f.casefold() for f in listdir(directory) if f.endswith('.' + extension)]
+#     return out
+#
+#
+# def get_paths(local_fits_paths, use_wavelengths, download_path):
+#     wave_bucket = []
+#     if len(local_fits_paths) == 0:
+#         for wave in use_wavelengths:
+#             wave_bucket.append(join(download_path, wave))
+#     return wave_bucket
 
-def find_done_paths(full_path):
-    """Find pngs that have already been made"""
-    path = dirname(full_path)
-    save_path = path.replace("fits", "png")
-    done_paths = [x.casefold() for x in listdir(save_path)]
-    return done_paths
-
-
-def list_files_in_directory(directory, extension="fits"):
-    makedirs(directory, exist_ok=True)
-    return [f.casefold() for f in listdir(directory) if f.endswith('.' + extension)]
-
-def list_files_in_directory_absolute(directory, extension="fits"):
-    makedirs(directory, exist_ok=True)
-    out = [directory + f.casefold() for f in listdir(directory) if f.endswith('.' + extension)]
-    return out
-
-def get_paths(local_fits_paths, use_wavelengths, download_path):
-    wave_bucket = []
-    if len(local_fits_paths) == 0:
-        for wave in use_wavelengths:
-            wave_bucket.append(join(download_path, wave))
-    return wave_bucket
 
 ## FILE IO
-def load_file(self, path):
+def save_frame_to_fits_file(fits_path, frame, field="filtered"):
+    """Save a fits file to disk"""
+    # print("Saving Frame to Fits File")
+    with fits.open(fits_path, cache=False, mode="update") as hdul:
+        hdul.verify('silentfix+warn')  # Then Verify
+        what = fits.ImageHDU(frame, name=field)
+        hdul.append(what)  # Write
+
+
+def load_fits_field(fits_path, field='primary'):
     """Load a fits file from disk"""
-    with fits.open(path, cache=False) as hdul:
-        hdul.verify('silentfix+warn')
-        wave, t_rec = hdul[0].header['WAVELNTH'], hdul[0].header['T_OBS']
-        image = hdul[0].data
-        self.image_data = str(wave), str(wave), t_rec, image.shape
-    return image
+    with fits.open(fits_path, cache=False) as hdul:
+        hdul.verify('silentfix+warn')  # Verify
+        return open_fits_hdul(hdul, field=field)  # Then Read
 
-def load_fits_data(hdul, field='primary'):
+
+def open_fits_hdul(hdul, field='primary'):
     """Load a fits file from disk"""
-    hdul.verify('silentfix+warn')
+    hdul.verify('silentfix+warn')  # Verify
     
-    try:
-        hh = 0
-        wave, t_rec = hdul[hh].header['WAVELNTH'], hdul[hh].header['T_OBS']
-    except:
-        hh = 1
-        wave, t_rec = hdul[hh].header['WAVELNTH'], hdul[hh].header['T_OBS']
+    field_hdul = hdul[field]
+    image = field_hdul.data
+    center = [field_hdul.header['X0_MP'], field_hdul.header['Y0_MP']]
     
-    center = [hdul[field].header['X0_MP'], hdul[field].header['Y0_MP']]
+    hInd = determine_hIndex(hdul)
+    found_hdul = hdul[hInd]
+    wave = found_hdul.header['WAVELNTH']
+    t_rec = found_hdul.header['T_OBS']
     
-    return hdul[field].data, wave, t_rec, center
-
-def save_fits_file(img_path, hdul, frame, name="gated"):
-    """Load a fits file from disk"""
-    with fits.open(img_path, cache=False, mode="update") as hdul:
-        hdul.append(fits.ImageHDU(frame, name=name))
-        hdul.verify('silentfix+warn')
-        # hdul.writeto()
+    return image, wave, t_rec, center
 
 
-archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
-
-def load_imgs(params, base_dir_path=None):
-    """Loads the img series from disk"""
-    if base_dir_path is None:
-        base_dir_path = discover_best_data_directory()
-
-    img_directory = params.img_directory(base_dir_path)
-    print("   Loading PNGs from {}...".format(img_directory), end='', flush=True)
-
-    list_files_in_directory(img_directory, 'png')
-
-    all_paths = listdir(img_directory)
-    png_paths = [join(img_directory, path)
-                  for path in all_paths if '.png' in path[-4:]]
-    print("Success! {} Found\n".format(len(png_paths)))
-    params.local_img_paths(png_paths)
-    return png_paths
-
-def load_fits(params, base_dir_path=discover_best_data_directory()):
-    """Loads the fits series from disk"""
-    download_path = params.img_directory(base_dir_path)
-    print("Loading PNGs from {}...".format(download_path), end='', flush=True)
-
-    all_paths = listdir(download_path)
-    png_paths = [join(download_path, path)
-                  for path in all_paths if '.fits' in path[-4:]]
-    print("Success! {} Found\n".format(len(png_paths)))
-    params.local_fits_paths(png_paths)
-    return png_paths
+def determine_hIndex(hdul):
+    """Find out which hInd has the data"""
+    for hInd in range(10):
+        try:
+            var = hdul[hInd].header['WAVELNTH']
+            break
+        except Exception as e:
+            print(hInd, e)
+    return hInd
+    
+    
 
 
- ## PRINTING
+## Path Loading
+# def load_all_paths(params):
+#     load_img_paths(params)
+#     load_fits_paths(params)
+
+def load_img_paths(params, img_directory=None, ext=".png", absolute=True):
+    """Finds the img series paths on disk"""
+    paths, abs_paths = load_path_set(params.img_directory(img_directory), ext)
+    return params.local_img_paths(abs_paths if absolute else paths)
+
+
+def load_fits_paths(params, fits_directory=None, ext=".fits", absolute=True):
+    """Finds the fits series paths on disk"""
+    paths, abs_paths = load_path_set(params.fits_directory(fits_directory), ext)
+    return params.local_fits_paths(abs_paths if absolute else paths)
+
+
+def load_path_set(directory, ext='.fits'):
+    """Gets the paths to matching ext files in given directory"""
+    # print("Loading {} from {}...".format(ext, directory), end='', flush=True)
+    all_paths = listdir(directory)
+    ext_paths = [path for path in all_paths if ext in path]
+    abs_ext_paths = [join(directory, path) for path in ext_paths]
+    return ext_paths, abs_ext_paths
+
+
+## PRINTING
 def print_header(seconds, base_path, debug):
     print("\nSunback SDO Image Manipulator \nWritten by Chris R. Gilly")
     print("Check out my website: http://gilly.space\n")
@@ -148,6 +160,26 @@ def print_end_banner(stop):
     print("Program Complete{}".format(mode_string))
     print("_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_\n\n")
 
-
-
-
+    
+    
+    
+    # hdul.writeto()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    # Then Read
+    # wave, t_rec = hdul[0].header['WAVELNTH'], hdul[0].header['T_OBS']
+    # image = hdul[0].data
+    # image_data = str(wave), str(wave), t_rec, image.shape
+    
+# return image, image_data
