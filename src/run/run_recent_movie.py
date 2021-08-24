@@ -36,18 +36,18 @@ def run_recent_movie(delay=10, debug=False, do_one=False, stop=False):
     # p.do_171(True)
     # p.do_304(True)
     
-    # p.fetcher(WebFitsFetcher(p))      # Gets Fits from JSOC Most Recent
     p.fetchers(FidoFetcher(p))      # Gets Fits FIDO
-    # p.fetcher(LocalFitsFetcher(p))      # Gets Fits from Disk
-    # p.fetcher(AwsImgFetcher(p))        # Gets PNGs from S3 Daemon
     
-    p.processors([RadialFiltProcessor(p)]) #, VideoProcessor(p)])  #
+    p.processors([RadialFiltProcessor(p)])
+    
+    
+    #, VideoProcessor(p)])  #
     
     # p.processors([RadialFiltProcessor(p), NoiseGateProcessor(p), VideoProcessor(p)])  #
 
     # p.putter(AwsPutter(p))        # Uploads the PNGs to AWS
     # p.putter(DesktopPutter(p))        # Runs the Desktop Background Sequence on PNGs
-    p.putters(NullPutter(p))       # Does Nothing with the PNGS
+    # p.putters(NullPutter(p))       # Does Nothing with the PNGS
     
     run.Runner(p).start()
 

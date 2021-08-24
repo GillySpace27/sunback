@@ -44,7 +44,7 @@ class Runner:
                 fail_count += 1
                 if fail_count < fail_max:
                     print("I failed, but I'm ignoring it. Count: {}/{}\n\n".format(fail_count, fail_max))
-                    # print_tb(error)
+                    print(error)
                     continue
                 else:
                     print("Too Many Failures, I Quit!")

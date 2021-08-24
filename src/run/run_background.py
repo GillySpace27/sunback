@@ -6,14 +6,11 @@ from science.parameters import Parameters
 from run import Runner
 
 
-def run_background(delay=30, debug=True, do_one=False, stop=True):
+def run_background(delay=30, debug=False, do_one=False):
     p = Parameters()
     p.is_debug(debug)
     p.delay_seconds(5 if debug else delay)
-    p.do_one(do_one, stop)
-    
-    p.use_default_directories(True)
-    # p.batch_name('Background')
+    # p.do_one(do_one, stop)
     
     p.fetchers(AwsImgFetcher(p))        # Gets PNGs from S3 Daemon
     p.putters(DesktopPutter(p))        # Runs the Desktop Background Sequence on PNGs
