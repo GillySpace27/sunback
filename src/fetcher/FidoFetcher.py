@@ -12,8 +12,8 @@ from os import stat
 
 from fetcher.Fetcher import Fetcher
 # from movie.modifyMovie import Sonifier
-from fetcher.LocalFitsFetcher import LocalFitsFetcher
-from utils.file_util import discover_best_data_directory, list_files_in_directory, build_paths, set_output_paths
+# from fetcher.LocalFitsFetcher import LocalFitsFetcher
+from utils.file_util import discover_best_data_directory  # , list_files_in_directory, build_paths, set_output_paths
 from utils.time_util import parse_time_string_to_local
 import astropy.units as u
 
@@ -25,29 +25,40 @@ import datetime
 # aia = aiaprep(aia1)
 from utils.time_util import define_time_range, define_recent_range
 
+default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
 class FidoFetcher(Fetcher):
     """Gets some data"""
     wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
+    description = "Get Fits Files from the Internet using Fido"
     
-    def __init__(self, params, base_url=None, base_dir_path=discover_best_data_directory()):
-        super().__init__()  # Initializes class variables
-        
-        # Timer
-        self.beginTime = time()
-        
-        # Parse Inputs
-        self.load_params(params, base_url, base_dir_path)
-    
-    def load_params(self, params, base_url, base_dir_path):
-        """Sets the parameter object and initializes other inputs"""
-        self.params = params
-        self.params.archive_url(base_url)
-        self.params.img_directory(base_dir_path)
-        
+    ## Main Runner
+    def fetch(self, params=None):
+        self.__init__(params)
         self.set_wavelengths()
         self.define_range()
+        """ Find the Most Recent Images """
+        for current_wave in self.waves_to_do:
+            self.fido_get_fits(current_wave)
+        # self.params.local_fits_paths(self.temp_fits_pathbox)
     
+    
+    ### Utils
+    
+    def fido_get_fits(self, current_wave):
+        self.current_wave = current_wave
+        self.params.build_paths(self.current_wave)
+        if self.params.download_images():
+            self.download_fits_series()
+            self.validate_download()
+        else:
+            print("Using Cached Fits Files")
+        # else:
+        # LocalFitsFetcher(self.params, self.current_wave).fetch()
+        # set_output_paths(self)
+        # print(self.fits_folder)
+        # print(join(self.params.base_directory(), self.current_wave))
+
     def set_wavelengths(self):
         """Selects which wavelengths to use"""
         if self.params.do_one():
@@ -67,29 +78,6 @@ class FidoFetcher(Fetcher):
         self.start_time, self.start_time_long, self.start_string = start
         self.end_time, self.end_time_long, self.end_time_string = end
     
-    ## Main Runner
-    def fetch(self):
-        """ Find the Most Recent Images """
-        for self.current_wave in self.waves_to_do:
-            self.fido_get_fits()
-        self.params.local_fits_paths(self.temp_fits_pathbox)
-
-
-    ### Utils
-    
-    def fido_get_fits(self):
-        build_paths(self)
-        if self.params.download_images():
-            self.download_fits_series()
-            self.validate_download()
-        # else:
-            # LocalFitsFetcher(self.params, self.current_wave).fetch()
-        set_output_paths(self)
-        
-
-    
-    
-    
     ## Work
     def download_fits_series(self):
         self.fido_check_for_fits()
@@ -99,7 +87,7 @@ class FidoFetcher(Fetcher):
     
     def fido_check_for_fits(self):
         """Find the science images"""
-        print("\n>Looking for Science Images of {} from {} to {}...".format(
+        print("  Looking for Images of {} from {} to {}...".format(
                 self.current_wave, self.start_string, self.end_time_string), flush=True, end='')
         
         # Search for records from the internet
@@ -108,7 +96,7 @@ class FidoFetcher(Fetcher):
                                        attrs.Sample(
                                                self.params.cadence_minutes()))  # , attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
         self.fido_num = self.fido_result.file_num
-        print("Found {}".format(self.fido_num))
+        # print("Found {}".format(self.fido_num))
     
     def fido_parse_result(self):
         """Examine the search results"""
@@ -129,40 +117,39 @@ class FidoFetcher(Fetcher):
         self.startTime = time_start  # #self.parse_time_string_to_local(str(time_start.fits), 2)[0]
         self.endTime = time_end  # ''.join(i for i in time_end.iso if i.isdigit())   #self.parse_time_string_to_local(str(time_end.fits), 2)[0]
         
-        print("           Search Found {} Images {}...".format(self.fido_num, self.extra_string), flush=True)
+        print("\n     Search Found {} Images {}...".format(self.fido_num, self.extra_string), flush=True)
         
         while len(self.name) < 4:
             self.name = '0' + self.name
     
     def fido_download_fits(self):
-        try:
-            print("        Downloading {}...".format(self.fido_num), end='', flush=True)
-            # err = sys.stderr
-            # sys.stderr = open(join(self.params.download_path(), 'log.txt'), 'w+')
-            Fido.fetch(self.fido_result, path=self.fits_folder,
-                       downloader=Downloader(progress=True, file_progress=False, max_conn=20,
-                                             overwrite=False))
-            # sys.stderr = err
-            print("  Success!")
-        except Exception as e:
-            print('1 + ', e)
+        overwrite = True
+        results = Fido.fetch(self.fido_result, path=self.params.fits_directory(), downloader=Downloader(progress=True, file_progress=False, max_conn=100),
+                                   overwrite=overwrite)
+        print("     Successfully Downloaded {} Files\n".format(len(results)), flush=True)
+        sys.stdout.flush()
+        return results
+
     
     def validate_download(self):
-        try:
-            self.set_output_paths()
-        except:
-            set_output_paths(self)
-        self.list_requested_files()
-        self.local_fits_paths = list_files_in_directory(self.fits_folder)
-        if self.params.delete_old():
-            self.remove_all_old_fits_pngs()
-            self.remove_all_old_pngs()
+        # try:
+        #     self.set_output_paths()
+        # except:
+        #     set_output_paths(self)
+        # self.list_requested_files()
+        # self.local_fits_paths = list_files_in_directory(self.fits_folder)
         
-        working = False
-        if working:
-            self.validate_fits()
-            self.redownload_bad_fits()
+        pass
         
+        # if self.params.delete_old():
+        #     self.remove_all_old_fits_pngs()
+        #     self.remove_all_old_pngs()
+        #
+        # working = False
+        # if working:
+        #     self.validate_fits()
+        #     self.redownload_bad_fits()
+        #
         # self.fido_download_fits()
         
         # self.find_missing_images()
@@ -177,7 +164,7 @@ class FidoFetcher(Fetcher):
     
     def remove_all_old_pngs(self):
         requested_pngs = [x.replace('fits', 'png') for x in self.local_fits_paths]
-        png_directory = join(self.params.img_directory(), self.current_wave, 'png')
+        png_directory = join(self.params.imgs_directory(), self.current_wave, 'png')
         got_png = list_files_in_directory(png_directory, 'png')
         remove_count = 0
         for png_path in got_png:

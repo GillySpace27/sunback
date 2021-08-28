@@ -26,7 +26,7 @@ plt.ioff()
 class Modify:
     renew_mask = True
     image_data = None
-    
+    name = "Default"
     def __init__(self, fits_path, in_name="primary", orig=False, show=False, verb=False):
         """Initialize the main class"""
         self.fits_path = fits_path
@@ -34,7 +34,7 @@ class Modify:
     
         frame, wave, t_rec, center = load_fits_field(fits_path, in_name)
         self.image_data = str(wave), fits_path, t_rec, frame.shape
-        self.name = self.image_data[0]
+        # self.name = self.image_data[0]
         self.center = center
         
         self.original = frame
@@ -677,7 +677,7 @@ class Modify:
             else:
                 
                 # from .color_tables import aia_wave_dict
-                # aia_wave_dict(wave)
+                # aia_wave_dict(wavelength)
                 
                 inst = '  AIA'
                 cmap = 'sdoaia{}'.format(wave)
@@ -686,7 +686,7 @@ class Modify:
                     plt.imshow(image, cmap=cmap, origin='lower', interpolation=None, vmin=self.vmin_plot, vmax=self.vmax_plot)
                 else:
                     toprint = self.normalize(self.absqrt(original_image))
-                    # plt.imshow(toprint, cmap='sdoaia{}'.format(wave), origin='lower', interpolation=None) #,  vmin=self.vmin_plot, vmax=self.vmax_plot)
+                    # plt.imshow(toprint, cmap='sdoaia{}'.format(wavelength), origin='lower', interpolation=None) #,  vmin=self.vmin_plot, vmax=self.vmax_plot)
                     
                     plt.imshow(self.absqrt(original_image), cmap=cmap, origin='lower', interpolation=None)  # ,  vmin=self.vmin_plot, vmax=self.vmax_plot)
                 
@@ -760,23 +760,23 @@ class Modify:
         try:
             for fig, ax, processed in self.figbox:
                 middle = '' if processed else "_orig"
-                
-                
+
                 name, wave = self.clean_name_string(full_name)
                 
                 save_directory = os.path.dirname(os.path.dirname(save_path))
-                if "fits" in save_directory:
-                    save_directory = os.path.join(save_directory, "fits")
-                else:
-                    save_directory = os.path.join(save_directory, "png\\")
+                # if "fits" in save_directory:
+                #     save_directory = os.path.join(save_directory, "fits")
+                # else:
+                save_directory = os.path.join(save_directory, "png\\")
                 
                 new_path = os.path.join(save_directory, name + middle + ".png")
                 
                 if 'aia' in save_path:
                     os.makedirs(dirname(save_path), exist_ok=True)
-                    new_path = save_path
+                    new_path = save_path.replace("fits", "png")
                 else:
                     os.makedirs(save_directory, exist_ok=True)
+                plt.ioff()
                 fig.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
                 # print("\tSaved {} Image:{}".format('Processed' if processed else "Unprocessed", name))
                 self.pathBox.append(new_path)

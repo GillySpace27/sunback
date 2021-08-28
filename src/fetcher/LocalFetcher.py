@@ -1,3 +1,4 @@
+import sys
 import urllib
 from datetime import datetime
 from urllib.request import urlretrieve
@@ -11,25 +12,17 @@ from os import listdir
 from time import sleep
 from os.path import join
 
-base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
+default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
 
 class LocalFetcher(Fetcher):
+    description = "Load the images from Disk"
     
-    def __init__(self, params, base_url=base_url, base_directory=None):
-        self.params = params
-        self.params.build_paths_single(base_url, base_directory)
-    
-    def fetch(self):
-        self.load_fits()
-        self.load_imgs()
-
-
-class LocalFitsFetcher(LocalFetcher):
-    def fetch(self):
-        self.load_fits()
-
-
-class LocalImgFetcher(LocalFetcher):
-    def fetch(self):
-        self.load_imgs()
+    def fetch(self, params=None):
+        print("  Loading Local Files...", end='')
+        self.load(params)
+        num = self.params.n_fits
+        print("     Successfully Loaded {}".format(num) if num>0 else "No Files to Load!")
+        if num == 0:
+            print("\n    !!Quitting Program!!")
+            sys.exit(1)

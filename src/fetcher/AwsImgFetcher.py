@@ -1,25 +1,44 @@
+import sys
 from os.path import join
+
+from tqdm import tqdm
+
 from fetcher.Fetcher import Fetcher
 import boto3
 import os
 
 
 class AwsImgFetcher(Fetcher):
+    description = "Get imgs from the Amazon S3 Bucket"
     
-    def __init__(self, params):
-        self.params = params
-        self.params.build_paths_single()
-        s3_resource = boto3.resource('s3')
-        self.my_bucket = s3_resource.Bucket('gillyspace27-test-billboard')
-        self.objects = self.my_bucket.objects.filter(Prefix='renders/')
+    def __init__(self, params=None):
+        # super().__init__(params)
+        if params:
+            self.load(params)
+            s3_resource = boto3.resource('s3')
+            self.my_bucket = s3_resource.Bucket('gillyspace27-test-billboard')
+            self.objects = self.my_bucket.objects.filter(Prefix='renders/')
+            self.n_obj = 0
     
-    def fetch(self):
-        """Get all the PNGs from the S3 Bucket"""
-        print("   Downloading PNGs from Amazon S3 to {}".format(self.params.img_directory()))
-        for obj in self.objects:
+    def fetch(self, params=None):
+        """Get all the PNGs from the S3 Bucket
+        :param params:
+        """
+        self.__init__(params)
+        sys.stdout.flush()
+        print("   Downloading PNGs from Amazon S3 to {}".format(self.params.imgs_directory()), flush=True)
+        for ii, obj in enumerate(self.objects):
             self.grab(obj)
-        print("   All Downloads Complete\n")
-        self.load_imgs()
+        
+        self.load()
+        
+        if self.n_imgs >= ii:
+            print("\r   All Downloads Complete\n", flush=True)
+        elif len(self.params.imgs_directory()) == 0:
+            print("\r   No Files Loaded\n", flush=True)
+        else:print("\r   {} Files Loaded\n".format(self.n_imgs), flush=True)
+        
+        sys.stdout.flush()
     
     def grab(self, obj):
         """Get a specific object from the S3 Bucket"""
@@ -32,13 +51,17 @@ class AwsImgFetcher(Fetcher):
         
         # Identify File
         path, filename = os.path.split(obj.key)
-        print('    ', filename)
-        loc = join(self.params.img_directory(), "dl_"+filename)
+        # print(filename, end=', ')
+        loc = join(self.params.imgs_directory(), "dl_" + filename)
         
         # Download File
         self.my_bucket.download_file(obj.key, loc)
-        
+        print('\r     ', end='')
+        print(obj.key, end='', flush=True)
+        sys.stdout.flush()
         return
+    
+
     
     # @staticmethod
     # def __get_fits_links(url):

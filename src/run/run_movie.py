@@ -2,9 +2,9 @@ import time
 
 from processor.RadialFiltProcessor import RadialFiltProcessor
 from fetcher.FidoFetcher import FidoFetcher
-from processor.VideoProcessor import VideoPostProcessor
+# from processor.VideoProcessor import VideoPostProcessor
 from science.parameters import Parameters
-from putter.NullPutter import NullPutter
+# from putter.NullPutter import NullPutter
 import run
 
 
@@ -40,14 +40,14 @@ def run_movie(delay=10, debug=False, do_one=False, stop=False):
     # p.fetcher(AwsImgFetcher(p))        # Gets PNGs from S3 Daemon
     # p.fetcher(LocalFitsFetcher(p))      # Gets Fits from Disk
     
-    p.executor(RadialFiltProcessor(p))  # Makes the PNGs from Fits
+    p.processors(RadialFiltProcessor(p))  # Makes the PNGs from Fits
     # p.executor(LocalExecutor(p))    # Gets the PNGs from Disk
     
-    p.post_processor([VideoPostProcessor(p),])  # Makes the PNGs into a Movie
+    # p.post_processor([VideoPostProcessor(p),])  # Makes the PNGs into a Movie
     
     # p.putter(AwsPutter(p))        # Uploads the PNGs to AWS
     # p.putter(DesktopPutter(p))        # Runs the Desktop Background Sequence on PNGs
-    p.putters(NullPutter(p))       # Does Nothing with the PNGS
+    # p.putters(NullPutter(p))       # Does Nothing with the PNGS
     
     tt = time.time()
     run.Runner(p).start()

@@ -1,70 +1,52 @@
-from os import listdir, makedirs
-from os.path import join, abspath
-from time import time, strftime
-
+from os import makedirs
+from os.path import join, dirname
+from time import strftime
 import cv2
-from moviepy.video.io.VideoFileClip import VideoFileClip
 from tqdm import tqdm
-
 from processor.Processor import Processor
+"""This Processor is used to turn a set of images into a video"""
 
 
 class VideoProcessor(Processor):
-    def __init__(self, p):
-        self.params = p
-        
-        self.local_wave_directory = None
-        self.image_folder = None
-        self.movie_folder = None
-        self.video_name_stem = None
-        
-        # name = "{}_{}".format(self.this_name, "max")
-        # self.soni = Sonifier(self.params, self.save_path, name, self.video_name_stem, frames_per_second=self.params.frames_per_second())
-        
-        # print("\nMovie: {}".format(self.this_name))
-        
-    def process(self):
-        """Combines all png files into an avi movie"""
-        
-        for wave in self.params.use_wavelengths:
-            if not wave in self.params.do_one():
-                continue
-            self.build_paths(wave)
-            try:
-                images = [img for img in listdir(self.image_folder) if img.endswith(".png")] # and self.check_valid_png(img)]
-                if len(images) > 0:
-                    frame = cv2.imread(join(self.image_folder, images[0]))
-                    height, width, layers = frame.shape
-                    final_name = self.video_name_stem.format("_raw.avi")
-                    print(final_name)
-                    video_avi = cv2.VideoWriter(final_name, 0, self.params.frames_per_second(), (width, height))
-                    
-                    for image in tqdm(images, desc=">Writing Movie {}".format(wave), unit="frame"):
-                        # print(join(self.image_folder, image))
-                        im = cv2.imread(join(self.image_folder, image))
-                        video_avi.write(im)
-                    
-                    cv2.destroyAllWindows()
-                    video_avi.release()
-                
-                else:
-                    print("No png Images Found")
-            except FileNotFoundError:
-                print("Images Not Found")
     
-    def build_paths(self, wave):
-        self.local_wave_directory = join(self.params.img_directory(), wave)
-        self.image_folder = join(self.local_wave_directory, 'png')
-        self.movie_folder = abspath(join(self.params.img_directory(), "movies\\"))
-        self.video_name_stem = join(self.movie_folder, '{}_{}_movie{}'.format(wave, strftime('%m%d_%H%M'), '{}'))
-        # print(self.video_name_stem)
-        makedirs(self.movie_folder, exist_ok=True)
-        
-        # try:
-        #     videoclip_full = VideoFileClip(self.video_name_stem.format("_raw.avi"))
-        #     invalid_movie=False
-        # except:
-        #     invalid_movie=True
-        #
-        # if True: #  self.new_images or invalid_movie:
-        #     # logger = open(join(self.params.local_directory, 'log.txt'), 'w+')
+    filt_name = '  Video Writer'
+    out_name = "_raw.avi"
+    do_png = True
+    wave = None
+    progress_stem = "    Writing Movie {}"
+    progress_text = ""
+    video_name_stem = ""
+    description = "Turn all the imgs into an AVI video"
+    
+    def process_one_wavelength(self, wave):
+        """Prepare and execute the video writer"""
+        video_avi = self.prep_video_writer(wave)
+        if video_avi:
+            self.run_video_writer(video_avi)
+            print("   Done\n")
+
+    def prep_video_writer(self, wave):
+        """Build all the paths and initialize everything"""
+        self.load(self.params)
+        self.wave = wave
+        if len(self.params.local_imgs_paths()) > 0:
+            frame = cv2.imread(self.params.local_imgs_paths()[0])
+            height, width, layers = frame.shape
+            video_name_stem = join((self.params.movs_directory()), '{}_{}_movie{}'.format(wave, strftime('%m%d_%H%M'), '{}'))
+            final_name = video_name_stem.format(self.out_name)
+            makedirs(dirname(final_name), exist_ok=True)
+            video_avi = cv2.VideoWriter(final_name, 0, self.params.frames_per_second(), (width, height))
+            self.progress_text = self.progress_stem.format(self.wave)
+            return video_avi
+        else:
+            print("    No Files Found for {}\n".format(wave))
+            return False
+    
+    def run_video_writer(self, video_avi):
+        """Generate the video file"""
+        for image in tqdm(self.params.local_imgs_paths(), desc=self.progress_text, unit="frame"):
+            im = cv2.imread(image)
+            video_avi.write(im)
+        cv2.destroyAllWindows()
+        video_avi.release()
+        print("      Complete!")

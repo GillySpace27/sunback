@@ -1,3 +1,4 @@
+import sys
 import urllib
 from datetime import datetime
 from os import rename, remove
@@ -10,26 +11,27 @@ from utils.file_util import discover_best_data_directory
 from fetcher.Fetcher import Fetcher
 from tqdm import tqdm
 
-base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
 
 class WebFitsFetcher(Fetcher):
-    
-    def __init__(self, params, base_url=base_url, base_directory=None):
-        self.params = params
-        self.params.build_paths_single(base_url, base_directory)
-    
-    def fetch(self):
-        """Gets the Fits Files from the Archive URL"""
-        print("  Downloading Fits Files from {}...".format(self.params.archive_url()), flush=True)
-        img_links = self.__get_fits_links(self.params.archive_url())
+    base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
+    description = "Get Fits Files from {}".format(base_url)
+    def fetch(self, params=None):
+        """Gets the Fits Files from the Archive URL
+        :param params:
+        """
+        self.current_wave = 'rainbow'
+        self.load(params, quietly=True)
+        print("  Downloading Fits Files from {}...".format(self.base_url), flush=True)
+        # super.super.__init__(params)
+        img_links = self.__get_fits_links(self.base_url)
         paths = []
         for link in tqdm(img_links, desc="  "):
             paths.append(self.grab(link))
-            
+        
         self.__get_img_time()
-        self.load()
-        print("  Success!\n", flush=True)
+        sys.stdout.flush()
+        print("  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
         return paths
     
     def grab(self, link):
@@ -70,6 +72,6 @@ class WebFitsFetcher(Fetcher):
     
     def __get_img_time(self):
         """Gets the time file"""
-        image_time = requests.get(base_url + "image_times").text[9:25]
+        image_time = requests.get(self.base_url + "image_times").text[9:25]
         with open(self.params.time_path(), 'w') as fp:
             fp.write(image_time)

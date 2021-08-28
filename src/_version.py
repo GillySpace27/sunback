@@ -225,12 +225,12 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
     if sys.platform == "win32":
         GITS = ["git.cmd", "git.exe"]
 
-    out, rc = run_command(GITS, ["rev-parse", "--git-img_directory"], cwd=root,
+    out, rc = run_command(GITS, ["rev-parse", "--git-imgs_directory"], cwd=root,
                           hide_stderr=True)
     if rc != 0:
         if verbose:
             print("Directory %s not under git control" % root)
-        raise NotThisMethod("'git rev-parse --git-img_directory' returned error")
+        raise NotThisMethod("'git rev-parse --git-imgs_directory' returned error")
 
     # if there is a tag matching tag_prefix, this yields TAG-NUM-gHEX[-dirty]
     # if there isn't one, this yields HEX[-dirty] (no NUM)

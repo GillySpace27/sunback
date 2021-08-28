@@ -1,3 +1,4 @@
+import sys
 from os.path import abspath, split
 from platform import system
 
@@ -10,22 +11,16 @@ from time import time, sleep
 last_time = time()
 start_time = last_time
 set_local_background = True
-from utils.file_util import load_img_paths
+# from utils.file_util import load_imgs_paths
 
 class DesktopPutter(Putter):
-    def __init__(self, params):
-        self.params = params
-        self.delay = self.params.delay_seconds()
-        self.params.stop_after_one(False)
-
-    def load(self):
-        load_img_paths(self.params)
-    
-    def put(self):
-        self.load()
+    description = "Use the local images to set the desktop background"
+    def put(self, params=None):
+        self.load(params)
+        sys.stdout.flush()
         print("  *Setting Desktop Background to...", flush=True)
-        sleep(0.1)
-        for png_path in self.params.local_img_paths():
+        sys.stdout.flush()
+        for png_path in self.params.local_imgs_paths():
             self.update_background(png_path)
             self.sleep_until_delay_elapsed()
         # print("Loop Complete", flush=True)

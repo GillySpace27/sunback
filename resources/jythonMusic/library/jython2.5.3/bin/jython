@@ -52,10 +52,10 @@ fi
 # (this script typically resides in jython home, or in the /bin subdirectory)
 if [ -z "$JYTHON_HOME" ] ; then
   if [ "$PRG" = "./jython" ] ; then
-    # current img_directory is the script img_directory
+    # current imgs_directory is the script imgs_directory
     JYTHON_HOME_1=`pwd`
   else
-    # current img_directory is not the script img_directory
+    # current imgs_directory is not the script imgs_directory
     JYTHON_HOME_1=`dirname "$PRG"`
   fi
   if [ -f "$JYTHON_HOME_1"/jython.jar -o -f "$JYTHON_HOME_1"/jython-dev.jar ] ; then

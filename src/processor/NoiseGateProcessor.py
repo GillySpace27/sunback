@@ -53,16 +53,16 @@ class NoiseGateProcessor(Processor):
         self.sample_frame = self.load_file(self.im_paths[0])
         self.height, self.width = self.sample_frame.shape
         self.number = len(self.im_paths)
-    
-    def build_paths(self):
-        self.local_wave_directory = join(self.params.img_directory(), self.wave)
-        self.image_folder = join(self.local_wave_directory, 'png')
-        self.fits_folder = join(self.local_wave_directory, 'fits')
-        self.movie_folder = abspath(join(self.params.img_directory(), "movies\\"))
-        self.video_name_stem = join(self.movie_folder, '{}_{}_movie{}'.format(self.wave, strftime('%m%d_%H%M'), '{}'))
-        self.im_paths = [join(self.fits_folder, img) for img in listdir(self.fits_folder) if img.endswith(".fits")]
-        makedirs(self.movie_folder, exist_ok=True)
-    
+    #
+    # def build_paths(self):
+    #     self.local_wave_directory = join(self.params.imgs_directory(), self.wave)
+    #     self.image_folder = join(self.local_wave_directory, 'png')
+    #     self.fits_folder = join(self.local_wave_directory, 'fits')
+    #     self.movie_folder = abspath(join(self.params.imgs_directory(), "movies\\"))
+    #     self.video_name_stem = join(self.movie_folder, '{}_{}_movie{}'.format(self.wave, strftime('%m%d_%H%M'), '{}'))
+    #     self.im_paths = [join(self.fits_folder, img) for img in listdir(self.fits_folder) if img.endswith(".fits")]
+    #     makedirs(self.movie_folder, exist_ok=True)
+    #
     def allocate_cubes(self):
         try:
             self.cube
@@ -126,7 +126,7 @@ class NoiseGateProcessor(Processor):
         #         print(final_name)
         #         video_avi = cv2.VideoWriter(final_name, 0, self.params.frames_per_second(), (width, height))
         #
-        #         for image in tqdm(images, desc=">Noise Gating {}".format(wave), unit="frame"):
+        #         for image in tqdm(images, desc=">Noise Gating {}".format(wavelength), unit="frame"):
         #             # print(join(self.image_folder, image))
         #             im = cv2.imread(join(self.image_folder, image))
         #             video_avi.write(im)

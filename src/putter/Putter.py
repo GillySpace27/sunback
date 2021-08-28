@@ -1,5 +1,9 @@
+from processor.Processor import Processor
 
-class Putter:
+class Putter(Processor):
     """Saves some data"""
-    def put(self):
+    description = "Use an Unnamed Putter"
+    
+    def put(self, params=None):
+        self.load(params)
         raise NotImplementedError()
