@@ -15,9 +15,9 @@ from tqdm import tqdm
 
 from processor.Processor import Processor
 
-from science.modify import Modify
+from science.SRNFilter import SRNFilter
 
-norm = Modify.normalize
+norm = SRNFilter.normalize
 
 small_fill = 100
 
@@ -120,15 +120,15 @@ class NoiseGateProcessor(Processor):
         #
         #
         #
-        #         frame = cv2.imread(join(self.image_folder, images[0]))
-        #         height, width, layers = frame.shape
+        #         in_object = cv2.imread(join(self.image_folder, images[0]))
+        #         height, width, layers = in_object.shape
         #         final_name = self.video_name_stem.format("_raw.avi")
         #         print(final_name)
         #         video_avi = cv2.VideoWriter(final_name, 0, self.params.frames_per_second(), (width, height))
         #
-        #         for image in tqdm(images, desc=">Noise Gating {}".format(wavelength), unit="frame"):
-        #             # print(join(self.image_folder, image))
-        #             im = cv2.imread(join(self.image_folder, image))
+        #         for in_object in tqdm(images, desc=">Noise Gating {}".format(wavelength), unit="in_object"):
+        #             # print(join(self.image_folder, in_object))
+        #             im = cv2.imread(join(self.image_folder, in_object))
         #             video_avi.write(im)
         #
         #         cv2.destroyAllWindows()

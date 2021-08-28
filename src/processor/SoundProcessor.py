@@ -49,7 +49,7 @@ class SoundProcessor(Processor):
 #         return int(np.round(sec*self.frames_per_second, 0))
 #
 #     def frame_time(self, frames):
-#         """returns the number of seconds corresponding to a frame"""
+#         """returns the number of seconds corresponding to a in_object"""
 #         return frames/self.frames_per_second
 #
 #     def frame_on_beat(self, ind, note=None, sec=None, skip=None):
@@ -564,16 +564,16 @@ class SoundProcessor(Processor):
 #         return sorted_notes
 #
 #
-#     def array2uint_proc(self, image):
-#         maxa = 1.9 #np.nanmax(image)
-#         mina = 0.06 #np.nanmin(image)
-#         rescaled = 255 * (image - mina) / (maxa - mina)
+#     def array2uint_proc(self, in_object):
+#         maxa = 1.9 #np.nanmax(in_object)
+#         mina = 0.06 #np.nanmin(in_object)
+#         rescaled = 255 * (in_object - mina) / (maxa - mina)
 #         return np.abs(rescaled).astype('uint8')
 #
-#     def array2uint(self, image):
-#         maxa = np.nanmax(image)
-#         mina = np.nanmin(image)
-#         rescaled = 255 * (image - mina) / (maxa - mina)
+#     def array2uint(self, in_object):
+#         maxa = np.nanmax(in_object)
+#         mina = np.nanmin(in_object)
+#         rescaled = 255 * (in_object - mina) / (maxa - mina)
 #         return np.abs(rescaled).astype('uint8')
 #
 #     def grey2clr(self, img_grey):
@@ -583,13 +583,13 @@ class SoundProcessor(Processor):
 #         img_clr = np.flip(img_clr, axis=2).astype('uint8')
 #         return img_clr
 #
-#     def get_regions(self, image, where='both'):
+#     def get_regions(self, in_object, where='both'):
 #         import imutils
 #
 #         # Get Image
-#         # img_grey=self.array2uint_proc(image)
-#         img_grey=self.array2uint(image)
-#         # cv2.cvtColor(image, cv2.)
+#         # img_grey=self.array2uint_proc(in_object)
+#         img_grey=self.array2uint(in_object)
+#         # cv2.cvtColor(in_object, cv2.)
 #         # Remove unimportant regions
 #         if where in "on disk":
 #             img_grey[self.off_limb] = np.mean(img_grey[self.off_limb])

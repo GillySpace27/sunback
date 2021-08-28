@@ -10,7 +10,7 @@ import boto3
 # from utils.file_util import get_thumblinks
 from utils.array_util import get_thumblinks
 
-S3_UPLOAD_ARGS = {'ACL': 'public-read', "ContentType": "image/png"}
+S3_UPLOAD_ARGS = {'ACL': 'public-read', "ContentType": "in_object/png"}
 s3 = boto3.resource('s3')
 bucket = s3.Bucket('gillyspace27-test-billboard')
 s3_client = boto3.client('s3')

@@ -44,7 +44,7 @@ class VideoProcessor(Processor):
     
     def run_video_writer(self, video_avi):
         """Generate the video file"""
-        for image in tqdm(self.params.local_imgs_paths(), desc=self.progress_text, unit="frame"):
+        for image in tqdm(self.params.local_imgs_paths(), desc=self.progress_text, unit="in_object"):
             im = cv2.imread(image)
             video_avi.write(im)
         cv2.destroyAllWindows()

@@ -144,7 +144,7 @@ def determine_hIndex(hdul):
     
     # Then Read
     # wavelength, t_rec = hdul[0].header['WAVELNTH'], hdul[0].header['T_OBS']
-    # image = hdul[0].data
-    # image_data = str(wavelength), str(wavelength), t_rec, image.shape
+    # in_object = hdul[0].data
+    # image_data = str(wavelength), str(wavelength), t_rec, in_object.shape
     
-# return image, image_data
+# return in_object, image_data

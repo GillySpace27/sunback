@@ -39,7 +39,7 @@ class DesktopPutter(Putter):
         Parameters
         ----------
         local_path : str
-         The local save location of the image
+         The local save location of the in_object
          :param local_path:
          :return:
         """

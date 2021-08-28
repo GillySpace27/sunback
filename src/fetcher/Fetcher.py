@@ -7,8 +7,8 @@ from processor.Processor import Processor
 
 class Fetcher(Processor):
     """Gets some data"""
-    description = "Use an Unnamed Fetcher"
     filt_name = "Base Fetcher Class"
+    description = "Use an Unnamed Fetcher"
     # def __init__(self, params=None):
     #     # Initialize class variables
     #     self.load(params)
@@ -75,7 +75,7 @@ class Fetcher(Processor):
         file_idx = -1
         for filename in files:
             if filename.endswith(".fits") and "norm" not in filename:
-                # Define the image
+                # Define the in_object
                 single_image_data = self.define_single_image(filename)
                 pngPath = abspath(self.save_path + "\\renders\\" + filename[:-4] + 'png')
                 # # Delete it if it is too old
@@ -103,9 +103,9 @@ class Fetcher(Processor):
             # with tqdm(total=self.nRem, desc=desc, unit=unit) as pbar:
             #     with Parallel(self.nRem) as p:
             #         for i in p.range(self.nRem):
-            #             image = work_list[i]
-            #             if image:
-            #                 func(image)
+            #             in_object = work_list[i]
+            #             if in_object:
+            #                 func(in_object)
             #             pbar.update()
             #     # pbar.close()
             # from joblib import Parallel, delayed
@@ -141,11 +141,11 @@ class Fetcher(Processor):
         #     print("Failed 2")
         #     return 1
         
-        # Modify the data
+        # SRNFilter the data
         # processed_image_stats = self.image_modify(raw_image)
         img_path = save_path[:-4]+'png'
         if not exists(img_path):
-            # Modify(raw_image, image_data)
+            # SRNFilter(raw_image, image_data)
             Modify(save_path, resolution=self.params.resolution())
         # Sonify the data
         if False: #self.params.sonify_images():

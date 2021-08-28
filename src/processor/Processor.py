@@ -126,22 +126,18 @@ class Processor:
         # self.load(params)
         print(self.filt_name + "...", flush=True)
         
-        fail_count = 0
         self.ii = 0
         fits_paths = self.params.local_fits_paths()
         if len(fits_paths) > 0:
             for ii, fits_path in enumerate(tqdm(fits_paths, desc="  ")):
                 self.modify_one_fits(fits_path, self.do_function)
-                try:
-                    pass
-                except Exception as e:
-                    print(e)
-                    fail_count += 1
+
                 self.ii = ii
         if self.ii > 0:
             print("    Successfully Processed {} Files \n".format(self.ii), flush=True)
         else:
             print("    No Files Found")
+            
     def modify_one_fits(self, fits_path, function):
         frame = function(fits_path, self.in_name).get()
         save_frame_to_fits_file(fits_path, frame, field=self.out_name)
@@ -190,9 +186,9 @@ class Processor:
         # print("    Success! {} Files Processed\n".format(self.ii+1))
     
     # def modify_one_img(self, img_path, function):
-    #     frame = function(img_path, self.in_name).get()
-    #     # save_frame_to_fits_file(img_path, frame, field=self.out_name)
-    #     return frame
+    #     in_object = function(img_path, self.in_field).get()
+    #     # save_frame_to_fits_file(img_path, in_object, get_field=self.out_name)
+    #     return in_object
     
     #
     # def process_one_wavelength(self, wave):
@@ -201,15 +197,15 @@ class Processor:
     #     img_directory = self.params.imgs_directory()
     #
     #     if len(images) > 0:
-    #         frame = cv2.imread(join(img_directory, images[0]))
-    #         height, width, layers = frame.shape
+    #         in_object = cv2.imread(join(img_directory, images[0]))
+    #         height, width, layers = in_object.shape
     #         final_name = self.video_name_stem.format("_raw.avi")
     #         print(final_name)
     #         video_avi = cv2.VideoWriter(final_name, 0, self.params.frames_per_second(), (width, height))
     #
-    #         for image in tqdm(images, desc=">Writing Movie {}".format(wave), unit="frame"):
-    #             # print(join(self.image_folder, image))
-    #             im = cv2.imread(join(self.image_folder, image))
+    #         for in_object in tqdm(images, desc=">Writing Movie {}".format(wave), unit="in_object"):
+    #             # print(join(self.image_folder, in_object))
+    #             im = cv2.imread(join(self.image_folder, in_object))
     #             video_avi.write(im)
     #
     #         cv2.destroyAllWindows()
@@ -294,7 +290,7 @@ class Processor:
 # self.done_paths = []
 # self.skipped = 0
 # self.name='data'
-# self.in_name = 'primary'
+# self.in_field = 'primary'
 # self.out_name = 'filtered'
 # self.skipped = 0
 # self.ii = 0
@@ -312,19 +308,19 @@ class Processor:
 #     """Processes the fits series"""
 #     for ii, img_path in enumerate(tqdm(self.params.local_fits_paths(), desc="  ")):
 #         try:
-#             frame = self.modify_fits(img_path, self.in_name)
+#             in_object = self.modify_fits(img_path, self.in_field)
 #         except Exception as e:
 #             print(e)
 #         self.ii = ii
 
-# def modify_fits(self, img_path, function, in_name=None, out_name=None):
-#     if in_name: self.in_name = in_name
+# def modify_fits(self, img_path, function, in_field=None, out_name=None):
+#     if in_field: self.in_field = in_field
 #     if out_name: self.out_name = out_name
-#     frame = function(img_path, self.in_name).get()
-#     save_frame_to_fits_file(img_path, frame, field=self.out_name)
-#     return frame
+#     in_object = function(img_path, self.in_field).get()
+#     save_frame_to_fits_file(img_path, in_object, get_field=self.out_name)
+#     return in_object
 
-# def modify_one_fits(self, img_path, function, in_name=None, out_name=None):
+# def modify_one_fits(self, img_path, function, in_field=None, out_name=None):
 #     raise NotImplementedError()
 
 
@@ -347,15 +343,15 @@ class Processor:
 #     img_directory = self.params.imgs_directory()
 #
 #     if len(images) > 0:
-#         frame = cv2.imread(join(img_directory, images[0]))
-#         height, width, layers = frame.shape
+#         in_object = cv2.imread(join(img_directory, images[0]))
+#         height, width, layers = in_object.shape
 #         final_name = self.video_name_stem.format("_raw.avi")
 #         print(final_name)
 #         video_avi = cv2.VideoWriter(final_name, 0, self.params.frames_per_second(), (width, height))
 #
-#         for image in tqdm(images, desc=">Writing Movie {}".format(wave), unit="frame"):
-#             # print(join(self.image_folder, image))
-#             im = cv2.imread(join(self.image_folder, image))
+#         for in_object in tqdm(images, desc=">Writing Movie {}".format(wave), unit="in_object"):
+#             # print(join(self.image_folder, in_object))
+#             im = cv2.imread(join(self.image_folder, in_object))
 #             video_avi.write(im)
 #
 #         cv2.destroyAllWindows()
