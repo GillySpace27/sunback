@@ -7,14 +7,16 @@ from putter.DesktopPutter import DesktopPutter
 from run_background import run_background
 from run_recent_movie import run_recent_movie
 from run_server import run_server
+from run_range_movie import run_range_movie
 from science.parameters import Parameters
 from run import Runner
 
 
-def run_all_test():
-    run_background(stop=True)
-    run_server(stop=True)
-    run_recent_movie(stop=True)
+def run_all_test(debug=True):
+    run_background(stop=True, debug=debug)
+    run_server(stop=True, debug=debug)
+    run_recent_movie(stop=True, debug=debug)
+    run_range_movie(stop=True, debug=debug)
 
 
 if __name__ == "__main__":

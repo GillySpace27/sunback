@@ -52,7 +52,9 @@ class FidoFetcher(Fetcher):
             self.download_fits_series()
             self.validate_download()
         else:
-            print("Using Cached Fits Files")
+            self.load_fits_paths()
+            print("   Download = {}".format(self.params.download_images()))
+            print("   Using {} Cached Fits Files\n".format(self.params.n_fits))
         # else:
         # LocalFitsFetcher(self.params, self.current_wave).fetch()
         # set_output_paths(self)
@@ -84,6 +86,8 @@ class FidoFetcher(Fetcher):
         if self.fido_num:
             self.fido_parse_result()
             self.fido_download_fits()
+        else:
+            print("\n     No Images Found\n")
     
     def fido_check_for_fits(self):
         """Find the science images"""
@@ -93,8 +97,7 @@ class FidoFetcher(Fetcher):
         # Search for records from the internet
         self.fido_result = Fido.search(attrs.Time(self.start_time, self.end_time), attrs.Instrument('aia'),
                                        attrs.Wavelength(int(self.current_wave) * u.angstrom),
-                                       attrs.Sample(
-                                               self.params.cadence_minutes()))  # , attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
+                                       attrs.Sample(self.params.cadence_minutes())) #, attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
         self.fido_num = self.fido_result.file_num
         # print("Found {}".format(self.fido_num))
     

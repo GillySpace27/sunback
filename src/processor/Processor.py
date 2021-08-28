@@ -59,7 +59,6 @@ class Processor:
             self.load_paths(fits_directory, imgs_directory, absolute)
 
             
-    
     def load_paths(self, fits_directory=None, imgs_directory=None, absolute=True):
         """ Determines and lists the files that exist in the given directories"""
         #  Determine Directory
@@ -130,15 +129,19 @@ class Processor:
         fail_count = 0
         self.ii = 0
         fits_paths = self.params.local_fits_paths()
-        for ii, fits_path in enumerate(tqdm(fits_paths, desc="  ")):
-            try:
+        if len(fits_paths) > 0:
+            for ii, fits_path in enumerate(tqdm(fits_paths, desc="  ")):
                 self.modify_one_fits(fits_path, self.do_function)
-            except Exception as e:
-                print(e)
-                fail_count += 1
-            self.ii = ii
-        print("  Successfully Processed {} Files \n".format(self.ii + 1), flush=True)
-    
+                try:
+                    pass
+                except Exception as e:
+                    print(e)
+                    fail_count += 1
+                self.ii = ii
+        if self.ii > 0:
+            print("    Successfully Processed {} Files \n".format(self.ii), flush=True)
+        else:
+            print("    No Files Found")
     def modify_one_fits(self, fits_path, function):
         frame = function(fits_path, self.in_name).get()
         save_frame_to_fits_file(fits_path, frame, field=self.out_name)

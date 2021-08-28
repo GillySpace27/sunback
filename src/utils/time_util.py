@@ -1,5 +1,5 @@
 from calendar import timegm
-from datetime import datetime
+import datetime
 from time import strftime, struct_time, localtime, time, timezone
 
 

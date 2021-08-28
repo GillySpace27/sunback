@@ -23,6 +23,8 @@ class LocalFetcher(Fetcher):
         self.load(params)
         num = self.params.n_fits
         print("     Successfully Loaded {}".format(num) if num>0 else "No Files to Load!")
+        print()
         if num == 0:
+            # self.params.fetchers([self.params.alternate])
             print("\n    !!Quitting Program!!")
             sys.exit(1)

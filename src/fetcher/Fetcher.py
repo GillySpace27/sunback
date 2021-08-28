@@ -36,7 +36,325 @@ class Fetcher(Processor):
         raise NotImplementedError()
     
     
+ # From ModifyMovie
+    def remove_all_old_files(self):
+        files = listdir(self.save_path)
+        file_idx = 0
+        for filename in files:
+            if filename.endswith(".fits") and "norm" not in filename:
+                if self.remove_old_files(self.define_single_image(filename)):
+                    file_idx += 1
+                    continue
+        if file_idx > 0:
+            if self.params.remove_old_images():
+                print("Deleted {} old images".format(file_idx))
+            # else:
+            #     print("Excluding {} old images".format(file_idx))
+
+    def remove_old_files(self, single_image_data):
+        filename = single_image_data[4]
+        thisTime = int(self.time_from_filename(filename)[1])
+        if thisTime < self.earlyLong:
+            if self.params.remove_old_images():
+                self.deleteFiles(filename)
+            return 1
+        return 0
+
+    def this_frame_is_bad(self, image_array, single_image_data):
+        filename = single_image_data[4]
+        total_counts = np.nansum(image_array)
+        if total_counts < 0:
+            # self.deleteFiles(filename)
+            return 1
+        return 0
+
+    def apply_func_to_directory(self, func, doAll=False, desc="Work Done", unit="it", limit=False):
+        work_list = []
+        files = listdir(self.save_path)
+        # print("Saveing to: " + self.save_path)
+        file_idx = -1
+        for filename in files:
+            if filename.endswith(".fits") and "norm" not in filename:
+                # Define the image
+                single_image_data = self.define_single_image(filename)
+                pngPath = abspath(self.save_path + "\\renders\\" + filename[:-4] + 'png')
+                # # Delete it if it is too old
+                if self.remove_old_files(single_image_data):
+                    # print("OLD!!!!!!!!")
+                    continue
+
+                file_idx += 1
+                if doAll or not exists(pngPath) or self.params.overwrite_pngs():
+                    if not limit or self.soni.frame_on_any_beat(file_idx):
+                        work_list.append([single_image_data, file_idx])
+                    else:
+                        work_list.append(None)
+
+        self.nRem = len(work_list)
+
+        if self.nRem > 0:
+            with tqdm(total=self.nRem, desc=desc, unit=unit) as pbar:
+                for image in work_list:
+                    if image:
+                        func(image)
+                    pbar.update()
+            # # pbar.close()
+            # from pymp import Parallel
+            # with tqdm(total=self.nRem, desc=desc, unit=unit) as pbar:
+            #     with Parallel(self.nRem) as p:
+            #         for i in p.range(self.nRem):
+            #             image = work_list[i]
+            #             if image:
+            #                 func(image)
+            #             pbar.update()
+            #     # pbar.close()
+            # from joblib import Parallel, delayed
+
+            # results = Parallel(n_jobs=-1, verbose=verbosity_level, backend="threading")(
+            #     map(delayed(myfun), arg_instances))
+
+            # import threading as mp
+            # from multiprocessing.pool import ThreadPool
+            # pool = ThreadPool()
+            # pool.map(func, work_list)
+
     
+    def do_image_work(self, single_image_data_ID):
+       
+        single_image_data, file_idx = single_image_data_ID
+        # Load the File, destroying it if it fails
+        fail, raw_image = self.load_fits_series(single_image_data)
+        
+        # raw_image = block_reduce(raw_image, 8)
+        
+        
+        #Change the inputs to work with the external package
+        full_name, save_path, time_string, time_code, filename = single_image_data
+        # image_data = full_name, save_path, time_code, np.shape(raw_image)
+        
+        # if fail:
+        #     print("Failed 1")
+        #     return 1
+
+        # # # Remove bad frames
+        # if self.this_frame_is_bad(raw_image, single_image_data):
+        #     print("Failed 2")
+        #     return 1
+        
+        # Modify the data
+        # processed_image_stats = self.image_modify(raw_image)
+        img_path = save_path[:-4]+'png'
+        if not exists(img_path):
+            # Modify(raw_image, image_data)
+            Modify(save_path, resolution=self.params.resolution())
+        # Sonify the data
+        if False: #self.params.sonify_images():
+            self.do_sonifying_work(single_image_data_ID, processed_image_stats, raw_image)
+            self.sonify_complete=True if not self.params.download_images() else False
+
+        # Plot and save the Data
+        # self.plot_and_save(processed_image_stats, single_image_data, raw_image)
+        self.new_images = True
+        return 0
+
+    def do_sonifying_work(self, single_image_data_ID, proc_image_stats=None, raw_image=None):
+        single_image_data, file_idx = single_image_data_ID
+
+        if raw_image is None:
+            # Load the File, destroying it if it fails
+
+            fail1, raw_image = self.load_fits_series(single_image_data)
+
+            # # Remove bad frames
+            if fail1 or self.this_frame_is_bad(raw_image, single_image_data):
+                return 1
+
+        if proc_image_stats is None:
+            single_image_data_proc = list(single_image_data)
+            # print(single_image_data_proc)
+            # import pdb; pdb.set_trace()
+            single_image_data_proc[1] = single_image_data_proc[1][:-5] + "_norm.fits"
+            fail2, proc_image_stats = self.load_fits_series(single_image_data_proc)
+
+        # Sonify the data
+        self.soni.sonify_frame(proc_image_stats, raw_image, file_idx)
+
+        return 0
+
+    def load_fits_series(self, image_data):
+        # Load the Fits File from disk
+        full_name, save_path, time_string, time_code, filename = image_data
+        try:
+            # Parse Inputs
+            my_map = sunpy.map.Map(save_path)
+        except (TypeError, OSError) as e:
+            remove(save_path)
+            return 1, 1
+
+        data = my_map.data
+        return 0, data
+
+    def deleteFiles(self, filename):
+        fitsPath = join(self.save_path, filename[:-5] + '.fits')
+        pngPath = join(self.save_path, filename[:-5] + '.png')
+        fitsPath2 = join(self.save_path, filename[:-5] + '_norm.fits')
+
+        try:
+            remove(fitsPath)
+        except:
+            pass
+        try:
+            remove(fitsPath2)
+        except:
+            pass
+        try:
+            remove(pngPath)
+        except:
+            pass
+
+    def time_from_filename(self, filename, local=True):
+        # import pdb; pdb.set_trace()
+        # fname = filename[3:18]
+        # time_code = fname.replace("_", "")
+        return self.parse_time_string_to_local(filename, 1, local)
+
+    def check_valid_png(self, img):
+        return True # Hack
+        image_is_new=(int(self.time_from_filename(img)[0])) < self.earlyLong
+        return not image_is_new
+
+    def image_modify(self, data):
+        data = data + 0
+        self.radial_analyze(data, False)
+        data = self.absqrt(data)
+        data = self.coronagraph(data)
+        data = self.vignette(data)
+        data = self.append_stats(data)
+        return data
+
+    def append_stats(self, data):
+        from scipy.signal import savgol_filter
+        rank = 1
+        window1 = 31
+        window2 = 41
+        mode = 'mirror'
+        btma = self.binBtm[::self.extra_rez]
+        mina = self.binMin[::self.extra_rez]
+        mida = self.binMid[::self.extra_rez]
+        maxa = self.binMax[::self.extra_rez]
+        topa = self.binTop[::self.extra_rez]
+
+        btma = savgol_filter(btma, window1, rank, mode=mode)
+        mina = savgol_filter(mina, window1, rank, mode=mode)
+        mida = savgol_filter(mida, window1, rank, mode=mode)
+        maxa = savgol_filter(maxa, window1, rank, mode=mode)
+        topa = savgol_filter(topa, window1, rank, mode=mode)
+
+        btma = savgol_filter(btma, window2, rank, mode=mode)
+        mina = savgol_filter(mina, window2, rank, mode=mode)
+        mida = savgol_filter(mida, window2, rank, mode=mode)
+        maxa = savgol_filter(maxa, window2, rank, mode=mode)
+        topa = savgol_filter(topa, window2, rank, mode=mode)
+
+        stacked = np.vstack(
+            (data, btma, mina, mida, maxa, topa))
+        return stacked
+
+    def plot_and_save(self, data, image_data, original_data=None, ii=None):
+        full_name, save_path, time_string, time_code, filename = image_data
+        name = self.clean_name_string(full_name)
+
+        for processed in [True]:
+
+            # if not self.params.is_debug():
+            #     if not processed:
+            #         continue
+            if not processed:
+                if original_data is None:
+                    continue
+
+            # Save the Fits File
+            header = read_file_header(save_path)[0]
+            if "BLANK" in header.keys():
+                del header["BLANK"]
+            path = save_path[:-5] + '_norm.fits'
+            write_file(path, np.asarray(data, dtype=np.float32), header, overwrite=True)
+
+            data, _ = self.soni.remove_stats(data)
+
+            # Create the Figure
+            fig, ax = plt.subplots()
+            self.blankAxis(ax)
+
+            # inches = 10
+            # fig.set_size_inches((inches, inches))
+            #
+            # pixels = data.shape[0]
+            # dpi = pixels / inches
+            # cocaine
+            siX = 10
+            siY = 10
+            piX = 1080
+            piY = 1080
+            dpX = piX / siX
+            dpY = piY / siY
+            dpi = np.max((dpX, dpY))
+            fig.set_size_inches((siX, siY))
+
+            if 'hmi' in name.casefold():
+                inst = ""
+                plt.imshow(data, origin='upper', interpolation=None)
+                # plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.1)
+                plt.tight_layout(pad=5.5)
+                height = 1.05
+
+            else:
+                inst = '  AIA'
+                plt.imshow(data if processed else self.normalize(original_data), cmap='sdoaia{}'.format(name),
+                           origin='lower', interpolation=None,
+                           vmin=self.vmin_plot, vmax=self.vmax_plot)
+                plt.tight_layout(pad=0)
+                height = 0.95
+
+            # Annotate with Text
+            buffer = '' if len(name) == 3 else '  '
+            buffer2 = '    ' if len(name) == 2 else ''
+
+            title = "{}    {} {}, {}{}".format(buffer2, inst, name, time_string, buffer)
+            title2 = "{} {}, {}".format(inst, name, time_string)
+            ax.annotate(title, (0.125, height + 0.02), xycoords='axes fraction', fontsize='large',
+                        color='w', horizontalalignment='center')
+            # ax.annotate(title2, (0, 0.05), xycoords='axes fraction', fontsize='large', color='w')
+            # the_time = strftime("%I:%M%p").lower()
+            # if the_time[0] == '0':
+            #     the_time = the_time[1:]
+            # ax.annotate(the_time, (0.125, height), xycoords='axes fraction', fontsize='large',
+            #             color='w', horizontalalignment='center')
+
+            # Format the Plot and Save
+            self.blankAxis(ax)
+            middle = '' if processed else "_orig"
+            new_path = save_path[:-5] + middle + ".png"
+
+            if ii is not None and self.nRem > 0:
+                remString = "{} / {} , {:0.1f}%".format(ii, self.nRem, 100 * ii / self.nRem)
+            else:
+                remString = ""
+
+            try:
+                plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi, compression=2, filter=None)
+                # print("\tSaved {} Image {}, {} of {}   ".format('Processed' if processed else "Unprocessed", time_string, remString, self.this_name), end="\r")
+            except PermissionError:
+                new_path = save_path[:-5] + "_b.png"
+                plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
+                print("Success")
+            except Exception as e:
+                print("Failed...using Cached")
+                if self.params.is_debug():
+                    raise e
+            plt.close(fig)
+
+        return new_path
     
     
     

@@ -75,36 +75,36 @@ def save_frame_to_fits_file(fits_path, frame, field="filtered"):
     """Save a fits file to disk"""
     # print("Saving Frame to Fits File")
     with fits.open(fits_path, cache=False, mode="update") as hdul:
-        hdul.verify('silentfix+warn')  # Then Verify
+        # hdul.verify('silentfix+ignore')  # Then Verify
         fit_frame = fits.ImageHDU(frame, name=field)
         if field not in hdul:
             hdul.append(fit_frame)  # Write
         else:
             hdul[field] = fit_frame  # Write
+        hdul.close(output_verify='ignore')
 
 
-def load_fits_field(fits_path, field='primary'):
+def load_fits_field(fits_path, field=-1):
     """Load a fits file from disk"""
     with fits.open(fits_path, cache=False) as hdul:
         hdul.verify('silentfix+warn')  # Verify
         return open_fits_hdul(hdul, field=field)  # Then Read
 
 
-def open_fits_hdul(hdul, field='primary'):
+def open_fits_hdul(hdul, field=-1):
     """Load a fits file from disk"""
-    hdul.verify('silentfix+warn')  # Verify
-    
-    field_hdul = hdul[field]
-    image = field_hdul.data
-    try:
-        center = [field_hdul.header['X0_MP'], field_hdul.header['Y0_MP']]
-    except Exception as e:
-        center = [0,0]
-        print(e)
+    hdul.verify('silentfix+ignore')  # Verify
     hInd = determine_hIndex(hdul)
     found_hdul = hdul[hInd]
+    field_hdul = hdul[field] if hdul[field] else found_hdul
+    
+    field_exists = hasattr(field_hdul, "data") and field_hdul.data is not None
+    image = field_hdul.data if field_exists else found_hdul.data
+    
     wave = found_hdul.header['WAVELNTH']
     t_rec = found_hdul.header['T_OBS']
+    center = [found_hdul.header['X0_MP'], found_hdul.header['Y0_MP']]
+    
     
     return image, wave, t_rec, center
 
@@ -113,10 +113,12 @@ def determine_hIndex(hdul):
     """Find out which hInd has the data"""
     for hInd in range(10):
         try:
-            var = hdul[hInd].header['WAVELNTH']
+            hdul[hInd].header['WAVELNTH']
+            hdul[hInd].data
             break
         except Exception as e:
-            print(hInd, e)
+            # print(hInd, e)
+            pass
     return hInd
     
     

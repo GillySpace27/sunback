@@ -39,7 +39,7 @@ class VideoProcessor(Processor):
             self.progress_text = self.progress_stem.format(self.wave)
             return video_avi
         else:
-            print("    No Files Found for {}\n".format(wave))
+            print("    No Files Found \n")
             return False
     
     def run_video_writer(self, video_avi):

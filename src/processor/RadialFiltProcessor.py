@@ -12,7 +12,6 @@ default_sleep = 30
 
 
 class RadialFiltProcessor(Processor):
-    in_name = 'primary'
     out_name = 'SRN'
     filt_name = '  Radial Filter'
     do_function = Modify
