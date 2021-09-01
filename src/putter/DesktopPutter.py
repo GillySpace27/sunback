@@ -19,7 +19,7 @@ class DesktopPutter(Putter):
         self.load(params)
         sys.stdout.flush()
         print("  *Setting Desktop Background to...", flush=True)
-        sys.stdout.flush()
+        self.super_flush()
         for png_path in self.params.local_imgs_paths():
             self.update_background(png_path)
             self.sleep_until_delay_elapsed()

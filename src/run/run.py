@@ -1,12 +1,15 @@
+import os
 import sys
 
 # # Main Command Structure
-from time import sleep
+from time import sleep, time
 
-
+import numpy as np
 class Runner:
     def __init__(self, params):
         self.params = params
+        self.wall_1 = "*****************************************************************"
+        self.wall_2 = "_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_"
     
     def start(self):
         """Select whether to run or to debug"""
@@ -52,18 +55,22 @@ class Runner:
     def __process(self):
         """Use the provided fetcher, executor,
         and putter to do the thing"""
-        print("Starting Batch: {}\n".format(self.params.batch_name()))
+        print(self.wall_2)
+        # print(self.params.runner_name)
+        print("Starting Batch: {}".format(self.params.batch_name()))
+        print(self.wall_2, "\n")
+
         if len(self.params.fetchers()) > 0:
             sys.stdout.flush()
-            print(" >>>>>>>>>> Fetching Images <<<<<<<<<<", flush=True)
+            print(" >>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
             for fet in self.params.fetchers():
                 sleep(0.1)
                 fet.fetch(self.params)
                 sleep(0.1)
-            
+        
         if len(self.params.processors()) > 0:
             sys.stdout.flush()
-            print(" >>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
+            print(" >>>>>>>>>> Processing Images <<<<<<<<<<\n", flush=True)
             sys.stdout.flush()
             for proc in self.params.processors():
                 sleep(0.1)
@@ -72,28 +79,29 @@ class Runner:
                 
         if len(self.params.putters()) > 0:
             sys.stdout.flush()
-            print(" >>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
+            print(" >>>>>>>>>> Outputting Images or Movies <<<<<<<<<<\n", flush=True)
             for put in self.params.putters():
                 sleep(0.1)
                 put.put(self.params)
                 sleep(0.1)
         
         self.print_end_banner()
-    
 
     ## PRINTING
     def print_header(self):
-        print("\n\n*****************************************************************")
+        print("\n\n", self.wall_1)
         print("\nSunback SDO Image Manipulator \nWritten by Chris R. Gilly")
         print("Check out my website: http://gilly.space\n")
+        self.start = time()
         if self.params.is_debug(): print("DEBUG MODE\n")
         self.print_plan()
-        print("\n*****************************************************************\n\n")
-        
+        print("\n", self.wall_1, "\n\n")
+        # print("Runner basename: ", self.file_name)
    
     def print_plan(self):
-        print("Run Type: {}".format(self.params.run_type()))
-        print("Here's the Plan:")
+        print("Run Name: {}".format(self.params.batch_name()))
+        print("Run Type: {}\n".format(self.params.run_type()))
+        print(" Here's the Plan:")
         if len(self.params.fetchers()) > 0:
             for fet in self.params.fetchers():
                 fet.plan()
@@ -109,10 +117,37 @@ class Runner:
         print("  And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
         # print("\n")
     
-    
-        
     def print_end_banner(self):
         mode_string = "" if self.params.stop_after_one() else ", Restarting Loop"
-        print("\n_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_")
-        print("Program Complete{}".format(mode_string))
-        print("_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_\n\n")
+        print("\n" + self.wall_2)
+        self.elapsed = time() - self.start
+        minutes = int(np.floor(self.elapsed/60))
+        seconds = int(self.elapsed-minutes*60)
+        print("Program Complete in {} minutes and {} seconds. {}".format(minutes, seconds, mode_string))
+        print(self.wall_2 + "\n")
+        
+        # for ii in range(4):
+        print(r"""           '
+                      .      '      .
+                .      .     :     .      .
+                 '.        ______       .'
+                   '  _.-"`      `"-._ '
+                    .'                '.
+             `'--. /                    \ .--'`
+                  /                      \
+                 ;                        ;
+            - -- |                        | -- -
+                 |     _.                 |
+                 ;    /__`A   ,_          ;
+             .-'  \   |= |;._.}{__       /  '-.
+                _.-""-|.' # '. `  `.-"{}<._
+                      / 1938  \     \  x   `"
+                 ----/         \_.-'|--X----
+                 -=_ |         |    |- X.  =_
+                - __ |_________|_.-'|_X-X##
+                jgs `'-._|_|;:;_.-'` '::.  `"-
+                 .:;.      .:.   ::.     '::.
+                 """)
+            
+        print("\n")
+        

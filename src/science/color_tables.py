@@ -57,7 +57,7 @@ def aia_color_table(wavelength: u.angstrom):
     try:
         r, g, b = aia_wave_dict[wavelength]
     except KeyError:
-        raise ValueError("Invalid AIA wavelength. Valid values are "
+        raise ValueError("Invalid AIA current_wave. Valid values are "
                          "1600,1700,4500,94,131,171,193,211,304,335.")
 
     return _cmap_from_rgb(r, g, b, 'SDO AIA {:s}'.format(str(wavelength)))
@@ -78,7 +78,7 @@ def eit_color_table(wavelength: u.angstrom):
                  284*u.angstrom: 'yellow', 304*u.angstrom: 'dark_red',
                  }[wavelength]
     except KeyError:
-        raise ValueError("Invalid EIT wavelength. Valid values are "
+        raise ValueError("Invalid EIT current_wave. Valid values are "
                          "171, 195, 284, 304.")
 
     return cmap_from_rgb_file('SOHO EIT {:s}'.format(str(wavelength)), f'eit_{color}.csv')
@@ -293,7 +293,7 @@ def suvi_color_table(wavelength: u.angstrom):
             r, g, b = aia_wave_dict[wavelength]
     except KeyError:
         raise ValueError(
-            "Invalid SUVI wavelength. Valid values are "
+            "Invalid SUVI current_wave. Valid values are "
             "94, 131, 171, 195, 284, 304."
         )
     return _cmap_from_rgb(r, g, b, 'GOES-R SUVI {:s}'.format(str(wavelength)))

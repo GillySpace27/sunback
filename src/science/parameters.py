@@ -21,6 +21,7 @@ class Parameters:
     def __init__(self):
         """Sets all the attributes to None"""
         # Initialize Variables
+        self._current_wave = None
         self._imgs_directory = ""
         self._fits_directory = ""
         self._movs_directory = ""
@@ -66,6 +67,7 @@ class Parameters:
         self._cadence = 10 * u.minute
         self._frames_per_second = 30
         self._bpm = 70
+        self._debug_delay = 2
         
         self._run_type = "web"
         
@@ -78,8 +80,11 @@ class Parameters:
         self._fetchers = [LocalFetcher()]
         self._processors = []
         self._putters = [NullPutter()]
+        self._do_multishot = True
         self._do_recent = True
         self._use_default_directories = True
+        self.do_orig = False
+        self.do_cat = False
         
         # self.set_default_values()
 
@@ -174,6 +179,7 @@ class Parameters:
             self._do_one = which
             # self.batch_name(which)
             self.stop_after_one(stop)
+
         return self._do_one
     
     def download_images(self, boolean=None):
@@ -266,13 +272,13 @@ class Parameters:
             assert type(boolean) in [bool]
             self._stop_after_one = boolean
         return self._stop_after_one
-  
-    def stop_after_one(self, boolean=None):
-        if boolean is not None:
-            assert type(boolean) in [bool]
-            self._stop_after_one = boolean
-        return self._stop_after_one
-    
+    #
+    # def stop_after_one(self, boolean=None):
+    #     if boolean is not None:
+    #         assert type(boolean) in [bool]
+    #         self._stop_after_one = boolean
+    #     return self._stop_after_one
+    #
     def range(self, days=None, hours=None):
         if days is not None or hours is not None:
             total_days = 0
@@ -288,6 +294,12 @@ class Parameters:
             assert type(_do_recent) in [bool]
             self._do_recent = _do_recent
         return self._do_recent
+ 
+    def do_multishot(self, _do_multishot=None):
+        if _do_multishot is not None:
+            assert type(_do_multishot) in [bool]
+            self._do_multishot = _do_multishot
+        return self._do_multishot
     
     def cadence_minutes(self, cad=None):
         if cad is not None:
@@ -310,45 +322,21 @@ class Parameters:
             self._bpm = bpm
         return self._bpm
     
+    def current_wave(self, current_wave=None):
+        if current_wave is not None:
+            self._current_wave = None
+        return self._current_wave
+
     def check_real_number(self, number):
         assert type(number) in [float, int]
         assert number > 0
         
-    def build_paths(self, wavelength='rainbow', base_url=None, batch_name=None):
-        if wavelength is None: return
-        # Internet URL
-        self.archive_url(base_url)
-        
-        # Local Base Path
-        root = discover_best_data_directory()
-        base_directory = join(root, self.batch_name(batch_name))
-        self.wavelength = wavelength
-        
-        if wavelength:
-            base_directory = join(base_directory, wavelength)
-        # elif subfolder not in base_directory:
-        #     base_directory = join(base_directory, subfolder)
-            
-        
-        # Time File
-        self.time_path(join(base_directory, "image_times"))
-        
-        
-        # Sub Directories
-        self.base_directory(base_directory)
-        self.imgs_directory(abspath(join(base_directory, 'png')))
-        self.fits_directory(abspath(join(base_directory, 'fits')))
-        self.movs_directory(abspath(join(base_directory, "..", 'MOVS')))
-        makedirs(self.imgs_directory(), exist_ok=True)
-        makedirs(self.fits_directory(), exist_ok=True)
-        if "background" not in self.movs_directory():
-            makedirs(self.movs_directory(), exist_ok=True)
-        
-        self.save_to_txt()
 
-    def save_to_txt(self):
+
+    def save_to_txt(self, current_wave=None):
         # Save contents of environment to text file
-        txtPath = join((self.base_directory()), self.batch_name() + '_{}_params.txt'.format(self.wavelength))
+        file_name = '{}_params.txt'.format(self.current_wave(current_wave))
+        txtPath = join(self.base_directory(), file_name)
 
         infoEnv = self
         with open(txtPath, 'w') as output:
@@ -361,16 +349,17 @@ class Parameters:
                         output.write(string)
                 output.write('\n\n')
 
-
     def delete_old(self, _delete=None):
         if _delete is not None:
             self._delete = _delete
         return self._delete
     
     def delay_seconds(self, _delay=None):
-        if _delay is not None:
+        if self.is_debug():
+            self._delay_seconds = self._debug_delay
+        elif _delay is not None:
             self.check_real_number(_delay)
-            self._delay_seconds = _delay
+            self._delay_seconds =  _delay
         return self._delay_seconds
     
     # Methods that Set Parameters (LEGACY SETTERS)
@@ -442,7 +431,7 @@ class Parameters:
         
         delay = self.delay_seconds + 0
         # import pdb; pdb.set_trace()
-        # if 'temp' in wavelength:
+        # if 'temp' in current_wave:
         #     delay *= self.time_multiplier_for_long_display
         
         self.run_time_offset = time() - self.start_time
@@ -488,7 +477,7 @@ class Parameters:
     
     
         # self.movie_folder = abspath(join(base_directory, "movies\\"))
-        # self.video_name_stem = join(self.movie_folder, '{}_{}_movie{}'.format(wavelength, strftime('%m%d_%H%M'), '{}'))
+        # self.video_name_stem = join(self.movie_folder, '{}_{}_movie{}'.format(current_wave, strftime('%m%d_%H%M'), '{}'))
         
         # makedirs(self.base_directory(), exist_ok=True)
         # # SunbackMovie Parameters

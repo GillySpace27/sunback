@@ -21,7 +21,7 @@ class LocalFetcher(Fetcher):
     def fetch(self, params=None):
         print("  Loading Local Files...", end='')
         self.load(params)
-        num = self.params.n_fits
+        num = self.n_fits + self.n_imgs
         print("     Successfully Loaded {}".format(num) if num>0 else "No Files to Load!")
         print()
         if num == 0:

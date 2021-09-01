@@ -2,7 +2,7 @@ from time import sleep
 from putter.Putter import Putter
 
 class NullPutter(Putter):
-    description = "Don't do Anything Else"
+    description = "Print the Name of the Download Folder"
     """Saves some data"""
     def put(self, params=None):
         self.load(params)

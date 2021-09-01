@@ -1,100 +1,44 @@
-from os.path import dirname, abspath
-
 import numpy as np
-import os
 import matplotlib as mpl
-
-from utils.file_util import load_fits_field, open_fits_hdul
+from scipy.signal import savgol_filter
+from copy import copy
+import warnings
+warnings.filterwarnings("ignore")
 
 mpl.use("qt5agg")
 import matplotlib.pyplot as plt
-from time import strftime
-from datetime import timedelta
-from scipy.signal import savgol_filter
-import astropy.units as u
-from astropy.io import fits
-import datetime
-from copy import copy
-
-from .color_tables import aia_color_table
-import warnings
-
-warnings.filterwarnings("ignore")
 plt.ioff()
 
+from processor.Processor import Processor
 
-class SRNFilter:
+
+class SRNFilter(Processor):
     """This is the primary code used in the RadialFiltProcessor"""
     renew_mask = True
     image_data = None
     name = "Default"
-    def __init__(self, fits_path, in_name=-1, orig=False, show=False, verb=False):
+    
+    def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False):
         """Initialize the main class"""
         
         # Parse Inputs
         self.fits_path = fits_path
-        self.in_name = in_name
+        self.in_name = -1
+        self.out_name = "SRN"
         self.show = show
         self.verb = verb
         self.do_orig = orig
         self.center = None
-        self.original = None
-        self.changed = None
-        
-        # Load Image
-        self.load_fits_image(fits_path, -1)
+        self.original = np.empty((10,10,), dtype=float)
+        self.changed = np.empty((10,10,), dtype=float)
         
         # Run the Reduction Algorithm
-        self.image_modify()  # Primary Algorithm
-
-    def load_fits_image(self, fits_path=None, in_field=None):
-        """Select how to load the image"""
-        if fits_path is None:
-            # Run the Test Case
-            self.original = self.test()
-        elif type(fits_path) in [str]:
-            # Load the file at input path
-            self.ingest_fits_file(fits_path, in_field)
-        else:
-            raise TypeError("Invalid Input Data: {}".format(type(fits_path)))
-
-    def ingest_fits_file(self, fits_path, get_field=None):
-        """open the fits file and grab the necessary data"""
-        if get_field is None:
-            get_field = self.in_name
-            
-        frame, wave, t_rec, center = load_fits_field(fits_path, field=get_field)
-        self.original = copy(frame)
-        self.changed = copy(frame)
-        self.image_data = str(wave), fits_path, t_rec, frame.shape
-        self.set_centerpoint(center)
-        
-    def set_centerpoint(self, center):
-        """Parse the centerpoint and ensure correct scaling"""
-        self.center = center
-        image_edge = self.original.shape
-        center_given = np.abs(self.center)
-        
-        Top_Tolerance = 0.65
-        Bottom_Tolerance = 0.35
-        count=0
-        while count < 10:
-            ratio = center_given/image_edge
-            if np.array(ratio > Top_Tolerance).any():
-                center_given *= 0.5
-            elif np.array(ratio < Bottom_Tolerance).any():
-                center_given *= 2
-            else:
-                break
-        self.center = center_given
+        if self.fits_path is not None:
+            self.image_modify()  # Primary Algorithm
     
-    def get(self):
-        """Returns the reduced in_object array"""
-        return self.changed
-
-    # Analysis
     def image_modify(self):
         """Perform the in_object normalization on the input array"""
+        self.load_fits_image()  # Loads the fits images from disk
         self.make_radius_array()  # Assign Each Pixel its Radius Value
         self.remove_offset()  # Additive Shift of input array
         self.sort_radially()  # Build Flattened and Sorted Intensity Arrays
@@ -106,19 +50,51 @@ class SRNFilter:
         self.vignette()  # Truncate the in_object above given radius
         self.plot_stats(False)  # Plot Extra Details
     
+    def load_fits_image(self):
+        """open the fits file and grab the necessary data"""
+        frame, wave, t_rec, center = self.load_best_fits_field(self.fits_path)
+        self.original = np.asarray(copy(frame)).astype(float)
+        self.changed = np.asarray(copy(frame)).astype(float)
+        self.image_data = str(wave), self.fits_path, t_rec, frame.shape
+        self.set_centerpoint(center)
+    
+    def set_centerpoint(self, center):
+        """Parse the centerpoint and ensure correct scaling"""
+        self.center = center
+        image_edge = self.original.shape
+        center_given = np.abs(self.center)
+        
+        Top_Tolerance = 0.65
+        Bottom_Tolerance = 0.35
+        count = 0
+        while count < 10:
+            ratio = center_given / image_edge
+            if np.array(ratio > Top_Tolerance).any():
+                center_given *= 0.5
+            elif np.array(ratio < Bottom_Tolerance).any():
+                center_given *= 2
+            else:
+                break
+        self.center = center_given
+    
+    def get(self):
+        """Returns the reduced in_object array"""
+        return self.changed
+    
+    # Analysis
     def make_radius_array(self):
         """Build an r-coordinate array of shape(in_object)"""
         self.rez = self.changed.shape[0]
         if self.center is None:
             self.center = [self.rez / 2, self.rez / 2]
-            
+        
         xx, yy = np.meshgrid(np.arange(self.rez), np.arange(self.rez))
         xc, yc = xx - self.center[0], yy - self.center[1]
         
         # self.extra_rez = 1
-        self.sRadius = 400 #* self.extra_rez
+        self.sRadius = 400  # * self.extra_rez
         self.tRadius = self.sRadius * 1.28
-        self.radius = np.sqrt(xc * xc + yc * yc) #* self.extra_rez
+        self.radius = np.sqrt(xc * xc + yc * yc)  # * self.extra_rez
         
         pass
     
@@ -136,7 +112,7 @@ class SRNFilter:
         self.radBins = [[] for x in np.arange(self.more_rez)]
         pass
     
-    def bin_radially(self): # TODO Make this much faster
+    def bin_radially(self):  # TODO Make this much faster
         """Bin the intensities by radius """
         for binI, dat in zip(self.binInds, self.dat_flat):
             try:
@@ -148,8 +124,8 @@ class SRNFilter:
         # for i in range(len(self.rad_flat)):
         #     index = np.floor(self.rad_flat[i]).astype(np.int32)
         #     self.radBins[index].append(self.dat_flat[i])
-            
-    def radial_statistics(self): # TODO Make this much faster
+    
+    def radial_statistics(self):  # TODO Make this much faster
         """ Find the statistics in each radial bin"""
         moreRez = self.radBins
         self.binMax = np.zeros(self.more_rez)
@@ -253,7 +229,6 @@ class SRNFilter:
         ind = 10
         low_max_fit[0:ind] = low_max_fit[ind]
         low_min_fit[0:ind] = low_min_fit[ind]
-
         
         # Build output curves - max and min as a function of radius
         self.fakeAbss = np.hstack((self.low_abs, self.mid_abs, self.high_abs))
@@ -275,7 +250,7 @@ class SRNFilter:
         # plt.plot(np.arange(self.rez), self.fakeMax)
         # plt.plot(np.arange(self.rez), self.fakeMin)
         # plt.show()
- 
+        
         doPlot = False
         if doPlot:
             # Plot the filtered curves
@@ -304,8 +279,6 @@ class SRNFilter:
             
             plt.legend()
             plt.show()
- 
- 
         
         # # Locate the Noise Floor
         # noiseMin = 550 * self.extra_rez - self.hCut
@@ -349,14 +322,14 @@ class SRNFilter:
         
         # Deal with too hot things
         self.vmax = 1
-        self.vmax_plot = 0.95  # np.max(dat_corona)
+        # self.vmax_plot = 0.95  # np.max(dat_corona) #this is in the header of the imageprocessor now
         hotpowr = 1 / 2
         hot = self.dat_corona > self.vmax
         # self.dat_corona[hot] = self.dat_corona[hot] ** hotpowr
         
         # Deal with too cold things
         self.vmin = 0.3
-        self.vmin_plot = -0.05  # np.min(dat_corona)# 0.3# -0.03
+        # self.vmin_plot = -0.05  # np.min(dat_corona)# 0.3# -0.03 #this is in the header of the imageprocessor now
         coldpowr = 1 / 2
         cold = self.dat_corona < self.vmin
         self.dat_corona[cold] = -((np.abs(self.dat_corona[cold] - self.vmin) + 1) ** coldpowr - 1) + self.vmin
@@ -393,6 +366,7 @@ class SRNFilter:
         """Truncate the in_object above a certain radis"""
         mask = self.radius > (int(r * self.rez // 2))  # (3.5 * self.noise_radii)
         self.changed[mask] = np.nan
+        self.original[mask] = np.nan
     
     # Helpers
     def plot_curves(self, do=True):
@@ -609,12 +583,12 @@ class SRNFilter:
             except RuntimeWarning as e:
                 out = image
         return out
- 
+    
     # def test(self):
     #     """Run the test case if no input is provided"""
     #     if self.verb: print("Running Test Case")
     #     fits_path = abspath("data/0171_MR.fits")
-    #     image, wave, t_rec, center = load_fits_field(fits_path)
+    #     image, wave, t_rec, center = load_best_fits_field(fits_path)
     #     with fits.open(fits_path, cache=False) as hdul:
     #         hdul.verify('silentfix+warn')  # Verify
     #         self.def_data(hdul)
@@ -635,7 +609,8 @@ class SRNFilter:
     #
     #     self.image_data = full_name, save_path, time_string, shape
     #     return self.image_data
-    
+
+
 #  ##  From SRNFilter Movie ##
 # class ModifyMovie():
 #     def execute(self):
@@ -1846,7 +1821,6 @@ class SRNFilter:
 # # Test Functions
 
 
-
 def print_banner():
     """Prints a message at code start"""
     print("\nSunback Web: SDO Website and Background Updater \nWritten by Chris R. Gilly")
@@ -1863,8 +1837,8 @@ def test_all(test_path="data/0171_MR.fits", show=True):
     test_mod2 = SRNFilter(test_path, show=show)
     print("Success", flush=True)
     print("    Input Array Method...", end='')
-    image, image_data = load_fits_field(test_path)
-    test_mod3 = SRNFilter(image, image_data, show=show)
+    # image, image_data = load_best_fits_field(test_path)
+    # test_mod3 = SRNFilter(image, image_data, show=show)
     print("Success", flush=True)
     print("\nAll Tests Run Successfully\n")
 

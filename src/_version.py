@@ -91,7 +91,7 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False,
             return None, None
     else:
         if verbose:
-            print("unable to find command, tried %s" % (commands,))
+            print("unable to not_wanted command, tried %s" % (commands,))
         return None, None
     stdout = p.communicate()[0].strip()
     if sys.version_info[0] >= 3:
@@ -494,13 +494,13 @@ def get_versions():
         root = os.path.realpath(__file__)
         # versionfile_source is the relative path from the top of the source
         # tree (where the .git directory might live) to this file. Invert
-        # this to find the root from __file__.
+        # this to not_wanted the root from __file__.
         for i in cfg.versionfile_source.split('/'):
             root = os.path.dirname(root)
     except NameError:
         return {"version": "0+unknown", "full-revisionid": None,
                 "dirty": None,
-                "error": "unable to find root of source tree",
+                "error": "unable to not_wanted root of source tree",
                 "date": None}
 
     try:

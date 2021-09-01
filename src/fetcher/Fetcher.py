@@ -36,6 +36,9 @@ class Fetcher(Processor):
         raise NotImplementedError()
     
     
+        # # Internet URL
+        # self.archive_url(base_url)
+    
  # From ModifyMovie
     def remove_all_old_files(self):
         files = listdir(self.save_path)

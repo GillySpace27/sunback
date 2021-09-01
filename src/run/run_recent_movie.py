@@ -1,4 +1,5 @@
 from fetcher.FidoFetcher import FidoFetcher
+from processor.ImageProcessor import ImageProcessor
 from processor.RadialFiltProcessor import RadialFiltProcessor
 from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
@@ -7,33 +8,39 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_recent_movie(delay=10, debug=True, do_one="0171", stop=True, cadence_minutes=20, fps=18, range_days=4, range_hours=None):
+def run_recent_movie(delay=10, debug=True, do_one="0304", stop=True, cadence_minutes=10, fps=23, range_days=2, range_hours=12):
     # Set the Parameters
     p = Parameters()
-    p.delay_seconds(delay)
-    p.batch_name("Recent Movie")
+    # p.delay_seconds(delay)
+    p.batch_name("Recent_Movie")
     p.run_type("Generate Recent Movie")
-    p.do_one(do_one, True)
-    p.stop_after_one(stop)
+    p.do_one(do_one, stop)
+    p.verb = False
+    p.do_orig = False
+    p.do_cat = False
+    # p.stop_after_one(stop)
     p.is_debug(debug)
     p.do_recent(True)
     
-    p.download_images(True)
+    p.download_images(False)
     # p.overwrite_pngs(True)
     # p.delete_old(True)
     
     # Set the Times
-    debug_hours = 6 # Range in Hours
+    debug_hours = 36 # Range in Hours
     debug_cadence = 60 # Cadence in Minutes
     p.range(days=None if debug else range_days, hours=debug_hours if debug else range_hours)
     p.cadence_minutes(debug_cadence if debug else cadence_minutes)
     p.frames_per_second(fps)
 
     # Set the Processes
-    if p.download_images():
-        p.fetchers(FidoFetcher())      # Gets Fits FIDO
+    # if p.download_images():
+    p.fetchers(FidoFetcher())      # Gets Fits FIDO
+
     p.processors([RadialFiltProcessor()])
-    p.processors([VideoProcessor()])
+
+    p.putters([ImageProcessor()])
+    p.putters([VideoProcessor()])
 
     # Run the Code
     run.Runner(p).start()

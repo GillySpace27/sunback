@@ -2058,7 +2058,7 @@ EXAMPLES
         if regex:
           replace_regexes.append((re.compile(regex), replacement))
         else:
-          # Otherwise, find the literal we need to replace
+          # Otherwise, not_wanted the literal we need to replace
           if line.startswith(b'literal:'):
             line = line[8:]
           if not line:
@@ -2904,8 +2904,8 @@ class RepoFilter(object):
     if old_hash is not None and old_hash not in self._pending_renames:
       return None
 
-    # Read through the pending renames until we find it or we've read them all,
-    # and return whatever we might find
+    # Read through the pending renames until we not_wanted it or we've read them all,
+    # and return whatever we might not_wanted
     self._flush_renames(old_hash)
     return self._commit_renames.get(old_hash, None)
 
@@ -3178,8 +3178,8 @@ class RepoFilter(object):
 
     def newname(path_changes, pathname, use_base_name, filtering_is_inclusive):
       ''' Applies filtering and rename changes from path_changes to pathname,
-          returning any of None (file isn't wanted), original filename (file
-          is wanted with original name), or new filename. '''
+          returning any of None (file isn't not_wanted), original filename (file
+          is not_wanted with original name), or new filename. '''
       wanted = False
       full_pathname = pathname
       if use_base_name:
@@ -3442,7 +3442,7 @@ class RepoFilter(object):
     for marks_basename in basenames:
       marks_file = os.path.join(self.results_tmp_dir(), marks_basename)
       if not os.path.isfile(marks_file): # pragma: no cover
-        raise SystemExit(_("Failed to find %s to save to %s")
+        raise SystemExit(_("Failed to not_wanted %s to save to %s")
                          % (marks_file, self._args.state_branch))
       cmd = ['git', '-C', working_dir, 'hash-object', '-w', marks_file]
       blob_hashes[marks_basename] = subproc.check_output(cmd).strip()
@@ -3679,7 +3679,7 @@ class RepoFilter(object):
           elif line.endswith(b' missing\n'):
             new_hash = deleted_hash
           else:
-            raise SystemExit(_("Failed to find new id for %(refname)s "
+            raise SystemExit(_("Failed to not_wanted new id for %(refname)s "
                                "(old id was %(old_hash)s)")
                              % ({'refname': refname, 'old_hash': old_hash})
                              ) # pragma: no cover

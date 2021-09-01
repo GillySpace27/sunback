@@ -14,7 +14,7 @@ from fetcher.Fetcher import Fetcher
 # from movie.modifyMovie import Sonifier
 # from fetcher.LocalFitsFetcher import LocalFitsFetcher
 from utils.file_util import discover_best_data_directory  # , list_files_in_directory, build_paths, set_output_paths
-from utils.time_util import parse_time_string_to_local
+from utils.time_util import parse_time_string_to_local, define_mutlishot_range
 import astropy.units as u
 
 from sunpy.instr.aia import aiaprep
@@ -27,60 +27,32 @@ from utils.time_util import define_time_range, define_recent_range
 
 default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
+
 class FidoFetcher(Fetcher):
     """Gets some data"""
-    wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
     description = "Get Fits Files from the Internet using Fido"
     
-    ## Main Runner
+    def __init__(self, params=None):
+        if params is not None:
+            super().__init__(params=params)
+            self.define_range()
+    
+    ## Main Fetch Logic
     def fetch(self, params=None):
         self.__init__(params)
-        self.set_wavelengths()
-        self.define_range()
         """ Find the Most Recent Images """
         for current_wave in self.waves_to_do:
             self.fido_get_fits(current_wave)
-        # self.params.local_fits_paths(self.temp_fits_pathbox)
-    
-    
-    ### Utils
     
     def fido_get_fits(self, current_wave):
-        self.current_wave = current_wave
-        self.params.build_paths(self.current_wave)
+        self.load(self.params, wave=current_wave)
         if self.params.download_images():
+            print(" Fetching Fits Files: {}".format(self.current_wave))
             self.download_fits_series()
             self.validate_download()
         else:
-            self.load_fits_paths()
-            print("   Download = {}".format(self.params.download_images()))
             print("   Using {} Cached Fits Files\n".format(self.params.n_fits))
-        # else:
-        # LocalFitsFetcher(self.params, self.current_wave).fetch()
-        # set_output_paths(self)
-        # print(self.fits_folder)
-        # print(join(self.params.base_directory(), self.current_wave))
-
-    def set_wavelengths(self):
-        """Selects which wavelengths to use"""
-        if self.params.do_one():
-            self.waves_to_do = [self.params.do_one()]
-        else:
-            self.waves_to_do = self.wavelengths
     
-    def define_range(self):
-        """Defines the time range of imagery desired"""
-        if self.params.do_recent():
-            self.parse_time(*define_recent_range(self.params.range()))
-        else:
-            self.parse_time(*define_time_range(*self.params.time_period()))
-    
-    def parse_time(self, start, end):
-        """Unpacks the time lists"""
-        self.start_time, self.start_time_long, self.start_string = start
-        self.end_time, self.end_time_long, self.end_time_string = end
-    
-    ## Work
     def download_fits_series(self):
         self.fido_check_for_fits()
         if self.fido_num:
@@ -91,13 +63,14 @@ class FidoFetcher(Fetcher):
     
     def fido_check_for_fits(self):
         """Find the science images"""
-        print("  Looking for Images of {} from {} to {}...".format(
+        print("   Looking for Images of {} from {} to {}...".format(
                 self.current_wave, self.start_string, self.end_time_string), flush=True, end='')
         
         # Search for records from the internet
         self.fido_result = Fido.search(attrs.Time(self.start_time, self.end_time), attrs.Instrument('aia'),
                                        attrs.Wavelength(int(self.current_wave) * u.angstrom),
-                                       attrs.Sample(self.params.cadence_minutes())) #, attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
+                                       attrs.Sample(
+                                           self.params.cadence_minutes()))  # , attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
         self.fido_num = self.fido_result.file_num
         # print("Found {}".format(self.fido_num))
     
@@ -126,14 +99,15 @@ class FidoFetcher(Fetcher):
             self.name = '0' + self.name
     
     def fido_download_fits(self):
-        overwrite = True
-        results = Fido.fetch(self.fido_result, path=self.params.fits_directory(), downloader=Downloader(progress=True, file_progress=False, max_conn=100),
-                                   overwrite=overwrite)
+        overwrite = False
+        results = Fido.fetch(self.fido_result, path=self.params.fits_directory(),
+                             downloader=Downloader(progress=True, file_progress=False, max_conn=100,
+                             overwrite=overwrite))
         print("     Successfully Downloaded {} Files\n".format(len(results)), flush=True)
         sys.stdout.flush()
         return results
-
     
+    # Validation
     def validate_download(self):
         # try:
         #     self.set_output_paths()
@@ -168,7 +142,7 @@ class FidoFetcher(Fetcher):
     def remove_all_old_pngs(self):
         requested_pngs = [x.replace('fits', 'png') for x in self.local_fits_paths]
         png_directory = join(self.params.imgs_directory(), self.current_wave, 'png')
-        got_png = list_files_in_directory(png_directory, 'png')
+        got_png = self.params.local_imgs_paths() #list_files_in_directory(png_directory, 'png')
         remove_count = 0
         for png_path in got_png:
             if png_path not in requested_pngs:
@@ -270,3 +244,48 @@ class FidoFetcher(Fetcher):
         if len(self.redownload) > 0:
             self.redownload = []
             self.fido_get_fits()
+    
+    def define_range(self):
+        """Defines the time range of imagery desired"""
+        if self.params.do_recent():
+            self.parse_time(*define_recent_range(self.params.range()))
+        elif self.params.do_multishot():
+            self.parse_time(*define_mutlishot_range(*self.params.time_period()))
+        else:
+            self.parse_time(*define_time_range(*self.params.time_period()))
+    
+    def parse_time(self, start, end):
+        """Unpacks the time lists"""
+        self.start_time, self.start_time_long, self.start_string = start
+        self.end_time, self.end_time_long, self.end_time_string = end
+
+
+class FidoMultiFetcher(FidoFetcher):
+    def __init__(self):
+        super().__init__()
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        

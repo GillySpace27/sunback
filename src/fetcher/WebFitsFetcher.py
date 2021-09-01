@@ -21,7 +21,7 @@ class WebFitsFetcher(Fetcher):
         :param params:
         """
         self.current_wave = 'rainbow'
-        self.load(params, quietly=True)
+        self.load(params, quietly=True, wave=self.current_wave)
         print("  Downloading Fits Files from {}...".format(self.base_url), flush=True)
         # super.super.__init__(params)
         img_links = self.__get_fits_links(self.base_url)
@@ -62,7 +62,7 @@ class WebFitsFetcher(Fetcher):
         # create beautiful-soup object
         soup = BeautifulSoup(r.content, 'html5lib')
         
-        # find all links on web-page
+        # not_wanted all links on web-page
         links = soup.findAll('a')
         
         # filter the link sending with .fits

@@ -1,3 +1,6 @@
+from os.path import join
+
+from processor.ImageProcessor import ImageProcessor
 from processor.RadialFiltProcessor import RadialFiltProcessor
 from fetcher.FidoFetcher import FidoFetcher
 from processor.VideoProcessor import VideoProcessor
@@ -7,12 +10,15 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_range_movie(delay=10, debug=True, do_one="0171", stop=True, tstart='2015/11/04 00:00', tend='2015/11/04 06:00', cadence_minutes=20, fps=10):
+def run_range_movie(delay=10, debug=True, do_one="0304", stop=True, tstart='2015/11/05 00:00', tend='2015/11/05 06:00', cadence_minutes=20, fps=10):
     # Set the Parameters
     p = Parameters()
     p.delay_seconds(delay)
     p.run_type("Make Movie of Given Time Range")
-    p.batch_name("Range_{}".format(tstart.replace('/', '_').replace(' ', '_').replace(':', '')))
+
+    rng = "Range\\Range_{}".format(tstart.replace('/', '_').replace(' ', '_').replace(':', ''))
+    p.batch_name(rng)
+    
     p.do_one(do_one, True)
     p.stop_after_one(stop)
     p.is_debug(debug)
@@ -31,8 +37,11 @@ def run_range_movie(delay=10, debug=True, do_one="0171", stop=True, tstart='2015
     
     # Set the Processes
     p.fetchers(FidoFetcher())      # Gets Fits FIDO
+    
     p.processors([RadialFiltProcessor()])  # Makes the PNGs from Fits
-    p.processors([VideoProcessor()])  # Makes the PNGs into a Movie
+    
+    p.putters([ImageProcessor()])  # Makes the PNGs from Fits
+    p.putters([VideoProcessor()])  # Makes the PNGs into a Movie
 
     # Run the Code
     run.Runner(p).start()

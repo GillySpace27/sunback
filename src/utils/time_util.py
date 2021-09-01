@@ -25,6 +25,13 @@ def define_time_range(start, end):
     end_struct = datetime.datetime.strptime(end, '%Y/%m/%d %H:%M')
     return get_time_lists(start_struct, end_struct)
 
+def define_mutlishot_range(start, end): ## THIS IS NOT IMPLEMENTED
+    """Given a short and a long cadence, make an input to fido that gets that"""
+    start_struct = datetime.datetime.strptime(start, '%Y/%m/%d %H:%M')
+    end_struct = datetime.datetime.strptime(end, '%Y/%m/%d %H:%M')
+    return get_time_lists(start_struct, end_struct) #something that makes fido do the right thing by itself
+    
+
 
 def get_time_lists(start_struct, end_struct):
     """Packs up the time lists to be delivered"""

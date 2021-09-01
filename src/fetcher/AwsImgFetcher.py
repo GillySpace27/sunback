@@ -33,17 +33,17 @@ class AwsImgFetcher(Fetcher):
         self.load()
         
         if self.n_imgs >= ii:
-            print("\r   All Downloads Complete\n", flush=True)
+            print("\r   All Downloads Complete", flush=True)
         elif len(self.params.imgs_directory()) == 0:
-            print("\r   No Files Loaded\n", flush=True)
-        else:print("\r   {} Files Loaded\n".format(self.n_imgs), flush=True)
+            print("\r     No Files Loaded", flush=True)
+        else:print("\r     {} Files Loaded".format(self.n_imgs), flush=True)
         
         sys.stdout.flush()
     
     def grab(self, obj):
         """Get a specific object from the S3 Bucket"""
         
-        # Exit if not appropriate find
+        # Exit if not appropriate not_wanted
         if 'orig' in obj.key or 'archive' in obj.key or "thumbs" in obj.key or "4500" in obj.key:
             return
         if self.params.do_one() and self.params.do_one() not in obj.key:
@@ -72,7 +72,7 @@ class AwsImgFetcher(Fetcher):
     #     # create beautiful-soup object
     #     soup = BeautifulSoup(r.content, 'html5lib')
     #
-    #     # find all links on web-page
+    #     # not_wanted all links on web-page
     #     links = soup.findAll('a')
     #
     #     # filter the link sending with .fits

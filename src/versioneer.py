@@ -185,7 +185,7 @@ two common reasons why `setup.py` might not be in the root:
 Versioneer will look for `.git` in parent directories, and most operations
 should get the right version string. However `pip` and `setuptools` have bugs
 and implementation details which frequently cause `pip install .` from a
-subproject directory to fail to find a correct version string (so it usually
+subproject directory to fail to not_wanted a correct version string (so it usually
 defaults to `0+unknown`).
 
 `pip install --editable .` should work correctly. `setup.py install` might
@@ -311,7 +311,7 @@ def get_root():
         err = ("Versioneer was unable to run the project root directory. "
                "Versioneer requires setup.py to be executed from "
                "its immediate directory (like 'python setup.py COMMAND'), "
-               "or in a way that lets it use sys.argv[0] to find the root "
+               "or in a way that lets it use sys.argv[0] to not_wanted the root "
                "(like 'python path/to/setup.py COMMAND').")
         raise VersioneerBadRootError(err)
     try:
@@ -319,7 +319,7 @@ def get_root():
         # tree) execute all dependencies in a single python process, so
         # "versioneer" may be imported multiple times, and python's shared
         # module-import table will cache the first one. So we can't use
-        # os.path.dirname(__file__), as that will find whichever
+        # os.path.dirname(__file__), as that will not_wanted whichever
         # versioneer.py was first imported, even in later projects.
         me = os.path.realpath(os.path.abspath(__file__))
         me_dir = os.path.normcase(os.path.splitext(me)[0])
@@ -405,7 +405,7 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False,
             return None, None
     else:
         if verbose:
-            print("unable to find command, tried %s" % (commands,))
+            print("unable to not_wanted command, tried %s" % (commands,))
         return None, None
     stdout = p.communicate()[0].strip()
     if sys.version_info[0] >= 3:
@@ -511,7 +511,7 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False,
             return None, None
     else:
         if verbose:
-            print("unable to find command, tried %%s" %% (commands,))
+            print("unable to not_wanted command, tried %%s" %% (commands,))
         return None, None
     stdout = p.communicate()[0].strip()
     if sys.version_info[0] >= 3:
@@ -914,13 +914,13 @@ def get_versions():
         root = os.path.realpath(__file__)
         # versionfile_source is the relative path from the top of the source
         # tree (where the .git directory might live) to this file. Invert
-        # this to find the root from __file__.
+        # this to not_wanted the root from __file__.
         for i in cfg.versionfile_source.split('/'):
             root = os.path.dirname(root)
     except NameError:
         return {"version": "0+unknown", "full-revisionid": None,
                 "dirty": None,
-                "error": "unable to find root of source tree",
+                "error": "unable to not_wanted root of source tree",
                 "date": None}
 
     try:
