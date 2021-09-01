@@ -57,28 +57,28 @@ class ImageProcessor(Processor):
         self.figbox = []
         self.pathBox = []
     
-    def prep_image_old(self, fits_path, field1=None, field2=-1):
-        """Load the fits file from disk and get a field or two"""
-        
-        fits_data = self.load_best_fits_field(fits_path)  # , field1=field1, field2=field2)
-        
-        if field1 and field2:
-            frame1, wave1, t_rec1, center1 = fits_data[0]
-            frame2, wave2, t_rec2, center2 = fits_data[1]
-            self.original, self.changed = copy(frame1), copy(frame2)
-            self.image_data = str(wave1), fits_path, t_rec1, frame1.shape
-        
-        elif field1:
-            frame1, wave1, t_rec1, center1 = fits_data[0]
-            self.original = copy(frame1)
-            self.changed = None
-            self.image_data = str(wave1), fits_path, t_rec1, frame1.shape
-        
-        elif field2:
-            frame2, wave2, t_rec2, center2 = fits_data[0]
-            self.original = None
-            self.changed = copy(frame2)
-            self.image_data = str(wave2), fits_path, t_rec2, frame2.shape
+    # def prep_image_old(self, fits_path, field1=None, field2=-1):
+    #     """Load the fits file from disk and get a field or two"""
+    #
+    #     fits_data = self.load_best_fits_field(fits_path)  # , field1=field1, field2=field2)
+    #
+    #     if field1 and field2:
+    #         frame1, wave1, t_rec1, center1 = fits_data[0]
+    #         frame2, wave2, t_rec2, center2 = fits_data[1]
+    #         self.original, self.changed = copy(frame1), copy(frame2)
+    #         self.image_data = str(wave1), fits_path, t_rec1, frame1.shape
+    #
+    #     elif field1:
+    #         frame1, wave1, t_rec1, center1 = fits_data[0]
+    #         self.original = copy(frame1)
+    #         self.changed = None
+    #         self.image_data = str(wave1), fits_path, t_rec1, frame1.shape
+    #
+    #     elif field2:
+    #         frame2, wave2, t_rec2, center2 = fits_data[0]
+    #         self.original = None
+    #         self.changed = copy(frame2)
+    #         self.image_data = str(wave2), fits_path, t_rec2, frame2.shape
     
     def render(self):
         """Render the original and changed plots"""

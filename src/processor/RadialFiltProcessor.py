@@ -22,8 +22,8 @@ class RadialFiltProcessor(Processor):
     # image_data = None
     # name = "Default"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, params=None):
+        super().__init__(params)
 
     # TODO Make this filter be a processor natively
     

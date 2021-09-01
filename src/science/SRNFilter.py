@@ -20,7 +20,7 @@ class SRNFilter(Processor):
     
     def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False):
         """Initialize the main class"""
-        
+        super().__init__()
         # Parse Inputs
         self.fits_path = fits_path
         self.in_name = -1
@@ -33,12 +33,23 @@ class SRNFilter(Processor):
         self.changed = np.empty((10,10,), dtype=float)
         
         # Run the Reduction Algorithm
-        if self.fits_path is not None:
-            self.image_modify()  # Primary Algorithm
+        if self.fits_path is not None and self.load_fits_image():
+            self.image_modify()  # Primary Aelgorithm
+
+    def load_fits_image(self):
+        """open the fits file and grab the necessary data"""
+        frame, wave, t_rec, center = self.load_best_fits_field(self.fits_path)
+        if frame is not None:
+            self.original = np.asarray(copy(frame)).astype(float)
+            self.changed = np.asarray(copy(frame)).astype(float)
+            self.image_data = str(wave), self.fits_path, t_rec, frame.shape
+            self.set_centerpoint(center)
+            return True
+        else:
+            return False
     
     def image_modify(self):
         """Perform the in_object normalization on the input array"""
-        self.load_fits_image()  # Loads the fits images from disk
         self.make_radius_array()  # Assign Each Pixel its Radius Value
         self.remove_offset()  # Additive Shift of input array
         self.sort_radially()  # Build Flattened and Sorted Intensity Arrays
@@ -49,14 +60,6 @@ class SRNFilter(Processor):
         self.coronagraph_touchup()  # Deal with some outliers
         self.vignette()  # Truncate the in_object above given radius
         self.plot_stats(False)  # Plot Extra Details
-    
-    def load_fits_image(self):
-        """open the fits file and grab the necessary data"""
-        frame, wave, t_rec, center = self.load_best_fits_field(self.fits_path)
-        self.original = np.asarray(copy(frame)).astype(float)
-        self.changed = np.asarray(copy(frame)).astype(float)
-        self.image_data = str(wave), self.fits_path, t_rec, frame.shape
-        self.set_centerpoint(center)
     
     def set_centerpoint(self, center):
         """Parse the centerpoint and ensure correct scaling"""

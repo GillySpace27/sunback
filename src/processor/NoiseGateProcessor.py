@@ -1,6 +1,6 @@
 from astropy.io import fits
 import numpy as np
-from processor.Processor import Processor
+# from processor.Processor import Processor
 from os import listdir, makedirs
 from os.path import join, abspath
 from time import time, strftime

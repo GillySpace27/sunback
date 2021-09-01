@@ -4,12 +4,19 @@ from os import listdir, getcwd, makedirs
 from os.path import join, dirname, abspath, isdir, basename
 from time import strftime, sleep
 
+verb = False
 import cv2
 from astropy.io import fits
 from tqdm import tqdm
 
 # from utils.file_util import save_frame_to_fits_file
+# from fetcher.FidoFetcher import vprint
 from utils.file_util import discover_best_data_directory
+
+
+def vprint(in_string, *args, **kwargs):
+    if verb:
+        print(in_string, *args, **kwargs)
 
 
 class Processor:
@@ -22,7 +29,7 @@ class Processor:
     description = "Use an Unnamed Processor"
     progress_verb = " Processing Files"
     progress_unit = "files"
-    
+    mode = 'skip'
     do_png = False
     quietly = True
     params = None
@@ -49,7 +56,7 @@ class Processor:
         self.proc_name = str(self.__class__).split(".")[-1][:-2]
         if 'null' not in self.proc_name.casefold():
             print('   ', self.proc_name, ":", self.description)
-        
+    
     def put(self, params=None):
         self.process(params)
     
@@ -80,6 +87,7 @@ class Processor:
         else:
             # print("FAILED to load")
             pass
+    
     # Define Targets
     def set_names(self, in_name=None, out_name=None, name=None, quietly=None):
         """Store the batch names into self"""
@@ -92,7 +100,7 @@ class Processor:
             self.params.batch_name(name)
         if quietly:
             self.quietly = quietly
-  
+    
     def set_base_directories(self, fits_directory=None, imgs_directory=None, absolute=None):
         """Store the directories into self"""
         if fits_directory:
@@ -101,7 +109,7 @@ class Processor:
             self.base_imgs_dir = imgs_directory
         if absolute is not None:
             self.base_absolute = absolute
-            
+    
     def set_waves_to_do(self, waves=None):
         if waves is not None:
             self.waves_to_do = [waves]
@@ -109,7 +117,7 @@ class Processor:
             self.waves_to_do = [self.params.do_one()]
         else:
             self.waves_to_do = self.all_wavelengths
-        
+    
     def set_current_wave(self, wave=None):
         """Set the current wave parameter correctly"""
         if wave is not None:
@@ -119,7 +127,7 @@ class Processor:
         else:
             self.current_wave = self.all_wavelengths[0]
         self.set_current_wave_paths()
-        
+    
     def set_current_wave_paths(self):
         """Make the paths for current_wave"""
         # Define and Set Directories
@@ -130,9 +138,7 @@ class Processor:
         self.params.fits_directory(abspath(join(base_directory, 'fits')))
         self.params.movs_directory(abspath(join(base_directory, "..", 'MOVS')))
         self.params.time_path(join(base_directory, "image_times.txt"))
-        self.params.save_to_txt(self.current_wave)
-        
-        
+    
     def create_subdirectories(self):
         # Make Directories
         makedirs(self.params.imgs_directory(), exist_ok=True)
@@ -140,7 +146,8 @@ class Processor:
         if "background" not in self.params.movs_directory():
             makedirs(self.params.movs_directory(), exist_ok=True)
         # Save Parameters
-        
+        # self.params.save_to_txt(self.current_wave)
+    
     def load_paths(self, verb=False):
         """ Determines and lists the files that exist in the given directories"""
         fits_paths, imgs_paths = self.load_fits_paths(), self.load_imgs_paths()
@@ -150,7 +157,7 @@ class Processor:
     def print_load_banner(self, verb):
         if self.n_fits + self.n_imgs > 0 and verb:
             print("  Processing: {}".format(self.current_wave))
-            print("   Loaded {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()))
+            vprint("   Loaded {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()), verb)
     
     def load_fits_paths(self, absolute=True, ext=".fits"):
         """ Creates a List of the existant fits files in the fits_directory"""
@@ -192,7 +199,7 @@ class Processor:
         """
         self.do_fits_function = func
     
-    def do_fits_function(self):
+    def do_fits_function(self, fits_path, in_name):
         raise NotImplementedError
     
     def process(self, params=None):
@@ -215,7 +222,7 @@ class Processor:
                     desc="  {}".format(self.progress_verb))):
                 self.modify_one_fits(fits_path)
         
-        if self.ii > 0:
+        if self.ii + 1 > 0:
             print("    Successfully Processed {} Files \n".format(self.ii + 1), flush=True)
         else:
             print("    No Files Found")
@@ -224,14 +231,19 @@ class Processor:
         """Apply the given funtion to the given fits path"""
         self.confirm_fits_file(fits_path)
         try:
-            frame = self.do_fits_function(fits_path, self.in_name).get()
-        except IndexError:
+            output = self.do_fits_function(fits_path, self.in_name)
+            try:
+                frame = output.get()
+            except AttributeError as e:
+                # print(e)
+                frame = output
+        except IndexError as e:
             print("Failed to Load Fits Frame")
+            print(e)
             return self.original
         if self.save_to_fits:
             self.save_frame_to_fits_file(fits_path, frame)
         return frame
-        
     
     def confirm_fits_file(self, fits_path):
         if os.path.exists(fits_path):
@@ -255,8 +267,7 @@ class Processor:
                 # if which and wave not in which:
                 #     continue
                 self.process_one_wavelength(wave)
-                
-            
+    
     def get_folders(self):
         base = self.params.base_directory()
         bName = self.params.batch_name()
@@ -299,28 +310,33 @@ class Processor:
         field = self.out_name
         with fits.open(fits_path, cache=False, mode="update") as hdul:
             # hdul.verify('silentfix+ignore')  # Then Verify
+            if type(frame) in [float]:
+                frame = self.smallify_frame(frame)
             fit_frame = fits.ImageHDU(frame, name=field)
             if field not in hdul:
                 hdul.append(fit_frame)  # Write
             else:
                 hdul[field] = fit_frame  # Write
-            hdul.close(output_verify='ignore')
-
+            try:
+                hdul.close(output_verify='ignore')
+            except PermissionError as e:
+                vprint('\n      Failed to Close HDU', "processor.py::  ", e)
+    
     def load_last_fits_field(self, fits_path):
         """Load a fits file from disk"""
         return self.load_a_fits_field(fits_path, -1)
-
+    
     def load_first_fits_field(self, fits_path):
         """Load a fits file from disk"""
         return self.load_a_fits_field(fits_path, 0)
-
+    
     def load_a_fits_field(self, fits_path, field=0):
-            """Load a fits file from disk"""
-            with fits.open(fits_path, cache=False) as hdul:
-                hdul.verify('silentfix+ignore')  # Verify
-                wave, t_rec, center = self.get_fits_info(hdul)
-                frame = hdul[field].data
-            return frame, wave, t_rec, center
+        """Load a fits file from disk"""
+        with fits.open(fits_path, cache=False) as hdul:
+            hdul.verify('silentfix+ignore')  # Verify
+            wave, t_rec, center = self.get_fits_info(hdul)
+            frame = hdul[field].data
+        return frame, wave, t_rec, center
     
     def load_best_fits_field(self, fits_path):
         """Load a fits file from disk"""
@@ -329,13 +345,20 @@ class Processor:
             wave, t_rec, center = self.get_fits_info(hdul)
             frame = self.open_fits_hdul(hdul)
         return frame, wave, t_rec, center
-
-
-
+    
+    def smallify_frame(self, frame):
+        import numpy as np
+        mx = np.max(frame)
+        mn = np.min(frame)
+        
+        flatt = (frame - mn) / (mx - mn)
+        flatt_grande = flatt * 2 ** 16
+        frame = flatt_grande.astype(np.int16)
+        return frame
     
     def get_fits_info(self, hdul):
         # Load the original frame
-        wave, t_rec, center = None,None,None
+        wave, t_rec, center = None, None, None
         for ii in range(len(hdul)):
             try:
                 first_data_hdul = hdul[ii]
@@ -345,50 +368,68 @@ class Processor:
                 break
             except KeyError as e:
                 continue
+        self.first_hIndex = ii
         return wave, t_rec, center
     
     def open_fits_hdul(self, hdul):
         """Load a fits file from disk"""
-        self.in_name = self.ensure_no_double_filtering(hdul)
-        
+
+        if self.ensure_no_double_filtering(hdul) is None:
+            return False
         # Load the called for frame
         if 'str' in str(type(self.in_name)):
             field_hdu = hdul[self.in_name]
         else:
             field_hdu = hdul[self.hdu_name_list[self.in_name]]
         return field_hdu.data
-
-        
-    def ensure_no_double_filtering(self, hdul):
-        # Find all hdu names
-        self.hdu_name_list = self.list_hdus(hdul)
     
+    def ensure_no_double_filtering(self, hdul):
+        """Determine which frame of the input file to use on redo"""
+        self.list_hdus(hdul)
+        mode                   = self.mode
+        input_frame_name       = self.determine_in_frame_name()
+        output_frame_name      = self.determine_out_frame_name()
+        first_frame_name       = self.hdu_name_list[0]
+        penultimate_frame_name = self.hdu_name_list[-2]
+        
+        if input_frame_name.casefold() == output_frame_name.casefold():
+            # If you're about to redo a filter
+            if mode == 'skip':
+                # Skip it
+                self.in_name = None
+                # raise FileExistsError("Skipping File")
+            elif mode == 'redo':
+                # Go to the previous frame and remake
+                self.in_name = penultimate_frame_name
+            elif mode == 'reset':
+                # Go to the first frame and remake
+                self.in_name = first_frame_name
+            elif mode == 'double':
+                # Repeat the filter a second time
+                self.in_name = output_frame_name
+        else:
+            self.in_name = input_frame_name
+        return self.in_name
+ 
+    def determine_in_frame_name(self):
+        # Determine the called-for input frame NAME
         if type(self.in_name) is str:
             if self.in_name in self.hdu_name_list:
                 input_frame_name = self.in_name.casefold()
-            else: raise FileNotFoundError
+            else:
+                raise FileNotFoundError
         else:
             input_frame_name = self.hdu_name_list[self.in_name].casefold()
-    
+        return input_frame_name
+
+    def determine_out_frame_name(self):
+        # Determine the called-for output frame NAME
         if type(self.out_name) is str:
             output_frame_name = self.out_name.casefold()
         else:
             output_frame_name = self.hdu_name_list[self.out_name].casefold()
-        
-        first_frame_name = self.hdu_name_list[0]
-        last_frame_name = self.hdu_name_list[-1]
-    
-        if input_frame_name == output_frame_name:
-            self.in_name = first_frame_name
-        else:
-            self.in_name = input_frame_name
-        return self.in_name
-
-        
-
-    
-
-    
+        return output_frame_name
+   
     def determine_first_hIndex(self, hdul):
         """Find out which hInd has the data"""
         for hInd in range(10):
@@ -399,12 +440,6 @@ class Processor:
             except Exception as e:
                 pass
         return hInd
-    
-    
-    
-    
-    
-    
     
     ## UTIL
     def get(self):
@@ -422,16 +457,15 @@ class Processor:
             sys.stderr.flush()
             sleep(0.1)
     
-    def list_hdus(self,  hdul):
+    def list_hdus(self, hdul):
         self.hdu_name_list = [name.name.casefold() for name in hdul]
         # print(self.hdu_name_list)
         # self.printout_hdul(hdul)
         return self.hdu_name_list
     
-    
     def printout_hdul(self, hdul):
         print("\n\n**Examining Hdul**")
-
+        
         for h_num in range(len(hdul)):
             print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n")
             print("\n  HDUL #", h_num)
@@ -450,8 +484,7 @@ class Processor:
     def print_without(self, HDU, not_wanted=None):
         print("      ** " + "Remainder without these:  " + str(not_wanted) + " **")
         ban_list = [str(it) for it in not_wanted]
-
-
+        
         found_list = []
         for found_field_name in dir(HDU):
             found_field_value = getattr(HDU, found_field_name)
@@ -459,12 +492,12 @@ class Processor:
             skip = False
             for bb in ban_list:
                 if bb in found_field_value_string:
-                    skip=True
+                    skip = True
             if skip:
                 continue
-
+            
             found_list.append([found_field_name, found_field_value])
-    
+            
             # Print these
             out_string = "      {}".format("Misc") + ':: ' + found_field_name
             out_2 = "\t  :  \t" + found_field_value_string

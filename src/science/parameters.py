@@ -21,6 +21,7 @@ class Parameters:
     def __init__(self):
         """Sets all the attributes to None"""
         # Initialize Variables
+        self._reprocess_mode = 'skip'
         self._current_wave = None
         self._imgs_directory = ""
         self._fits_directory = ""
@@ -65,6 +66,8 @@ class Parameters:
         self._time_period = None
         self._range_in_days = 4
         self._cadence = 10 * u.minute
+        self._exposure_time = 60 #seconds
+        
         self._frames_per_second = 30
         self._bpm = 70
         self._debug_delay = 2
@@ -272,6 +275,9 @@ class Parameters:
             assert type(boolean) in [bool]
             self._stop_after_one = boolean
         return self._stop_after_one
+    
+   
+    
     #
     # def stop_after_one(self, boolean=None):
     #     if boolean is not None:
@@ -306,6 +312,11 @@ class Parameters:
             self._cadence = cad * u.minute
         return self._cadence
     
+    def exposure_time(self, _exposure_time=None):
+        if _exposure_time is not None:
+            self._exposure_time = _exposure_time
+        return self._exposure_time
+    
     def time_period(self, period=None):
         if period is not None:
             self._time_period = period
@@ -330,14 +341,12 @@ class Parameters:
     def check_real_number(self, number):
         assert type(number) in [float, int]
         assert number > 0
-        
-
 
     def save_to_txt(self, current_wave=None):
         # Save contents of environment to text file
         file_name = '{}_params.txt'.format(self.current_wave(current_wave))
         txtPath = join(self.base_directory(), file_name)
-
+        makedirs(txtPath, exist_ok=True)
         infoEnv = self
         with open(txtPath, 'w') as output:
             output.write(asctime() + '\n\n')
@@ -349,6 +358,11 @@ class Parameters:
                         output.write(string)
                 output.write('\n\n')
 
+    def reprocess_mode(self, _reprocess_mode=None):
+        if _reprocess_mode is not None:
+            self._reprocess_mode = _reprocess_mode
+        return self._reprocess_mode
+    
     def delete_old(self, _delete=None):
         if _delete is not None:
             self._delete = _delete

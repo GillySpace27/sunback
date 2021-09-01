@@ -21,16 +21,15 @@ def define_recent_range(range):
 
 def define_time_range(start, end):
     """Selects a given time range"""
-    start_struct = datetime.datetime.strptime(start, '%Y/%m/%d %H:%M')
-    end_struct = datetime.datetime.strptime(end, '%Y/%m/%d %H:%M')
+    start_struct = datetime.datetime.strptime(start, '%Y/%m/%d %H:%M:%S')
+    end_struct = datetime.datetime.strptime(end, '%Y/%m/%d %H:%M:%S')
     return get_time_lists(start_struct, end_struct)
 
-def define_mutlishot_range(start, end): ## THIS IS NOT IMPLEMENTED
-    """Given a short and a long cadence, make an input to fido that gets that"""
-    start_struct = datetime.datetime.strptime(start, '%Y/%m/%d %H:%M')
-    end_struct = datetime.datetime.strptime(end, '%Y/%m/%d %H:%M')
-    return get_time_lists(start_struct, end_struct) #something that makes fido do the right thing by itself
-    
+# def define_duration_range(start, duration): ## THIS IS NOT IMPLEMENTED
+#     """Given a short and a long cadence, make an input to fido that gets that"""
+#     start_struct = datetime.datetime.strptime(start, '%Y/%m/%d %H:%M:%S')
+#     end_struct = datetime.datetime.strptime(start + duration, '%Y/%m/%d %H:%M:%S')
+#     return get_time_lists(start_struct, end_struct) #something that makes fido do the right thing by itself
 
 
 def get_time_lists(start_struct, end_struct):
@@ -42,10 +41,10 @@ def get_time_lists(start_struct, end_struct):
 
 def _set_time(_input_time):
     try:
-        input_time = _input_time.strftime('%Y/%m/%d %H:%M')
+        input_time = _input_time.strftime('%Y/%m/%d %H:%M:%S')
         input_time_long = int(_input_time.strftime('%Y%m%d%H%M%S'))
     except AttributeError:
-        input_time = strftime('%Y/%m/%d %H:%M', _input_time)
+        input_time = strftime('%Y/%m/%d %H:%M:%S', _input_time)
         input_time_long = int(strftime('%Y%m%d%H%M%S', _input_time))
     
     input_time_string = parse_time_string_to_local(str(input_time_long), 2)[0]

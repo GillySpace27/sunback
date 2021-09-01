@@ -24,9 +24,9 @@ class VideoProcessor(Processor):
     def process_one_wavelength(self, wave):
         """Prepare and execute the video writer"""
         video_avi = self.prep_video_writer(wave)
-        if video_avi:
-            self.run_video_writer(video_avi)
-            print("   Done\n")
+        self.run_video_writer(video_avi)
+        print("   Done\n")
+
             
     
     def prep_video_writer(self, wave):
@@ -34,6 +34,7 @@ class VideoProcessor(Processor):
         fits_paths, imgs_paths = self.load(self.params)
         self.wave = wave
         if len(self.params.local_imgs_paths()) > 0:
+            print("   Prepping Video")
             frame = cv2.imread(self.params.local_imgs_paths()[0])
             height, width, layers = frame.shape
             video_name_stem = join((self.params.movs_directory()), '{}_{}_movie{}'.format(wave, strftime('%m%d_%H%M'), '{}'))
@@ -52,6 +53,10 @@ class VideoProcessor(Processor):
         """Generate the video file"""
         
         good_paths = [pp for pp in self.params.local_imgs_paths() if ('orig' not in pp and 'cat' not in pp)]
+        
+        if len(good_paths) == 0:
+            print("    No Files Found \n")
+            return False
         
         ii = 0
         for img_path in tqdm(good_paths, desc=self.progress_text, unit="frames"):
