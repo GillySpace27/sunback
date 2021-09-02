@@ -70,7 +70,8 @@ class Runner:
         
         if len(self.params.processors()) > 0:
             sys.stdout.flush()
-            print(" >>>>>>>>>> Processing Images <<<<<<<<<<\n", flush=True)
+            print(" >>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
+            print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
             sys.stdout.flush()
             for proc in self.params.processors():
                 sleep(0.1)
@@ -79,7 +80,9 @@ class Runner:
                 
         if len(self.params.putters()) > 0:
             sys.stdout.flush()
-            print(" >>>>>>>>>> Outputting Images or Movies <<<<<<<<<<\n", flush=True)
+            print(" >>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
+            print(" Redo Imgs: {}".format(self.params.overwrite_pngs()))
+            print(" Redo Videos: {}\n".format(self.params.write_video()))
             for put in self.params.putters():
                 sleep(0.1)
                 put.put(self.params)

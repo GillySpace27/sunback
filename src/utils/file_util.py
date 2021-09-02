@@ -74,7 +74,7 @@ def discover_best_data_directory():
 # def save_frame_to_fits_file(fits_path, frame, field1="filtered"):
 #     """Save a fits file to disk"""
 #     # print("Saving Frame to Fits File")
-#     with fits.open(fits_path, cache=False, mode="update") as hdul:
+#     with fits.open(fits_path, cache=False, reprocess_mode="update") as hdul:
 #         # hdul.verify('silentfix+ignore')  # Then Verify
 #         fit_frame = fits.ImageHDU(frame, name=field1)
 #         if field1 not in hdul:

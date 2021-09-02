@@ -1,23 +1,17 @@
-from astropy.io import fits
 import numpy as np
 # from processor.Processor import Processor
-from os import listdir, makedirs
-from os.path import join, abspath
-from time import time, strftime
 import matplotlib.pyplot as plt
 from noisegate import tools as ngt
 
 plt.ion()
 
-import cv2
-from moviepy.video.io.VideoFileClip import VideoFileClip
 from tqdm import tqdm
 
 from processor.Processor import Processor
 
-from science.SRNFilter import SRNFilter
+from processor.SRNRadialFiltProcessor import SRNRadialFiltProcessor
 
-norm = SRNFilter.normalize
+norm = SRNRadialFiltProcessor.normalize
 
 small_fill = 100
 

@@ -1,7 +1,7 @@
 from os.path import join
 
 from processor.ImageProcessor import ImageProcessor
-from processor.RadialFiltProcessor import RadialFiltProcessor
+from processor.SRNRadialFiltProcessor import SRNRadialFiltProcessor
 from fetcher.FidoFetcher import FidoFetcher
 from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters

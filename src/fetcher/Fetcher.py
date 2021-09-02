@@ -141,11 +141,11 @@ class Fetcher(Processor):
     #     #     print("Failed 2")
     #     #     return 1
     #
-    #     # SRNFilter the data
+    #     # SRNRadialFiltProcessor the data
     #     # processed_image_stats = self.image_modify(raw_image)
     #     img_path = save_path[:-4]+'png'
     #     if not exists(img_path):
-    #         # SRNFilter(raw_image, image_data)
+    #         # SRNRadialFiltProcessor(raw_image, image_data)
     #         Modify(save_path, resolution=self.params.resolution())
     #     # Sonify the data
     #     if False: #self.params.sonify_images():
@@ -237,24 +237,24 @@ class Fetcher(Processor):
     #     rank = 1
     #     window1 = 31
     #     window2 = 41
-    #     mode = 'mirror'
+    #     reprocess_mode = 'mirror'
     #     btma = self.binBtm[::self.extra_rez]
     #     mina = self.binMin[::self.extra_rez]
     #     mida = self.binMid[::self.extra_rez]
     #     maxa = self.binMax[::self.extra_rez]
     #     topa = self.binTop[::self.extra_rez]
     #
-    #     btma = savgol_filter(btma, window1, rank, mode=mode)
-    #     mina = savgol_filter(mina, window1, rank, mode=mode)
-    #     mida = savgol_filter(mida, window1, rank, mode=mode)
-    #     maxa = savgol_filter(maxa, window1, rank, mode=mode)
-    #     topa = savgol_filter(topa, window1, rank, mode=mode)
+    #     btma = savgol_filter(btma, window1, rank, reprocess_mode=reprocess_mode)
+    #     mina = savgol_filter(mina, window1, rank, reprocess_mode=reprocess_mode)
+    #     mida = savgol_filter(mida, window1, rank, reprocess_mode=reprocess_mode)
+    #     maxa = savgol_filter(maxa, window1, rank, reprocess_mode=reprocess_mode)
+    #     topa = savgol_filter(topa, window1, rank, reprocess_mode=reprocess_mode)
     #
-    #     btma = savgol_filter(btma, window2, rank, mode=mode)
-    #     mina = savgol_filter(mina, window2, rank, mode=mode)
-    #     mida = savgol_filter(mida, window2, rank, mode=mode)
-    #     maxa = savgol_filter(maxa, window2, rank, mode=mode)
-    #     topa = savgol_filter(topa, window2, rank, mode=mode)
+    #     btma = savgol_filter(btma, window2, rank, reprocess_mode=reprocess_mode)
+    #     mina = savgol_filter(mina, window2, rank, reprocess_mode=reprocess_mode)
+    #     mida = savgol_filter(mida, window2, rank, reprocess_mode=reprocess_mode)
+    #     maxa = savgol_filter(maxa, window2, rank, reprocess_mode=reprocess_mode)
+    #     topa = savgol_filter(topa, window2, rank, reprocess_mode=reprocess_mode)
     #
     #     stacked = np.vstack(
     #         (data, btma, mina, mida, maxa, topa))

@@ -158,7 +158,7 @@ source tree for descriptions.
 
 Versioneer tries to avoid fatal errors: if something goes wrong, it will tend
 to return a version of "0+unknown". To investigate the problem, run `setup.py
-version`, which will run the version-lookup code in a verbose mode, and will
+version`, which will run the version-lookup code in a verbose reprocess_mode, and will
 display the full contents of `get_versions()` (including the `error` string,
 which may help identify what went wrong).
 

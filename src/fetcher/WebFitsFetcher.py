@@ -31,7 +31,7 @@ class WebFitsFetcher(Fetcher):
         
         self.__get_img_time()
         sys.stdout.flush()
-        print("  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
+        print(" *  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
         return paths
     
     def grab(self, link):

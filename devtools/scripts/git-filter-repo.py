@@ -564,7 +564,7 @@ class FileChange(_GitElement):
     # Record the name of the file being changed
     self.filename = filename
 
-    # Record the mode (mode describes type of file entry (non-executable,
+    # Record the reprocess_mode (reprocess_mode describes type of file entry (non-executable,
     # executable, or symlink)).
     self.mode = mode
 
@@ -3116,7 +3116,7 @@ class RepoFilter(object):
           self._output.write(b"get-mark :%d\n" % change.blob_id)
           self._output.flush()
           blob_sha = fi_output.readline().rstrip()
-        if parent_version != [change.mode, b'blob', blob_sha, quoted_filename]:
+        if parent_version != [change.reprocess_mode, b'blob', blob_sha, quoted_filename]:
           return False
 
     return True
@@ -3275,8 +3275,8 @@ class RepoFilter(object):
           # We can just throw this one away and keep the other
           continue
         elif change.type == b'M' and (
-            change.mode == colliding_change.mode and
-            change.blob_id == colliding_change.blob_id):
+                change.reprocess_mode == colliding_change.reprocess_mode and
+                change.blob_id == colliding_change.blob_id):
           # The two are identical, so we can throw this one away and keep other
           continue
         elif new_file_changes[change.filename].type != b'D':

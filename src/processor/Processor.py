@@ -3,7 +3,7 @@ import sys
 from os import listdir, getcwd, makedirs
 from os.path import join, dirname, abspath, isdir, basename
 from time import strftime, sleep
-
+import numpy as np
 verb = False
 import cv2
 from astropy.io import fits
@@ -27,9 +27,9 @@ class Processor:
     filt_name = "baseClass"
     batch_name = name = 'default_name'
     description = "Use an Unnamed Processor"
-    progress_verb = " Processing Files"
+    progress_verb = " *    Processing Files"
     progress_unit = "files"
-    mode = 'skip'
+    style_mode = 'all'
     do_png = False
     quietly = True
     params = None
@@ -156,8 +156,8 @@ class Processor:
     
     def print_load_banner(self, verb):
         if self.n_fits + self.n_imgs > 0 and verb:
-            print("  Processing: {}".format(self.current_wave))
-            vprint("   Loaded {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()), verb)
+            print(" *   Processing: {}".format(self.current_wave))
+            vprint(" *   Loaded {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()), verb)
     
     def load_fits_paths(self, absolute=True, ext=".fits"):
         """ Creates a List of the existant fits files in the fits_directory"""
@@ -192,25 +192,26 @@ class Processor:
     ########################################
     ## M2: For Every File in Path, do Func##
     ########################################
-    def set_function(self, func):
-        """This is the function which gets applied to every file in the directory
-        Must follow the form:
-                out_frame = func(fits_path, frame_name)
-        """
-        self.do_fits_function = func
+    # def set_function(self, func):
+    #     """This is the function which gets applied to every file in the directory
+    #     Must follow the form:
+    #             out_frame = func(fits_path, frame_name)
+    #     """
+    #     self.do_fits_function = func
     
     def do_fits_function(self, fits_path, in_name):
         raise NotImplementedError
     
     def process(self, params=None):
-        print(self.filt_name + "...", flush=True)
+        print(' v', self.filt_name + "...", flush=True)
         self.load(params, quietly=False)
         self.super_flush()
         
-        if self.do_png:
-            self.process_img_series()
-        else:
-            self.process_fits_series()
+        if self.params is not None:
+            if self.do_png:
+                self.process_img_series()
+            else:
+                self.process_fits_series()
     
     ##  Fits Files
     def process_fits_series(self):
@@ -219,13 +220,17 @@ class Processor:
             for self.ii, fits_path in enumerate(tqdm(
                     self.params.local_fits_paths(),
                     unit=self.progress_unit,
-                    desc="  {}".format(self.progress_verb))):
+                    desc=self.progress_verb)):
+                
                 self.modify_one_fits(fits_path)
         
-        if self.ii + 1 > 0:
-            print("    Successfully Processed {} Files \n".format(self.ii + 1), flush=True)
+        
+        n_success = self.ii + 1 #- self.skipped
+        if n_success > 1:
+            
+            print(" ^    Successfully Processed {} Files \n".format(n_success), flush=True)
         else:
-            print("    No Files Found")
+            print(" ^    No Files Found")
     
     def modify_one_fits(self, fits_path):
         """Apply the given funtion to the given fits path"""
@@ -234,6 +239,7 @@ class Processor:
             output = self.do_fits_function(fits_path, self.in_name)
             try:
                 frame = output.get()
+
             except AttributeError as e:
                 # print(e)
                 frame = output
@@ -241,7 +247,7 @@ class Processor:
             print("Failed to Load Fits Frame")
             print(e)
             return self.original
-        if self.save_to_fits:
+        if self.save_to_fits and frame is not None:
             self.save_frame_to_fits_file(fits_path, frame)
         return frame
     
@@ -310,7 +316,7 @@ class Processor:
         field = self.out_name
         with fits.open(fits_path, cache=False, mode="update") as hdul:
             # hdul.verify('silentfix+ignore')  # Then Verify
-            if type(frame) in [float]:
+            if frame.dtype in [float, np.float32]:
                 frame = self.smallify_frame(frame)
             fit_frame = fits.ImageHDU(frame, name=field)
             if field not in hdul:
@@ -334,6 +340,7 @@ class Processor:
         """Load a fits file from disk"""
         with fits.open(fits_path, cache=False) as hdul:
             hdul.verify('silentfix+ignore')  # Verify
+            self.ensure_no_double_filtering(hdul)
             wave, t_rec, center = self.get_fits_info(hdul)
             frame = hdul[field].data
         return frame, wave, t_rec, center
@@ -342,19 +349,27 @@ class Processor:
         """Load a fits file from disk"""
         with fits.open(fits_path, cache=False) as hdul:
             hdul.verify('silentfix+ignore')  # Verify
+            self.in_name= self.ensure_no_double_filtering(hdul)
             wave, t_rec, center = self.get_fits_info(hdul)
             frame = self.open_fits_hdul(hdul)
+            
         return frame, wave, t_rec, center
     
     def smallify_frame(self, frame):
-        import numpy as np
-        mx = np.max(frame)
-        mn = np.min(frame)
+        mx = np.nanmax(frame)
+        mn = np.nanmin(frame)
+        normed = (frame - mn) / (mx - mn)
         
-        flatt = (frame - mn) / (mx - mn)
-        flatt_grande = flatt * 2 ** 16
-        frame = flatt_grande.astype(np.int16)
-        return frame
+        scaled = normed * 2 ** 16
+        average = np.uint16(np.round(np.nanmean(scaled)))
+        de_NANed = np.nan_to_num(scaled, nan=average)
+        compressed = de_NANed.astype(np.uint16)
+        
+        return compressed
+    
+    # def smallify_frame(self, frame):
+    #
+    #     return frame.astype(np.float16)
     
     def get_fits_info(self, hdul):
         # Load the original frame
@@ -374,11 +389,11 @@ class Processor:
     def open_fits_hdul(self, hdul):
         """Load a fits file from disk"""
 
-        if self.ensure_no_double_filtering(hdul) is None:
-            return False
         # Load the called for frame
         if 'str' in str(type(self.in_name)):
             field_hdu = hdul[self.in_name]
+        elif self.in_name is None:
+            return None
         else:
             field_hdu = hdul[self.hdu_name_list[self.in_name]]
         return field_hdu.data
@@ -386,7 +401,9 @@ class Processor:
     def ensure_no_double_filtering(self, hdul):
         """Determine which frame of the input file to use on redo"""
         self.list_hdus(hdul)
-        mode                   = self.mode
+        if self.in_name is None:
+            return None
+        reprocess_mode         = self.params.reprocess_mode()
         input_frame_name       = self.determine_in_frame_name()
         output_frame_name      = self.determine_out_frame_name()
         first_frame_name       = self.hdu_name_list[0]
@@ -394,25 +411,30 @@ class Processor:
         
         if input_frame_name.casefold() == output_frame_name.casefold():
             # If you're about to redo a filter
-            if mode == 'skip':
+            
+            if reprocess_mode == 'skip' or reprocess_mode is False:
                 # Skip it
                 self.in_name = None
                 # raise FileExistsError("Skipping File")
-            elif mode == 'redo':
+            elif reprocess_mode == 'redo' or reprocess_mode is True:
                 # Go to the previous frame and remake
                 self.in_name = penultimate_frame_name
-            elif mode == 'reset':
+            elif reprocess_mode == 'reset':
                 # Go to the first frame and remake
                 self.in_name = first_frame_name
-            elif mode == 'double':
+            elif reprocess_mode == 'double':
                 # Repeat the filter a second time
                 self.in_name = output_frame_name
+            else:
+                raise NotImplementedError
         else:
             self.in_name = input_frame_name
         return self.in_name
  
     def determine_in_frame_name(self):
         # Determine the called-for input frame NAME
+        if self.in_name is None:
+            return None
         if type(self.in_name) is str:
             if self.in_name in self.hdu_name_list:
                 input_frame_name = self.in_name.casefold()

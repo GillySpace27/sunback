@@ -23,6 +23,8 @@ class ImageProcessor(Processor):
     progress_text = ""
     video_name_stem = ""
     description = "Turn all the fits files into png files"
+    progress_verb = " *    Writing Imgs"
+    
     changed = None
     original = None
     image_data = None
@@ -35,54 +37,43 @@ class ImageProcessor(Processor):
     def __init__(self):
         """Init like usual, but also set the function"""
         super().__init__(quick=True)
-        super().set_function(self.make_image)
+        # super().set_function(self.make_image)
         self.pathBox = []
         self.figbox = []
-        
-    def make_image(self, fits_path, frame=None):
+        self.skipped = 0
+
+    def do_fits_function(self, fits_path, in_name=None):
         """This is the do_fits_function for this """
         self.prep_image(fits_path)
-        self.render()
-        self.export_files()
+        if self.render():
+            self.export_files()
         return self
     
     def prep_image(self, fits_path):
         """Load the fits file from disk and get a field or two"""
-        
         frame0, _, _, _ = self.load_first_fits_field(fits_path)
         frame1, wave1, t_rec1, center1 = self.load_last_fits_field(fits_path)
-        
+        self.params.local_imgs_paths()
         self.original, self.changed = copy(frame0), copy(frame1)
         self.image_data = str(wave1), fits_path, t_rec1, frame1.shape
         self.figbox = []
         self.pathBox = []
-    
-    # def prep_image_old(self, fits_path, field1=None, field2=-1):
-    #     """Load the fits file from disk and get a field or two"""
-    #
-    #     fits_data = self.load_best_fits_field(fits_path)  # , field1=field1, field2=field2)
-    #
-    #     if field1 and field2:
-    #         frame1, wave1, t_rec1, center1 = fits_data[0]
-    #         frame2, wave2, t_rec2, center2 = fits_data[1]
-    #         self.original, self.changed = copy(frame1), copy(frame2)
-    #         self.image_data = str(wave1), fits_path, t_rec1, frame1.shape
-    #
-    #     elif field1:
-    #         frame1, wave1, t_rec1, center1 = fits_data[0]
-    #         self.original = copy(frame1)
-    #         self.changed = None
-    #         self.image_data = str(wave1), fits_path, t_rec1, frame1.shape
-    #
-    #     elif field2:
-    #         frame2, wave2, t_rec2, center2 = fits_data[0]
-    #         self.original = None
-    #         self.changed = copy(frame2)
-    #         self.image_data = str(wave2), fits_path, t_rec2, frame2.shape
-    
+        self.make_directories()
+
+    def make_directories(self):
+        _, self.fits_save_path, _, _ = self.image_data
+        self.png_save_path = self.fits_save_path.replace('fits', 'png')
+        self.png_save_stem = self.png_save_path.split(".")[0] + '{}' + ".png"
+        self.png_save_directory = os.path.dirname(self.png_save_path)
+        os.makedirs(self.png_save_directory, exist_ok=True)
+        
     def render(self):
         """Render the original and changed plots"""
         # Which plots to make?
+        if self.skip():
+            self.skipped += 1
+            return False
+        
         if self.params.do_orig:
             trials = [False, True]
         else:
@@ -91,6 +82,21 @@ class ImageProcessor(Processor):
         # Make them
         for processed in trials:
             self.render_one(processed)
+            
+        return True
+    
+    def skip(self):
+        if self.params.overwrite_pngs():
+            # If you do want to overwrite
+            return False # Don't Skip
+        else:
+            # If you don't want to overwrite
+            if self.png_save_path in self.params.local_imgs_paths():
+                # Make images you don't already have
+                return True # do skip
+            else:
+                return False # don't skip
+    
     
     def render_one(self, processed):
         """Render one image"""
@@ -166,13 +172,9 @@ class ImageProcessor(Processor):
         
         return inst, height
     
+
+    
     def export_files(self):
-        _, fits_save_path, _, _ = self.image_data
-        png_save_path = fits_save_path.replace('fits', 'png')
-        self.png_save_stem = png_save_path.split(".")[0] + '{}' + ".png"
-        self.png_save_directory = os.path.dirname(png_save_path)
-        os.makedirs(self.png_save_directory, exist_ok=True)
-        
         try:
             for fig, ax, processed in self.figbox:
                 out_path = self.png_save_stem.format('' if processed else "_orig")

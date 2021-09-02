@@ -48,7 +48,7 @@ class FidoFetcher(Fetcher):
             self.download_fits_series()
             self.validate_download()
         else:
-            print("   Using {} Cached Fits Files\n".format(self.params.n_fits))
+            print("   Using {} Cached Fits Files\n\n".format(self.params.n_fits))
     
     def download_fits_series(self):
         self.define_range()
@@ -101,7 +101,7 @@ class FidoFetcher(Fetcher):
         results = Fido.fetch(self.fido_result, path=self.params.fits_directory(),
                              downloader=Downloader(progress=True, file_progress=False, max_conn=100,
                                                    overwrite=overwrite))
-        print("     Successfully Downloaded {} Files\n".format(len(results)), flush=True)
+        print(" *     Successfully Downloaded {} Files\n".format(len(results)), flush=True)
         sys.stdout.flush()
         return results
     
@@ -210,7 +210,7 @@ class FidoFetcher(Fetcher):
     
     def validate_fits(self):
         from statistics import mode
-        # self.file_size_mode = mode(self.file_size)
+        # self.file_size_mode = reprocess_mode(self.file_size)
         self.redownload = []
         for local_file in self.params.local_fits_paths():
             abs_path = join(self.fits_folder, local_file)
@@ -272,7 +272,7 @@ class FidoMultiFrameProcessor(FidoFetcher):
     def __init__(self, params=None):
         if params is not None:
             super().__init__(params=params)
-            self.set_function(self.do_fits_function)
+            # self.set_function(self.do_fits_function)
             self.exposure_paths = []
     
     def fido_download_fits(self):
@@ -281,10 +281,10 @@ class FidoMultiFrameProcessor(FidoFetcher):
         self.exposure_paths.extend(Fido.fetch(self.fido_result, path= self.temp_folder,
                                               downloader=Downloader(progress=verb, file_progress=False, max_conn=100,
                                                                     overwrite=overwrite)))
-        vprint("     Successfully Downloaded {} Files\n".format(len(self.exposure_paths)), flush=True, verb=self.verb)
+        vprint(" *     Successfully Downloaded {} Files\n".format(len(self.exposure_paths)), flush=True, verb=self.verb)
         sys.stdout.flush()
     
-    def do_fits_function(self, fits_path, in_name):
+    def do_fits_function(self, fits_path, in_name=None):
         """This is the thing that will be executed on every file"""
         
         # Get the Images

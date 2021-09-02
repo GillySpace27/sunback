@@ -1,8 +1,6 @@
-from os.path import join
-
+from fetcher.FidoFetcher import FidoFetcher
 from processor.ImageProcessor import ImageProcessor
-from processor.RadialFiltProcessor import RadialFiltProcessor
-from fetcher.FidoFetcher import FidoFetcher, FidoMultiFrameProcessor
+from processor.SRNRadialFiltProcessor import SRNRadialFiltProcessor
 from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
 import run
@@ -21,11 +19,12 @@ def run_range_multishot_movie(delay=10, debug=True, do_one="0171", stop=True,
     p.run_type("Make Movie of Given Time Range, With Multishot")
     rng = "MultiRange\\MRange_{}".format(time_string)
     p.batch_name(rng)
+    p.do_recent(False)
+    
     
     p.do_one(do_one, stop)
     # p.stop_after_one(stop)
     p.is_debug(debug)
-    p.do_recent(False)
     
     # Set the Times
     p.time_period(period=[tstart, tend])
@@ -35,17 +34,18 @@ def run_range_multishot_movie(delay=10, debug=True, do_one="0171", stop=True,
     # p.resolution(2048)
 
     # Run Flags
-    p.download_images(True)
-    p.reprocess_mode('skip')
-    # p.overwrite_pngs(True)
+    p.download_images(False)
+    p.reprocess_mode(False)  # 'skip' (or False), 'redo' (or True), 'reset', 'double'
+    p.overwrite_pngs(False)
+    p.write_video(False)
     # p.delete_old(True)
     
     # Set the Processes
-    # p.fetchers(FidoFetcher())      # Gets Fits FIDO
+    p.fetchers(FidoFetcher())      # Gets Fits FIDO
     
     # p.processors([FidoMultiFrameProcessor()])      # Gets Fits FIDO
-    # p.processors([RadialFiltProcessor()])  # Makes the PNGs from Fits
-    
+    p.processors([SRNRadialFiltProcessor()])  # Makes the PNGs from Fits
+    #
     p.putters([ImageProcessor()])  # Makes the PNGs from Fits
     p.putters([VideoProcessor()])  # Makes the PNGs into a Movie
 

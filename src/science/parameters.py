@@ -21,7 +21,9 @@ class Parameters:
     def __init__(self):
         """Sets all the attributes to None"""
         # Initialize Variables
-        self._reprocess_mode = 'skip'
+        self._write_video = False
+        self._overwrite_pngs = False
+        self._reprocess_mode = False
         self._current_wave = None
         self._imgs_directory = ""
         self._fits_directory = ""
@@ -49,7 +51,7 @@ class Parameters:
         
         # Movie Defaults
         self._download_images = True
-        self._overwrite_pngs = False
+        self._overwrite_video = False
         self._delete = True
         self._make_compressed = False
         self._remove_old_images = False
@@ -206,6 +208,12 @@ class Parameters:
         if self._overwrite_pngs:
             self.something_changed(True)
         return self._overwrite_pngs
+
+    def write_video(self, boolean=None):
+        if boolean is not None:
+            assert type(boolean) in [bool]
+            self._write_video = boolean
+        return self._write_video
     
     def make_compressed(self, boolean=None):
         if boolean is not None:
@@ -359,6 +367,14 @@ class Parameters:
                 output.write('\n\n')
 
     def reprocess_mode(self, _reprocess_mode=None):
+        """Pick how it should handle frames that already exist
+            options are:
+                skip    - do nothing
+                redo    - pull from prev frame to recompute same as last time
+                reset   - pull from first frame to recompute from scratch
+                double  - pull from current frame to double the filter
+        
+        """
         if _reprocess_mode is not None:
             self._reprocess_mode = _reprocess_mode
         return self._reprocess_mode
@@ -467,7 +483,7 @@ class Parameters:
                 sleep(1 / fps)
                 print('.', end='', flush=True)
                 # self.check_for_skip()
-            print('Done')
+            # print('Done')
     
     def sleep_until_delay_elapsed(self):
         """ Make sure that the loop takes the right amount of time """
