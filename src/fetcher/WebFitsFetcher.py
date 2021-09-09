@@ -20,8 +20,8 @@ class WebFitsFetcher(Fetcher):
         """Gets the Fits Files from the Archive URL
         :param params:
         """
-        self.current_wave = 'rainbow'
-        self.load(params, quietly=True, wave=self.current_wave)
+        self.params.current_wave('rainbow')
+        self.load(params, quietly=True, wave=self.params.current_wave())
         if self.params.redownload_files():
             print("  Downloading Fits Files from {}...".format(self.base_url), flush=True)
             # super.super.__init__(params)

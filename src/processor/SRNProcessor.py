@@ -70,7 +70,7 @@ class SRNProcessor(Processor):
         self.center = None
         self.original = None
         self.changed = None
-        self.use_keyframes = False
+        self.can_use_keyframes = False
         self.vignette_mask = None
         self.s_radius = 400  # * self.extra_rez
         self.tRadius = self.s_radius * 1.28
@@ -93,7 +93,7 @@ class SRNProcessor(Processor):
         if fits_path is not None:  # Load the input fits path
             self.fits_path = fits_path
         # Define which images to use
-        if self.use_keyframes:
+        if self.can_use_keyframes:
             if self.fits_path in self.keyframes and self.load_fits_image():
                 return self.do_work()  # Do the work on the fits files
         elif self.load_fits_image():
@@ -130,6 +130,7 @@ class SRNProcessor(Processor):
     def image_modify(self):
         """Perform the actual normalization on the input array"""
         self.make_radius_array()  # Assign Each Pixel its Radius Value
+        self.raster_curves()
         self.coronaNorm()  # Use curves to rescale the in_object
         self.coronagraph_touchup()  # Deal with some outliers
         self.vignette()  # Truncate the in_object above given radius
@@ -174,34 +175,40 @@ class SRNProcessor(Processor):
     def load_curves(self):
         """Load the curves so they don't have to be recalculated"""
         file_name = self.params.curve_path()
+        # if not self.original:
+        #     self.in_name = 0
+        #     self.load_fits_image()
+        #     self.make_radius_array()
+        #
         if os.path.exists(file_name):
             print(" *    Loading Radial Curves...", end='')
             try:
                 min_curve, max_curve = np.loadtxt(file_name)
                 SRNProcessor.rendered_min = min_curve
                 SRNProcessor.rendered_max = max_curve
-                self.raster_curves()
+                # self.raster_curves()
                 self.super_flush("Success!")
             except ValueError as e:
                 print("Failed: {}".format(e))
-                if not self.original:
-                    self.load_fits_image()
+
                 self.image_learn()
                 self.save_curves()
  
     def raster_curves(self):
         """Raster out the min/max curves from the rendered version"""
-        if self.rastered_min is None or not self.rastered_min.shape == self.binInds.shape:
+        if self.rastered_min is None:
             print("Rastering...", end='')
-            SRNProcessor.rastered_min = self.rastered_min = SRNProcessor.rendered_min[self.binInds]
-            SRNProcessor.rastered_max = self.rastered_max = SRNProcessor.rendered_max[self.binInds]
+            SRNProcessor.rastered_min = self.rastered_min = np.squeeze(SRNProcessor.rendered_min[self.binInds])
+            SRNProcessor.rastered_max = self.rastered_max = np.squeeze(SRNProcessor.rendered_max[self.binInds])
+    
+    
     
     # Analysis
     def make_radius_array(self, vignette_radius=1.2, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
         
-        if self.radius is None or force or self.original.shape[0] != self.rez:
-            self.rez = self.original.shape[0]
+        if self.radius is None or force or self.changed.shape[0] != self.rez:
+            self.rez = self.changed.shape[0]
             
             self.init_curves()
             
@@ -235,8 +242,7 @@ class SRNProcessor(Processor):
         
         self.more_rez = np.max(self.binInds) + 10
         self.radBins = [[] for x in np.arange(self.more_rez)]
-        # if self.radBins_all is None:
-        #     self.radBins_all = copy(self.radBins)
+
     
     def bin_radially(self):  # TODO Make this much faster
         """Bin the intensities by radius """
@@ -725,7 +731,7 @@ class SRNProcessor(Processor):
         ax0.legend()
         fig.set_size_inches((8, 12))
         ax0.set_yscale('log')
-        ax0.set_ylim((10**1, 10**5))
+        ax0.set_ylim((10**-1, 10**5))
         
         # ax1.scatter(self.n2r(self.rad_flat[::10]), self.dat_coronagraph[::10], c='k', s=2)
         #
@@ -926,7 +932,8 @@ class SRNpreProcessor(SRNProcessor):
     finished_verb = "Analyzed"
     
     show_plots = True
-    fixed_number_keyframes = 4
+    # fixed_number_keyframes = 4
+    can_use_keyframes = True
     
     # fixed_cadence_keyframes = 4
     # qq = 0
@@ -967,6 +974,10 @@ class SRNradialFiltProcessor(SRNProcessor):
     description = "Filter the Images Radially with SRN"
     progress_verb = 'Filtering'
     finished_verb = "Filtered"
+    use_keyframes = False
+    def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
+        super().__init__(fits_path, in_name, orig, show, verb, quick, rp, params)
+        self.go_ahead = True
     
     def setup(self):
         self.load_curves()

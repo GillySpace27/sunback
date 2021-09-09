@@ -7,7 +7,7 @@ from astropy import units as u
 from fetcher.LocalFetcher import LocalFetcher
 from processor.Processor import Processor
 from putter.NullPutter import NullPutter
-from utils.file_util import discover_best_data_directory
+# from utils.file_util import discover_best_data_directory
 import matplotlib.pyplot as plt
 
 
@@ -23,7 +23,7 @@ class Parameters:
     def __init__(self):
         """Sets all the attributes to None"""
         # Initialize Variables
-        self._remake_norm_curves = True
+        self._remake_norm_curves = False
         self._params_path = None
         self._curve_path = None
         self._write_video = False
@@ -35,8 +35,11 @@ class Parameters:
         self._movs_directory = ""
         self._base_directory = ""
         self._delay_seconds = 30
+        self._fixed_number_keyframes = None
+        self._fixed_cadence_keyframes = 3
         self.time_multiplier_for_long_display = None
         self.local_directory = None
+        self.all_wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
         self.use_wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
         self._resolution = 4096
         self.web_image_frame = None
@@ -73,7 +76,7 @@ class Parameters:
         self._time_period = None
         self._range_in_days = 4
         self._cadence = 10 * u.minute
-        self._exposure_time = 60 #seconds
+        self._exposure_time = 60  # seconds
         
         self._frames_per_second = 30
         self._bpm = 70
@@ -97,8 +100,6 @@ class Parameters:
         self.do_cat = False
         
         # self.set_default_values()
-
-        
     
     # TODO: extract getter/setter logic
     # Main Functions
@@ -128,14 +129,14 @@ class Parameters:
         return self._putters
     
     ## Other
-    
-    #Directories
+
+    # Directories
     
     def base_directory(self, _base_directory=None):
         if _base_directory is not None:
             self._base_directory = _base_directory
         return self._base_directory
-        
+    
     def batch_name(self, _batch_name=None):
         if _batch_name is not None:
             self._batch_name = _batch_name
@@ -145,17 +146,17 @@ class Parameters:
         if _archive_url is not None:
             self._archive_url = _archive_url
         return self._archive_url
- 
+    
     def imgs_directory(self, _imgs_directory=None):
         if _imgs_directory is not None:
             self._imgs_directory = _imgs_directory
         return self._imgs_directory
-
+    
     def fits_directory(self, _fits_directory=None):
         if _fits_directory is not None:
             self._fits_directory = _fits_directory
         return self._fits_directory
-
+    
     def movs_directory(self, _movs_directory=None):
         if _movs_directory is not None:
             self._movs_directory = _movs_directory
@@ -170,12 +171,12 @@ class Parameters:
         if _curve_path is not None:
             self._curve_path = _curve_path
         return self._curve_path
-
+    
     def params_path(self, _params_path=None):
         if _params_path is not None:
             self._params_path = _params_path
         return self._params_path
-
+    
     def local_fits_paths(self, _local_fits_paths=None):
         if _local_fits_paths is not None:
             self._local_fits_paths = _local_fits_paths
@@ -185,9 +186,20 @@ class Parameters:
         if _local_imgs_paths is not None:
             self._local_imgs_paths = _local_imgs_paths
         return self._local_imgs_paths
+
+    # BOOLEANS
     
-    #BOOLEANS
+    def fixed_cadence_keyframes(self, cadence=None):
+        if cadence is not None:
+            self._fixed_cadence_keyframes = cadence
+            self._fixed_number_keyframes = None
+        return self._fixed_cadence_keyframes
     
+    def fixed_number_keyframes(self, number=None):
+        if number is not None:
+            self._fixed_cadence_keyframes = None
+            self._fixed_number_keyframes = number
+        return self._fixed_number_keyframes
     
     def run_type(self, _type=None):
         if _type is not None:
@@ -200,7 +212,7 @@ class Parameters:
             self.current_wave(which)
             # self.batch_name(which)
             self.stop_after_one(stop)
-
+        
         return self._do_one
     
     def redownload_files(self, boolean=None):
@@ -224,13 +236,13 @@ class Parameters:
         # if self._overwrite_pngs:
         #     self.something_changed(True)
         return self._overwrite_pngs or self.local_imgs_paths() in [None, []]
-
+    
     def remake_norm_curves(self, boolean=None):
         if boolean is not None:
             assert type(boolean) in [bool]
             self._remake_norm_curves = boolean
         return self._remake_norm_curves
-
+    
     def write_video(self, boolean=None):
         if boolean is not None:
             assert type(boolean) in [bool]
@@ -293,20 +305,18 @@ class Parameters:
             if self._do_304:
                 self.stop_after_one(True)
         return self._do_304
-
+    
     def use_default_directories(self, boolean=None):
         if boolean is not None:
             assert type(boolean) in [bool]
             self._use_default_directories = boolean
         return self._use_default_directories
-
+    
     def stop_after_one(self, boolean=None):
         if boolean is not None:
             assert type(boolean) in [bool]
             self._stop_after_one = boolean
         return self._stop_after_one
-    
-   
     
     #
     # def stop_after_one(self, boolean=None):
@@ -330,7 +340,7 @@ class Parameters:
             assert type(_do_recent) in [bool]
             self._do_recent = _do_recent
         return self._do_recent
- 
+    
     def do_multishot(self, _do_multishot=None):
         if _do_multishot is not None:
             assert type(_do_multishot) in [bool]
@@ -342,7 +352,7 @@ class Parameters:
             self._cadence = cad * u.minute
         return self._cadence
     
-    def exposure_time(self, _exposure_time=None):
+    def exposure_time_seconds(self, _exposure_time=None):
         if _exposure_time is not None:
             self._exposure_time = _exposure_time
         return self._exposure_time
@@ -363,21 +373,91 @@ class Parameters:
             self._bpm = bpm
         return self._bpm
     
+    def set_waves_to_do(self, waves=None):
+        
+        if waves is not None:
+            self.waves_to_do = [waves]
+        elif self.do_one():
+            self.waves_to_do = [self.do_one()]
+        else:
+            self.waves_to_do = self.all_wavelengths
+    
+    def set_current_wave(self, wave=None):
+        """Set the current wave parameter correctly"""
+        
+        if self.do_one():
+            self.current_wave(self.do_one())
+        else:
+            self.current_wave(wave)
+        self.set_current_wave_paths()
+    
+    def set_current_wave_paths(self):
+        """Make the paths for current_wave"""
+        # Define and Set Directories
+        # print("Target: {}".format(self.current_wave))
+        base_directory = self.discover_base_directory()
+        # self.current_wave(self.current_wave)
+        
+        self.base_directory(abspath(base_directory))
+        self.imgs_directory(abspath(join(base_directory, 'png')))
+        self.fits_directory(abspath(join(base_directory, 'fits')))
+        self.movs_directory(abspath(join(base_directory, "..", 'MOVS')))
+        
+        self.time_path(abspath(join(base_directory, "image_times.txt")))
+        self.curve_path(abspath(join(base_directory, "curves.txt")))
+        
+        file_name = '{}_params.txt'.format(self.current_wave())
+        self.params_path(abspath(join(base_directory, file_name)))
+    
+    def discover_base_directory(self):
+        """Define the root folder"""
+        root = self.discover_best_data_directory()
+        base_directory = join(root, self.batch_name())
+        base_directory = join(base_directory, self.current_wave())
+        return self.base_directory(base_directory)
+    
+    @staticmethod
+    def discover_best_data_directory():
+        """Determine where to store the images"""
+        subdirectory_name = "sunback_images"
+        
+        if __file__ in globals():
+            ddd = dirname(abspath(__file__))
+        else:
+            ddd = abspath(getcwd())
+        
+        while "dropbox".casefold() in ddd.casefold():
+            ddd = abspath(join(ddd, ".."))
+        
+        directory = join(ddd, subdirectory_name)
+        if not isdir(directory):
+            makedirs(directory)
+        return directory
+    
+    def create_subdirectories(self):
+        # Make Directories
+        makedirs(self.imgs_directory(), exist_ok=True)
+        makedirs(self.fits_directory(), exist_ok=True)
+        if "background" not in self.movs_directory():
+            makedirs(self.movs_directory(), exist_ok=True)
+        # Save Parameters
+        self.save_to_txt()
+    
     def current_wave(self, _current_wave=None):
         if _current_wave is not None:
             self._current_wave = _current_wave
         return self._current_wave
-
+    
     def check_real_number(self, number):
         assert type(number) in [float, int]
         assert number > 0
-
-    def save_to_txt(self):  #, current_wave=None):
+    
+    def save_to_txt(self):  # , current_wave=None):
         # print("Txt Save Fail")
         # pass
         # Save contents of environment to text file
         # name = self.current_wave(current_wave)
-
+        
         infoEnv = self
         with open(self.params_path(), 'w') as output:
             output.write(asctime() + '\n\n')
@@ -388,7 +468,46 @@ class Parameters:
                         string = str(ii) + " : " + str(pile[ii]) + '\n'
                         output.write(string)
                 output.write('\n\n')
-
+    
+    def load_preset_time_settings(self, selection=None):
+        """Load one of a few presets for the time settings"""
+        selection = selection.casefold()
+        if selection in ['false', 'f', "False", None, False]:
+            return False
+        
+        key_fixed_cadence = 4
+        key_fixed_number = None
+        
+        if selection.casefold() in ['slow', 's']:
+            cadence_minutes = 5
+            exposure_time_secs = 180
+            fps = 20
+        
+        elif selection.casefold() in ['medium', 'm']:
+            cadence_minutes = 10
+            exposure_time_secs = 120
+            fps = 15
+        elif selection.casefold() in ['fast', 'f']:
+            cadence_minutes = 20
+            exposure_time_secs = 60
+            fps = 15
+        elif selection.casefold() in ['plaid', 'p']:
+            cadence_minutes = 60
+            exposure_time_secs = 37
+            fps = 10
+        else:
+            return False
+        
+        # Set the Parameters
+        # self.time_period(period=[tstart, tend])
+        self.cadence_minutes(cadence_minutes)
+        self.exposure_time_seconds(exposure_time_secs)
+        self.frames_per_second(fps)
+        self.fixed_cadence_keyframes(key_fixed_cadence)
+        self.fixed_number_keyframes(key_fixed_number)
+        
+        return True
+    
     def compare_fits_frames(self, compare_two_files=False):
         # path1 = "aia_lev1_171a_2014_11_04t03_50_11_34z_image_lev1.fits"
         # path2 = "aia_lev1_171a_2014_11_04t00_20_11_34z_image_lev1.fits"
@@ -399,53 +518,50 @@ class Parameters:
         self_proc = Processor(self, quick=True)
         full_path1 = join(self.fits_directory(), path1)
         full_path2 = join(self.fits_directory(), path2)
-    
+        
         frame, wave, t_rec, center, int_time = Processor.load_last_fits_field(self_proc, full_path1)
         if compare_two_files:
             frame2, wave2, t_rec2, center2, int_time2 = Processor.load_last_fits_field(self_proc, full_path2)
         else:
             frame2, wave2, t_rec2, center2, int_time2 = Processor.load_first_fits_field(self_proc, full_path1)
-        
-        
+            
             # Modifying
-        frame3 = abs(frame2-frame)
-    
-    
+        frame3 = abs(frame2 - frame)
+        
         #  Plotting
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1, True, True)
-    
+        
         #  Make Color Scale the Same for All Frames
         mx1 = frame.flatten()[frame.argmax()]
         mx2 = frame2.flatten()[frame2.argmax()]
         mx3 = frame3.flatten()[frame3.argmax()]
-    
+        
         me1 = np.mean(frame)
         me2 = np.mean(frame2)
         me3 = np.mean(frame3)
-    
+        
         mn1 = frame.flatten()[frame.argmin()]
         mn2 = frame2.flatten()[frame2.argmin()]
         mn3 = frame3.flatten()[frame3.argmin()]
-    
-    
+        
         stat_string = "\nMin, Mean, Max = {:0.2f}, {:0.2f}, {:0.2f}"
         stat_string1 = stat_string.format(mn1, me1, mx1)
         stat_string2 = stat_string.format(mn2, me2, mx2)
         stat_string3 = stat_string.format(mn3, me3, mx3)
-    
+        
         allmax = max(mx1, mx2)
         allmin = min(mn1, mn2)
-    
+        
         # Plot Commands
         ax1.imshow(frame, vmin=allmin, vmax=allmax)
         ax1.set_title(str(path1[14:30]) + stat_string1)
-    
+        
         ax2.imshow(frame2, vmin=allmin, vmax=allmax)
         ax2.set_title(str(path2[14:30]) + stat_string2)
-    
+        
         ax3.imshow(frame3, vmin=allmin, vmax=allmax)
         ax3.set_title("Diff" + stat_string3)
-    
+        
         #  Plot Formatting
         # plt.subplots_adjust(top=0.987,
         #                     bottom=0.025,
@@ -456,7 +572,7 @@ class Parameters:
         fig.set_size_inches(5, 12)
         plt.tight_layout()
         plt.show(block=True)
-
+    
     def reprocess_mode(self, _reprocess_mode=None):
         """Pick how it should handle frames that already exist
             options are:
@@ -480,7 +596,7 @@ class Parameters:
             self._delay_seconds = self._debug_delay
         elif _delay is not None:
             self.check_real_number(_delay)
-            self._delay_seconds =  _delay
+            self._delay_seconds = _delay
         return self._delay_seconds
     
     # Methods that Set Parameters (LEGACY SETTERS)
@@ -493,7 +609,7 @@ class Parameters:
         if path is not None:
             self.local_directory = path
         else:
-            self.local_directory = discover_best_data_directory()
+            self.local_directory = self.discover_best_data_directory()
         
         makedirs(self.local_directory, exist_ok=True)
     
@@ -546,7 +662,6 @@ class Parameters:
     def get_local_path(self, wave):
         return normpath(join(self.local_directory, self.file_ending.format(wave)))
     
-    
     def determine_delay(self):
         """ Determine how long to wait """
         
@@ -594,9 +709,7 @@ class Parameters:
         if mode is not None:
             self._mode = mode
         return self._mode
-    
-    
-    
+        
         # self.movie_folder = abspath(join(base_directory, "movies\\"))
         # self.video_name_stem = join(self.movie_folder, '{}_{}_movie{}'.format(current_wave, strftime('%m%d_%H%M'), '{}'))
         

@@ -25,22 +25,22 @@ archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Defau
 #     self.temp_fits_pathbox.extend(list_of_files)
 
 
-def discover_best_data_directory():
-    """Determine where to store the images"""
-    subdirectory_name = "sunback_images"
-    
-    if __file__ in globals():
-        ddd = dirname(abspath(__file__))
-    else:
-        ddd = abspath(getcwd())
-    
-    while "dropbox".casefold() in ddd.casefold():
-        ddd = abspath(join(ddd, ".."))
-    
-    directory = join(ddd, subdirectory_name)
-    if not isdir(directory):
-        makedirs(directory)
-    return directory
+# def discover_best_data_directory():
+#     """Determine where to store the images"""
+#     subdirectory_name = "sunback_images"
+#
+#     if __file__ in globals():
+#         ddd = dirname(abspath(__file__))
+#     else:
+#         ddd = abspath(getcwd())
+#
+#     while "dropbox".casefold() in ddd.casefold():
+#         ddd = abspath(join(ddd, ".."))
+#
+#     directory = join(ddd, subdirectory_name)
+#     if not isdir(directory):
+#         makedirs(directory)
+#     return directory
 
 #
 # def find_done_paths(full_path):

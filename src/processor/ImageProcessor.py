@@ -36,10 +36,12 @@ class ImageProcessor(Processor):
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
+        self.fig, self.frame_ax = None, None
+        self.plot_formatted = False
         self.pathBox = []
         self.figbox = []
         self.skipped = 0
-
+    
     def do_fits_function(self, fits_path, in_name=None):
         """This is the do_fits_function for this """
         self.prep_image(fits_path)
@@ -54,17 +56,17 @@ class ImageProcessor(Processor):
         self.params.local_imgs_paths()
         self.original, self.changed = copy(frame0), copy(frame1)
         self.image_data = str(wave1), fits_path, t_rec1, frame1.shape
+        self.make_directories()
         self.figbox = []
         self.pathBox = []
-        self.make_directories()
-
+    
     def make_directories(self):
         _, self.fits_save_path, _, _ = self.image_data
         self.png_save_path = self.fits_save_path.replace('fits', 'png')
         self.png_save_stem = self.png_save_path.split(".")[0] + '{}' + ".png"
         self.png_save_directory = os.path.dirname(self.png_save_path)
         os.makedirs(self.png_save_directory, exist_ok=True)
-        
+    
     def render(self):
         """Render the original and changed plots"""
         # Which plots to make?
@@ -80,21 +82,20 @@ class ImageProcessor(Processor):
         # Make them
         for processed in trials:
             self.render_one(processed)
-            
+        
         return True
     
     def skip(self):
         if self.params.overwrite_pngs() or self.reprocess_mode():
             # If you do want to overwrite
-            return False # Don't Skip
+            return False  # Don't Skip
         else:
             # If you don't want to overwrite
             if self.png_save_path in self.params.local_imgs_paths():
                 # Make images you don't already have
-                return True # do skip
+                return True  # do skip
             else:
-                return False # don't skip
-    
+                return False  # don't skip
     
     def render_one(self, processed):
         """Render one image"""
@@ -107,43 +108,62 @@ class ImageProcessor(Processor):
         name, wave = self.clean_name_string(full_name)
         
         # Create the Figure
-        fig, ax = plt.subplots()
-        
-        # Plot
-        if 'hmi' in name.casefold():
-            inst, height = self.plot_hmi(fig, ax, self.changed)
-        else:
-            inst, height = self.plot_aia(fig, ax, wave, processed)
+        if self.fig is None:
+            self.fig, self.frame_ax = plt.subplots()
+        self.format_plot()
+            
+        inst, height = self.plot_aia(self.fig, self.frame_ax, wave, processed)
         
         # Format the Plot and Save
-        self.format_plot(fig, ax, name, inst, height, wave, time_string)
-        self.figbox.append([fig, ax, processed])
+        self.label_plot(name, inst, height, wave, time_string)
+        self.figbox.append([self.fig, self.frame_ax, processed])
         if self.show:
             plt.show()
-    
-    def format_plot(self, fig, ax, name, inst, height, wave, time_string):
-        """Make a plot look good"""
+            
+    def export_files(self):
+        try:
+            for fig, ax, processed in self.figbox:
+                self.execute_plot_save(fig, ax, processed)
+        except Exception as e:
+            print("Export_Files:", e)
+        finally:
+            for fig, _, _ in self.figbox:
+                pass #plt.close(fig)
+                
+    def execute_plot_save(self, fig, ax, processed):
+        out_path = self.png_save_stem.format('' if processed else "_orig")
+        fig.savefig(out_path, facecolor='black', edgecolor='black', dpi=self.dpi)
+        ax.cla() # plt.close(fig)
+        self.pathBox.append(out_path)
+        self.figbox = []
         
+        # self.save_concatinated()
+    
+    def format_plot(self):
+        """Make a plot look good"""
+        # if not self.plot_formatted:
         # Tweak the Figure Properties
-        fig.set_facecolor("k")
+        self.fig.set_facecolor("k")
         self.inches = 10
         self.dpi = self.changed.shape[0] / self.inches
-        fig.set_size_inches((self.inches, self.inches))
-        
-        # Annotate with Text
+        self.fig.set_size_inches((self.inches, self.inches))
+        self.blankAxis(self.frame_ax)
+        self.plot_formatted = True
+    
+    def label_plot(self, name, inst, height, wave, time_string):
+        """Annotate with Text"""
         buffer = '' if len(name) == 3 else '  '
         buffer2 = '    ' if len(name) == 2 else ''
         
         title = "{}    {} {}, {}{}".format(buffer2, inst, wave, time_string, buffer)
-        ax.annotate(title, (0.15, height + 0.02), xycoords='axes fraction', fontsize='large',
-                    color='w', horizontalalignment='center')
+        self.frame_ax.annotate(title, (0.15, height + 0.02), xycoords='axes fraction', fontsize='large',
+                               color='w', horizontalalignment='center')
         
         the_time = strftime("%Z %I:%M%p")
         if the_time[0] == '0':
             the_time = the_time[1:]
-        ax.annotate(the_time, (0.15, height), xycoords='axes fraction', fontsize='large',
-                    color='w', horizontalalignment='center')
-        self.blankAxis(ax)
+        self.frame_ax.annotate(the_time, (0.15, height), xycoords='axes fraction', fontsize='large',
+                               color='w', horizontalalignment='center')
     
     def plot_hmi(self, fig, ax, frame):
         """Plot the data from HMI"""
@@ -159,34 +179,19 @@ class ImageProcessor(Processor):
         height = 0.95
         cmap = aia_color_table(int(wave) * u.angstrom)
         if processed:
-            frame = self.changed
-            vmin = 0 #0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(frame))
-            vmax = 1 #0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(frame))
+            frame = self.changed #.astype(np.float16)
+            vmin = 0  # 0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(frame))
+            vmax = 1  # 0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(frame))
             # print(vmin, vmax)
             ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None, vmin=vmin, vmax=vmax)
         else:
-            frame = self.absqrt(self.original)
+            frame = self.absqrt(self.original, dtype=np.float32)
             ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None)  # ,  vmin=self.vmin_plot, vmax=self.vmax_plot)
             # toprint = self.normalize(self.absqrt(original_image))
             # plt.imshow(toprint, cmap='sdoaia{}'.format(wave), origin='lower', interpolation=None) #,  vmin=self.vmin_plot, vmax=self.vmax_plot)
         plt.tight_layout(pad=0)
         
         return inst, height
-    
-
-    
-    def export_files(self):
-        try:
-            for fig, ax, processed in self.figbox:
-                out_path = self.png_save_stem.format('' if processed else "_orig")
-                fig.savefig(out_path, facecolor='black', edgecolor='black', dpi=self.dpi)
-                self.pathBox.append(out_path)
-            # self.save_concatinated()
-        except Exception as e:
-            print("Export_Files:", e)
-        finally:
-            for fig, _, _ in self.figbox:
-                plt.close(fig)
     
     def save_concatinated(self):
         """Make the side by side concatinated images"""

@@ -59,6 +59,56 @@ class Runner:
         # print(self.params.runner_name)
         print("Starting Batch: {}".format(self.params.batch_name()))
         print(self.wall_2, "\n")
+        self.params.set_waves_to_do()
+        
+        for wave in self.params.waves_to_do:
+            self.params.current_wave(wave)
+
+            if len(self.params.fetchers()) > 0:
+                sys.stdout.flush()
+                print("\n>>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
+                # print(" Redownload Mode: {}\n".format(self.params.redownload_files()))
+                for fet in self.params.fetchers():
+                    sleep(0.01)
+                    print(self.params.current_wave())
+                    fet.fetch(self.params)
+                    print(self.params.current_wave())
+                    
+                    sleep(0.01)
+            
+            if len(self.params.processors()) > 0:
+                sys.stdout.flush()
+                print(">>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
+                # print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
+                sys.stdout.flush()
+                for proc in self.params.processors():
+                    sleep(0.01)
+                    proc.process(self.params)
+                    sleep(0.01)
+                    
+            if len(self.params.putters()) > 0:
+                sys.stdout.flush()
+                print(">>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
+                # print(" Redo Imgs: {}".format(self.params.overwrite_pngs()))
+                # print(" Redo Videos: {}".format(self.params.write_video()))
+                for put in self.params.putters():
+                    sleep(0.01)
+                    put.put(self.params)
+                    sleep(0.01)
+        
+        self.print_end_banner()
+
+    def __process_parallel(self):
+        """Use the provided fetcher, executor,
+        and putter to do the thing"""
+        print(self.wall_2)
+        # print(self.params.runner_name)
+        print("Starting Batch: {}".format(self.params.batch_name()))
+        print(self.wall_2, "\n")
+
+        from joblib import Parallel, delayed
+        # the_output = Parallel(n_jobs=-1)(delayed(yourfunction)(k) for k in range(1,10))
+        
 
         if len(self.params.fetchers()) > 0:
             sys.stdout.flush()
@@ -90,6 +140,7 @@ class Runner:
                 sleep(0.01)
         
         self.print_end_banner()
+
 
     ## PRINTING
     def print_header(self):

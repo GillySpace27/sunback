@@ -3,15 +3,15 @@ import sys
 from copy import copy
 from os import listdir, getcwd, makedirs
 from os.path import join, dirname, abspath, isdir, basename
-from time import strftime, sleep, time
+from time import sleep
 import numpy as np
 verb = False
-import cv2
+# import cv2
 from astropy.io import fits
 from tqdm import tqdm
 # from utils.file_util import save_frame_to_fits_file
 # from fetcher.FidoFetcher import vprint
-from utils.file_util import discover_best_data_directory
+# from utils.file_util import discover_best_data_directory
 
 
 def vprint(in_string, *args, **kwargs):
@@ -37,31 +37,32 @@ class Processor:
     do_png = False
     quietly = True
     params = None
-    current_wave = 'rainbow'
+    # current_wave = 'rainbow'
     proc_name = None
     changed = None
     original = None
     n_fits = None
     n_imgs = None
     ii = 0
-    all_wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
-    all_wavelengths = ['0211', '0304', '0131', '0335']
+    # all_wavelengths = ['0211', '0304', '0131', '0335']
 
-    waves_to_do = all_wavelengths
+    # waves_to_do = all_wavelengths
     dont_ignore = False
     keyframes = []
-    fixed_cadence_keyframes = None
-    fixed_number_keyframes = None
     _reprocess_mode = None
     base_fits_dir = None
     base_imgs_dir = None
     base_absolute = None
     save_to_fits = True
+    can_use_keyframes = False
     
     def __init__(self, params=None, quick=False, rp=None):
         
-        self.short_list = None
-        self.use_keyframes = False
+        self.long_list = []
+        self.fits_path = None
+        self.first_hIndex = 0
+        self.short_list = []
+        self.can_use_keyframes = False
         self.reprocess_mode(rp)
         self.load(params, quick=quick)
         
@@ -101,18 +102,18 @@ class Processor:
         verb = not quietly
         if params is not None:
             self.params = params
+            
         if self.params is not None:
             #  Refresh Params and Load Paths
             self.set_names(in_name, out_name, batch_name, quietly)
             self.set_base_directories(fits_directory, imgs_directory, absolute)
             self.progress_string = self.progress_stem.format(self.progress_verb)
             self.super_flush()
-            self.set_waves_to_do(waves=wave)
-            self.set_current_wave(wave)
+            self.params.set_current_wave(wave)
             # print(' v', self.filt_name + "...", flush=True)
             self.set_subset()
             if not quick:
-                self.create_subdirectories()
+                self.params.create_subdirectories()
             return self.load_paths(verb)
         else:
             # print("FAILED to load")
@@ -140,51 +141,7 @@ class Processor:
         if absolute is not None:
             self.base_absolute = absolute
     
-    def set_waves_to_do(self, waves=None):
-        if waves is not None:
-            self.waves_to_do = [waves]
-        elif self.params.do_one():
-            self.waves_to_do = [self.params.do_one()]
-        else:
-            self.waves_to_do = self.all_wavelengths
-    
-    def set_current_wave(self, wave=None):
-        """Set the current wave parameter correctly"""
-        if wave is not None:
-            self.current_wave = wave
-        elif self.params.do_one():
-            self.current_wave = self.params.do_one()
-        else:
-            self.current_wave = self.all_wavelengths[0]
-        self.set_current_wave_paths()
-    
-    def set_current_wave_paths(self):
-        """Make the paths for current_wave"""
-        # Define and Set Directories
-        # print("Target: {}".format(self.current_wave))
-        base_directory = self.discover_base_directory()
-        self.params.current_wave(self.current_wave)
-        
-        self.params.base_directory(abspath(base_directory))
-        self.params.imgs_directory(abspath(join(base_directory, 'png')))
-        self.params.fits_directory(abspath(join(base_directory, 'fits')))
-        self.params.movs_directory(abspath(join(base_directory, "..", 'MOVS')))
-        
-        self.params.time_path(abspath(join(base_directory, "image_times.txt")))
-        self.params.curve_path(abspath(join(base_directory, "curves.txt")))
-        
-        file_name = '{}_params.txt'.format(self.current_wave)
-        self.params.params_path(abspath(join(base_directory, file_name)))
-        
-    
-    def create_subdirectories(self):
-        # Make Directories
-        makedirs(self.params.imgs_directory(), exist_ok=True)
-        makedirs(self.params.fits_directory(), exist_ok=True)
-        if "background" not in self.params.movs_directory():
-            makedirs(self.params.movs_directory(), exist_ok=True)
-        # Save Parameters
-        self.params.save_to_txt()
+
         
     
     def load_paths(self, verb=False):
@@ -196,7 +153,9 @@ class Processor:
     def print_load_banner(self, verb=False):
         if self.n_fits + self.n_imgs > 0 and verb:
             print(' v {}...'.format(self.filt_name), flush=True)
-            print(" *    {}: {}, Redo = {}".format(self.progress_verb, self.current_wave, self.reprocess_mode()))
+            if self.progress_verb.casefold() in ["binning"]:
+                print( " *    Exposure Time is {} seconds")
+            print(" *    {}: {}, Redo = {}".format(self.progress_verb, self.params.current_wave(), self.reprocess_mode()))
             vprint(" *   Loaded {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()), verb)
     
     def load_fits_paths(self, absolute=True, ext=".fits"):
@@ -222,18 +181,16 @@ class Processor:
         abs_ext_paths = [join(directory, path) for path in ext_paths]
         return ext_paths, abs_ext_paths
     
-    def discover_base_directory(self):
-        """Define the root folder"""
-        root = discover_best_data_directory()
-        base_directory = join(root, self.params.batch_name())
-        base_directory = join(base_directory, self.current_wave)
-        return self.params.base_directory(base_directory)
+
     
     def load_fits_image(self, fits_path=None):
         """open the fits file and grab the necessary data"""
         
         if fits_path is not None:
             self.fits_path = fits_path
+        if self.fits_path is None:
+            self.fits_path = self.params.local_fits_paths()[0]
+            
         frame, wave, t_rec, center, int_time = self.load_best_fits_field(self.fits_path)
         if frame is not None:
             self.original = np.asarray(copy(frame)).astype(float)
@@ -270,8 +227,8 @@ class Processor:
         """
         if self.dont_ignore:
             all_file_paths = self.params.local_fits_paths()
-            self.use_keyframes = self.fixed_cadence_keyframes or self.fixed_number_keyframes
-            if self.use_keyframes:
+            use_keyframes = self.params.fixed_cadence_keyframes() or self.params.fixed_number_keyframes()
+            if self.can_use_keyframes and use_keyframes:
                 self.keyframes = self.pick_keyframes(all_file_paths)
             else:
                 self.keyframes = all_file_paths
@@ -284,21 +241,21 @@ class Processor:
         n_paths = len(self.long_list)
         self.short_list = []
 
-        if self.fixed_cadence_keyframes:
+        if self.params.fixed_cadence_keyframes():
             # Fixed Cadence of one out of every {} frames
-            self.short_list = self.long_list[::self.fixed_cadence_keyframes]
+            self.short_list = self.long_list[::self.params.fixed_cadence_keyframes()]
     
-        elif self.fixed_number_keyframes:
+        elif self.params.fixed_number_keyframes():
             #  Fixed Number of Keyframes
-            skip = max(n_paths // self.fixed_number_keyframes, 1)
+            skip = max(n_paths // self.params.fixed_number_keyframes(), 1)
             self.short_list = self.long_list[::skip]
         return self.short_list
     
     def print_keyframes(self):
-        if self.fixed_cadence_keyframes:
-            print(" *    >>KeyFrames: Fixed Cadence of one out of every {} frames".format(self.fixed_cadence_keyframes))
-        elif self.fixed_number_keyframes:
-            print(" *    >>KeyFrames: Fixed Number of Keyframes: {}".format(self.fixed_number_keyframes))
+        if self.params.fixed_cadence_keyframes():
+            print(" *    >>KeyFrames: Fixed Cadence of one out of every {} frames".format(self.params.fixed_cadence_keyframes()))
+        elif self.params.fixed_number_keyframes():
+            print(" *    >>KeyFrames: Fixed Number of Keyframes: {}".format(self.params.fixed_number_keyframes()))
         print(" *    >>Selected {} keyframes out of {} total frames".format(len(self.short_list), len(self.long_list)))
         
         self.super_flush(many=10)
@@ -356,7 +313,10 @@ class Processor:
             
         n_success = self.ii + 1 - self.skipped
         if n_success + self.skipped > 1:
-            print(" ^    Successfully {} {} Files ({} skipped) \n".format(self.finished_verb, n_success, self.skipped), flush=True)
+            if n_success == 0:
+                print(" ^ XxX-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(self.skipped))
+            else:
+                print(" ^    Successfully {} {} Files ({} skipped) \n".format(self.finished_verb, n_success, self.skipped), flush=True)
         else:
             print(" ^    No Files Found\n")
     
@@ -385,7 +345,9 @@ class Processor:
     ##  Img Files
     def process_img_series(self):
         """Apply the function to all necessary img files"""
-        self.process_all_wavelengths()
+        self.do_one_wave(self.params.current_wave())
+        
+        # self.process_all_wavelengths()
     
     def process_all_wavelengths(self):
         """Run the process on all of the all_wavelengths"""
@@ -393,10 +355,12 @@ class Processor:
         
         folders = self.get_folders()
         for wave in folders:
-            # which = self.params.do_one()
-            if wave in self.waves_to_do and len(self.params.local_imgs_paths()) > 0:
-                # if which and wave not in which:
-                #     continue
+            self.do_one_wave(wave)
+            
+    def do_one_wave(self, wave):
+        if wave in self.params.waves_to_do:
+            self.load(wave=wave)
+            if len(self.params.local_imgs_paths()) > 0:
                 self.process_one_wavelength(wave)
     
     def get_folders(self):
@@ -417,7 +381,6 @@ class Processor:
         offset = np.nanmean(in_frame.flatten())
         out_frame = in_frame - offset
         return out_frame, offset
-    
     
     ########################################
     ## M3: Identify Directory of Interest ##
@@ -519,7 +482,8 @@ class Processor:
     
     def get_fits_info(self, hdul):
         # Load the original frame
-        wave, t_rec, center = None, None, None
+        wave, t_rec, center, int_time = None, None, None, None
+        ii=0
         for ii in range(len(hdul)):
             try:
                 first_data_hdul = hdul[ii]
@@ -592,6 +556,8 @@ class Processor:
             if self.in_name in self.hdu_name_list:
                 input_frame_name = self.in_name.casefold()
             else:
+                hdul_name = self.hdu_name_list[0]
+                print("HDU Not Found, using {}".format(hdul_name))
                 raise FileNotFoundError
         else:
             input_frame_name = self.hdu_name_list[self.in_name].casefold()
@@ -607,6 +573,7 @@ class Processor:
    
     def determine_first_hIndex(self, hdul):
         """Find out which hInd has the data"""
+        hInd = 0
         for hInd in range(10):
             try:
                 a = hdul[hInd].header['WAVELNTH']

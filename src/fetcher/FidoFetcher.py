@@ -38,15 +38,15 @@ class FidoFetcher(Fetcher):
     
     ## Main Fetch Logic
     def fetch(self, params=None):
-        self.__init__(params)
-        
         """ Find the Most Recent Images """
-        for current_wave in self.waves_to_do:
-            self.fido_get_fits(current_wave)
+        self.__init__(params)
+        self.fido_get_fits(self.params.current_wave())
+        # for current_wave in self.waves_to_do:
+        
     
     def fido_get_fits(self, current_wave):
         self.load(self.params, wave=current_wave)
-        vprint(" v Fetching Fits Files: {}".format(self.current_wave), self.verb)
+        vprint(" v Fetching Fits Files: {}".format(self.params.current_wave()), self.verb)
         if self.params.redownload_files() or self.reprocess_mode() or not self.verb:
             self.print_load_banner(verb=self.verb)
             self.download_fits_series()
@@ -66,11 +66,11 @@ class FidoFetcher(Fetcher):
     def fido_check_for_fits(self):
         """Find the science images"""
         vprint(" *   Looking for Images of {} from {} to {}...".format(
-                self.current_wave, self.start_string, self.end_time_string), flush=True, end='', verb=self.verb)
+                self.params.current_wave(), self.start_string, self.end_time_string), flush=True, end='', verb=self.verb)
         
         # Search for records from the internet
         self.fido_result = Fido.search(attrs.Time(self.start_time, self.end_time), attrs.Instrument('aia'),
-                                       attrs.Wavelength(int(self.current_wave) * u.angstrom),
+                                       attrs.Wavelength(int(self.params.current_wave()) * u.angstrom),
                                        attrs.Sample(
                                                self.params.cadence_minutes()))  # , attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
         self.fido_num = self.fido_result.file_num
@@ -143,7 +143,7 @@ class FidoFetcher(Fetcher):
     
     def remove_all_old_pngs(self):
         requested_pngs = [x.replace('fits', 'png') for x in self.local_fits_paths]
-        png_directory = join(self.params.imgs_directory(), self.current_wave, 'png')
+        png_directory = join(self.params.imgs_directory(), self.params.current_wave(), 'png')
         got_png = self.params.local_imgs_paths()  # list_files_in_directory(png_directory, 'png')
         remove_count = 0
         for png_path in got_png:
@@ -255,7 +255,7 @@ class FidoFetcher(Fetcher):
         """Defines the time range of imagery desired"""
         if self.params.do_recent():
             self.parse_time(*define_recent_range(self.params.range()))
-        # elif self.params.exposure_time():
+        # elif self.params.exposure_time_seconds():
         #     self.parse_time(*define_duration_range(*self.params.time_period()))
         else:
             start, end = self.params.time_period()
@@ -287,7 +287,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         
         in_name = self.check_for_hdul_names(fits_path) #Cabal
         
-        if self.params.exposure_time() > 0 and in_name is not None and self.out_name not in self.hdu_name_list:
+        if self.params.exposure_time_seconds() > 0 and in_name is not None and self.out_name not in self.hdu_name_list:
             # Get the Images
             self.gather_subframes(fits_path, in_name)
             
@@ -310,7 +310,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.subname = basename(fits_path.split('.')[0])
         
         # Define new exposure time window
-        self.make_time_range_duration(t_start=t_rec, duration_seconds=self.params.exposure_time())
+        self.make_time_range_duration(t_start=t_rec, duration_seconds=self.params.exposure_time_seconds())
         self.params.do_recent(False)
         self.params.cadence_minutes(10. / 60.)
         
@@ -371,11 +371,11 @@ class FidoTimeIntProcessor(FidoFetcher):
     def fido_check_for_fits(self):
         """Find the science images"""
         vprint("   Looking for Images of {} from {} to {}...".format(
-                self.current_wave, self.start_string, self.end_time_string), flush=True, end='', verb=self.verb)
+                self.params.current_wave(), self.start_string, self.end_time_string), flush=True, end='', verb=self.verb)
         
         # Search for records from the internet
         self.fido_result = Fido.search(attrs.Time(self.start_time, self.end_time), attrs.Instrument('aia'),
-                                       attrs.Wavelength(int(self.current_wave) * u.angstrom),
+                                       attrs.Wavelength(int(self.params.current_wave()) * u.angstrom),
                                        attrs.Sample(
                                            self.params.cadence_minutes()))  # , attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
         self.fido_num = self.fido_result.file_num

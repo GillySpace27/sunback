@@ -8,13 +8,14 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_range_multishot_movie(debug=True, do_one='0211', stop=True,
-                    tstart='2014/11/04 00:00:00', tend='2014/11/04 06:00:00',
-                              cadence_minutes=10, fps=6, exposure_time=60):
+def run_range_multishot_movie(debug=True, do_one=False, stop=True,
+                              tstart='2014/11/04 00:00:03', tend='2014/11/07 00:00:00',
+                              cadence_minutes=5, fps=10, exposure_time=24,
+                              key_fixed_cadence=4, key_fixed_number=None, time_preset="Plaid"):
     
     # Set the Parameters
     p = Parameters()
-    
+    # tstart, tend = self.params.make_time_range_duration(tstart, duration_seconds=60):
     time_string = tstart.replace('/', '_').replace(' ', '_').replace(':', '')
     rng = "MultiRange\\MRange_{}".format(time_string)
     p.batch_name(rng)
@@ -25,23 +26,27 @@ def run_range_multishot_movie(debug=True, do_one='0211', stop=True,
     
     # Set the Times
     p.time_period(period=[tstart, tend])
-    p.cadence_minutes(cadence_minutes)
-    p.exposure_time(exposure_time)
-    p.frames_per_second(fps)
-
+    
+    if not p.load_preset_time_settings(time_preset):
+        p.cadence_minutes(cadence_minutes)
+        p.exposure_time_seconds(exposure_time)
+        p.frames_per_second(fps)
+        p.fixed_cadence_keyframes(key_fixed_cadence)
+        p.fixed_number_keyframes(key_fixed_number)
+    
     # p.compare_fits_frames()
-
+    
     # Set the Processes
-    p.fetchers(FidoFetcher(              ))  #rp=False))   # Gets Fits FIDO
+    p.fetchers(FidoFetcher(              rp=False))  #rp=False))   # Gets Fits FIDO
     p.processors([FidoTimeIntProcessor(  rp=False)]) #rp=False)])  # Integrate several frames for S/N
     
-    # p.processors([SRNProcessor(        )]) #rp=False)])  # Does SRN on each image individually
+    # p.processors([SRNProcessor(        rp=False)]) #rp=False)])  # Does SRN on each image individually
     p.processors([SRNpreProcessor(       rp=False)])  # Learns the bounds of the dataset for SRN
-    p.processors([SRNradialFiltProcessor(rp=True)]) #, )])  # Applies the SRN Filter
+    p.processors([SRNradialFiltProcessor(rp=False)]) #, )])  # Applies the SRN Filter
     
     p.putters([ImageProcessor(           rp=True)]) #rp=False)])  # Makes the PNGs from Fits
     p.putters([VideoProcessor(           rp=True)]) #rp=False)])  # Makes the PNGs into a Movie
-
+    
     # Run the Code
     run.Runner(p).start()
 
