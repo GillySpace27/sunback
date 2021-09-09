@@ -1,7 +1,7 @@
 from os.path import join
 
 from processor.ImageProcessor import ImageProcessor
-from processor.SRNRadialFiltProcessor import SRNRadialFiltProcessor
+from processor.SRNradialFiltProcessor import SRNradialFiltProcessor
 from fetcher.FidoFetcher import FidoFetcher
 from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
@@ -31,7 +31,7 @@ def run_range_movie(delay=10, debug=True, do_one="0304", stop=True, tstart='2015
     # p.resolution(2048)
 
     # Run Flags
-    p.download_images(True)
+    p.redownload_files(True)
     # p.overwrite_pngs(True)
     # p.delete_old(True)
     

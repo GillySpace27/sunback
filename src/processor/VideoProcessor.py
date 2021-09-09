@@ -1,3 +1,4 @@
+import os
 from os import makedirs, listdir
 from os.path import join, dirname
 from time import strftime
@@ -9,73 +10,86 @@ from processor.Processor import Processor
 
 
 class VideoProcessor(Processor):
+    mov_suffix = "_raw.avi"
     filt_name = '  Video Writer'
-    out_name = "_raw.avi"
     do_png = True
     wave = None
-    progress_stem = " *    Writing Movie {}"
-    progress_text = ""
+    progress_stem = " *    {}"
+    progress_verb = 'Writing Movie'
+    progress_string = progress_stem.format(progress_verb)
+    finished_verb = "Wrote Movie"
+    progress_unit = "imgs"
+    
     video_name_stem = ""
     description = "Turn all the imgs into an AVI video"
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, params=None, quick=False, rp=None):
+        super().__init__(params, quick, rp)
+        self.frame_shape = None
+        self.good_paths = []
+        self.skipped = 0
+        self.final_name = None
+        self.progress_text = None
     
     def process_one_wavelength(self, wave):
         """Prepare and execute the video writer"""
-        if self.params.write_video():
-            video_avi = self.prep_video_writer(wave)
-            self.run_video_writer(video_avi)
-        else:
-            print(" ^    Skipped")
-
-    # def skip_video(self):
-    #     if :
-    #         # If you do want to overwrite
-    #         return False # Don't Skip
-    #     else:
-    #         # If you don't want to overwrite
-    #         if self.final_name in listdir(self.params.movs_directory()):
-    #             # Make images you don't already have
-    #             return True # do skip
-    #         else:
-    #             return False # don't skip
+        video_avi =     self.prep_video_writer(wave)
+        if video_avi:   self.run_video_writer(video_avi)
     
     def prep_video_writer(self, wave):
         """Build all the paths and initialize everything"""
-        fits_paths, imgs_paths = self.load(self.params)
-        self.wave = wave
-        if len(self.params.local_imgs_paths()) > 0:
-            frame = cv2.imread(self.params.local_imgs_paths()[0])
-            height, width, layers = frame.shape
-            video_name_stem = join((self.params.movs_directory()),
-                                   '{}_{}_movie{}'.format(wave, strftime('%m%d_%H%M'), '{}'))
-            final_name = video_name_stem.format(self.out_name)
+        self.load(self.params, wave=wave)
+        if self.n_fits:
+            self.build_output_paths()
+
+            if not self.should_continue():
+                return False
             
-            makedirs(dirname(final_name), exist_ok=True)
-            video_avi = cv2.VideoWriter(final_name, 0, self.params.frames_per_second(), (width, height))
-            self.progress_text = self.progress_stem.format(self.wave)
-            self.final_name = final_name
+            # Make the Directory
+            makedirs(dirname(self.final_name), exist_ok=True)
+            
+            # Make the VideoWriter and return it
+            video_avi = cv2.VideoWriter(self.final_name, 0, self.params.frames_per_second(), self.frame_shape)
             return video_avi
-        else:
+        
+        else:  # If there are no files then sad
             print("    No Files Found \n")
             return False
+    
+    def build_output_paths(self):
+        """Build the Path to the Video"""
+        height, width, _ = cv2.imread(self.params.local_imgs_paths()[0]).shape
+        file_name = '{}_{}_movie{}'.format(self.wave, strftime('%m%d_%H%M'), self.mov_suffix)
+        
+        self.frame_shape = (width, height)
+        self.final_name = join(self.params.movs_directory(), file_name)
+        self.good_paths = [path for path in self.params.local_imgs_paths() if ('orig' not in path and 'cat' not in path)]
+        self.progress_text = self.progress_stem.format(self.wave)
+        
+    def should_continue(self):
+        """Skip the video writing if indicated"""
+        if os.path.exists(self.final_name) and \
+                not (self.params.write_video() or self.reprocess_mode()):
+            print(" ^    Skipped \n")
+            return False
+        
+        # Find the Good Frames
+        if len(self.good_paths) == 0:
+            print(" ^    No Good Files Found \n")
+            return False
+        return True
     
     def run_video_writer(self, video_avi):
         """Generate the video file"""
-        
-        good_paths = [pp for pp in self.params.local_imgs_paths() if ('orig' not in pp and 'cat' not in pp)]
-        
-        if len(good_paths) == 0:
-            print("    No Files Found \n")
-            return False
-        
         ii = 0
-        for img_path in tqdm(good_paths, desc=self.progress_text, unit="frames"):
+        self.skipped = 0
+        for img_path in tqdm(self.good_paths, desc=self.progress_text, unit="frames"):
             if 'orig' not in img_path and 'cat' not in img_path:
-                video_avi.write(cv2.imread(img_path))
-                ii += 1
+                if self.reprocess_mode() or True:  # TODO THis is a like truth
+                    video_avi.write(cv2.imread(img_path))
+                    ii += 1
+                else:
+                    self.skipped += 1
         cv2.destroyAllWindows()
         video_avi.release()
-        print(" ^    Successfully Wrote Movie from {} images!".format(ii))
-    
+        print(" ^    Successfully {} from {} images! ({} skipped)".format(self.finished_verb, ii, self.skipped))

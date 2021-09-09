@@ -21,7 +21,7 @@ except:
 setup(
     # Self-descriptive entries which should always be present
     name='Sunback',
-    author='Chris R. Gilly',
+    author='C. R. Gilly',
     author_email='chris.gilly@colorado.edu',
     description=short_description[0],
     long_description=long_description,

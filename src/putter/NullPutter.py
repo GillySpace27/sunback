@@ -7,7 +7,7 @@ class NullPutter(Putter):
     def put(self, params=None):
         self.load(params)
         # n_files = len(self.params.local_imgs_paths()) + len(self.params.local_fits_paths())
-        print(" Files Saved in {}\n".format(self.params.base_directory()))
+        print(" {}\n".format(self.params.base_directory()))
         # print("   No Output Selected\n")
         
         

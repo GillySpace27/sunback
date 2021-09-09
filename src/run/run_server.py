@@ -2,14 +2,13 @@
 
 from fetcher.WebFitsFetcher import WebFitsFetcher
 from processor.ImageProcessor import ImageProcessor
-from processor.SRNRadialFiltProcessor import SRNRadialFiltProcessor
 from putter.AwsPutter import AwsPutter
 from putter.DesktopPutter import DesktopPutter
 from science.parameters import Parameters
 from run import Runner
 
 
-def run_server(delay=10, debug=True, do_one=False, stop=False):
+def run_server(delay=10, debug=True, do_one='0171', stop=False):
     p = Parameters()
     p.is_debug(debug)
     p.delay_seconds(3 if debug else delay)
@@ -20,9 +19,17 @@ def run_server(delay=10, debug=True, do_one=False, stop=False):
     
     p.do_orig = True
     
-    # p.fetchers(WebFitsFetcher())  # Gets Fits from JSOC Most Recent
+    # Run Flags
+    p.redownload_files(False)
+    p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
+    p.overwrite_pngs(True)
+    p.write_video(False)
+    # p.set_current_wave('rainbow')
+    # p.delete_old(True)
     
-    p.processors(SRNRadialFiltProcessor())  # Applies the Radial Filtering
+    p.fetchers(WebFitsFetcher())  # Gets Fits from JSOC Most Recent
+    
+    # p.processors(SRNradialFiltProcessor())  # Applies the Radial Filtering
     p.putters([ImageProcessor()])  # Turns Fits into Pngs
     
     # if p.is_debug():

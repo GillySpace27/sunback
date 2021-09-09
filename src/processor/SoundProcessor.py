@@ -141,9 +141,9 @@ class SoundProcessor(Processor):
 #
 #         self.extra_rez = 1
 #
-#         self.sRadius = 400 * self.extra_rez
-#         self.tRadius = self.sRadius * 1.28
-#         self.bRadius = self.sRadius * 1.01
+#         self.s_radius = 400 * self.extra_rez
+#         self.tRadius = self.s_radius * 1.28
+#         self.bRadius = self.s_radius * 1.01
 #         self.radius = np.sqrt(xc * xc + yc * yc) * self.extra_rez
 #         self.theta = np.arctan2(xc,yc)
 #         self.rez *= self.extra_rez
@@ -982,7 +982,7 @@ class SoundProcessor(Processor):
 #                     z = (r - self.bRadius)/(self.tRadius - self.bRadius)
 #                     t = np.arctan2(y, x) * 180 / 3.14
 #                     ct = -np.cos(t)/2 +1.5 # 1 to 2
-#                     # if r > self.sRadius*0.8:
+#                     # if r > self.s_radius*0.8:
 #                     hi_freq = z if z > 0 else 0 # 0 to 1
 #                     md = 10
 #                     mid_freq = (t % md)/md # 0 to 1

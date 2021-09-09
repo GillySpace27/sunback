@@ -5,8 +5,10 @@ from time import time, sleep, strftime, asctime
 import numpy as np
 from astropy import units as u
 from fetcher.LocalFetcher import LocalFetcher
+from processor.Processor import Processor
 from putter.NullPutter import NullPutter
 from utils.file_util import discover_best_data_directory
+import matplotlib.pyplot as plt
 
 
 class Parameters:
@@ -21,10 +23,13 @@ class Parameters:
     def __init__(self):
         """Sets all the attributes to None"""
         # Initialize Variables
+        self._remake_norm_curves = True
+        self._params_path = None
+        self._curve_path = None
         self._write_video = False
         self._overwrite_pngs = False
         self._reprocess_mode = False
-        self._current_wave = None
+        self._current_wave = 'rainbow'
         self._imgs_directory = ""
         self._fits_directory = ""
         self._movs_directory = ""
@@ -50,13 +55,13 @@ class Parameters:
         self._do_mirror = False
         
         # Movie Defaults
-        self._download_images = True
-        self._overwrite_video = False
+        self._redownload_files = False
+        self._write_video = False
         self._delete = True
         self._make_compressed = False
         self._remove_old_images = False
-        self._sonify_images = True
-        self._sonify_limit = True
+        self._sonify_images = False
+        self._sonify_limit = False
         self._do_171 = False
         self._do_304 = False
         self._do_one = False
@@ -160,6 +165,16 @@ class Parameters:
         if _time_path is not None:
             self._time_path = _time_path
         return self._time_path
+    
+    def curve_path(self, _curve_path=None):
+        if _curve_path is not None:
+            self._curve_path = _curve_path
+        return self._curve_path
+
+    def params_path(self, _params_path=None):
+        if _params_path is not None:
+            self._params_path = _params_path
+        return self._params_path
 
     def local_fits_paths(self, _local_fits_paths=None):
         if _local_fits_paths is not None:
@@ -182,18 +197,19 @@ class Parameters:
     def do_one(self, which=None, stop=False):
         if which is not None:
             self._do_one = which
+            self.current_wave(which)
             # self.batch_name(which)
             self.stop_after_one(stop)
 
         return self._do_one
     
-    def download_images(self, boolean=None):
+    def redownload_files(self, boolean=None):
         if boolean is not None:
             assert type(boolean) in [bool]
-            self._download_images = boolean
-        if self._download_images:
-            self.something_changed(True)
-        return self._download_images
+            self._redownload_files = boolean
+        # if self._redownload_files:
+        #     self.something_changed(True)
+        return self._redownload_files or self.local_fits_paths() in [None, []]
     
     def something_changed(self, boolean=None):
         if boolean is not None:
@@ -205,9 +221,15 @@ class Parameters:
         if boolean is not None:
             assert type(boolean) in [bool]
             self._overwrite_pngs = boolean
-        if self._overwrite_pngs:
-            self.something_changed(True)
-        return self._overwrite_pngs
+        # if self._overwrite_pngs:
+        #     self.something_changed(True)
+        return self._overwrite_pngs or self.local_imgs_paths() in [None, []]
+
+    def remake_norm_curves(self, boolean=None):
+        if boolean is not None:
+            assert type(boolean) in [bool]
+            self._remake_norm_curves = boolean
+        return self._remake_norm_curves
 
     def write_video(self, boolean=None):
         if boolean is not None:
@@ -341,22 +363,23 @@ class Parameters:
             self._bpm = bpm
         return self._bpm
     
-    def current_wave(self, current_wave=None):
-        if current_wave is not None:
-            self._current_wave = None
+    def current_wave(self, _current_wave=None):
+        if _current_wave is not None:
+            self._current_wave = _current_wave
         return self._current_wave
 
     def check_real_number(self, number):
         assert type(number) in [float, int]
         assert number > 0
 
-    def save_to_txt(self, current_wave=None):
+    def save_to_txt(self):  #, current_wave=None):
+        # print("Txt Save Fail")
+        # pass
         # Save contents of environment to text file
-        file_name = '{}_params.txt'.format(self.current_wave(current_wave))
-        txtPath = join(self.base_directory(), file_name)
-        makedirs(txtPath, exist_ok=True)
+        # name = self.current_wave(current_wave)
+
         infoEnv = self
-        with open(txtPath, 'w') as output:
+        with open(self.params_path(), 'w') as output:
             output.write(asctime() + '\n\n')
             myVars = (infoEnv.__class__.__dict__, vars(infoEnv))
             for pile in myVars:
@@ -365,6 +388,74 @@ class Parameters:
                         string = str(ii) + " : " + str(pile[ii]) + '\n'
                         output.write(string)
                 output.write('\n\n')
+
+    def compare_fits_frames(self, compare_two_files=False):
+        # path1 = "aia_lev1_171a_2014_11_04t03_50_11_34z_image_lev1.fits"
+        # path2 = "aia_lev1_171a_2014_11_04t00_20_11_34z_image_lev1.fits"
+        
+        path1 = "aia_lev1_193a_2014_11_04t00_00_06_84z_image_lev1.fits"
+        path2 = "aia_lev1_193a_2014_11_04t00_20_06_84z_image_lev1.fits"
+        
+        self_proc = Processor(self, quick=True)
+        full_path1 = join(self.fits_directory(), path1)
+        full_path2 = join(self.fits_directory(), path2)
+    
+        frame, wave, t_rec, center, int_time = Processor.load_last_fits_field(self_proc, full_path1)
+        if compare_two_files:
+            frame2, wave2, t_rec2, center2, int_time2 = Processor.load_last_fits_field(self_proc, full_path2)
+        else:
+            frame2, wave2, t_rec2, center2, int_time2 = Processor.load_first_fits_field(self_proc, full_path1)
+        
+        
+            # Modifying
+        frame3 = abs(frame2-frame)
+    
+    
+        #  Plotting
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, True, True)
+    
+        #  Make Color Scale the Same for All Frames
+        mx1 = frame.flatten()[frame.argmax()]
+        mx2 = frame2.flatten()[frame2.argmax()]
+        mx3 = frame3.flatten()[frame3.argmax()]
+    
+        me1 = np.mean(frame)
+        me2 = np.mean(frame2)
+        me3 = np.mean(frame3)
+    
+        mn1 = frame.flatten()[frame.argmin()]
+        mn2 = frame2.flatten()[frame2.argmin()]
+        mn3 = frame3.flatten()[frame3.argmin()]
+    
+    
+        stat_string = "\nMin, Mean, Max = {:0.2f}, {:0.2f}, {:0.2f}"
+        stat_string1 = stat_string.format(mn1, me1, mx1)
+        stat_string2 = stat_string.format(mn2, me2, mx2)
+        stat_string3 = stat_string.format(mn3, me3, mx3)
+    
+        allmax = max(mx1, mx2)
+        allmin = min(mn1, mn2)
+    
+        # Plot Commands
+        ax1.imshow(frame, vmin=allmin, vmax=allmax)
+        ax1.set_title(str(path1[14:30]) + stat_string1)
+    
+        ax2.imshow(frame2, vmin=allmin, vmax=allmax)
+        ax2.set_title(str(path2[14:30]) + stat_string2)
+    
+        ax3.imshow(frame3, vmin=allmin, vmax=allmax)
+        ax3.set_title("Diff" + stat_string3)
+    
+        #  Plot Formatting
+        # plt.subplots_adjust(top=0.987,
+        #                     bottom=0.025,
+        #                     left=0.023,
+        #                     right=0.977,
+        #                     hspace=0.053,
+        #                     wspace=0.2)
+        fig.set_size_inches(5, 12)
+        plt.tight_layout()
+        plt.show(block=True)
 
     def reprocess_mode(self, _reprocess_mode=None):
         """Pick how it should handle frames that already exist

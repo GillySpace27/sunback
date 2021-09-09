@@ -1,14 +1,14 @@
 import os
 import sys
+from copy import copy
 from os import listdir, getcwd, makedirs
 from os.path import join, dirname, abspath, isdir, basename
-from time import strftime, sleep
+from time import strftime, sleep, time
 import numpy as np
 verb = False
 import cv2
 from astropy.io import fits
 from tqdm import tqdm
-
 # from utils.file_util import save_frame_to_fits_file
 # from fetcher.FidoFetcher import vprint
 from utils.file_util import discover_best_data_directory
@@ -24,16 +24,20 @@ class Processor:
     # name = 'data'
     in_name = -1
     out_name = 'filtered'
-    filt_name = "baseClass"
+    filt_name = "Base Processor Class"
     batch_name = name = 'default_name'
     description = "Use an Unnamed Processor"
-    progress_verb = " *    Processing Files"
+    progress_stem = " *    {} Files"
+    progress_verb = "Processing"
+    progress_string = progress_stem.format(progress_verb)
+    finished_verb = "Processed"
     progress_unit = "files"
+    
     style_mode = 'all'
     do_png = False
     quietly = True
     params = None
-    current_wave = None
+    current_wave = 'rainbow'
     proc_name = None
     changed = None
     original = None
@@ -42,15 +46,25 @@ class Processor:
     ii = 0
     all_wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
     all_wavelengths = ['0211', '0304', '0131', '0335']
+
     waves_to_do = all_wavelengths
+    dont_ignore = False
+    keyframes = []
+    fixed_cadence_keyframes = None
+    fixed_number_keyframes = None
+    _reprocess_mode = None
     base_fits_dir = None
     base_imgs_dir = None
     base_absolute = None
     save_to_fits = True
     
-    def __init__(self, params=None, quick=False):
+    def __init__(self, params=None, quick=False, rp=None):
+        
+        self.short_list = None
+        self.use_keyframes = False
+        self.reprocess_mode(rp)
         self.load(params, quick=quick)
-    
+        
     def plan(self):
         """Find the name of this processor and print"""
         self.proc_name = str(self.__class__).split(".")[-1][:-2]
@@ -59,6 +73,18 @@ class Processor:
     
     def put(self, params=None):
         self.process(params)
+    
+    def reprocess_mode(self, flag=None):
+        if flag is not None:
+            if type(flag) is not bool:
+                if 'skip' == flag:
+                    flag = False
+                if "redo" == flag:
+                    flag = True
+            self._reprocess_mode = flag
+            
+        return self._reprocess_mode
+        
     
     ##############################################################
     ## M1: Look for files in a directory and return their paths ##
@@ -79,8 +105,12 @@ class Processor:
             #  Refresh Params and Load Paths
             self.set_names(in_name, out_name, batch_name, quietly)
             self.set_base_directories(fits_directory, imgs_directory, absolute)
-            self.set_waves_to_do(waves=None)
+            self.progress_string = self.progress_stem.format(self.progress_verb)
+            self.super_flush()
+            self.set_waves_to_do(waves=wave)
             self.set_current_wave(wave)
+            # print(' v', self.filt_name + "...", flush=True)
+            self.set_subset()
             if not quick:
                 self.create_subdirectories()
             return self.load_paths(verb)
@@ -133,11 +163,19 @@ class Processor:
         # Define and Set Directories
         # print("Target: {}".format(self.current_wave))
         base_directory = self.discover_base_directory()
+        self.params.current_wave(self.current_wave)
+        
         self.params.base_directory(abspath(base_directory))
         self.params.imgs_directory(abspath(join(base_directory, 'png')))
         self.params.fits_directory(abspath(join(base_directory, 'fits')))
         self.params.movs_directory(abspath(join(base_directory, "..", 'MOVS')))
-        self.params.time_path(join(base_directory, "image_times.txt"))
+        
+        self.params.time_path(abspath(join(base_directory, "image_times.txt")))
+        self.params.curve_path(abspath(join(base_directory, "curves.txt")))
+        
+        file_name = '{}_params.txt'.format(self.current_wave)
+        self.params.params_path(abspath(join(base_directory, file_name)))
+        
     
     def create_subdirectories(self):
         # Make Directories
@@ -146,7 +184,8 @@ class Processor:
         if "background" not in self.params.movs_directory():
             makedirs(self.params.movs_directory(), exist_ok=True)
         # Save Parameters
-        # self.params.save_to_txt(self.current_wave)
+        self.params.save_to_txt()
+        
     
     def load_paths(self, verb=False):
         """ Determines and lists the files that exist in the given directories"""
@@ -154,9 +193,10 @@ class Processor:
         self.print_load_banner(verb)
         return fits_paths, imgs_paths
     
-    def print_load_banner(self, verb):
+    def print_load_banner(self, verb=False):
         if self.n_fits + self.n_imgs > 0 and verb:
-            print(" *   Processing: {}".format(self.current_wave))
+            print(' v {}...'.format(self.filt_name), flush=True)
+            print(" *    {}: {}, Redo = {}".format(self.progress_verb, self.current_wave, self.reprocess_mode()))
             vprint(" *   Loaded {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()), verb)
     
     def load_fits_paths(self, absolute=True, ext=".fits"):
@@ -189,6 +229,81 @@ class Processor:
         base_directory = join(base_directory, self.current_wave)
         return self.params.base_directory(base_directory)
     
+    def load_fits_image(self, fits_path=None):
+        """open the fits file and grab the necessary data"""
+        
+        if fits_path is not None:
+            self.fits_path = fits_path
+        frame, wave, t_rec, center, int_time = self.load_best_fits_field(self.fits_path)
+        if frame is not None:
+            self.original = np.asarray(copy(frame)).astype(float)
+            self.changed = copy(self.original)
+            self.image_data = str(wave), self.fits_path, t_rec, frame.shape
+            self.file_basename = basename(self.fits_path)
+            self.set_centerpoint(center)
+            return True
+        else:
+            return False
+        
+    def set_centerpoint(self, center):
+        """Parse the centerpoint and ensure correct scaling"""
+        self.center = center
+        image_edge = self.original.shape
+        center_given = np.abs(self.center)
+        
+        Top_Tolerance = 0.65
+        Bottom_Tolerance = 0.35
+        count = 0
+        while count < 10:
+            ratio = center_given / image_edge
+            if np.array(ratio > Top_Tolerance).any():
+                center_given *= 0.5
+            elif np.array(ratio < Bottom_Tolerance).any():
+                center_given *= 2
+            else:
+                break
+        self.center = center_given
+ 
+    def set_subset(self):
+        """Sets the list of which frames get used as keyframes
+        This function only runs once, sort of an __init__
+        """
+        if self.dont_ignore:
+            all_file_paths = self.params.local_fits_paths()
+            self.use_keyframes = self.fixed_cadence_keyframes or self.fixed_number_keyframes
+            if self.use_keyframes:
+                self.keyframes = self.pick_keyframes(all_file_paths)
+            else:
+                self.keyframes = all_file_paths
+        self.dont_ignore = False
+        
+    def pick_keyframes(self, all_file_paths):
+        """Decide which frames to use in the analysis"""
+        
+        self.long_list = copy(all_file_paths)
+        n_paths = len(self.long_list)
+        self.short_list = []
+
+        if self.fixed_cadence_keyframes:
+            # Fixed Cadence of one out of every {} frames
+            self.short_list = self.long_list[::self.fixed_cadence_keyframes]
+    
+        elif self.fixed_number_keyframes:
+            #  Fixed Number of Keyframes
+            skip = max(n_paths // self.fixed_number_keyframes, 1)
+            self.short_list = self.long_list[::skip]
+        return self.short_list
+    
+    def print_keyframes(self):
+        if self.fixed_cadence_keyframes:
+            print(" *    >>KeyFrames: Fixed Cadence of one out of every {} frames".format(self.fixed_cadence_keyframes))
+        elif self.fixed_number_keyframes:
+            print(" *    >>KeyFrames: Fixed Number of Keyframes: {}".format(self.fixed_number_keyframes))
+        print(" *    >>Selected {} keyframes out of {} total frames".format(len(self.short_list), len(self.long_list)))
+        
+        self.super_flush(many=10)
+        
+
     ########################################
     ## M2: For Every File in Path, do Func##
     ########################################
@@ -203,50 +318,60 @@ class Processor:
         raise NotImplementedError
     
     def process(self, params=None):
-        print(' v', self.filt_name + "...", flush=True)
+        # print(' v', self.filt_name + "...", flush=True)
         self.load(params, quietly=False)
         self.super_flush()
-        
+    
         if self.params is not None:
             if self.do_png:
                 self.process_img_series()
             else:
                 self.process_fits_series()
+                
+
+    def cleanup(self):
+        pass
     
+    def setup(self):
+        pass
+        
     ##  Fits Files
     def process_fits_series(self):
         """Apply the function to all necessary fits files"""
-        if len(self.params.local_fits_paths()) > 0:
+        n_fits_path = len(self.params.local_fits_paths())
+        # print(n_fits_path)
+        # start = time()
+        self.skipped = 0
+        if n_fits_path > 0:
+            self.setup()
             for self.ii, fits_path in enumerate(tqdm(
                     self.params.local_fits_paths(),
                     unit=self.progress_unit,
-                    desc=self.progress_verb)):
+                    desc=self.progress_string)):
                 
-                self.modify_one_fits(fits_path)
-        
-        
-        n_success = self.ii + 1 #- self.skipped
-        if n_success > 1:
+                out = self.modify_one_fits(fits_path)
+                if out is None:
+                    self.skipped += 1
+            self.cleanup()
             
-            print(" ^    Successfully Processed {} Files \n".format(n_success), flush=True)
+        n_success = self.ii + 1 - self.skipped
+        if n_success + self.skipped > 1:
+            print(" ^    Successfully {} {} Files ({} skipped) \n".format(self.finished_verb, n_success, self.skipped), flush=True)
         else:
-            print(" ^    No Files Found")
+            print(" ^    No Files Found\n")
     
     def modify_one_fits(self, fits_path):
         """Apply the given funtion to the given fits path"""
         self.confirm_fits_file(fits_path)
+        # try:
+        output = self.do_fits_function(fits_path, self.in_name)
         try:
-            output = self.do_fits_function(fits_path, self.in_name)
-            try:
-                frame = output.get()
+            frame = output.get()
 
-            except AttributeError as e:
-                # print(e)
-                frame = output
-        except IndexError as e:
-            print("Failed to Load Fits Frame")
-            print(e)
-            return self.original
+        except AttributeError as e:
+            # print(e)
+            frame = output
+
         if self.save_to_fits and frame is not None:
             self.save_frame_to_fits_file(fits_path, frame)
         return frame
@@ -286,6 +411,13 @@ class Processor:
     
     def process_one_wavelength(self, wave):
         raise NotImplementedError()
+    
+    def remove_offset(self, in_frame):
+        """Set min of array to zero"""
+        offset = np.nanmean(in_frame.flatten())
+        out_frame = in_frame - offset
+        return out_frame, offset
+    
     
     ########################################
     ## M3: Identify Directory of Interest ##
@@ -334,28 +466,42 @@ class Processor:
     
     def load_first_fits_field(self, fits_path):
         """Load a fits file from disk"""
-        return self.load_a_fits_field(fits_path, 0)
+        fields = self.load_a_fits_field(fits_path, 0)
+        if fields[0] is None:
+            fields = self.load_a_fits_field(fits_path, 1)
+        return fields
     
     def load_a_fits_field(self, fits_path, field=0):
         """Load a fits file from disk"""
         with fits.open(fits_path, cache=False) as hdul:
             hdul.verify('silentfix+ignore')  # Verify
             self.ensure_no_double_filtering(hdul)
-            wave, t_rec, center = self.get_fits_info(hdul)
-            frame = hdul[field].data
-        return frame, wave, t_rec, center
+            wave, t_rec, center, int_time = self.get_fits_info(hdul)
+            try:
+                frame = hdul[field].data
+            except TypeError as e:
+                print(e)
+                frame = None
+        return frame, wave, t_rec, center, int_time
     
     def load_best_fits_field(self, fits_path):
         """Load a fits file from disk"""
         with fits.open(fits_path, cache=False) as hdul:
             hdul.verify('silentfix+ignore')  # Verify
-            self.in_name= self.ensure_no_double_filtering(hdul)
-            wave, t_rec, center = self.get_fits_info(hdul)
+            self.in_name = self.ensure_no_double_filtering(hdul)
+            wave, t_rec, center, int_time = self.get_fits_info(hdul)
             frame = self.open_fits_hdul(hdul)
             
-        return frame, wave, t_rec, center
+        return frame, wave, t_rec, center, int_time
+    
+    def check_for_hdul_names(self, fits_path):
+        with fits.open(fits_path, cache=False) as hdul:
+            hdul.verify('silentfix+ignore')  # Verify
+            self.in_name = self.ensure_no_double_filtering(hdul)
+        return self.in_name
     
     def smallify_frame(self, frame):
+        return frame
         mx = np.nanmax(frame)
         mn = np.nanmin(frame)
         normed = (frame - mn) / (mx - mn)
@@ -380,11 +526,12 @@ class Processor:
                 wave = first_data_hdul.header['WAVELNTH']
                 t_rec = first_data_hdul.header['T_OBS']
                 center = [first_data_hdul.header['X0_MP'], first_data_hdul.header['Y0_MP']]
+                int_time = first_data_hdul.header['EXPTIME']
                 break
             except KeyError as e:
                 continue
         self.first_hIndex = ii
-        return wave, t_rec, center
+        return wave, t_rec, center, int_time
     
     def open_fits_hdul(self, hdul):
         """Load a fits file from disk"""
@@ -403,15 +550,21 @@ class Processor:
         self.list_hdus(hdul)
         if self.in_name is None:
             return None
-        reprocess_mode         = self.params.reprocess_mode()
+        
+        reprocess_mode         = self.reprocess_mode() if self.reprocess_mode() is not None else self.params.reprocess_mode()
         input_frame_name       = self.determine_in_frame_name()
         output_frame_name      = self.determine_out_frame_name()
         first_frame_name       = self.hdu_name_list[0]
         penultimate_frame_name = self.hdu_name_list[-2]
         
+        filter_already_applied = filter_applied_last = False
+        if output_frame_name.casefold() in [x.casefold() for x in self.hdu_name_list]:
+            filter_already_applied = True
         if input_frame_name.casefold() == output_frame_name.casefold():
+            filter_applied_last = True
             # If you're about to redo a filter
             
+        if filter_already_applied or filter_applied_last:
             if reprocess_mode == 'skip' or reprocess_mode is False:
                 # Skip it
                 self.in_name = None
@@ -472,12 +625,14 @@ class Processor:
         """Return just the original frome"""
         return self.original
     
-    def super_flush(self, many=5):
+    def super_flush(self, txt=None, end=None, many=5):
         """Flush the stdout many times"""
+        if txt:
+            print(txt, flush=True, end=end)
         for ii in range(many):
             sys.stdout.flush()
             sys.stderr.flush()
-            sleep(0.1)
+            sleep(0.01)
     
     def list_hdus(self, hdul):
         self.hdu_name_list = [name.name.casefold() for name in hdul]

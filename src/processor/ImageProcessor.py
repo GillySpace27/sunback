@@ -19,25 +19,23 @@ class ImageProcessor(Processor):
     do_png = False
     save_to_fits = False
     wave = None
-    progress_stem = "    Exporting Pngs {}"
+    # progress_stem = "    Exporting Pngs {}"
     progress_text = ""
     video_name_stem = ""
     description = "Turn all the fits files into png files"
-    progress_verb = " *    Writing Imgs"
+    progress_verb = "Writing Images"
     
     changed = None
     original = None
     image_data = None
     show = False
     inches = 10
-    vmax_plot = 0.95
-    vmin_plot = -0.05
+    vmax_plot = 0.8
+    vmin_plot = 0.5
     dpi = None
     
-    def __init__(self):
-        """Init like usual, but also set the function"""
-        super().__init__(quick=True)
-        # super().set_function(self.make_image)
+    def __init__(self, params=None, quick=False, rp=None):
+        super().__init__(params, quick, rp)
         self.pathBox = []
         self.figbox = []
         self.skipped = 0
@@ -51,8 +49,8 @@ class ImageProcessor(Processor):
     
     def prep_image(self, fits_path):
         """Load the fits file from disk and get a field or two"""
-        frame0, _, _, _ = self.load_first_fits_field(fits_path)
-        frame1, wave1, t_rec1, center1 = self.load_last_fits_field(fits_path)
+        frame0, _, _, _, _ = self.load_first_fits_field(fits_path)
+        frame1, wave1, t_rec1, center1, int_time = self.load_last_fits_field(fits_path)
         self.params.local_imgs_paths()
         self.original, self.changed = copy(frame0), copy(frame1)
         self.image_data = str(wave1), fits_path, t_rec1, frame1.shape
@@ -86,7 +84,7 @@ class ImageProcessor(Processor):
         return True
     
     def skip(self):
-        if self.params.overwrite_pngs():
+        if self.params.overwrite_pngs() or self.reprocess_mode():
             # If you do want to overwrite
             return False # Don't Skip
         else:
@@ -162,7 +160,10 @@ class ImageProcessor(Processor):
         cmap = aia_color_table(int(wave) * u.angstrom)
         if processed:
             frame = self.changed
-            ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None, vmin=self.vmin_plot, vmax=self.vmax_plot)
+            vmin = 0 #0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(frame))
+            vmax = 1 #0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(frame))
+            # print(vmin, vmax)
+            ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None, vmin=vmin, vmax=vmax)
         else:
             frame = self.absqrt(self.original)
             ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None)  # ,  vmin=self.vmin_plot, vmax=self.vmax_plot)

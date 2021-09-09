@@ -62,38 +62,39 @@ class Runner:
 
         if len(self.params.fetchers()) > 0:
             sys.stdout.flush()
-            print(" >>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
+            print(">>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
+            # print(" Redownload Mode: {}\n".format(self.params.redownload_files()))
             for fet in self.params.fetchers():
-                sleep(0.1)
+                sleep(0.01)
                 fet.fetch(self.params)
-                sleep(0.1)
+                sleep(0.01)
         
         if len(self.params.processors()) > 0:
             sys.stdout.flush()
-            print(" >>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
-            print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
+            print(">>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
+            # print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
             sys.stdout.flush()
             for proc in self.params.processors():
-                sleep(0.1)
+                sleep(0.01)
                 proc.process(self.params)
-                sleep(0.1)
+                sleep(0.01)
                 
         if len(self.params.putters()) > 0:
             sys.stdout.flush()
-            print(" >>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
-            print(" Redo Imgs: {}".format(self.params.overwrite_pngs()))
-            print(" Redo Videos: {}\n".format(self.params.write_video()))
+            print(">>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
+            # print(" Redo Imgs: {}".format(self.params.overwrite_pngs()))
+            # print(" Redo Videos: {}".format(self.params.write_video()))
             for put in self.params.putters():
-                sleep(0.1)
+                sleep(0.01)
                 put.put(self.params)
-                sleep(0.1)
+                sleep(0.01)
         
         self.print_end_banner()
 
     ## PRINTING
     def print_header(self):
         print("\n\n", self.wall_1)
-        print("\nSunback SDO Image Manipulator \nWritten by Chris R. Gilly")
+        print("\nSunback SDO Image Manipulator \nWritten by C. R. Gilly")
         print("Check out my website: http://gilly.space\n")
         self.start = time()
         if self.params.is_debug(): print("DEBUG MODE\n")

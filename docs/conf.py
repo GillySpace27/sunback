@@ -27,9 +27,9 @@ del get_versions, versions
 # -- Project information -----------------------------------------------------
 
 project = 'Solar Background Updater'
-copyright = ("2019, Chris R. Gilly. Project structure based on the "
+copyright = ("2019, C. R. Gilly. Project structure based on the "
              "Computational Molecular Science Python Cookiecutter version 1.1")
-author = 'Chris R. Gilly'
+author = 'C. R. Gilly'
 
 # The short X.Y version
 version = __version__.split('+')[0]

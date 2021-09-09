@@ -22,17 +22,19 @@ class WebFitsFetcher(Fetcher):
         """
         self.current_wave = 'rainbow'
         self.load(params, quietly=True, wave=self.current_wave)
-        print("  Downloading Fits Files from {}...".format(self.base_url), flush=True)
-        # super.super.__init__(params)
-        img_links = self.__get_fits_links(self.base_url)
-        paths = []
-        for link in tqdm(img_links, desc="  "):
-            paths.append(self.grab(link))
+        if self.params.redownload_files():
+            print("  Downloading Fits Files from {}...".format(self.base_url), flush=True)
+            # super.super.__init__(params)
+            img_links = self.__get_fits_links(self.base_url)
+            paths = []
+            for link in tqdm(img_links, desc="  "):
+                paths.append(self.grab(link))
         
-        self.__get_img_time()
-        sys.stdout.flush()
-        print(" *  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
-        return paths
+            self.__get_img_time()
+            sys.stdout.flush()
+            print(" *  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
+            return paths
+        return self.params.local_fits_paths()
     
     def grab(self, link):
         tries = 3

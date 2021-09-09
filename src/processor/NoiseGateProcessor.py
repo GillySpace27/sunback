@@ -9,9 +9,9 @@ from tqdm import tqdm
 
 from processor.Processor import Processor
 
-from processor.SRNRadialFiltProcessor import SRNRadialFiltProcessor
+from processor.SRNradialFiltProcessor import SRNradialFiltProcessor
 
-norm = SRNRadialFiltProcessor.normalize
+norm = SRNradialFiltProcessor.normalize
 
 small_fill = 100
 

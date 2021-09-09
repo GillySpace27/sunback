@@ -11,10 +11,11 @@ import os
 class AwsImgFetcher(Fetcher):
     description = "Get imgs from the Amazon S3 Bucket"
     
-    def __init__(self, params=None):
-        # super().__init__(params)
-        if params:
-            self.load(params)
+    def __init__(self, params=None, quick=False, rp=None):
+        # Initialize class variables
+        super().__init__(params, quick, rp)
+        if self.params:
+            # self.load(params)
             s3_resource = boto3.resource('s3')
             self.my_bucket = s3_resource.Bucket('gillyspace27-test-billboard')
             self.objects = self.my_bucket.objects.filter(Prefix='renders/')

@@ -29,9 +29,12 @@ class FidoFetcher(Fetcher):
     """Gets some data"""
     description = "Get Fits Files from the Internet using Fido"
     verb = _verb
-    def __init__(self, params=None):
-        if params is not None:
-            super().__init__(params=params)
+    
+    def __init__(self, params=None, quick=False, rp=False):
+        # Initialize class variables
+        super().__init__(params, quick, rp)
+        self.int_tm_tot = 0
+        
     
     ## Main Fetch Logic
     def fetch(self, params=None):
@@ -43,12 +46,13 @@ class FidoFetcher(Fetcher):
     
     def fido_get_fits(self, current_wave):
         self.load(self.params, wave=current_wave)
-        if self.params.download_images():
-            vprint("\n  Fetching Fits Files: {}".format(self.current_wave), self.verb)
+        vprint(" v Fetching Fits Files: {}".format(self.current_wave), self.verb)
+        if self.params.redownload_files() or self.reprocess_mode() or not self.verb:
+            self.print_load_banner(verb=self.verb)
             self.download_fits_series()
             self.validate_download()
         else:
-            print("   Using {} Cached Fits Files\n\n".format(self.params.n_fits))
+            vprint(" ^ Using {} Cached Fits Files\n".format(self.params.n_fits), self.verb)
     
     def download_fits_series(self):
         self.define_range()
@@ -61,7 +65,7 @@ class FidoFetcher(Fetcher):
     
     def fido_check_for_fits(self):
         """Find the science images"""
-        vprint("   Looking for Images of {} from {} to {}...".format(
+        vprint(" *   Looking for Images of {} from {} to {}...".format(
                 self.current_wave, self.start_string, self.end_time_string), flush=True, end='', verb=self.verb)
         
         # Search for records from the internet
@@ -91,7 +95,7 @@ class FidoFetcher(Fetcher):
         self.startTime = time_start  # #self.parse_time_string_to_local(str(time_start.fits), 2)[0]
         self.endTime = time_end  # ''.join(i for i in time_end.iso if i.isdigit())   #self.parse_time_string_to_local(str(time_end.fits), 2)[0]
         
-        vprint("\n     Search Found {} Images {}...".format(self.fido_num, self.extra_string), flush=True, verb=self.verb)
+        vprint("\n *    Search Found {} Images {}...".format(self.fido_num, self.extra_string), flush=True, verb=self.verb)
         
         while len(self.name) < 4:
             self.name = '0' + self.name
@@ -101,7 +105,7 @@ class FidoFetcher(Fetcher):
         results = Fido.fetch(self.fido_result, path=self.params.fits_directory(),
                              downloader=Downloader(progress=True, file_progress=False, max_conn=100,
                                                    overwrite=overwrite))
-        print(" *     Successfully Downloaded {} Files\n".format(len(results)), flush=True)
+        print(" ^     Successfully Downloaded {} Files\n".format(len(results)), flush=True)
         sys.stdout.flush()
         return results
     
@@ -206,7 +210,8 @@ class FidoFetcher(Fetcher):
             pass
         
     def delete_temp_folder(self):
-        shutil.rmtree(self.temp_folder)
+        if os.path.exists(self.temp_folder):
+            shutil.rmtree(self.temp_folder)
     
     def validate_fits(self):
         from statistics import mode
@@ -262,50 +267,43 @@ class FidoFetcher(Fetcher):
         self.end_time, self.end_time_long, self.end_time_string = end
 
 
-class FidoMultiFrameProcessor(FidoFetcher):
-    filt_name = "Temporal Binning"
-    description = "Get many frames around the keyframe and sum them"
-    dopng = False
+class FidoTimeIntProcessor(FidoFetcher):
     out_name = "t_integrated"
+    name = filt_name = "Time Integration Processor"
+    description = "Get many frames around the keyframe and sum them"
+    progress_verb = 'Binning'
+    finished_verb = "Summed"
+    dopng = False
     temp_folder = ''
+
     
-    def __init__(self, params=None):
-        if params is not None:
-            super().__init__(params=params)
-            # self.set_function(self.do_fits_function)
-            self.exposure_paths = []
-    
-    def fido_download_fits(self):
-        overwrite = False
-        self.temp_folder = join(self.params.fits_directory(), "temp_" + self.subname)
-        self.exposure_paths.extend(Fido.fetch(self.fido_result, path= self.temp_folder,
-                                              downloader=Downloader(progress=verb, file_progress=False, max_conn=100,
-                                                                    overwrite=overwrite)))
-        vprint(" *     Successfully Downloaded {} Files\n".format(len(self.exposure_paths)), flush=True, verb=self.verb)
-        sys.stdout.flush()
-    
+    def __init__(self, params=None, quick=False, rp=False):
+        # Initialize class variables
+        super().__init__(params, quick, rp)
+        self.exposure_paths = []
+
     def do_fits_function(self, fits_path, in_name=None):
         """This is the thing that will be executed on every file"""
         
-        # Get the Images
-        self.gather_subframes(fits_path, in_name)
+        in_name = self.check_for_hdul_names(fits_path) #Cabal
         
-        # Sum them
-        self.sum_subframes()
+        if self.params.exposure_time() > 0 and in_name is not None and self.out_name not in self.hdu_name_list:
+            # Get the Images
+            self.gather_subframes(fits_path, in_name)
+            
+            # Sum them
+            self.sum_subframes()
+            
+            # Delete the Images
+            self.delete_temp_folder()
         
-        
-        # Store array into keyframe
-        
-        
-        # Delete exposure files
-        self.delete_temp_folder()
-        
-        # pass frame
-        return self.changed
+            # pass frame
+            return self.changed
+        return None
     
     def gather_subframes(self, fits_path, in_name):
         # Parse the Keyframe Time
-        keyframe, wave, t_rec, center = self.load_a_fits_field(fits_path, in_name)
+        keyframe, wave, t_rec, center, t_int = self.load_a_fits_field(fits_path, in_name)
         self.original = keyframe
         self.changed = None
         self.exposure_paths = [fits_path]
@@ -317,15 +315,31 @@ class FidoMultiFrameProcessor(FidoFetcher):
         self.params.cadence_minutes(10. / 60.)
         
         # Search fido for those frames + Download the Files
+        self.verb=False
         self.fetch(self.params)
+        self.verb=True
     
     def sum_subframes(self):
-        frame_array = np.zeros_like(self.original)
+        frame_array = np.zeros_like(self.original, dtype=np.float32)
         for path in self.exposure_paths:
-            frame_array += self.load_last_fits_field(path)[0]
-        self.changed = frame_array
-    
-
+            try:
+                frame, wave, t_rec, center, int_time = self.load_last_fits_field(path)
+                frame_array += frame
+                self.int_tm_tot += int_time
+            except ValueError as e:
+                print("Sum Subframes:: ", e)
+                
+        self.changed = frame_array / self.int_tm_tot
+        
+    def fido_download_fits(self):
+        overwrite = False
+        self.temp_folder = join(self.params.fits_directory(), "temp_" + self.subname)
+        self.exposure_paths.extend(Fido.fetch(self.fido_result, path=self.temp_folder,
+                downloader=Downloader(progress=self.verb, file_progress=False, max_conn=100,
+                                                                        overwrite=overwrite)))
+        vprint(" *     Successfully Downloaded {} Files\n".format(len(self.exposure_paths)), flush=True, verb=self.verb)
+        sys.stdout.flush()
+        
     def make_time_range_duration(self, t_start, duration_seconds=60):
         
         # Get a start datetime
