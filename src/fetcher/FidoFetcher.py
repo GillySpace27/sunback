@@ -310,6 +310,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.subname = basename(fits_path.split('.')[0])
         
         # Define new exposure time window
+        main_time_period = self.params.time_period([self.params.tstart, self.params.tend])
         self.make_time_range_duration(t_start=t_rec, duration_seconds=self.params.exposure_time_seconds())
         self.params.do_recent(False)
         self.params.cadence_minutes(10. / 60.)
@@ -318,6 +319,9 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.verb=False
         self.fetch(self.params)
         self.verb=True
+        self.params.time_period(main_time_period)
+        self.params.load_preset_time_settings()
+        self.define_range()
     
     def sum_subframes(self):
         frame_array = np.zeros_like(self.original, dtype=np.float32)
@@ -340,6 +344,8 @@ class FidoTimeIntProcessor(FidoFetcher):
         vprint(" *     Successfully Downloaded {} Files\n".format(len(self.exposure_paths)), flush=True, verb=self.verb)
         sys.stdout.flush()
         
+        
+        
     def make_time_range_duration(self, t_start, duration_seconds=60):
         
         # Get a start datetime
@@ -360,13 +366,13 @@ class FidoTimeIntProcessor(FidoFetcher):
         return [t_start_out, t_end_out]
         # self.params.do_multishot()
     
-    def download_fits_series(self):
-        self.fido_check_for_fits()
-        if self.fido_num:
-            self.fido_parse_result()
-            self.fido_download_fits()
-        else:
-            print("\n     No Images Found\n")
+    # def download_fits_series(self):
+    #     self.fido_check_for_fits()
+    #     if self.fido_num:
+    #         self.fido_parse_result()
+    #         self.fido_download_fits()
+    #     else:
+    #         print("\n     No Images Found\n")
     
     def fido_check_for_fits(self):
         """Find the science images"""

@@ -933,7 +933,7 @@ class SRNpreProcessor(SRNProcessor):
     
     show_plots = True
     # fixed_number_keyframes = 4
-    can_use_keyframes = True
+    
     
     # fixed_cadence_keyframes = 4
     # qq = 0
@@ -941,14 +941,16 @@ class SRNpreProcessor(SRNProcessor):
     def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
         super().__init__(fits_path, in_name, orig, show, verb, quick, rp, params)
         self.go_ahead = True
+        self.can_use_keyframes = True
     
     def setup(self):
-        self.print_keyframes()
-        
+        self.load()
         set_to_make = self.params.remake_norm_curves() or self.reprocess_mode()
         not_made_yet = not os.path.exists(self.params.curve_path()) or self.rendered_min is None
         frame_is_not_loaded = self.original is None
         self.go_ahead = set_to_make or not_made_yet or frame_is_not_loaded
+        self.print_keyframes()
+        
         # print("GO AHEAD: ", self.go_ahead, set_to_make, not_made_yet, frame_is_not_loaded)
     
     def do_work(self):
@@ -974,7 +976,7 @@ class SRNradialFiltProcessor(SRNProcessor):
     description = "Filter the Images Radially with SRN"
     progress_verb = 'Filtering'
     finished_verb = "Filtered"
-    use_keyframes = False
+    can_use_keyframes = False
     def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
         super().__init__(fits_path, in_name, orig, show, verb, quick, rp, params)
         self.go_ahead = True

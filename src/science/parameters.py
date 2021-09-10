@@ -23,6 +23,9 @@ class Parameters:
     def __init__(self):
         """Sets all the attributes to None"""
         # Initialize Variables
+        self.selection = None
+        self.tend = ''
+        self.tstart = ''
         self._remake_norm_curves = False
         self._params_path = None
         self._curve_path = None
@@ -360,6 +363,8 @@ class Parameters:
     def time_period(self, period=None):
         if period is not None:
             self._time_period = period
+            self.tstart = period[0]
+            self.tend = period[1]
             self.do_recent(False)
         return self._time_period
     
@@ -471,30 +476,36 @@ class Parameters:
     
     def load_preset_time_settings(self, selection=None):
         """Load one of a few presets for the time settings"""
-        selection = selection.casefold()
-        if selection in ['false', 'f', "False", None, False]:
+        if selection is not None:
+            self.selection = selection.casefold()
+
+        if self.selection in ['false', 'f', "False", None, False]:
             return False
         
         key_fixed_cadence = 4
         key_fixed_number = None
-        
-        if selection.casefold() in ['slow', 's']:
+        # print("Loading {} cadence.".format(self.selection))
+        if self.selection.casefold() in ['slow', 's']:
             cadence_minutes = 5
             exposure_time_secs = 180
             fps = 20
         
-        elif selection.casefold() in ['medium', 'm']:
+        elif self.selection.casefold() in ['medium', 'm']:
             cadence_minutes = 10
             exposure_time_secs = 120
             fps = 15
-        elif selection.casefold() in ['fast', 'f']:
+        elif self.selection.casefold() in ['fast', 'f']:
             cadence_minutes = 20
             exposure_time_secs = 60
             fps = 15
-        elif selection.casefold() in ['plaid', 'p']:
+        elif self.selection.casefold() in ['ludacris', 'l']:
             cadence_minutes = 60
-            exposure_time_secs = 37
+            exposure_time_secs = 36
             fps = 10
+        elif self.selection.casefold() in ['plaid', 'p']:
+            cadence_minutes = 6 * 60
+            exposure_time_secs = 12
+            fps = 5
         else:
             return False
         

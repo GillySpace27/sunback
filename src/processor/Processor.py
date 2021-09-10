@@ -58,6 +58,9 @@ class Processor:
     
     def __init__(self, params=None, quick=False, rp=None):
         
+        self.all_file_paths = None
+        self.n_all_frames = None
+        self.n_do_frames = None
         self.long_list = []
         self.fits_path = None
         self.first_hIndex = 0
@@ -102,22 +105,21 @@ class Processor:
         verb = not quietly
         if params is not None:
             self.params = params
-            
+        self.set_base_directories(fits_directory, imgs_directory, absolute)
+        self.set_names(in_name, out_name, batch_name, quietly)
+        self.progress_string = self.progress_stem.format(self.progress_verb)
+    
         if self.params is not None:
             #  Refresh Params and Load Paths
-            self.set_names(in_name, out_name, batch_name, quietly)
-            self.set_base_directories(fits_directory, imgs_directory, absolute)
-            self.progress_string = self.progress_stem.format(self.progress_verb)
+            self.name = self.params.batch_name(batch_name)
             self.super_flush()
             self.params.set_current_wave(wave)
-            # print(' v', self.filt_name + "...", flush=True)
             self.set_subset()
+            
             if not quick:
                 self.params.create_subdirectories()
             return self.load_paths(verb)
-        else:
-            # print("FAILED to load")
-            pass
+
     
     # Define Targets
     def set_names(self, in_name=None, out_name=None, name=None, quietly=None):
@@ -128,7 +130,6 @@ class Processor:
             self.out_name = out_name
         if name:
             self.name = name
-            self.params.batch_name(name)
         if quietly:
             self.quietly = quietly
     
@@ -154,7 +155,8 @@ class Processor:
         if self.n_fits + self.n_imgs > 0 and verb:
             print(' v {}...'.format(self.filt_name), flush=True)
             if self.progress_verb.casefold() in ["binning"]:
-                print( " *    Exposure Time is {} seconds")
+                exp=self.params.exposure_time_seconds()
+                print( " *    Exposure Time is {} seconds, which is {} frames".format(exp, exp/12))
             print(" *    {}: {}, Redo = {}".format(self.progress_verb, self.params.current_wave(), self.reprocess_mode()))
             vprint(" *   Loaded {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()), verb)
     
@@ -225,30 +227,38 @@ class Processor:
         """Sets the list of which frames get used as keyframes
         This function only runs once, sort of an __init__
         """
-        if self.dont_ignore:
-            all_file_paths = self.params.local_fits_paths()
-            use_keyframes = self.params.fixed_cadence_keyframes() or self.params.fixed_number_keyframes()
-            if self.can_use_keyframes and use_keyframes:
-                self.keyframes = self.pick_keyframes(all_file_paths)
-            else:
-                self.keyframes = all_file_paths
-        self.dont_ignore = False
+        # if self.dont_ignore:
+        use_keyframes = self.params.fixed_cadence_keyframes() or self.params.fixed_number_keyframes()
+        if self.can_use_keyframes and use_keyframes:
+            self.keyframes = self.pick_keyframes()
+            pass
+        else:
+            self.keyframes = self.pick_keyframes(use_all=True)
+        pass
+        # self.dont_ignore = False
         
-    def pick_keyframes(self, all_file_paths):
+    def pick_keyframes(self, use_all=False):
         """Decide which frames to use in the analysis"""
-        
-        self.long_list = copy(all_file_paths)
+        # self.load(self.params, wave=self.params.current_wave)
+        self.params.set_current_wave()
+        if self.all_file_paths in [None, []]:
+            self.all_file_paths = self.load_fits_paths()
+        self.long_list = copy(self.all_file_paths)
+        self.n_all_frames = len(self.long_list)
         n_paths = len(self.long_list)
-        self.short_list = []
+        # self.short_list = []
+        if use_all:
+            self.short_list = self.long_list
 
-        if self.params.fixed_cadence_keyframes():
+        elif self.params.fixed_cadence_keyframes():
             # Fixed Cadence of one out of every {} frames
             self.short_list = self.long_list[::self.params.fixed_cadence_keyframes()]
-    
+            
         elif self.params.fixed_number_keyframes():
             #  Fixed Number of Keyframes
             skip = max(n_paths // self.params.fixed_number_keyframes(), 1)
             self.short_list = self.long_list[::skip]
+        self.n_do_frames = len(self.short_list)
         return self.short_list
     
     def print_keyframes(self):
@@ -256,7 +266,9 @@ class Processor:
             print(" *    >>KeyFrames: Fixed Cadence of one out of every {} frames".format(self.params.fixed_cadence_keyframes()))
         elif self.params.fixed_number_keyframes():
             print(" *    >>KeyFrames: Fixed Number of Keyframes: {}".format(self.params.fixed_number_keyframes()))
-        print(" *    >>Selected {} keyframes out of {} total frames".format(len(self.short_list), len(self.long_list)))
+
+        print(" *    >>Selected {} keyframes out of {} total frames".format(self.n_do_frames, self.n_all_frames))
+        # print(" *    >>Selected {} keyframes out of {} total frames".format(len(self.short_list), len(self.long_list)))
         
         self.super_flush(many=10)
         
@@ -316,7 +328,7 @@ class Processor:
             if n_success == 0:
                 print(" ^ XxX-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(self.skipped))
             else:
-                print(" ^    Successfully {} {} Files ({} skipped) \n".format(self.finished_verb, n_success, self.skipped), flush=True)
+                print(" ^ ^^ Successfully {} {} Files ({} skipped) \n".format(self.finished_verb, n_success, self.skipped), flush=True)
         else:
             print(" ^    No Files Found\n")
     

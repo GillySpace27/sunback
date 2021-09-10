@@ -70,9 +70,7 @@ class Runner:
                 # print(" Redownload Mode: {}\n".format(self.params.redownload_files()))
                 for fet in self.params.fetchers():
                     sleep(0.01)
-                    print(self.params.current_wave())
                     fet.fetch(self.params)
-                    print(self.params.current_wave())
                     
                     sleep(0.01)
             

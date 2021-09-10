@@ -93,6 +93,7 @@ class ImageProcessor(Processor):
             # If you don't want to overwrite
             if self.png_save_path in self.params.local_imgs_paths():
                 # Make images you don't already have
+                self.skipped += 1
                 return True  # do skip
             else:
                 return False  # don't skip
@@ -164,6 +165,13 @@ class ImageProcessor(Processor):
             the_time = the_time[1:]
         self.frame_ax.annotate(the_time, (0.15, height), xycoords='axes fraction', fontsize='large',
                                color='w', horizontalalignment='center')
+        
+        self.frame_ax.annotate(the_time, (0.15, height-15), xycoords='axes fraction', fontsize='large',
+                               color='w', horizontalalignment='center')
+        
+        self.frame_ax.annotate("Mode: {}".format(self.params.selection), (0.85, height), xycoords='axes fraction', fontsize='large',
+                               color='w', horizontalalignment='center')
+        
     
     def plot_hmi(self, fig, ax, frame):
         """Plot the data from HMI"""
