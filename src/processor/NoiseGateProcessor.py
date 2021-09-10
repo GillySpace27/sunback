@@ -96,7 +96,7 @@ class NoiseGateProcessor(Processor):
             break
             if ii * max_use > small_fill:
                 break
-            # for jj in np.arange(start=start, stop=end):
+            # for jj in np.arange(start_timestamp=start_timestamp, stop=end):
             #     # fig, (ax1, ax2) = plt.subplots(1,2, sharex=True, sharey=True)
             #     # ax1.imshow(norm(self.cube[jj]))
             #     # ax2.imshow(norm(self.gated_cube[jj]))

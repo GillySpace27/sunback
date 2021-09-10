@@ -30,9 +30,10 @@ class FidoFetcher(Fetcher):
     description = "Get Fits Files from the Internet using Fido"
     verb = _verb
     
-    def __init__(self, params=None, quick=False, rp=False):
+    def __init__(self, params=None, quick=False, rp=None):
         # Initialize class variables
         super().__init__(params, quick, rp)
+        self.reprocess_mode(rp)
         self.int_tm_tot = 0
         
     
@@ -139,7 +140,7 @@ class FidoFetcher(Fetcher):
         self.requested_response = []
         for ii in np.arange(self.fido_num):
             self.requested_files.append(self.fido_result.get_response(0)[ii]['fileid'].casefold())
-            self.requested_files.append(self.fido_result.get_response(0)[ii]['time']['start'])
+            self.requested_files.append(self.fido_result.get_response(0)[ii]['time']['start_timestamp'])
     
     def remove_all_old_pngs(self):
         requested_pngs = [x.replace('fits', 'png') for x in self.local_fits_paths]
@@ -348,7 +349,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         
     def make_time_range_duration(self, t_start, duration_seconds=60):
         
-        # Get a start datetime
+        # Get a start_timestamp datetime
         t_start_struct = strptime(t_start[:-4], "%Y-%m-%dT%H:%M:%S")
         t_start_dt = datetime.datetime.fromtimestamp(mktime(t_start_struct))
         
@@ -397,10 +398,10 @@ class FidoTimeIntProcessor(FidoFetcher):
     #
     #
     # @staticmethod
-    # def define_duration_range(start, duration): ## THIS IS NOT IMPLEMENTED, and put it back where you got it
+    # def define_duration_range(start_timestamp, duration): ## THIS IS NOT IMPLEMENTED, and put it back where you got it
     #     """Given a short and a long cadence, make an input to fido that gets that"""
-    #     start_struct = datetime.datetime.strptime(start, '%Y/%m/%d %H:%M:%S')
-    #     end_struct = datetime.datetime.strptime(start + duration, '%Y/%m/%d %H:%M:%S')
+    #     start_struct = datetime.datetime.strptime(start_timestamp, '%Y/%m/%d %H:%M:%S')
+    #     end_struct = datetime.datetime.strptime(start_timestamp + duration, '%Y/%m/%d %H:%M:%S')
     #     return get_time_lists(start_struct, end_struct) #something that makes fido do the right thing by itself
     #
     #

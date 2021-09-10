@@ -8,7 +8,7 @@ import boto3
 
 # Select Amazon Resources
 # from utils.file_util import get_thumblinks
-from utils.array_util import get_thumblinks
+from utils.array_util import get_thumblinks, make_thumbs
 
 S3_UPLOAD_ARGS = {'ACL': 'public-read', "ContentType": "in_object/png"}
 s3 = boto3.resource('s3')
@@ -18,8 +18,9 @@ from time import sleep
 
 
 class AwsPutter(Putter):
-    def __init__(self, params):
-        self.params = params
+    def __init__(self, params=None):
+        if params is not None:
+            self.params = params
     
     def put(self, params=None):
         if params is not None:
@@ -28,7 +29,7 @@ class AwsPutter(Putter):
         print("  *Uploading PNGs to {}...".format(bucket), flush=True)
         sleep(0.1)
         for rtPath in tqdm(self.params.local_imgs_paths(), desc="  "):
-            smallPath, bigPath, arcPath = get_thumblinks(rtPath)
+            smallPath, bigPath, arcPath = make_thumbs(rtPath)
             
             # Upload large File
             bucket.upload_file(rtPath, bigPath, ExtraArgs=S3_UPLOAD_ARGS)

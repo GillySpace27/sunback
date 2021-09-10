@@ -30,12 +30,13 @@ class ImageProcessor(Processor):
     image_data = None
     show = False
     inches = 10
-    vmax_plot = 0.8
-    vmin_plot = 0.5
+    # vmax_plot = 0.8
+    # vmin_plot = 0.5
     dpi = None
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
+        
         self.fig, self.frame_ax = None, None
         self.plot_formatted = False
         self.pathBox = []
@@ -71,7 +72,6 @@ class ImageProcessor(Processor):
         """Render the original and changed plots"""
         # Which plots to make?
         if self.skip():
-            self.skipped += 1
             return False
         
         if self.params.do_orig:
@@ -169,7 +169,7 @@ class ImageProcessor(Processor):
         self.frame_ax.annotate(the_time, (0.15, height-15), xycoords='axes fraction', fontsize='large',
                                color='w', horizontalalignment='center')
         
-        self.frame_ax.annotate("Mode: {}".format(self.params.selection), (0.85, height), xycoords='axes fraction', fontsize='large',
+        self.frame_ax.annotate("Mode: {}".format(self.params.selection), (0.90, height+15), xycoords='axes fraction', fontsize='large',
                                color='w', horizontalalignment='center')
         
     
@@ -270,8 +270,8 @@ class ImageProcessor(Processor):
         # return name
     
     @staticmethod
-    def absqrt(image):
-        return np.sqrt(np.abs(image))
+    def absqrt(image, **kwargs):
+        return np.sqrt(np.abs(image, **kwargs))
     
     # image_meta = str(wave), str(wave), t_rec, data.shape
     

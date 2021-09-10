@@ -2,6 +2,7 @@
 
 from fetcher.WebFitsFetcher import WebFitsFetcher
 from processor.ImageProcessor import ImageProcessor
+from processor.SRNProcessor import SRNProcessor, SRNSingleProcessor
 from putter.AwsPutter import AwsPutter
 from putter.DesktopPutter import DesktopPutter
 from science.parameters import Parameters
@@ -20,22 +21,23 @@ def run_server(delay=10, debug=True, do_one='0171', stop=False):
     p.do_orig = True
     
     # Run Flags
-    p.redownload_files(False)
-    p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
-    p.overwrite_pngs(True)
-    p.write_video(False)
-    # p.set_current_wave('rainbow')
+    # p.redownload_files(False)
+    # p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
+    # p.overwrite_pngs(True)
+    # p.write_video(False)
+    p.set_current_wave('rainbow')
     # p.delete_old(True)
     
-    p.fetchers(WebFitsFetcher())  # Gets Fits from JSOC Most Recent
+    p.fetchers(WebFitsFetcher(rp=True))  # Gets Fits from JSOC Most Recent
     
-    # p.processors(SRNradialFiltProcessor())  # Applies the Radial Filtering
+    p.processors(SRNSingleProcessor())  # Applies the Radial Filtering
+    
     p.putters([ImageProcessor()])  # Turns Fits into Pngs
     
     # if p.is_debug():
     #     p.putters([DesktopPutter()])  # Runs the Desktop Background Sequence on PNGs
     # else:
-    #     p.putters([AwsPutter()])  # Uploads the PNGs to AWS
+    p.putters([AwsPutter()])  # Uploads the PNGs to AWS
     
     Runner(p).start()
 

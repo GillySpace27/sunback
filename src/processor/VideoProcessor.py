@@ -19,6 +19,7 @@ class VideoProcessor(Processor):
     progress_string = progress_stem.format(progress_verb)
     finished_verb = "Wrote Movie"
     progress_unit = "imgs"
+    progress_text = progress_string
     
     video_name_stem = ""
     description = "Turn all the imgs into an AVI video"
@@ -29,7 +30,6 @@ class VideoProcessor(Processor):
         self.good_paths = []
         self.skipped = 0
         self.final_name = None
-        self.progress_text = None
     
     def process_one_wavelength(self, wave):
         """Prepare and execute the video writer"""
@@ -59,7 +59,7 @@ class VideoProcessor(Processor):
     def build_output_paths(self):
         """Build the Path to the Video"""
         height, width, _ = cv2.imread(self.params.local_imgs_paths()[0]).shape
-        file_name = '{}_{}_movie{}'.format(self.wave, strftime('%m%d_%H%M'), self.mov_suffix)
+        file_name = '{}_{}_movie{}'.format(self.params.current_wave(), strftime('%m%d_%H%M'), self.mov_suffix)
         
         self.frame_shape = (width, height)
         self.final_name = join(self.params.movs_directory(), file_name)

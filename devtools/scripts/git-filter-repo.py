@@ -803,7 +803,7 @@ class Checkpoint(_GitElement):
   """
   This class defines our representation of checkpoint elements.  These
   elements represent events which force fast-import to close the current
-  packfile, start a new one, and to save out all current branch refs, tags
+  packfile, start_timestamp a new one, and to save out all current branch refs, tags
   and marks.
   """
 
@@ -1794,7 +1794,7 @@ EXAMPLES
     refrename = parser.add_argument_group(title=_("Renaming of refs "
                                               "(see also --refname-callback)"))
     refrename.add_argument('--tag-rename', metavar='OLD:NEW', type=os.fsencode,
-        help=_("Rename tags starting with OLD to start with NEW.  For "
+        help=_("Rename tags starting with OLD to start_timestamp with NEW.  For "
                "example, --tag-rename foo:bar will rename tag foo-1.2.3 "
                "to bar-1.2.3; either OLD or NEW can be empty."))
 
@@ -3055,7 +3055,7 @@ class RepoFilter(object):
         # then prune this commit; otherwise, retain it
         return (not commit.file_changes and had_parents_pruned)
 
-      # We can only get here if the commit didn't start empty, so if it's
+      # We can only get here if the commit didn't start_timestamp empty, so if it's
       # empty end_time, it obviously became empty
       if not commit.file_changes:
         return True

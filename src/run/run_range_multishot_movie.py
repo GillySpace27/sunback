@@ -11,7 +11,7 @@ plt.ioff()
 def run_range_multishot_movie(debug=True, do_one=False, stop=True,
                               tstart='2014/11/04 00:00:10', tend='2014/11/07 00:00:00',
                               cadence_minutes=5, fps=10, exposure_time=24,
-                              key_fixed_cadence=4, key_fixed_number=None, time_preset="l"):
+                              key_fixed_cadence=None, key_fixed_number=10, time_preset="l"):
     
     # Set the Parameters
     p = Parameters()
@@ -28,22 +28,22 @@ def run_range_multishot_movie(debug=True, do_one=False, stop=True,
         p.cadence_minutes(cadence_minutes)
         p.exposure_time_seconds(exposure_time)
         p.frames_per_second(fps)
-        p.fixed_cadence_keyframes(key_fixed_cadence)
-        p.fixed_number_keyframes(key_fixed_number)
+    p.fixed_cadence_keyframes(key_fixed_cadence)
+    p.fixed_number_keyframes(key_fixed_number)
     p.time_period(period=[tstart, tend])
     
     # p.compare_fits_frames()
     
     # Set the Processes
-    p.fetchers(FidoFetcher(              rp=False))  # Gets Fits FIDO
-    p.processors([FidoTimeIntProcessor(  rp=False)]) # Integrate several frames for S/N
+    p.fetchers(FidoFetcher,                 rp=False)  # Gets Fits FIDO
+    p.processors([FidoTimeIntProcessor],    rp=False) # Integrate several frames for S/N
     
-    # p.processors([SRNProcessor(        rp=False)]) # Does SRN on each image individually
-    p.processors([SRNpreProcessor(       rp=True)])  # Learns the bounds of the dataset for SRN
-    p.processors([SRNradialFiltProcessor(rp=True)])  # Applies the SRN Filter
+    # p.processors([SRNProcessor],          rp=False)) # Does SRN on each image individually
+    p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
+    p.processors([SRNradialFiltProcessor],  rp=False)  # Applies the SRN Filter
     
-    p.putters([ImageProcessor(           rp=True)])  # Makes the PNGs from Fits
-    p.putters([VideoProcessor(           rp=True)])  # Makes the PNGs into a Movie
+    p.putters([ImageProcessor],             rp=False)  # Makes the PNGs from Fits
+    p.putters([VideoProcessor],             rp=False)  # Makes the PNGs into a Movie
     
     # Run the Code
     run.Runner(p).start()

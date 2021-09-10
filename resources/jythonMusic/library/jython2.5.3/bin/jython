@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# jython.sh - start script for Jython (adapted from jruby.sh)
+# jython.sh - start_timestamp script for Jython (adapted from jruby.sh)
 #
 # Environment variables (optional)
 #

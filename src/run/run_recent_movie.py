@@ -1,6 +1,6 @@
 from fetcher.FidoFetcher import FidoFetcher
 from processor.ImageProcessor import ImageProcessor
-from processor.SRNradialFiltProcessor import SRNradialFiltProcessor
+from processor.SRNProcessor import SRNProcessor, SRNSingleProcessor
 from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
 import run
@@ -37,10 +37,10 @@ def run_recent_movie(delay=10, debug=True, do_one="0304", stop=True, cadence_min
     # if p.redownload_files():
     p.fetchers(FidoFetcher())      # Gets Fits FIDO
 
-    p.processors([SRNradialFiltProcessor()])
+    p.processors([SRNSingleProcessor])
 
-    p.putters([ImageProcessor()])
-    p.putters([VideoProcessor()])
+    p.putters([ImageProcessor])
+    p.putters([VideoProcessor])
 
     # Run the Code
     run.Runner(p).start()

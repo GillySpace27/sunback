@@ -24,6 +24,8 @@ class Parameters:
         """Sets all the attributes to None"""
         # Initialize Variables
         self.selection = None
+        self.paper_out = []
+        
         self.tend = ''
         self.tstart = ''
         self._remake_norm_curves = False
@@ -107,28 +109,28 @@ class Parameters:
     # TODO: extract getter/setter logic
     # Main Functions
     
-    def fetchers(self, _fetchers=None):
+    def fetchers(self, _fetchers=None, rp=None):
         if _fetchers is not None:
             if type(_fetchers) not in [list]:
-                self._fetchers = [_fetchers]
+                self._fetchers = [_fetchers(self, rp=rp)]
             else:
-                self._fetchers.extend(_fetchers)
+                self._fetchers.extend([fet(self, rp=rp) for fet in _fetchers])
         return self._fetchers
     
-    def processors(self, _processors=None):
+    def processors(self, _processors=None, rp=None):
         if _processors is not None:
             if type(_processors) not in [list]:
-                self._processors = [_processors]
+                self._processors = [_processors(self, rp=rp)]
             else:
-                self._processors.extend(_processors)
+                self._processors.extend([proc(self, rp=rp) for proc in _processors])
         return self._processors
     
-    def putters(self, _putters=None):
+    def putters(self, _putters=None, rp=None):
         if _putters is not None:
             if type(_putters) not in [list]:
-                self._putters = [_putters]
+                self._putters =  [_putters(self, rp=rp)]
             else:
-                self._putters.extend(_putters)
+                self._putters.extend([pt(self, rp=rp) for pt in _putters])
         return self._putters
     
     ## Other
@@ -451,6 +453,8 @@ class Parameters:
     def current_wave(self, _current_wave=None):
         if _current_wave is not None:
             self._current_wave = _current_wave
+            if not self._current_wave:
+                self._current_wave ='rainbow'
         return self._current_wave
     
     def check_real_number(self, number):

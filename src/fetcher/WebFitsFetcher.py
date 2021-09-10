@@ -7,7 +7,7 @@ from urllib.request import urlretrieve
 import numpy as np
 import requests
 from bs4 import BeautifulSoup
-from utils.file_util import discover_best_data_directory
+# from utils.file_util import discover_best_data_directory
 from fetcher.Fetcher import Fetcher
 from tqdm import tqdm
 
@@ -20,8 +20,10 @@ class WebFitsFetcher(Fetcher):
         """Gets the Fits Files from the Archive URL
         :param params:
         """
-        self.params.current_wave('rainbow')
-        self.load(params, quietly=True, wave=self.params.current_wave())
+        if params is not None:
+            self.params = params
+        # self.params.current_wave()
+        self.load(params, quietly=True, wave=self.params.current_wave('rainbow'))
         if self.params.redownload_files():
             print("  Downloading Fits Files from {}...".format(self.base_url), flush=True)
             # super.super.__init__(params)

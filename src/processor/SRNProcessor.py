@@ -1,6 +1,7 @@
 import os
 from os import makedirs
 from os.path import join, dirname
+from time import sleep
 
 import numpy as np
 import matplotlib as mpl
@@ -24,11 +25,11 @@ class SRNProcessor(Processor):
     out_name = None
     name = "Default"
     filt_name = '  SRN Radial Base Class'
-    description = "Create the Radial SRN Curves"
+    description = "Create and Apply the Radial SRN Curves"
     
     do_png = False
     renew_mask = True
-    show_plots = False
+    show_plots = True
     image_data = None
     
     multiple_minimum_curves = []
@@ -52,6 +53,7 @@ class SRNProcessor(Processor):
     binInds = None
     more_rez = None
     radBins_all = []
+    limb_radii = None
     
     def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
         """Initialize the main class"""
@@ -101,21 +103,19 @@ class SRNProcessor(Processor):
         else:
             return None
     
+    def setup(self):
+        """Do prep work once before the main algorithm"""
+        raise NotImplementedError
+    
     def do_work(self):
-        """Analyze the Image, Normalize it, Plot"""
-        self.image_learn()  # Analyze the input to help make normalization curves
-        self.image_modify()  # Actually Normalize This Image
-        return self.changed
+        """Do whatever you want to each image in the directory"""
+        raise NotImplementedError
     
     def cleanup(self):
-        """Runs after all the images have been modified with do_work"""
-        # print("Save/load!")
-        # self.save_curves()
-        # self.load_curves()
-        pass
+        """Runs once after all the images have been modified with do_work"""
+        raise NotImplementedError
     
-    def setup(self):
-        pass
+
     
     ## Top-Level
     def image_learn(self):
@@ -137,35 +137,43 @@ class SRNProcessor(Processor):
     
     def add_to_keyframes(self):
         """Records the current analysis as one of the radial samples"""
+        SRNProcessor.rendered_abss = self.rendered_abss = self.fakeAbss
         SRNProcessor.n_keyframes += 1
         SRNProcessor.lastIndex += 1
         self.skipped -= 1
-        
+    
+        # SRNProcessor.running_max
+    
+        # Use Average Curves
         if SRNProcessor.running_max is None:
             SRNProcessor.running_min = self.fakeMin + 0
             SRNProcessor.running_max = self.fakeMax + 0
         else:
             SRNProcessor.running_min += self.fakeMin
             SRNProcessor.running_max += self.fakeMax
-        
-        SRNProcessor.rendered_abss = self.fakeAbss
-        
-        SRNProcessor.rendered_min = SRNProcessor.running_min / SRNProcessor.n_keyframes
-        SRNProcessor.rendered_max = SRNProcessor.running_max / SRNProcessor.n_keyframes
-        
-        SRNProcessor.rendered_min_box.append(SRNProcessor.rendered_min)
-        SRNProcessor.rendered_max_box.append(SRNProcessor.rendered_max)
-        
-        # SRNProcessor.multiple_minimum_curves.append(self.fakeMin0)
-        # SRNProcessor.multiple_maximum_curves.append(self.fakeMax0)
+    
+    
+        SRNProcessor.rendered_min = self.rendered_min = SRNProcessor.running_min / SRNProcessor.n_keyframes
+        SRNProcessor.rendered_min = self.rendered_max = SRNProcessor.running_max / SRNProcessor.n_keyframes
+    
+        self.rendered_min_box.append(self.rendered_min)
+        self.rendered_max_box.append(self.rendered_max)
+    
+        self.multiple_minimum_curves.append(self.fakeMin0)
+        self.multiple_maximum_curves.append(self.fakeMax0)
     
     def save_curves(self):  #
         """Save the curves so they don't have to be recalculated"""
         print(" *    Saving Radial Curves...", end='')
         file_name = self.params.curve_path()
-        max_curve = SRNProcessor.rendered_max
-        min_curve = SRNProcessor.rendered_min
-        out_array = np.asarray((min_curve, max_curve))  # , abss))
+        max_curve = self.rendered_max
+        min_curve = self.rendered_min
+        if self.limb_radii is None:
+            limb_out = None
+        else:
+            limb_out = np.ones_like(min_curve) * self.limb_radii
+        
+        out_array = np.asarray((min_curve, max_curve, limb_out))  # , abss))
         if None not in out_array:
             np.savetxt(file_name, out_array)
             print("Success!")
@@ -183,25 +191,25 @@ class SRNProcessor(Processor):
         if os.path.exists(file_name):
             print(" *    Loading Radial Curves...", end='')
             try:
-                min_curve, max_curve = np.loadtxt(file_name)
-                SRNProcessor.rendered_min = min_curve
-                SRNProcessor.rendered_max = max_curve
+                min_curve, max_curve, limb_radii = np.loadtxt(file_name)
+                self.limb_radii = limb_radii[0]
+                self.rendered_min = min_curve
+                self.rendered_max = max_curve
                 # self.raster_curves()
                 self.super_flush("Success!")
             except ValueError as e:
                 print("Failed: {}".format(e))
-
+                
                 self.image_learn()
                 self.save_curves()
- 
+    
     def raster_curves(self):
         """Raster out the min/max curves from the rendered version"""
-        if self.rastered_min is None:
-            print("Rastering...", end='')
-            SRNProcessor.rastered_min = self.rastered_min = np.squeeze(SRNProcessor.rendered_min[self.binInds])
-            SRNProcessor.rastered_max = self.rastered_max = np.squeeze(SRNProcessor.rendered_max[self.binInds])
-    
-    
+        if self.rastered_min is None and self.rendered_min is not None:
+            # print("Rastering...", end='')
+            # self.rendered_abss = self.fakeAbss
+            self.rastered_min = np.squeeze(self.rendered_min[self.binInds])
+            self.rastered_max = np.squeeze(self.rendered_max[self.binInds])
     
     # Analysis
     def make_radius_array(self, vignette_radius=1.2, s_radius=400, t_factor=1.28, force=False):
@@ -242,7 +250,6 @@ class SRNProcessor(Processor):
         
         self.more_rez = np.max(self.binInds) + 10
         self.radBins = [[] for x in np.arange(self.more_rez)]
-
     
     def bin_radially(self):  # TODO Make this much faster
         """Bin the intensities by radius """
@@ -250,11 +257,11 @@ class SRNProcessor(Processor):
         for binI, dat in zip(self.binInds[::self.cut_pixels], self.changed.flatten()[::self.cut_pixels]):
             try:
                 self.radBins[binI].append(dat)
-                # SRNProcessor.radBins_all[binI].append(dat)
+                # self.radBins_all[binI].append(dat)
             except Exception as e:
                 print("bin_radially:: ", e)
         
-        # SRNProcessor.radBins_all.append(self.radBins)
+        # self.radBins_all.append(self.radBins)
         
         # for i in range(len(self.rad_flat)):
         #     self.radBins[self.binInds[i]].append(self.dat_flat[i])
@@ -281,7 +288,7 @@ class SRNProcessor(Processor):
             
             # Do statistics
             if len(subItems) > 0:
-                self.binMax[ii] = np.percentile(subItems, 90)  # np.nanmax(subItems)
+                self.binMax[ii] = np.percentile(subItems, 98)  # np.nanmax(subItems)
                 self.binMin[ii] = np.percentile(subItems, 5)  # np.min(subItems)
                 self.binMid[ii] = np.mean(subItems)
                 self.binMed[ii] = np.median(subItems)
@@ -316,7 +323,7 @@ class SRNProcessor(Processor):
         
         ## Algorithm
         # Locate the Limb
-        self.theMin = int(0.35 * self.rez)
+        self.theMin = int(0.30 * self.rez)
         self.theMax = int(0.45 * self.rez)
         near_limb = np.arange(self.theMin, self.theMax)
         
@@ -324,7 +331,7 @@ class SRNProcessor(Processor):
         r1 = self.radAbss[np.argmax(self.binMid[near_limb]) + self.theMin]
         r2 = self.radAbss[np.argmax(self.binMax[near_limb]) + self.theMin]
         r3 = self.radAbss[np.argmax(self.binMed[near_limb]) + self.theMin]
-        self.limb_radii = int(np.mean([r1, r2, r3]))
+        Processor.limb_radii = self.limb_radii = int(np.mean([r1, r2, r3]))
         self.lCut = int(self.limb_radii - 0.01 * self.rez)
         self.hCut = int(self.limb_radii + 0.01 * self.rez)
         
@@ -382,6 +389,7 @@ class SRNProcessor(Processor):
         self.fakeMax[self.fakeAbss0] = self.fakeMax0
         self.fakeMin[self.fakeAbss0] = self.fakeMin0
         
+        # self.plot_stats(do=True, show=True, save=False, get_normed=False)
         pass
         
         # plt.plot(np.arange(self.rez), self.fakeMax)
@@ -391,7 +399,10 @@ class SRNProcessor(Processor):
     ## Modify Images ##
     
     def n2r(self, n):
-        return n / self.limb_radii
+        if n is None:
+            n=0
+        
+        return n / Processor.limb_radii
     
     def fill_end(self, use):
         iii = -1
@@ -438,15 +449,16 @@ class SRNProcessor(Processor):
         # self.noise_radii = 565 * self.extra_rez
         
         # Reduction
+    
     def coronaNorm(self, changed=None):
         """Normalize the in_object using the radial percentile curves"""
-
+        
         # Collect Arrays
         self.prep_arrays(changed)
-
+        
         # Normalize Them
         self.execute_norm()
- 
+    
     def prep_arrays(self, changed=None):
         """Get all the variables ready for the normalization"""
         if changed is not None:
@@ -455,9 +467,7 @@ class SRNProcessor(Processor):
         self.changed[self.changed == 0] = np.nan
         self.flat_image = self.changed.flatten()
         self.raster_curves()
-
-
- 
+    
     def execute_norm(self):
         """Apply the Normalization to the Image Array"""
         self.dat_corona = None
@@ -466,30 +476,30 @@ class SRNProcessor(Processor):
             warnings.filterwarnings('error')
             try:
                 # Standard Normalization Formula
-                self.dat_corona = self.norm_formula(self.flat_image,  self.rastered_min, self.rastered_max)
+                self.dat_corona = self.norm_formula(self.flat_image, self.rastered_min, self.rastered_max)
             except RuntimeWarning as e:
                 print(e)
-
+    
     @staticmethod
     def norm_formula(flat_image, the_min, the_max):
         """Standard Normalization Formula"""
         top = np.subtract(flat_image, the_min)
         bottom = np.subtract(the_max, the_min)
         return np.divide(top, bottom)
-        
+    
     def coronagraph_touchup(self):
         """Deal with pixel outliers. Lots of adjustable parameters in here"""
         
         # Deal with too hot things
         self.vmax = 1
-        # self.vmax_plot = 0.95  # np.max(dat_corona) #this is in the header of the imageprocessor now
+        self.vmax_plot = 0.95  # np.max(dat_corona) #this is in the header of the imageprocessor now
         hotpowr = 1 / 2
         hot = self.dat_corona > self.vmax
         # self.dat_corona[hot] = self.dat_corona[hot] ** hotpowr
         
         # Deal with too cold things
         self.vmin = 0.3
-        # self.vmin_plot = -0.05  # np.min(dat_corona)# 0.3# -0.03 #this is in the header of the imageprocessor now
+        self.vmin_plot = -0.05  # np.min(dat_corona)# 0.3# -0.03 #this is in the header of the imageprocessor now
         coldpowr = 1 / 2
         cold = self.dat_corona < self.vmin
         self.dat_corona[cold] = -((np.abs(self.dat_corona[cold] - self.vmin) + 1) ** coldpowr - 1) + self.vmin
@@ -608,7 +618,7 @@ class SRNProcessor(Processor):
         # self.plot_curves_2(do, False)
         # self.plot_curves(do, False)
         self.plot_stats(do, False)
-        
+        # self.SRNPlot()
         pass
         # plt.show()
     
@@ -668,12 +678,12 @@ class SRNProcessor(Processor):
         if show:
             ax.show()
     
-    def plot_stats(self, do=False, show=False, save=True):
+    def plot_stats(self, do=False, show=False, save=True, get_normed=True):
         """This plot is in radius and has a scatter plot
             overlaid with the norm curves as determined elsewhere"""
         if not do: return
         
-        fig, (ax0) = plt.subplots(1, 1, "all")
+        fig, (ax0, ax1) = plt.subplots(2,1, sharex=True)
         ax0.set_title("Plot Stats")
         
         ## Scatter Plot
@@ -683,92 +693,125 @@ class SRNProcessor(Processor):
         ## Straight Lines
         ax0.axvline(self.n2r(self.limb_radii), ls='--', label="Limb")
         # ax.axvline(self.n2r(self.noise_radii), c='r', ls='--', label="Scope Edge")
-        ax0.axvline(self.n2r(self.lCut), ls=':')
-        ax0.axvline(self.n2r(self.hCut), ls=':')
-        # ax.axvline(self.tRadius, c='r')
-        ax0.axvline(self.n2r(self.highCut))
         
-        # plt.plot(self.diff_max_abs + 0.5, self.diff_max, 'r')
-        # plt.plot(self.radAbss[:-1] + 0.5, self.diff_mean, 'r:')
+        try:
+            ax0.axvline(self.n2r(self.lCut), ls=':')
+            ax0.axvline(self.n2r(self.hCut), ls=':')
+            # ax.axvline(self.tRadius, c='r')
+            ax0.axvline(self.n2r(self.highCut))
+            
+            # plt.plot(self.diff_max_abs + 0.5, self.diff_max, 'r')
+            # plt.plot(self.radAbss[:-1] + 0.5, self.diff_mean, 'r:')
+            
+            ## Curves
+            
+            ax0.plot(self.n2r(self.low_abs), self.low_max, 'm', label="Percentile")
+            ax0.plot(self.n2r(self.low_abs), self.low_min, 'm')
+            # plt.plot(self.low_abs, self.low_max_fit, 'r')
+            # plt.plot(self.low_abs, self.low_min_fit, 'r')
+            
+            ax0.plot(self.n2r(self.high_abs), self.high_max, 'c', label="Percentile")
+            ax0.plot(self.n2r(self.high_abs), self.high_min, 'c')
+            
+            ax0.plot(self.n2r(self.mid_abs), self.mid_max, 'y', label="Percentile")
+            ax0.plot(self.n2r(self.mid_abs), self.mid_min, 'y')
+            # plt.plot(self.high_abs, self.high_min_fit, 'r')
+            # plt.plot(self.high_abs, self.high_max_fit, 'r')
+            
+            ax0.plot(self.n2r(self.fakeAbss), self.fakeMax, label="ThisMax", lw=2, c='cornflowerblue')
+            ax0.plot(self.n2r(self.fakeAbss), self.fakeMin, label="ThisMin", lw=2, c='gold')
+        except Exception as e:
+            print("SRNProc1::", e)
+            raise e
         
-        ## Curves
-        
-        ax0.plot(self.n2r(self.low_abs), self.low_max, 'm', label="Percentile")
-        ax0.plot(self.n2r(self.low_abs), self.low_min, 'm')
-        # plt.plot(self.low_abs, self.low_max_fit, 'r')
-        # plt.plot(self.low_abs, self.low_min_fit, 'r')
-        
-        ax0.plot(self.n2r(self.high_abs), self.high_max, 'c', label="Percentile")
-        ax0.plot(self.n2r(self.high_abs), self.high_min, 'c')
-        
-        ax0.plot(self.n2r(self.mid_abs), self.mid_max, 'y', label="Percentile")
-        ax0.plot(self.n2r(self.mid_abs), self.mid_min, 'y')
-        # plt.plot(self.high_abs, self.high_min_fit, 'r')
-        # plt.plot(self.high_abs, self.high_max_fit, 'r')
-        
-        ax0.plot(self.n2r(self.fakeAbss), self.fakeMax, label="ThisMax", lw=2, c='cornflowerblue')
-        ax0.plot(self.n2r(self.fakeAbss), self.fakeMin, label="ThisMin", lw=2, c='gold')
-        
-        ax0.plot(self.n2r(self.rendered_abss), self.rendered_min, label="FinalMax", lw=4, c='blue')
-        ax0.plot(self.n2r(self.rendered_abss), self.rendered_max, label="FinalMin", lw=4, c='orange')
+        try:
+            if self.rendered_min is None:
+                self.raster_curves()
+            ax0.plot(self.n2r(self.rendered_abss), self.rendered_min, label="FinalMax", lw=4, c='blue')
+            ax0.plot(self.n2r(self.rendered_abss), self.rendered_max, label="FinalMin", lw=4, c='orange')
+        except Exception as e:
+            print("SRNProc2::", e)
+            # raise e
         
         # try:
-        #     ax.plot(self.n2r(self.fakeAbss), self.fakeMax, 'g', label="Smoothed")
-        #     ax.plot(self.n2r(self.fakeAbss), self.fakeMin, 'g')
+        #     ax1.plot(self.n2r(self.fakeAbss), self.fakeMax, 'g', label="Smoothed")
+        #     ax1.plot(self.n2r(self.fakeAbss), self.fakeMin, 'g')
         # except:
-        #     ax.plot(self.n2r(self.radAbss), self.fakeMax, 'g', label="Smoothed")
-        #     ax.plot(self.n2r(self.radAbss), self.fakeMin, 'g')
+        #     ax1.plot(self.n2r(self.radAbss), self.fakeMax, 'g', label="Smoothed")
+        #     ax1.plot(self.n2r(self.radAbss), self.fakeMin, 'g')
         
-        # plt.plot(radAbss, binMax, 'c')
-        # plt.plot(self.radAbss, self.binMin, 'm')
-        # plt.plot(self.radAbss, self.binMid, 'y')
-        # plt.plot(radAbss, binMed, 'r')
-        # plt.plot(self.radAbss, self.binMax, 'b')
-        # plt.plot(radAbss, fakeMin, 'r')
-        # plt.ylim((-100, 10**3))
-        # plt.xlim((380* self.extra_rez ,(380+50)* self.extra_rez ))
-        # ax.set_xlim((0, self.n2r(self.highCut)))
-        ax0.legend()
-        fig.set_size_inches((8, 12))
-        ax0.set_yscale('log')
-        ax0.set_ylim((10**-1, 10**5))
+        if get_normed:
+            self.image_modify()
         
-        # ax1.scatter(self.n2r(self.rad_flat[::10]), self.dat_coronagraph[::10], c='k', s=2)
-        #
-        # # ax1.axhline(self.vmax, c='r', label='Confinement')
-        # # ax1.axhline(self.vmin, c='r')
-        # # ax1.axhline(self.vmax_plot, c='orange', label='Plot Range')
-        # # ax1.axhline(self.vmin_plot, c='orange')
-        #
-        # # locs = np.arange(self.rez)[::int(self.rez/5)]
-        # # ax1.set_xticks(locs)
-        # # ax1.set_xticklabels(self.n2r(locs))
-        #
+        if self.dat_coronagraph is not None:
+            ax1.scatter(self.n2r(self.rad_flat[::10]), self.dat_coronagraph[::10], c='k', s=2)
+        
+        # ax1.plot(radAbss, binMax, 'c')
+        # ax1.plot(self.n2r(self.radAbss), self.binMin, 'm')
+        # ax1.plot(self.n2r(self.radAbss), self.binMid, 'y')
+        # ax1.plot(self.n2r(self.radAbss), self.binMax, 'b')
+        # ax1.plot(radAbss, binMed, 'r')
+        # ax1.plot(radAbss, fakeMin, 'r')
+        # ax1.set_ylim((-0.5, 2))
+        # ax1.xlim((380* self.extra_rez ,(380+50)* self.extra_rez ))
+        # ax1.set_xlim((0, self.n2r(self.highCut)))
+
+
+        ax1.axhline(1)
+        ax1.axhline(0.05)
+        # ax1.axhline(self.vmax, c='r', label='Confinement')
+        # ax1.axhline(self.vmin, c='r')
+        # ax1.axhline(self.vmax_plot, c='orange', label='Plot Range')
+        # ax1.axhline(self.vmin_plot, c='orange')
+
+        # locs = np.arange(self.rez)[::int(self.rez/5)]
+        # ax1.set_xticks(locs)
+        # ax1.set_xticklabels(self.n2r(locs))
+
         # ax1.legend()
-        # ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
-        # ax1.set_ylabel(r"Normalized Intensity")
+        ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
+        ax1.set_ylabel(r"Normalized Intensity")
+        ax1.set_yscale('log')
+        ax1.set_ylim((10 ** -2, 10 ** 2.5))
+
+        
+        ax0.set_ylim((10 ** -2, 10 ** 4))
+        ax0.legend()
+        ax0.set_yscale('log')
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
         
         plt.tight_layout()
+        fig.set_size_inches(8, 12)
         
-        self.save_figures(save, fig, ax0, show)
-    
+        first = True
+        while True:
+            try:
+                self.save_figures(save, fig, ax0, show)
+                if not first: print("  Thanks, good job.\n")
+                break
+            except OSError as e:
+                if first:
+                    print("\n\n", e)
+                    print("  !!!!!!! Close the Dang Plot!", end='')
+                    first = False
+                print('.', end='')
+
+        
     def save_figures(self, do=False, fig=None, ax=None, show=False):
         if not do: return
         # print("Saving {}".format(file_name_1))
-        fig.set_size_inches(8, 6)
         bs = self.params.base_directory()
         folder_name = "radial"
         file_name_1 = 'Radial_{}.png'.format(self.file_basename[:-5])
         save_path_1 = join(bs, folder_name, file_name_1)
-        file_name_2 = 'Radial_zoom_{}.png'.format(self.file_basename[:-5])
+        file_name_2 = 'zoom\\Radial_zoom_{}.png'.format(self.file_basename[:-5])
         save_path_2 = join(bs, folder_name, file_name_2)
         
         makedirs(dirname(save_path_1), exist_ok=True)
         plt.savefig(save_path_1)
         
         makedirs(dirname(save_path_2), exist_ok=True)
-        ax.set_xlim((0.9, 1.1))
+        # ax.set_xlim((0.9, 1.1))
         plt.savefig(save_path_2)
         
         if not show:
@@ -923,6 +966,38 @@ class SRNProcessor(Processor):
     # Helpers
 
 
+class SRNSingleProcessor(SRNProcessor):
+    name = out_name = 'SRN'
+    name = filt_name = 'SRN Single Shot Processor'
+    description = "Create and Apply the Radial SRN Curves"
+    progress_verb = 'Processing'
+    finished_verb = "Applied"
+    show_plots = True
+    
+    def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
+        super().__init__(fits_path, in_name, orig, show, verb, quick, rp, params)
+        self.first = True
+        self.go_ahead = True
+        
+    def setup(self):
+        pass
+    
+    def do_work(self):
+        """Analyze the Image, Normalize it, Plot"""
+        self.image_learn()  # Analyze the input to help make normalization curves
+        # self.image_modify()  # Actually Normalize This Image
+        return self.changed
+    
+    def cleanup(self):
+        """Runs after all the images have been modified with do_work"""
+        # print("Save/load!")
+        # self.save_curves()
+        # self.load_curves()
+        pass
+    
+
+
+
 class SRNpreProcessor(SRNProcessor):
     """Analyzes the whole dataset and builds curves"""
     out_name = None
@@ -930,20 +1005,15 @@ class SRNpreProcessor(SRNProcessor):
     description = "Create the Radial SRN Curves"
     progress_verb = 'Analyzing'
     finished_verb = "Analyzed"
-    
     show_plots = True
-    # fixed_number_keyframes = 4
-    
-    
-    # fixed_cadence_keyframes = 4
-    # qq = 0
     
     def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
         super().__init__(fits_path, in_name, orig, show, verb, quick, rp, params)
+        self.first = True
         self.go_ahead = True
-        self.can_use_keyframes = True
     
     def setup(self):
+        self.can_use_keyframes = True
         self.load()
         set_to_make = self.params.remake_norm_curves() or self.reprocess_mode()
         not_made_yet = not os.path.exists(self.params.curve_path()) or self.rendered_min is None
@@ -957,6 +1027,8 @@ class SRNpreProcessor(SRNProcessor):
         """Analyze the Image, Normalize it, Plot"""
         if self.go_ahead:
             self.image_learn()
+            self.image_modify()
+            
         return None
     
     def cleanup(self):
@@ -977,10 +1049,12 @@ class SRNradialFiltProcessor(SRNProcessor):
     progress_verb = 'Filtering'
     finished_verb = "Filtered"
     can_use_keyframes = False
+    
     def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
         super().__init__(fits_path, in_name, orig, show, verb, quick, rp, params)
+        self.first = True
         self.go_ahead = True
-    
+
     def setup(self):
         self.load_curves()
         self.super_flush()
@@ -988,6 +1062,9 @@ class SRNradialFiltProcessor(SRNProcessor):
     
     def do_work(self):
         self.image_modify()
+        if self.first:
+            self.plot_stats(do=True, show=True, save=False)
+            self.first = False
         return self.changed
     
     def cleanup(self):

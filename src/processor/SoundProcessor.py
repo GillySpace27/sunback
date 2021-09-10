@@ -464,8 +464,8 @@ class SoundProcessor(Processor):
 #         self.movie_writer()
 #         # print("Success!")
 #
-#         # Thread(target=self.movie_writer).start()
-#         # Thread(target=self.play).start()
+#         # Thread(target=self.movie_writer).start_timestamp()
+#         # Thread(target=self.play).start_timestamp()
 #
 #     def play_movie(self):
 #         bbb.wait()
@@ -495,9 +495,9 @@ class SoundProcessor(Processor):
 #         t1 = Thread(target=hq_sonFunc)
 #         t2 = Thread(target=lq_sonFunc)
 #         t3 = Thread(target=self.play_movie)
-#         t1.start()
-#         t2.start()
-#         t3.start()
+#         t1.start_timestamp()
+#         t2.start_timestamp()
+#         t3.start_timestamp()
 #         self.threads = [t1,t2,t3]
 #         # videoclip_full_muxed.write_videofile(self.soni.video_name_stem.format("_son.mp4"), codec='libx264', bitrate='200M',
 #         #                                      logger=TqdmProgressBarLogger(print_messages=False))

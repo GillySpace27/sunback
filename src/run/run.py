@@ -93,8 +93,9 @@ class Runner:
                     sleep(0.01)
                     put.put(self.params)
                     sleep(0.01)
-        
-        self.print_end_banner()
+            
+            
+            self.print_end_banner()
 
     def __process_parallel(self):
         """Use the provided fetcher, executor,
@@ -145,7 +146,7 @@ class Runner:
         print("\n\n", self.wall_1)
         print("\nSunback SDO Image Manipulator \nWritten by C. R. Gilly")
         print("Check out my website: http://gilly.space\n")
-        self.start = time()
+        self.start_timestamp = time()
         if self.params.is_debug(): print("DEBUG MODE\n")
         self.print_plan()
         print("\n", self.wall_1, "\n\n")
@@ -169,38 +170,41 @@ class Runner:
                 
         print("  And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
         # print("\n")
+
     
     def print_end_banner(self):
         mode_string = "" if self.params.stop_after_one() else ", Restarting Loop"
         print("\n" + self.wall_2)
-        self.elapsed = time() - self.start
+        self.elapsed = time() - self.start_timestamp
+        self.start_timestamp = time()
         minutes = int(np.floor(self.elapsed/60))
         seconds = int(self.elapsed-minutes*60)
         print("Program Complete in {} minutes and {} seconds. {}".format(minutes, seconds, mode_string))
         print(self.wall_2 + "\n")
         
         # for ii in range(4):
-        print(r"""           '
-                      .      '      .
-                .      .     :     .      .
-                 '.        ______       .'
-                   '  _.-"`      `"-._ '
-                    .'                '.
-             `'--. /                    \ .--'`
-                  /                      \
-                 ;                        ;
-            - -- |                        | -- -
-                 |     _.                 |
-                 ;    /__`A   ,_          ;
-             .-'  \   |= |;._.}{__       /  '-.
-                _.-""-|.' # '. `  `.-"{}<._
-                      / 1938  \     \  x   `"
-                 ----/         \_.-'|--X----
-                 -=_ |         |    |- X.  =_
-                - __ |_________|_.-'|_X-X##
-                jgs `'-._|_|;:;_.-'` '::.  `"-
-                 .:;.      .:.   ::.     '::.
-                 """)
-            
-        print("\n")
+        if self.params.stop_after_one():
+            print(r"""           '
+                          .      '      .
+                    .      .     :     .      .
+                     '.        ______       .'
+                       '  _.-"`      `"-._ '
+                        .'                '.
+                 `'--. /                    \ .--'`
+                      /                      \
+                     ;                        ;
+                - -- |                        | -- -
+                     |     _.                 |
+                     ;    /__`A   ,_          ;
+                 .-'  \   |= |;._.}{__       /  '-.
+                    _.-""-|.' # '. `  `.-"{}<._
+                          / 1938  \     \  x   `"
+                     ----/         \_.-'|--X----
+                     -=_ |         |    |- X.  =_
+                    - __ |_________|_.-'|_X-X##
+                    jgs `'-._|_|;:;_.-'` '::.  `"-
+                     .:;.      .:.   ::.     '::.
+                     """)
+                
+            print("\n")
         
