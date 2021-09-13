@@ -35,6 +35,7 @@ class FidoFetcher(Fetcher):
         super().__init__(params, quick, rp)
         self.reprocess_mode(rp)
         self.int_tm_tot = 0
+        self.params.load_preset_time_settings()
         
     
     ## Main Fetch Logic
@@ -298,7 +299,7 @@ class FidoTimeIntProcessor(FidoFetcher):
             # Delete the Images
             self.delete_temp_folder()
         
-            # pass frame
+            # pass out_array
             return self.changed
         return None
     
@@ -329,8 +330,9 @@ class FidoTimeIntProcessor(FidoFetcher):
         for path in self.exposure_paths:
             try:
                 frame, wave, t_rec, center, int_time = self.load_last_fits_field(path)
-                frame_array += frame
-                self.int_tm_tot += int_time
+                if frame is not None:
+                    frame_array += frame
+                    self.int_tm_tot += int_time
             except ValueError as e:
                 print("Sum Subframes:: ", e)
                 

@@ -17,6 +17,7 @@ default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # 
 
 class LocalFetcher(Fetcher):
     description = "Load the images from Disk"
+    filt_name = "Local Fetcher"
     
     def fetch(self, params=None):
         print(" v Loading Local Files...")

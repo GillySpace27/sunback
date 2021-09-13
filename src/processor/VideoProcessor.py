@@ -1,6 +1,6 @@
 import os
 from os import makedirs, listdir
-from os.path import join, dirname
+from os.path import join, dirname, abspath
 from time import strftime
 import cv2
 from tqdm import tqdm
@@ -56,14 +56,16 @@ class VideoProcessor(Processor):
             print("    No Files Found \n")
             return False
     
-    def build_output_paths(self):
+    def build_output_paths(self, path_box=None):
         """Build the Path to the Video"""
-        height, width, _ = cv2.imread(self.params.local_imgs_paths()[0]).shape
+        if path_box is None:
+            path_box = self.params.local_imgs_paths()
+        height, width, _ = cv2.imread(path_box[0]).shape
         file_name = '{}_{}_movie{}'.format(self.params.current_wave(), strftime('%m%d_%H%M'), self.mov_suffix)
         
         self.frame_shape = (width, height)
         self.final_name = join(self.params.movs_directory(), file_name)
-        self.good_paths = [path for path in self.params.local_imgs_paths() if ('orig' not in path and 'cat' not in path)]
+        self.good_paths = [path for path in path_box if ('orig' not in path and 'cat' not in path)]
         self.progress_text = self.progress_stem.format(self.wave)
         
     def should_continue(self):
@@ -93,3 +95,33 @@ class VideoProcessor(Processor):
         cv2.destroyAllWindows()
         video_avi.release()
         print(" ^    Successfully {} from {} images! ({} skipped)".format(self.finished_verb, ii, self.skipped))
+
+    @staticmethod
+    def write_video_in_directory(directory=None, file_name='wave_inner_outer.avi', fps=10,
+                                 folder_name='radial', desc="CurveVideoing", key_string='keyframe'):
+        """Make a video out of whatever directory it's pointed at"""
+        video_avi = None
+        try:
+            radial_directory = join(directory, folder_name)
+            # makedirs(radial_directory, exist_ok=True)
+            video_path = join(radial_directory, file_name)
+            good_paths = [join(radial_directory, f) for f in listdir(radial_directory) if key_string in f]
+            
+            # Initialize the Machine
+            first_path = good_paths[0]
+            height, width, _ = cv2.imread(first_path).shape
+            video_avi = cv2.VideoWriter(video_path, 0, fps, (width, height))
+    
+            # Write the Frames
+            for img_path in tqdm(good_paths, desc=desc, unit="frames"):
+                video_avi.write(cv2.imread(img_path))
+                
+        finally:
+            # Shut it all down
+            cv2.destroyAllWindows()
+            if video_avi is not None:
+                video_avi.release()
+        
+        # print(" ^    Successfully {} from {} images! ({} skipped)".format(self.finished_verb, ii, self.skipped))
+
+        

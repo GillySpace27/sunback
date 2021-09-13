@@ -1,6 +1,6 @@
 from fetcher.FidoFetcher import FidoFetcher, FidoTimeIntProcessor
 from processor.ImageProcessor import ImageProcessor
-from processor.SRNProcessor import SRNProcessor, SRNpreProcessor, SRNradialFiltProcessor
+from processor.SRNSubProcessors import SRNpreProcessor, SRNradialFiltProcessor
 from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
 import run
@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_range_multishot_movie(debug=True, do_one=False, stop=True,
-                              tstart='2014/11/04 00:00:10', tend='2014/11/07 00:00:00',
+def run_range_multishot_movie(debug=True, do_one='0131', stop=True,
+                              tstart='2014/11/04 00:00:02', tend='2014/11/08 00:00:00',
                               cadence_minutes=5, fps=10, exposure_time=24,
-                              key_fixed_cadence=None, key_fixed_number=10, time_preset="l"):
+                              key_fixed_cadence=3, key_fixed_number=None, time_preset="p"):
     
     # Set the Parameters
     p = Parameters()
@@ -35,16 +35,16 @@ def run_range_multishot_movie(debug=True, do_one=False, stop=True,
     # p.compare_fits_frames()
     
     # Set the Processes
-    p.fetchers(FidoFetcher,                 rp=False)  # Gets Fits FIDO
-    p.processors([FidoTimeIntProcessor],    rp=False) # Integrate several frames for S/N
-    
-    # p.processors([SRNProcessor],          rp=False)) # Does SRN on each image individually
+    p.fetchers(FidoFetcher,                )# rp=True)  # Gets Fits FIDO
+    p.processors([FidoTimeIntProcessor],    rp=True) # Integrate several frames for S/N
+    # )#
+    # p.processors([SRNProcessor],         )# rp=False)) # Does SRN on each image individually
     p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
-    p.processors([SRNradialFiltProcessor],  rp=False)  # Applies the SRN Filter
-    
-    p.putters([ImageProcessor],             rp=False)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor],             rp=False)  # Makes the PNGs into a Movie
-    
+    p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
+    #)#
+    p.putters([ImageProcessor],          )#   rp=False)  # Makes the PNGs from Fits
+    p.putters([VideoProcessor],          )#   rp=False)  # Makes the PNGs into a Movie
+    #
     # Run the Code
     run.Runner(p).start()
 
@@ -84,7 +84,6 @@ if __name__ == "__main__":
     # p.remake_norm_curves(False)
     # p.write_video(True)
     # p.delete_old(True)
-
 
 
 

@@ -171,10 +171,10 @@ class SoundProcessor(Processor):
 #         self.frame_ind = frame_ind
 #         self.voice(frame_ind, proc_im, raw_image, stats)
 #
-#     def get_mask(self, dat_out, kind=None):
+#     def get_mask(self, output_frame, kind=None):
 #         if kind is None:
 #             kind = self.kind
-#         mask = np.full_like(dat_out, True, dtype=bool)
+#         mask = np.full_like(output_frame, True, dtype=bool)
 #         lenX, lenY = mask.shape
 #         halfX, halfY = int(lenX/2), int(lenY/2)
 #
@@ -188,7 +188,7 @@ class SoundProcessor(Processor):
 #             mask[:, halfY:] = False
 #
 #         mask = np.invert(mask)
-#         out = dat_out + 0
+#         out = output_frame + 0
 #         out[mask] = np.nan
 #         return mask, out
 #

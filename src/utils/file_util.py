@@ -71,12 +71,12 @@ archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Defau
 
 #
 # ## FILE IO
-# def save_frame_to_fits_file(fits_path, frame, field1="filtered"):
+# def save_frame_to_fits_file(fits_path, out_array, field1="filtered"):
 #     """Save a fits file to disk"""
 #     # print("Saving Frame to Fits File")
 #     with fits.open(fits_path, cache=False, reprocess_mode="update") as hdul:
 #         # hdul.verify('silentfix+ignore')  # Then Verify
-#         fit_frame = fits.ImageHDU(frame, name=field1)
+#         fit_frame = fits.ImageHDU(out_array, name=field1)
 #         if field1 not in hdul:
 #             hdul.append(fit_frame)  # Write
 #         else:

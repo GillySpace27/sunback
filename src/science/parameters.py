@@ -55,6 +55,7 @@ class Parameters:
         self.time_file = None
         self.index_file = None
         self.debug_mode = False
+        self.did_print = False
         
         self.start_time = time()
         self.is_first_run = True
@@ -489,29 +490,45 @@ class Parameters:
         key_fixed_cadence = 4
         key_fixed_number = None
         # print("Loading {} cadence.".format(self.selection))
-        if self.selection.casefold() in ['slow', 's']:
+        if self.selection.casefold() in ['slow', 's', 1, str(1)]:
             cadence_minutes = 5
             exposure_time_secs = 180
             fps = 20
+            self.selection = 'slow'
         
-        elif self.selection.casefold() in ['medium', 'm']:
+        elif self.selection.casefold() in ['medium', 'm', 2, str(2)]:
             cadence_minutes = 10
             exposure_time_secs = 120
             fps = 15
-        elif self.selection.casefold() in ['fast', 'f']:
+            self.selection = 'medium'
+            
+        elif self.selection.casefold() in ['quick', 'q', 3, str(3)]:
             cadence_minutes = 20
             exposure_time_secs = 60
             fps = 15
-        elif self.selection.casefold() in ['ludacris', 'l']:
+            self.selection = 'quick'
+
+        elif self.selection.casefold() in ['ludacris', 'l', 4, str(4)]:
             cadence_minutes = 60
             exposure_time_secs = 36
             fps = 10
-        elif self.selection.casefold() in ['plaid', 'p']:
+            self.selection = 'ludacris'
+
+        elif self.selection.casefold() in ['plaid', 'p', 5, str(5)]:
             cadence_minutes = 6 * 60
-            exposure_time_secs = 12
+            exposure_time_secs = 24
             fps = 5
+            self.selection = 'plaid'
+
         else:
             return False
+        
+        if not self.did_print:
+            print("Settings: {}".format(self.selection),
+                  "\n  Cadence = {} Minutes".format(cadence_minutes),
+                  "\n  Exposure = {} Seconds".format(exposure_time_secs),
+                  "\n  fps = {} frames\n\n".format(fps))
+            self.did_print = True
         
         # Set the Parameters
         # self.time_period(period=[tstart, tend])
@@ -592,9 +609,9 @@ class Parameters:
         """Pick how it should handle frames that already exist
             options are:
                 skip    - do nothing
-                redo    - pull from prev frame to recompute same as last time
-                reset   - pull from first frame to recompute from scratch
-                double  - pull from current frame to double the filter
+                redo    - pull from prev out_array to recompute same as last time
+                reset   - pull from first out_array to recompute from scratch
+                double  - pull from current out_array to double the filter
         
         """
         if _reprocess_mode is not None:

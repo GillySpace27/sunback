@@ -101,7 +101,7 @@ class ImageProcessor(Processor):
     def render_one(self, processed):
         """Render one image"""
         # Pull in the required inputs
-        # frame = self.changed
+        # out_array = self.changed
         # original_image = self.original
         
         full_name, fits_path, time_string_raw, shape = self.image_data
@@ -188,8 +188,8 @@ class ImageProcessor(Processor):
         cmap = aia_color_table(int(wave) * u.angstrom)
         if processed:
             frame = self.changed #.astype(np.float16)
-            vmin = 0  # 0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(frame))
-            vmax = 1  # 0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(frame))
+            vmin = 0  # 0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(out_array))
+            vmax = 1  # 0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(out_array))
             # print(vmin, vmax)
             ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None, vmin=vmin, vmax=vmax)
         else:
@@ -278,7 +278,7 @@ class ImageProcessor(Processor):
     # self.make_thumbs(img_paths[0])
     # return img_paths
     #      if False:
-    #          frame, center = reduce_array(frame, center, self.params.resolution())
+    #          out_array, center = reduce_array(out_array, center, self.params.resolution())
 
 # def modify_img_series(self):
 #     """Processes the img series"""

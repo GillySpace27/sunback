@@ -37,7 +37,6 @@ class Processor:
     finished_verb = "Processed"
     progress_unit = "files"
     run_type_string = "Default Actions"
-    dat_coronagraph = None
     
     style_mode = 'all'
     do_png = False
@@ -65,6 +64,12 @@ class Processor:
     paper_out = []
     
     def __init__(self, params=None, quick=False, rp=None):
+        self.file_basename  = None
+        self.image_data     = None
+        self.changed_flat   = None
+        self.original_flat  = None
+        self.use_keyframes = None
+        self.skipped = 0
         self.all_file_paths = None
         self.n_all_frames = None
         self.n_do_frames = None
@@ -206,9 +211,13 @@ class Processor:
             self.fits_path = self.params.local_fits_paths()[0]
         
         frame, wave, t_rec, center, int_time = self.load_best_fits_field(self.fits_path)
+        
         if frame is not None:
             self.original = np.asarray(copy(frame)).astype(float)
+            self.original_flat = self.original.flatten()
             self.changed = copy(self.original)
+            self.changed_flat = self.changed.flatten()
+            
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
             self.file_basename = basename(self.fits_path)
             self.set_centerpoint(center)
@@ -240,8 +249,8 @@ class Processor:
         This function only runs once, sort of an __init__
         """
         # if self.dont_ignore:
-        use_keyframes = self.params.fixed_cadence_keyframes() or self.params.fixed_number_keyframes()
-        if self.can_use_keyframes and use_keyframes:
+        self.use_keyframes = self.params.fixed_cadence_keyframes() or self.params.fixed_number_keyframes()
+        if self.can_use_keyframes and self.use_keyframes:
             self.keyframes = self.pick_keyframes()
             pass
         else:
@@ -275,11 +284,11 @@ class Processor:
     
     def print_keyframes(self):
         if self.params.fixed_cadence_keyframes():
-            print(" *    >>KeyFrames: Fixed Cadence of one out of every {} frames".format(self.params.fixed_cadence_keyframes()))
+            print(" *    >> KeyFrames: Fixed Cadence of one out of every {} frames".format(self.params.fixed_cadence_keyframes()))
         elif self.params.fixed_number_keyframes():
-            print(" *    >>KeyFrames: Fixed Number of Keyframes: {}".format(self.params.fixed_number_keyframes()))
+            print(" *    >> KeyFrames: Fixed Number of Keyframes: {}".format(self.params.fixed_number_keyframes()))
         
-        print(" *    >>Selected {} keyframes out of {} total frames".format(self.n_do_frames, self.n_all_frames))
+        print(" *    >> Selected {} keyframes out of {} total frames".format(self.n_do_frames, self.n_all_frames))
         # print(" *    >>Selected {} keyframes out of {} total frames".format(len(self.short_list), len(self.long_list)))
         
         self.super_flush(many=10)
@@ -321,7 +330,7 @@ class Processor:
         # print(n_fits_path)
         # start_timestamp = time()
         self.skipped = 0
-        
+
         if n_fits_path > 0:
             self.setup()
             for self.ii, fits_path in enumerate(tqdm(
@@ -329,6 +338,7 @@ class Processor:
                     unit=self.progress_unit,
                     desc=self.progress_string)):
                 
+                # print("NUM = ", self.ii)
                 out = self.modify_one_fits(fits_path)
                 if out is None:
                     self.skipped += 1
@@ -428,10 +438,17 @@ class Processor:
     ## M4: Save Frame to Fits ##
     ############################
     
-    def save_frame_to_fits_file(self, fits_path, frame):
+    
+
+        
+    
+    def save_frame_to_fits_file(self, fits_path, frame, out_name=None):
         """Save a fits file to disk"""
         # print("Saving Frame to Fits File")
-        field = self.out_name
+        if out_name is None:
+            field = self.out_name
+        else:
+            field = out_name
         with fits.open(fits_path, cache=False, mode="update") as hdul:
             # hdul.verify('silentfix+ignore')  # Then Verify
             if frame.dtype in [float, np.float32]:
@@ -456,15 +473,42 @@ class Processor:
         if fields[0] is None:
             fields = self.load_a_fits_field(fits_path, 1)
         return fields
-    
-    def load_a_fits_field(self, fits_path, field=0):
+
+    def load_a_fits_attribute(self, fits_path, field=0):
         """Load a fits file from disk"""
         with fits.open(fits_path, cache=False) as hdul:
             hdul.verify('silentfix+ignore')  # Verify
-            self.ensure_no_double_filtering(hdul)
+            try:
+                attr = hdul[field].data
+            except TypeError as e:
+                print(e)
+                attr = None
+        return attr
+
+    # def load_a_fits_field(self, fits_path, field=0):
+    #     """Load a fits file from disk"""
+    #     with fits.open(fits_path, cache=False) as hdul:
+    #         hdul.verify('silentfix+ignore')  # Verify
+    #         wave, t_rec, center, int_time = self.get_fits_info(hdul)
+    #         try:
+    #             frame = hdul[field].data
+    #         except TypeError as e:
+    #             print(e)
+    #             frame = None
+    #     return frame, wave, t_rec, center, int_time
+
+    def load_a_fits_field(self, fits_path, field=0):
+        """Load a fits file from disk"""
+        self.in_name = self.check_for_hdul_names(fits_path, field=field)
+        with fits.open(fits_path, cache=False) as hdul:
+            hdul.verify('silentfix+ignore')  # Verify
+            field = self.ensure_no_double_filtering(hdul=hdul)
             wave, t_rec, center, int_time = self.get_fits_info(hdul)
             try:
-                frame = hdul[field].data
+                if field is not None:
+                    frame = hdul[field].data
+                else:
+                    frame = None
             except TypeError as e:
                 print(e)
                 frame = None
@@ -474,15 +518,20 @@ class Processor:
         """Load a fits file from disk"""
         with fits.open(fits_path, cache=False) as hdul:
             hdul.verify('silentfix+ignore')  # Verify
-            self.in_name = self.ensure_no_double_filtering(hdul)
+            self.check_for_hdul_names(hdul=hdul)
             wave, t_rec, center, int_time = self.get_fits_info(hdul)
             frame = self.open_fits_hdul(hdul)
         
         return frame, wave, t_rec, center, int_time
     
-    def check_for_hdul_names(self, fits_path):
-        with fits.open(fits_path, cache=False) as hdul:
-            hdul.verify('silentfix+ignore')  # Verify
+    def check_for_hdul_names(self, fits_path=None, hdul=None, field=None):
+        if field is not None:
+            self.in_name = field
+        if fits_path:
+            with fits.open(fits_path, cache=False) as hdul:
+                hdul.verify('silentfix+ignore')  # Verify
+                self.in_name = self.ensure_no_double_filtering(hdul)
+        elif hdul:
             self.in_name = self.ensure_no_double_filtering(hdul)
         return self.in_name
     
@@ -499,12 +548,12 @@ class Processor:
         
         return compressed
     
-    # def smallify_frame(self, frame):
+    # def smallify_frame(self, out_array):
     #
-    #     return frame.astype(np.float16)
+    #     return out_array.astype(np.float16)
     
     def get_fits_info(self, hdul):
-        # Load the original frame
+        # Load the original out_array
         wave, t_rec, center, int_time = None, None, None, None
         ii = 0
         for ii in range(len(hdul)):
@@ -523,7 +572,7 @@ class Processor:
     def open_fits_hdul(self, hdul):
         """Load a fits file from disk"""
         
-        # Load the called for frame
+        # Load the called for out_array
         if 'str' in str(type(self.in_name)):
             field_hdu = hdul[self.in_name]
         elif self.in_name is None:
@@ -533,9 +582,9 @@ class Processor:
         return field_hdu.data
     
     def ensure_no_double_filtering(self, hdul):
-        """Determine which frame of the input file to use on redo"""
+        """Determine which out_array of the input file to use on redo"""
         self.list_hdus(hdul)
-        if self.in_name is None:
+        if self.in_name in [None, '']:
             return None
         
         reprocess_mode = self.reprocess_mode() if self.reprocess_mode() is not None else self.params.reprocess_mode()
@@ -545,6 +594,8 @@ class Processor:
         
         get = -2 if len(self.hdu_name_list) > 1 else -1
         penultimate_frame_name = self.hdu_name_list[get]
+        if penultimate_frame_name is '':
+            penultimate_frame_name = first_frame_name
         
         filter_already_applied = filter_applied_last = False
         if output_frame_name.casefold() in [x.casefold() for x in self.hdu_name_list]:
@@ -559,10 +610,10 @@ class Processor:
                 self.in_name = None
                 # raise FileExistsError("Skipping File")
             elif reprocess_mode == 'redo' or reprocess_mode is True:
-                # Go to the previous frame and remake
+                # Go to the previous out_array and remake
                 self.in_name = penultimate_frame_name
             elif reprocess_mode == 'reset':
-                # Go to the first frame and remake
+                # Go to the first out_array and remake
                 self.in_name = first_frame_name
             elif reprocess_mode == 'double':
                 # Repeat the filter a second time
@@ -574,22 +625,22 @@ class Processor:
         return self.in_name
     
     def determine_in_frame_name(self):
-        # Determine the called-for input frame NAME
+        # Determine the called-for input out_array NAME
         if self.in_name is None:
             return None
         if type(self.in_name) is str:
             if self.in_name in self.hdu_name_list:
                 input_frame_name = self.in_name.casefold()
             else:
-                hdul_name = self.hdu_name_list[0]
-                print("HDU Not Found, using {}".format(hdul_name))
+                input_frame_name = self.hdu_name_list[0]
+                print("HDU Not Found, using {}".format(input_frame_name))
                 # raise FileNotFoundError
         else:
             input_frame_name = self.hdu_name_list[self.in_name].casefold()
         return input_frame_name
     
     def determine_out_frame_name(self):
-        # Determine the called-for output frame NAME
+        # Determine the called-for output out_array NAME
         if type(self.out_name) is str:
             output_frame_name = self.out_name.casefold()
         else:

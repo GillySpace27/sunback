@@ -2,7 +2,7 @@
 
 from fetcher.WebFitsFetcher import WebFitsFetcher
 from processor.ImageProcessor import ImageProcessor
-from processor.SRNProcessor import SRNProcessor, SRNSingleProcessor
+from processor.SRNProcessor import SRNProcessor, SRNSingleShotProcessor
 from putter.AwsPutter import AwsPutter
 from putter.DesktopPutter import DesktopPutter
 from science.parameters import Parameters
@@ -30,7 +30,7 @@ def run_server(delay=10, debug=True, do_one='0171', stop=False):
     
     p.fetchers(WebFitsFetcher(rp=True))  # Gets Fits from JSOC Most Recent
     
-    p.processors(SRNSingleProcessor())  # Applies the Radial Filtering
+    p.processors(SRNSingleShotProcessor())  # Applies the Radial Filtering
     
     p.putters([ImageProcessor()])  # Turns Fits into Pngs
     

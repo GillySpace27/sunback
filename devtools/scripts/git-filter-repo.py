@@ -776,27 +776,27 @@ class Tag(_GitElementWithId):
 
 class Progress(_GitElement):
   """
-  This class defines our representation of progress elements. The progress
-  element only contains a progress message, which is printed by fast-import
-  when it processes the progress output.
+  This class defines our representation of desc elements. The desc
+  element only contains a desc message, which is printed by fast-import
+  when it processes the desc output.
   """
 
   def __init__(self, message):
     _GitElement.__init__(self)
 
-    # Denote that this is a progress element
-    self.type = 'progress'
+    # Denote that this is a desc element
+    self.type = 'desc'
 
-    # Store the progress message
+    # Store the desc message
     self.message = message
 
   def dump(self, file_):
     """
-    Write this progress element to a file
+    Write this desc element to a file
     """
     self.dumped = 1
 
-    file_.write(b'progress %s\n' % self.message)
+    file_.write(b'desc %s\n' % self.message)
     file_.write(b'\n')
 
 class Checkpoint(_GitElement):
@@ -839,7 +839,7 @@ class LiteralCommand(_GitElement):
 
   def dump(self, file_):
     """
-    Write this progress element to a file
+    Write this desc element to a file
     """
     self.dumped = 1
 
@@ -928,7 +928,7 @@ class FastExportParser(object):
       self._parent_regexes[parent_refname] = ans
     self._quoted_string_re = re.compile(br'"(?:[^"\\]|\\.)*"')
     self._refline_regexes = {}
-    for refline_name in (b'reset', b'commit', b'tag', b'progress'):
+    for refline_name in (b'reset', b'commit', b'tag', b'desc'):
       self._refline_regexes[refline_name] = re.compile(refline_name+b' (.*)\n$')
     self._user_regexes = {}
     for user in (b'author', b'committer', b'tagger'):
@@ -1310,22 +1310,22 @@ class FastExportParser(object):
     Parse input data into a Progress object. Once the Progress has
     been created, it will be handed off to the appropriate
     callbacks. Current-line will be advanced until it is beyond the
-    progress data. The Progress will be dumped to _output once
+    desc data. The Progress will be dumped to _output once
     everything else is done (unless it has been skipped by the callback).
     """
     # Parse the Progress
-    message = self._parse_ref_line(b'progress')
+    message = self._parse_ref_line(b'desc')
     if self._currentline == b'\n':
       self._advance_currentline()
 
-    # Create the progress message
+    # Create the desc message
     progress = Progress(message)
 
-    # Call any user callback to allow them to modify the progress messsage
+    # Call any user callback to allow them to modify the desc messsage
     if self._progress_callback:
       self._progress_callback(progress)
 
-    # NOTE: By default, we do NOT print the progress message; git
+    # NOTE: By default, we do NOT print the desc message; git
     # fast-import would write it to fast_import_pipes which could mess with
     # our parsing of output from the 'ls' and 'get-mark' directives we send
     # to fast-import.  If users want these messages, they need to process
@@ -1396,7 +1396,7 @@ class FastExportParser(object):
         self._parse_commit()
       elif self._currentline.startswith(b'tag'):
         self._parse_tag()
-      elif self._currentline.startswith(b'progress'):
+      elif self._currentline.startswith(b'desc'):
         self._parse_progress()
       elif self._currentline.startswith(b'checkpoint'):
         self._parse_checkpoint()
@@ -2307,7 +2307,7 @@ class RepoAnalyze(object):
           filenames = [PathQuoting.dequote(x) for x in splits[1:]]
           file_changes.append([modes, shas, change_types, filenames])
 
-      # Analyze this commit and update progress
+      # Analyze this commit and update desc
       RepoAnalyze.analyze_commit(stats, graph, commit, parents, date,
                                  file_changes)
       num_commits += 1
@@ -3345,7 +3345,7 @@ class RepoFilter(object):
         self._insert_into_stream(reset)
         self._commit_renames[commit.original_id] = None
 
-    # Show progress
+    # Show desc
     self._num_commits += 1
     if not self._args.quiet:
       self._progress_writer.show(self._parsed_message % self._num_commits)

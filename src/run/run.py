@@ -139,7 +139,7 @@ class Runner:
                 sleep(0.01)
         
         self.print_end_banner()
-
+        
 
     ## PRINTING
     def print_header(self):
