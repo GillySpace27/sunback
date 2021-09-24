@@ -24,7 +24,7 @@ class WebFitsFetcher(Fetcher):
             self.params = params
         # self.params.current_wave()
         self.load(params, quietly=True, wave=self.params.current_wave('rainbow'))
-        if self.params.redownload_files():
+        if self.params.download_files():
             print("  Downloading Fits Files from {}...".format(self.base_url), flush=True)
             # super.super.__init__(params)
             img_links = self.__get_fits_links(self.base_url)
@@ -79,3 +79,5 @@ class WebFitsFetcher(Fetcher):
         image_time = requests.get(self.base_url + "image_times").text[9:25]
         with open(self.params.time_path(), 'w') as fp:
             fp.write(image_time)
+            
+        pass

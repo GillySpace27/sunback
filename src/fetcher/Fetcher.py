@@ -16,8 +16,8 @@ class Fetcher(Processor):
         self.image_folder = None
         self.movie_folder = None
         self.fits_folder = None
-        self.fido_result = None
-        self.fido_num = None
+        self.fido_search_result = None
+        self.fido_search_found = None
         
         # self.local_fits_paths = []
         # self.local_img_paths = []
@@ -27,7 +27,7 @@ class Fetcher(Processor):
         # self.temp_fits_pathbox = []
         # self.waves_to_do = []
         #
-        # self.start_time, self.start_time_long, self.start_string = '', '', ''
+        # self.start_time, self.start_time_long, self.start_time_string = '', '', ''
         # self.end_time, self.end_time_long, self.end_time_string = '', '', ''
     
     def fetch(self, params=None):
@@ -150,7 +150,7 @@ class Fetcher(Processor):
 #     # Sonify the data
 #     if False: #self.params.sonify_images():
 #         self.do_sonifying_work(single_image_data_ID, processed_image_stats, raw_image)
-#         self.sonify_complete=True if not self.params.redownload_files() else False
+#         self.sonify_complete=True if not self.params.download_files() else False
 #
 #     # Plot and save the Data
 #     # self.plot_and_save(processed_image_stats, single_image_data, raw_image)

@@ -11,7 +11,7 @@ from processor.Processor import Processor
 
 class VideoProcessor(Processor):
     mov_suffix = "_raw.avi"
-    filt_name = '  Video Writer'
+    filt_name = 'Video Writer'
     do_png = True
     wave = None
     progress_stem = " *    {}"
@@ -98,23 +98,26 @@ class VideoProcessor(Processor):
 
     @staticmethod
     def write_video_in_directory(directory=None, file_name='wave_inner_outer.avi', fps=10,
-                                 folder_name='radial', desc="CurveVideoing", key_string='keyframe'):
+                                 folder_name='radial', desc=" *    CurveVideoing", key_string='keyframe'):
         """Make a video out of whatever directory it's pointed at"""
         video_avi = None
         try:
             radial_directory = join(directory, folder_name)
-            # makedirs(radial_directory, exist_ok=True)
+            makedirs(radial_directory, exist_ok=True)
             video_path = join(radial_directory, file_name)
             good_paths = [join(radial_directory, f) for f in listdir(radial_directory) if key_string in f]
             
             # Initialize the Machine
-            first_path = good_paths[0]
-            height, width, _ = cv2.imread(first_path).shape
-            video_avi = cv2.VideoWriter(video_path, 0, fps, (width, height))
-    
-            # Write the Frames
-            for img_path in tqdm(good_paths, desc=desc, unit="frames"):
-                video_avi.write(cv2.imread(img_path))
+            if good_paths:
+                first_path = good_paths[0]
+                height, width, _ = cv2.imread(first_path).shape
+                video_avi = cv2.VideoWriter(video_path, 0, fps, (width, height))
+        
+                # Write the Frames
+                for img_path in tqdm(good_paths, desc=desc, unit="frames"):
+                    video_avi.write(cv2.imread(img_path))
+            else:
+                print('VideoProcessor:: There are no images yet. Make them first.')
                 
         finally:
             # Shut it all down

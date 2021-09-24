@@ -23,6 +23,7 @@ class Parameters:
     def __init__(self):
         """Sets all the attributes to None"""
         # Initialize Variables
+
         self.selection = None
         self.paper_out = []
         
@@ -39,6 +40,7 @@ class Parameters:
         self._fits_directory = ""
         self._movs_directory = ""
         self._base_directory = ""
+        self._temp_directory = ""
         self._delay_seconds = 30
         self._fixed_number_keyframes = None
         self._fixed_cadence_keyframes = 3
@@ -64,7 +66,7 @@ class Parameters:
         self._do_mirror = False
         
         # Movie Defaults
-        self._redownload_files = False
+        self._download_files = False
         self._write_video = False
         self._delete = True
         self._make_compressed = False
@@ -96,15 +98,19 @@ class Parameters:
         self._time_path = None
         self._local_imgs_paths = None
         self._local_fits_paths = []
-        self._fetchers = [LocalFetcher()]
-        self._processors = []
-        self._putters = [NullPutter()]
         self._do_multishot = True
         self._do_recent = True
         self._use_default_directories = True
         self.do_orig = False
         self.do_cat = False
+
+        self._fetchers = [LocalFetcher]
+        self._processors = []
+        self._putters = [NullPutter]
         
+        self._fet_rp = [None]
+        self._proc_rp = []
+        self._put_rp = [None]
         # self.set_default_values()
     
     # TODO: extract getter/setter logic
@@ -113,25 +119,33 @@ class Parameters:
     def fetchers(self, _fetchers=None, rp=None):
         if _fetchers is not None:
             if type(_fetchers) not in [list]:
-                self._fetchers = [_fetchers(self, rp=rp)]
+                self._fetchers = [_fetchers]
+                self._fet_rp = [rp]
             else:
-                self._fetchers.extend([fet(self, rp=rp) for fet in _fetchers])
+                self._fetchers.extend(_fetchers)
+                self._fet_rp.extend([rp])
+                
         return self._fetchers
     
     def processors(self, _processors=None, rp=None):
         if _processors is not None:
             if type(_processors) not in [list]:
-                self._processors = [_processors(self, rp=rp)]
+                self._processors = [_processors]
+                self._proc_rp = [rp]
             else:
-                self._processors.extend([proc(self, rp=rp) for proc in _processors])
+                self._processors.extend(_processors)
+                self._proc_rp.extend([rp])
         return self._processors
     
     def putters(self, _putters=None, rp=None):
         if _putters is not None:
             if type(_putters) not in [list]:
-                self._putters =  [_putters(self, rp=rp)]
+                self._putters =  [_putters]
+                self._put_rp = [rp]
             else:
-                self._putters.extend([pt(self, rp=rp) for pt in _putters])
+                self._putters.extend(_putters)
+                self._put_rp.extend([rp])
+                
         return self._putters
     
     ## Other
@@ -163,6 +177,11 @@ class Parameters:
             self._fits_directory = _fits_directory
         return self._fits_directory
     
+    def temp_directory(self, _temp_directory=None):
+        if _temp_directory is not None:
+            self._temp_directory = _temp_directory
+        return self._temp_directory
+
     def movs_directory(self, _movs_directory=None):
         if _movs_directory is not None:
             self._movs_directory = _movs_directory
@@ -221,13 +240,13 @@ class Parameters:
         
         return self._do_one
     
-    def redownload_files(self, boolean=None):
+    def download_files(self, boolean=None):
         if boolean is not None:
             assert type(boolean) in [bool]
-            self._redownload_files = boolean
-        # if self._redownload_files:
+            self._download_files = boolean
+        # if self._download_files:
         #     self.something_changed(True)
-        return self._redownload_files or self.local_fits_paths() in [None, []]
+        return self._download_files or self.local_fits_paths() in [None, []]
     
     def something_changed(self, boolean=None):
         if boolean is not None:
@@ -410,12 +429,13 @@ class Parameters:
         self.imgs_directory(abspath(join(base_directory, 'png')))
         self.fits_directory(abspath(join(base_directory, 'fits')))
         self.movs_directory(abspath(join(base_directory, "..", 'MOVS')))
+        self.temp_directory(abspath(join(self.fits_directory(), "temp")))
         
         self.time_path(abspath(join(base_directory, "image_times.txt")))
         self.curve_path(abspath(join(base_directory, "curves.txt")))
-        
         file_name = '{}_params.txt'.format(self.current_wave())
         self.params_path(abspath(join(base_directory, file_name)))
+        
     
     def discover_base_directory(self):
         """Define the root folder"""
@@ -448,6 +468,7 @@ class Parameters:
         makedirs(self.fits_directory(), exist_ok=True)
         if "background" not in self.movs_directory():
             makedirs(self.movs_directory(), exist_ok=True)
+            
         # Save Parameters
         self.save_to_txt()
     
@@ -478,6 +499,7 @@ class Parameters:
                         string = str(ii) + " : " + str(pile[ii]) + '\n'
                         output.write(string)
                 output.write('\n\n')
+        pass
     
     def load_preset_time_settings(self, selection=None):
         """Load one of a few presets for the time settings"""
@@ -487,34 +509,34 @@ class Parameters:
         if self.selection in ['false', 'f', "False", None, False]:
             return False
         
-        key_fixed_cadence = 4
+        key_fixed_cadence = 1
         key_fixed_number = None
         # print("Loading {} cadence.".format(self.selection))
-        if self.selection.casefold() in ['slow', 's', 1, str(1)]:
+        if self.selection.casefold() in ['slow', 's', 1, "1"]:
             cadence_minutes = 5
             exposure_time_secs = 180
             fps = 20
             self.selection = 'slow'
         
-        elif self.selection.casefold() in ['medium', 'm', 2, str(2)]:
+        elif self.selection.casefold() in ['medium', 'm', 2, "2"]:
             cadence_minutes = 10
             exposure_time_secs = 120
             fps = 15
             self.selection = 'medium'
             
-        elif self.selection.casefold() in ['quick', 'q', 3, str(3)]:
+        elif self.selection.casefold() in ['quick', 'q', 3, "3"]:
             cadence_minutes = 20
             exposure_time_secs = 60
             fps = 15
             self.selection = 'quick'
 
-        elif self.selection.casefold() in ['ludacris', 'l', 4, str(4)]:
+        elif self.selection.casefold() in ['ludacris', "ludocrous" 'l', 4, "4"]:
             cadence_minutes = 60
             exposure_time_secs = 36
             fps = 10
             self.selection = 'ludacris'
 
-        elif self.selection.casefold() in ['plaid', 'p', 5, str(5)]:
+        elif self.selection.casefold() in ['plaid', 'p', 5, "5"]:
             cadence_minutes = 6 * 60
             exposure_time_secs = 24
             fps = 5
@@ -610,6 +632,7 @@ class Parameters:
             options are:
                 skip    - do nothing
                 redo    - pull from prev out_array to recompute same as last time
+                add     - pull from prev out_array to recompute but store seperately
                 reset   - pull from first out_array to recompute from scratch
                 double  - pull from current out_array to double the filter
         

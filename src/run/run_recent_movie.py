@@ -22,7 +22,7 @@ def run_recent_movie(delay=10, debug=True, do_one="0304", stop=True, cadence_min
     p.is_debug(debug)
     p.do_recent(True)
     
-    p.redownload_files(False)
+    p.download_files(False)
     # p.overwrite_pngs(True)
     # p.delete_old(True)
     
@@ -34,7 +34,7 @@ def run_recent_movie(delay=10, debug=True, do_one="0304", stop=True, cadence_min
     p.frames_per_second(fps)
 
     # Set the Processes
-    # if p.redownload_files():
+    # if p.download_files():
     p.fetchers(FidoFetcher())      # Gets Fits FIDO
 
     p.processors([SRNSingleShotProcessor])

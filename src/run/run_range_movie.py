@@ -31,7 +31,7 @@ def run_range_movie(delay=10, debug=True, do_one="0304", stop=True, tstart='2015
     # p.resolution(2048)
 
     # Run Flags
-    p.redownload_files(True)
+    p.download_files(True)
     # p.overwrite_pngs(True)
     # p.delete_old(True)
     

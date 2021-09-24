@@ -4,7 +4,9 @@ from datetime import datetime, timedelta
 from os import listdir
 # from os.path import dirname
 from time import strftime
-
+import matplotlib as mpl
+mpl.use('Agg')
+# import matplotlib.pyplot as plt
 from processor.Processor import Processor
 import matplotlib.pyplot as plt
 import astropy.units as u
@@ -14,7 +16,7 @@ from science.color_tables import aia_color_table
 
 
 class ImageProcessor(Processor):
-    filt_name = '  Image Writer'
+    filt_name = 'Image Writer'
     out_name = ""
     do_png = False
     save_to_fits = False
@@ -42,6 +44,8 @@ class ImageProcessor(Processor):
         self.pathBox = []
         self.figbox = []
         self.skipped = 0
+        
+        self.load_curves()
     
     def do_fits_function(self, fits_path, in_name=None):
         """This is the do_fits_function for this """
@@ -62,6 +66,7 @@ class ImageProcessor(Processor):
         self.pathBox = []
     
     def make_directories(self):
+        self.load_curves()
         _, self.fits_save_path, _, _ = self.image_data
         self.png_save_path = self.fits_save_path.replace('fits', 'png')
         self.png_save_stem = self.png_save_path.split(".")[0] + '{}' + ".png"
@@ -188,9 +193,9 @@ class ImageProcessor(Processor):
         cmap = aia_color_table(int(wave) * u.angstrom)
         if processed:
             frame = self.changed #.astype(np.float16)
-            vmin = 0  # 0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(out_array))
-            vmax = 1  # 0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(out_array))
-            # print(vmin, vmax)
+            vmin = 0.05 #.elf.absolute_min # 0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(out_array))
+            vmax = 1.5  #* self.absolute_max # 0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(out_array))
+            # print("vin, vmax = ", vmin, vmax)
             ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None, vmin=vmin, vmax=vmax)
         else:
             frame = self.absqrt(self.original, dtype=np.float32)

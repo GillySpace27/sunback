@@ -23,7 +23,7 @@ class LocalFetcher(Fetcher):
         print(" v Loading Local Files...")
         self.load(params)
         num = self.n_fits + self.n_imgs
-        print(" ^    Successfully Loaded {} fits and {} images\n".format(self.n_fits, self.n_imgs) if num>0 else "No Files to Load!")
+        print(" ^    Successfully Discovered {} fits and {} images\n".format(self.n_fits, self.n_imgs) if num>0 else "No Files to Load!")
         if num == 0:
             # self.params.fetchers([self.params.alternate])
             print("\n    !!Quitting Program!!\n")

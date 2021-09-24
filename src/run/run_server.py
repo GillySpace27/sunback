@@ -21,7 +21,7 @@ def run_server(delay=10, debug=True, do_one='0171', stop=False):
     p.do_orig = True
     
     # Run Flags
-    # p.redownload_files(False)
+    # p.download_files(False)
     # p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
     # p.overwrite_pngs(True)
     # p.write_video(False)

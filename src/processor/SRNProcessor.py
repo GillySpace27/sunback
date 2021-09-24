@@ -62,6 +62,8 @@ class SRNProcessor(Processor):
         super().__init__(params, quick, rp)
         # Parse Inputs
 
+        self.smooth_minimum = None
+        self.smooth_maximum = None
         self.there_is_cached_data = False
         self.output_abscissa = None
         self.floor = 0.01
@@ -156,8 +158,9 @@ class SRNProcessor(Processor):
         self.init_for_learn()
         self.bin_radially()  # Create a cloud of intesity values for each radial bin
         self.radial_statistics()  # Find mean and percentiles vs height
-        # self.make_basic_curves()  # Build smooth curves based on the statistics
+        self.make_smoothed_curves()  # Build smooth curves based on the statistics
         self.add_to_keyframes()  # Update the running curves
+        
     
     
     def image_modify(self):
@@ -318,20 +321,20 @@ class SRNProcessor(Processor):
         if self.norm_curve_min is None and self.outer_min is not None:
             self.do_raster()
             return True
-        # if len(self.norm_curve_min) != len(self.changed_flat):
-        #     self.do_raster()
-        #     return True
         return False
     
     def do_raster(self):
-        """"""
+        """make the normalization curves that reduce the data to the smaller range"""
         self.rastered_outer_max = np.squeeze(self.outer_max[self.binInds])
         self.rastered_inner_max = np.squeeze(self.inner_max[self.binInds])
         self.rastered_inner_min = np.squeeze(self.inner_min[self.binInds])
         self.rastered_outer_min = np.squeeze(self.outer_min[self.binInds])
         
-        self.norm_curve_max = self.rastered_outer_max
-        self.norm_curve_min = self.rastered_outer_min
+        self.rastered_smooth_max = np.squeeze(self.smooth_max[self.binInds])
+        self.rastered_smooth_min = np.squeeze(self.smooth_min[self.binInds])
+        
+        self.norm_curve_max = self.rastered_smooth_max
+        self.norm_curve_min = self.rastered_smooth_min
     
     def remove_offset(self):
         """Make sure everything is positive"""
@@ -357,9 +360,14 @@ class SRNProcessor(Processor):
         ax.plot(rrarr, self.outer_min, zorder=3, lw=2, label="Out Min", c='b')
         ax.axvline(1)
         
+        ax.plot(self.n2r(self.output_abscissa), self.smooth_maximum, zorder=10, c="k",label="Smooth")
+        ax.plot(self.n2r(self.output_abscissa), self.smooth_minimum, zorder=10, c='k')
+        
         #Plot Formatting
+        ax.set_ylabel("Intensity")
+        ax.set_xlabel("Distrance from Sun Center")
         ax.set_yscale("symlog")
-        ax.set_ylim((-10**1, 10**4))
+        ax.set_ylim((-10**2, 10**4))
         plt.legend()
         
         self.force_save_inner_outer(save, fig, ax, show)
@@ -369,8 +377,12 @@ class SRNProcessor(Processor):
         # Save Path Stuff
         if save:
             bs = self.params.base_directory()
-            folder_name = "radial"
-            file_name_1 = 'keyframe_{}.png'.format(self.file_basename[:-5])
+            if save == "single":
+                folder_name = "norm_curves"
+                file_name_1 = '{}_keyframe.png'.format(self.params.current_wave())
+            else:
+                folder_name = "radial"
+                file_name_1 = 'keyframe_{}.png'.format(self.file_basename[:-5])
             save_path_1 = join(bs, folder_name, file_name_1)
             makedirs(dirname(save_path_1), exist_ok=True)
             while True:
@@ -386,7 +398,7 @@ class SRNProcessor(Processor):
         if not show:
             plt.close(fig)
         else:
-            plt.show()
+            plt.show(block=True)
     
     ###################################
     ## Normalization Curve Stuff ##
@@ -406,7 +418,7 @@ class SRNProcessor(Processor):
         else:
             self.do_bin()
             
-    def do_bin(self, skip=100): # Bin the intensities by radius
+    def do_bin(self, skip=30): # Bin the intensities by radius
         self.cut_pixels = skip
         for binI, dat in zip(self.binInds[::self.cut_pixels], self.changed_flat[::self.cut_pixels]):
             self.radBins[binI].append(dat)
@@ -454,13 +466,7 @@ class SRNProcessor(Processor):
         self.frame_minimum[n_index] = self.binMin[idx]
         self.frame_mean[n_index] = self.binMean[idx]
         self.frame_med[n_index] = self.binMed[idx]
-        
-        
-        # self.floor = 0.0001
-        # self.frame_minimum[self.frame_minimum<=0] = self.floor
-        # self.frame_maximum[self.frame_maximum<=0] = self.floor
-        
-        pass
+
     
     def make_curves(self):
         """Build the normalization arrays, treating the domain in 3 seperate regions"""
@@ -547,7 +553,7 @@ class SRNProcessor(Processor):
         # plt.plot(np.arange(self.rez), self.frame_minimum)
         # plt.show()
     
-    def make_basic_curves(self):
+    def make_smoothed_curves(self):
         """Build the normalization arrays, treating the domain in 3 seperate regions"""
         
         # Put the nans back in
@@ -606,13 +612,16 @@ class SRNProcessor(Processor):
         self.high_min_filt = savgol_filter(self.high_min, hWindow, rank, mode=mode)
         
         # Fit the lowest region with a polynomial to make it much smoother
-        degree = 5
-        p = np.polyfit(self.low_abs, self.low_max_filt, degree)
-        self.low_max_fit = np.polyval(p, self.low_abs)  # * 1.1
-        p = np.polyfit(self.low_abs, self.low_min_filt, degree)
-        self.low_min_fit = np.polyval(p, self.low_abs)
+        # degree = 5
+        # p = np.polyfit(self.low_abs, self.low_max_filt, degree)
+        # self.low_max_fit = np.polyval(p, self.low_abs)  # * 1.1
+        # p = np.polyfit(self.low_abs, self.low_min_filt, degree)
+        # self.low_min_fit = np.polyval(p, self.low_abs)
         
-        ind = 10
+        self.low_max_fit = self.low_max_filt
+        self.low_min_fit = self.low_min_filt
+        
+        ind = 25
         self.low_max_fit[0:ind] = self.low_max_fit[ind]
         self.low_min_fit[0:ind] = self.low_min_fit[ind]
         
@@ -622,77 +631,27 @@ class SRNProcessor(Processor):
         self.franken_min = np.hstack((self.low_min_fit, self.mid_min_filt, self.high_min_filt))
         
         # Filter again to smooth boundaraies
-        self.franken_max = self.fill_end(self.fill_start(savgol_filter(self.franken_max, fWindow, rank)))
-        self.franken_min = self.fill_end(self.fill_start(savgol_filter(self.franken_min, fWindow, rank)))
+        # self.franken_max = self.fill_end(self.fill_start(savgol_filter(self.franken_max, fWindow, rank)))
+        # self.franken_min = self.fill_end(self.fill_start(savgol_filter(self.franken_min, fWindow, rank)))
         
-        # Put the nans back in
+        # Put data where there is data
         self.output_abscissa = np.arange(self.rez)
-        self.frame_maximum[self.franken_abscissa] = self.franken_max
-        self.frame_minimum[self.franken_abscissa] = self.franken_min
-        pass
+        self.smooth_maximum = np.empty_like(self.output_abscissa, dtype=np.float32)
+        self.smooth_minimum = np.empty_like(self.output_abscissa, dtype=np.float32)
+        self.smooth_maximum.fill(np.nan)
+        self.smooth_minimum.fill(np.nan)
+        self.smooth_maximum[self.franken_abscissa] = self.franken_max
+        self.smooth_minimum[self.franken_abscissa] = self.franken_min
         
         # self.plot_radial_norm_keyframes(do=True, show=True, save=False, get_normed=False)
         
-        # plt.plot(np.arange(self.rez), self.frame_maximum)
-        # plt.plot(np.arange(self.rez), self.frame_minimum)
+        # plt.plot(np.arange(self.rez), self.smooth_maximum)
+        # plt.plot(np.arange(self.rez), self.smooth_minimum)
         # plt.show()
     
-    def prep_save_outs(self):
-        """Prepare the scalar_out_curve for writing"""
-        self.scalar_out_curve = np.zeros(len(self.outer_min))
-        if self.found_limb_radius:
-            self.scalar_out_curve[0] = self.found_limb_radius
-        if self.absolute_min:
-            self.scalar_out_curve[1] = self.absolute_min
-            self.scalar_out_curve[2] = self.absolute_max
-        
-        out_list = [self.outer_min, self.inner_min, self.inner_max, self.outer_max, self.scalar_out_curve]
-        none_check = [item is not None for item in out_list]
-        self.do_save = np.all(none_check)
-        self.curve_out_array = np.asarray(out_list)
-    
-    def unpack_save_ins(self):
-        """Prepare the scalar_out_curve for writing"""
-        self.outer_min, self.inner_min, self.inner_max, \
-        self.outer_max, self.scalar_in_curve = np.loadtxt(self.params.curve_path())
-        
-        self.found_limb_radius = self.scalar_in_curve[0]
-        self.absolute_min = self.scalar_in_curve[1]
-        self.absolute_max = self.scalar_in_curve[2]
-        
-        self.plot_inner_outer(show=True, save=False)
-        
-        
-    # self.plot
     
     
-    
-    # Curves Save and Load
-    def save_curves(self):  #
-        """Save the curves so they don't have to be recalculated"""
-        self.super_flush()
-        print("\n *    Saving Radial Curves...", end='')
-        if self.do_save:
-            self.prep_save_outs()
-            np.savetxt(self.params.curve_path(), self.curve_out_array)
-            print("Success!")
-        else:
-            print("Skipping Save Radial Curve!")
-    
-    def load_curves(self):
-        """Load the curves so they don't have to be recalculated"""
-        
-        if os.path.exists(self.params.curve_path()):
-            print(" *    Loading Radial Curves...", end='')
-            try:
-                
-                self.unpack_save_ins()
-                self.super_flush("Success!")
-            
-            except ValueError as e:
-                print("Failed: {}".format(e))
-                # self.image_learn()
-                # self.save_curves()
+
                 
     ####################################
     ## Image Reduction Algorithms ##
@@ -735,7 +694,7 @@ class SRNProcessor(Processor):
         self.changed_flat[cold] = -((np.abs(self.changed_flat[cold] - self.vmin) + 1) ** coldpowr - 1) + self.vmin
         
         ## Some Final Normalization ##      TODO: I think this might be breaking things!
-        self.changed_flat = self.normalize(self.changed_flat, high=99.99, low=1)
+        # self.changed_flat = self.normalize(self.changed_flat, high=99.99, low=1)
     
     def prep_output(self):
         
@@ -940,8 +899,8 @@ class SRNProcessor(Processor):
         ax0.plot(self.n2r(self.output_abscissa), self.inner_max, label="InnerMax", lw=3, c='gold')
         ax0.plot(self.n2r(self.output_abscissa), self.inner_min, label="InnerMin", lw=3, c='cornflowerblue')
         ax0.plot(self.n2r(self.output_abscissa), self.outer_min, label="OuterMin", lw=3, c='b')
-        ax0.axvline(self.n2r(self.found_limb_radius), ls='--', label="Limb")
-        
+        # ax0.axvspan(self.n2r(self.found_limb_radius), ls='-', label="Limb")
+        #
         # try:
         #     ## Vertical Lines
         #     ax0.axvline(self.n2r(self.lCut), ls=':')

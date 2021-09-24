@@ -52,16 +52,18 @@ def _set_time(_input_time):
     return input_time, input_time_long, input_time_string
 
 
-def parse_time_string_to_local(downloaded_files, which=0, local=True):
+def parse_time_string_to_local(input_string, which=0, local=True):
     if which == 0:
-        time_string = downloaded_files[0][-25:-10]
+        time_string = input_string[0][-25:-10]
         year = time_string[:4]
         month = time_string[4:6]
         day = time_string[6:8]
         hour_raw = int(time_string[9:11])
         minute = time_string[11:13]
+        # second = time_string[13:15]
+        second = 0
     elif which == 3:
-        time_string = downloaded_files
+        time_string = input_string
         split = time_string.split("_")
         # import pdb; pdb.set_trace()
         year = split[3]
@@ -69,15 +71,25 @@ def parse_time_string_to_local(downloaded_files, which=0, local=True):
         day = split[5].split('t')[0]
         hour_raw = split[5].split('t')[1]
         minute = split[6]
-    else:
-        time_string = downloaded_files
+        second = 0
+    elif which == 2:
+        time_string = input_string
         year = time_string[:4]
         month = time_string[4:6]
         day = time_string[6:8]
         hour_raw = time_string[8:10]
         minute = time_string[10:12]
+        second = time_string[12:14]
+    else:
+        time_string = input_string
+        year = time_string[:4]
+        month = time_string[5:7]
+        day = time_string[8:10]
+        hour_raw = time_string[11:13]
+        minute = time_string[14:16]
+        second = time_string[17:19]
     
-    struct_time = (int(year), int(month), int(day), int(hour_raw), int(minute), 0, 0, 0, -1)
+    struct_time = (int(year), int(month), int(day), int(hour_raw), int(minute), int(second), 0, 0, -1)
     # print(struct_time)
     
     if local:
@@ -85,12 +97,13 @@ def parse_time_string_to_local(downloaded_files, which=0, local=True):
     else:
         theTime = struct_time
     
-    new_time_string = strftime("%I:%M%p %m/%d/%Y", theTime).lower()
-    if new_time_string[0] == '0':
-        new_time_string = new_time_string[1:]
-    
-    # print(year, month, day, hour, minute)
-    # new_time_string = "{}:{}{} {}/{}/{} ".format(hour, minute, suffix, month, day, year)
+    new_time_string = strftime("%I:%M:%S%p %m/%d/%Y", theTime).lower()
     time_code = strftime("%Y%m%d%I%M%S", theTime)
     
     return new_time_string, time_code
+
+# if new_time_string[0] == '0':
+#     new_time_string = new_time_string[1:]
+
+# print(year, month, day, hour, minute)
+# new_time_string = "{}:{}{} {}/{}/{} ".format(hour, minute, suffix, month, day, year)

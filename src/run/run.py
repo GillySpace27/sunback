@@ -67,11 +67,10 @@ class Runner:
             if len(self.params.fetchers()) > 0:
                 sys.stdout.flush()
                 print("\n>>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
-                # print(" Redownload Mode: {}\n".format(self.params.redownload_files()))
-                for fet in self.params.fetchers():
+                # print(" Redownload Mode: {}\n".format(self.params.download_files()))
+                for fet, rp in zip(self.params.fetchers(), self.params._fet_rp):
                     sleep(0.01)
-                    fet.fetch(self.params)
-                    
+                    fet(params=self.params, rp=rp).fetch()
                     sleep(0.01)
             
             if len(self.params.processors()) > 0:
@@ -79,9 +78,9 @@ class Runner:
                 print(">>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
                 # print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
                 sys.stdout.flush()
-                for proc in self.params.processors():
+                for proc, rp in zip(self.params.processors(), self.params._proc_rp):
                     sleep(0.01)
-                    proc.process(self.params)
+                    proc(params=self.params, rp=rp).process()
                     sleep(0.01)
                     
             if len(self.params.putters()) > 0:
@@ -89,56 +88,13 @@ class Runner:
                 print(">>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
                 # print(" Redo Imgs: {}".format(self.params.overwrite_pngs()))
                 # print(" Redo Videos: {}".format(self.params.write_video()))
-                for put in self.params.putters():
+                for put, rp in zip(self.params.putters(), self.params._put_rp):
                     sleep(0.01)
-                    put.put(self.params)
+                    put(params=self.params, rp=rp).put()
                     sleep(0.01)
-            
-            
+        
             self.print_end_banner()
 
-    def __process_parallel(self):
-        """Use the provided fetcher, executor,
-        and putter to do the thing"""
-        print(self.wall_2)
-        # print(self.params.runner_name)
-        print("Starting Batch: {}".format(self.params.batch_name()))
-        print(self.wall_2, "\n")
-
-        from joblib import Parallel, delayed
-        # the_output = Parallel(n_jobs=-1)(delayed(yourfunction)(k) for k in range(1,10))
-        
-
-        if len(self.params.fetchers()) > 0:
-            sys.stdout.flush()
-            print(">>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
-            # print(" Redownload Mode: {}\n".format(self.params.redownload_files()))
-            for fet in self.params.fetchers():
-                sleep(0.01)
-                fet.fetch(self.params)
-                sleep(0.01)
-        
-        if len(self.params.processors()) > 0:
-            sys.stdout.flush()
-            print(">>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
-            # print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
-            sys.stdout.flush()
-            for proc in self.params.processors():
-                sleep(0.01)
-                proc.process(self.params)
-                sleep(0.01)
-                
-        if len(self.params.putters()) > 0:
-            sys.stdout.flush()
-            print(">>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
-            # print(" Redo Imgs: {}".format(self.params.overwrite_pngs()))
-            # print(" Redo Videos: {}".format(self.params.write_video()))
-            for put in self.params.putters():
-                sleep(0.01)
-                put.put(self.params)
-                sleep(0.01)
-        
-        self.print_end_banner()
         
 
     ## PRINTING
@@ -158,16 +114,16 @@ class Runner:
         print(" Here's the Plan:")
         if len(self.params.fetchers()) > 0:
             for fet in self.params.fetchers():
-                fet.plan()
+                fet.plan(fet)
                 
         if len(self.params.processors()) > 0:
             for proc in self.params.processors():
-                proc.plan()
+                proc.plan(proc)
                 
         if len(self.params.putters()) > 0:
             for put in self.params.putters():
-                put.plan()
-                
+                put.plan(put)
+
         print("  And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
         # print("\n")
 
@@ -207,4 +163,49 @@ class Runner:
                      """)
                 
             print("\n")
-        
+   
+   
+   
+   
+    # def __process_parallel(self):
+    #     """Use the provided fetcher, executor,
+    #     and putter to do the thing"""
+    #     print(self.wall_2)
+    #     # print(self.params.runner_name)
+    #     print("Starting Batch: {}".format(self.params.batch_name()))
+    #     print(self.wall_2, "\n")
+    #
+    #     from joblib import Parallel, delayed
+    #     # the_output = Parallel(n_jobs=-1)(delayed(yourfunction)(k) for k in range(1,10))
+    #
+    #
+    #     if len(self.params.fetchers()) > 0:
+    #         sys.stdout.flush()
+    #         print(">>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
+    #         # print(" Redownload Mode: {}\n".format(self.params.download_files()))
+    #         for fet in self.params.fetchers():
+    #             sleep(0.01)
+    #             fet.fetch(self.params)
+    #             sleep(0.01)
+    #
+    #     if len(self.params.processors()) > 0:
+    #         sys.stdout.flush()
+    #         print(">>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
+    #         # print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
+    #         sys.stdout.flush()
+    #         for proc in self.params.processors():
+    #             sleep(0.01)
+    #             proc.process(self.params)
+    #             sleep(0.01)
+    #
+    #     if len(self.params.putters()) > 0:
+    #         sys.stdout.flush()
+    #         print(">>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
+    #         # print(" Redo Imgs: {}".format(self.params.overwrite_pngs()))
+    #         # print(" Redo Videos: {}".format(self.params.write_video()))
+    #         for put in self.params.putters():
+    #             sleep(0.01)
+    #             put.put(self.params)
+    #             sleep(0.01)
+    #
+    #     self.print_end_banner()
