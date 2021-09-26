@@ -35,6 +35,9 @@ class FidoFetcher(Fetcher):
     def __init__(self, params=None, quick=False, rp=None):
         # Initialize class variables
         super().__init__(params, quick, rp)
+        self.num_files_needed = None
+        self.batch_id = 0
+        self.list_of_needed_files = None
         self.results = None
         self.temp_folder = None
         self.reprocess_mode(rp)
@@ -48,10 +51,11 @@ class FidoFetcher(Fetcher):
             self.verb = verb
         """ Find the Most Recent Images """
         self.__init__(params, quick, rp)
-        self.verb = True
+        # self.verb = True
         self.fido_get_fits(self.params.current_wave())
     
     def cleanup(self):
+        self.fido_download_fits_ensured(hold=False, temp=True)
         pass
         # self.delete_temp_folder_items(delete_folder_too=True)
     
@@ -68,7 +72,7 @@ class FidoFetcher(Fetcher):
     def download_fits_series(self):
         self.define_range()
         self.fido_check_for_fits()
-        if self.fido_search_found:
+        if self.fido_search_found_num:
             self.fido_parse_result()
             self.fido_download_fits_ensured()
         else:
@@ -76,7 +80,6 @@ class FidoFetcher(Fetcher):
     
     def fido_check_for_fits(self):
         """Find the science images"""
-        self.verb=True
         vprint("\n *   Looking for Images of {} from {} to {}...".format(
                 self.params.current_wave(), self.start_time_string, self.end_time_string), flush=True, end='', verb=self.verb)
         jsoc_email = "chris.gilly@colorado.edu"
@@ -91,9 +94,9 @@ class FidoFetcher(Fetcher):
         
         # , attrs.Resolution(self.params.resolution()))  # , a.vso.Provider('jsoc'))
         
-        self.fido_search_found = self.fido_search_result.file_num
+        self.fido_search_found_num = self.fido_search_result.file_num
         
-        # print("Found {}".format(self.fido_search_found))
+        # print("Found {}".format(self.fido_search_found_num))
         
         # self.exposure_paths = self.get_exposure_paths()
         # vprint(" *     Successfully Downloaded {} Files\n".format(len(self.exposure_paths)), flush=True, verb=self.verb)
@@ -101,7 +104,7 @@ class FidoFetcher(Fetcher):
         # sys.stdout.flush()
     
     def get_start_and_end_times(self):
-        self.verb = True
+        # self.verb = True
         all_times = self.fido_search_result.get_response(0)
         start_time_list = []
         # end_time_list = []
@@ -135,44 +138,59 @@ class FidoFetcher(Fetcher):
         self.extra_string = "from {} to {}".format(begin_time, end_time)
         
         vprint("\n *      Search Found {: 3} Images {}...".format(
-                self.fido_search_found, self.extra_string), flush=True, verb=self.verb)
+                self.fido_search_found_num, self.extra_string), flush=True, verb=self.verb)
         
         while len(self.name) < 4:
             self.name = '0' + self.name
     
-    
+    def store_requests(self):
+        if self.list_of_needed_files is None:
+            self.list_of_needed_files = self.fido_search_result.get_response(0)
+            self.fetch_box = [self.fido_search_result.get_response(0)]
+        else:
+            for row in self.fido_search_result.get_response(0):
+                row.id = self.batch_id
+                self.list_of_needed_files.add_row(row)
+            self.fetch_box.append(self.fido_search_result.get_response(0))
+        self.batch_id += 1
+        
+        # n_new = self.fido_search_found_num
+        self.num_files_needed = self.list_of_needed_files.file_num = len(self.list_of_needed_files)
+
     def fido_download_fits_ensured(self, ensured=False, temp=False, hold=False):
         """Download the files from fido_search_result"""
         
-        SubDownloader = Downloader(progress=True, file_progress=False, max_conn=3,
+        SubDownloader = Downloader(progress=True, file_progress=False, max_conn=20,
                                    overwrite=False)
         
-        out_path = self.temp_folder if temp else self.fits_folder
+        self.out_path = self.temp_folder if temp else self.fits_folder
         
-        self.results = Fido.fetch(self.fido_search_result, path=out_path,
-                                  downloader=SubDownloader)
+        self.store_requests()
+        if not hold:
+            self.results = Fido.fetch(self.list_of_needed_files, path=self.out_path, downloader=SubDownloader)
+            self.n_fits = len(self.results)
+            
+            if ensured:
+                self.results = self.fido_multi_download()
+            
+            self.multi_banner()
+            return self.results
+    
+    def fido_multi_download(self):
         self.n_fits = len(self.results)
-        # if ensured:
-        #     self.results = self.fido_multi_download()
-        
-        self.multi_banner()
+
+        while self.n_fits != self.fido_search_found_num:
+            self.results = Fido.fetch(self.results, path=self.out_path)
+            self.n_fits = len(self.results)
+        self.n_fits = len(self.results)
+
         return self.results
     
-    # def fido_multi_download(self):
-    #     self.n_fits = len(self.results)
-    #
-    #     while self.n_fits != self.fido_search_found:
-    #         self.results = Fido.fetch(self.results, path=self.fits_folder)
-    #         self.n_fits = len(self.results)
-    #     self.n_fits = len(self.results)
-    #
-    #     return self.results
-    
     def multi_banner(self):
-        if self.n_fits == self.fido_search_found:
+        if self.n_fits == self.fido_search_found_num:
             print(" ^     Successfully Downloaded all {} Files\n".format(self.n_fits), flush=True)
         elif self.n_fits:
-            print(" ^     Downloaded {} Files out of {}\n".format(self.n_fits, self.fido_search_found), flush=True)
+            print(" ^     Downloaded {} Files out of {}\n".format(self.n_fits, self.fido_search_found_num), flush=True)
         else:
             print(" ^     Unable to Download...Try again Later.")
             raise (FileNotFoundError(" Unable to Download...Try again Later."))
@@ -221,7 +239,7 @@ class FidoFetcher(Fetcher):
     def list_requested_files(self):
         self.requested_files = []
         self.requested_response = []
-        for ii in np.arange(self.fido_search_found):
+        for ii in np.arange(self.fido_search_found_num):
             self.requested_files.append(self.fido_search_result.get_response(0)[ii]['fileid'].casefold())
             self.requested_files.append(self.fido_search_result.get_response(0)[ii]['time']['start_timestamp'])
     

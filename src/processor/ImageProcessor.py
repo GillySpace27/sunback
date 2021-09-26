@@ -3,6 +3,7 @@ from copy import copy
 from datetime import datetime, timedelta
 from os import listdir
 # from os.path import dirname
+from os.path import join
 from time import strftime
 import matplotlib as mpl
 mpl.use('Agg')
@@ -57,19 +58,33 @@ class ImageProcessor(Processor):
     def prep_image(self, fits_path):
         """Load the fits file from disk and get a field or two"""
         frame0, _, _, _, _ = self.load_first_fits_field(fits_path)
-        frame1, wave1, t_rec1, center1, int_time = self.load_last_fits_field(fits_path)
+        frame1, wave1, t_rec1, center1, int_time = self.load_a_fits_field(fits_path, -2)
+        # frame1, wave1, t_rec1, center1, int_time = self.load_last_fits_field(fits_path)
         self.params.local_imgs_paths()
         self.original, self.changed = copy(frame0), copy(frame1)
+        # self.peek_frames()
         self.image_data = str(wave1), fits_path, t_rec1, frame1.shape
         self.make_directories()
         self.figbox = []
         self.pathBox = []
     
+    def peek_frames(self):
+        fig, (ax1, ax2, ax3) = plt.subplots(1,3, sharex=True, sharey=True)
+        
+        
+        ax1.imshow(self.original)
+        ax2.imshow(self.changed)
+        ax3.imshow(np.abs(self.changed-self.original))
+        plt.tight_layout()
+        plt.show(block=True)
+        
+        
+    
     def make_directories(self):
         self.load_curves()
         _, self.fits_save_path, _, _ = self.image_data
         self.png_save_path = self.fits_save_path.replace('fits', 'png')
-        self.png_save_stem = self.png_save_path.split(".")[0] + '{}' + ".png"
+        self.png_save_stem = self.png_save_path[:-4] + '{}' + ".png"
         self.png_save_directory = os.path.dirname(self.png_save_path)
         os.makedirs(self.png_save_directory, exist_ok=True)
     
@@ -78,7 +93,7 @@ class ImageProcessor(Processor):
         # Which plots to make?
         if self.skip():
             return False
-        
+        self.params.do_orig = True
         if self.params.do_orig:
             trials = [False, True]
         else:
@@ -114,15 +129,15 @@ class ImageProcessor(Processor):
         name, wave = self.clean_name_string(full_name)
         
         # Create the Figure
-        if self.fig is None:
-            self.fig, self.frame_ax = plt.subplots()
-        self.format_plot()
+        # if self.fig is None:
+        fig, frame_ax = plt.subplots()
+        self.format_plot(fig, frame_ax )
             
-        inst, height = self.plot_aia(self.fig, self.frame_ax, wave, processed)
+        inst, height = self.plot_aia(fig, frame_ax, wave, processed)
         
         # Format the Plot and Save
-        self.label_plot(name, inst, height, wave, time_string)
-        self.figbox.append([self.fig, self.frame_ax, processed])
+        self.label_plot(name, inst, height, wave, time_string, frame_ax)
+        self.figbox.append([fig, frame_ax, processed])
         if self.show:
             plt.show()
             
@@ -130,51 +145,57 @@ class ImageProcessor(Processor):
         try:
             for fig, ax, processed in self.figbox:
                 self.execute_plot_save(fig, ax, processed)
+            self.save_concatinated()
         except Exception as e:
             print("Export_Files:", e)
         finally:
             for fig, _, _ in self.figbox:
-                pass #plt.close(fig)
+                plt.close(fig)
                 
     def execute_plot_save(self, fig, ax, processed):
-        out_path = self.png_save_stem.format('' if processed else "_orig")
+        if processed:
+            out_path = self.png_save_stem.format('')
+        else:
+            out_path = self.png_save_stem.replace("\\png\\","\\png\\orig\\").format("_orig")
+            
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        
         fig.savefig(out_path, facecolor='black', edgecolor='black', dpi=self.dpi)
-        ax.cla() # plt.close(fig)
+        plt.close(fig)
         self.pathBox.append(out_path)
         self.figbox = []
         
-        # self.save_concatinated()
     
-    def format_plot(self):
+    def format_plot(self, fig, frame_ax):
         """Make a plot look good"""
         # if not self.plot_formatted:
         # Tweak the Figure Properties
-        self.fig.set_facecolor("k")
+        fig.set_facecolor("k")
         self.inches = 10
         self.dpi = self.changed.shape[0] / self.inches
-        self.fig.set_size_inches((self.inches, self.inches))
-        self.blankAxis(self.frame_ax)
+        fig.set_size_inches((self.inches, self.inches))
+        self.blankAxis(frame_ax)
         self.plot_formatted = True
     
-    def label_plot(self, name, inst, height, wave, time_string):
+    def label_plot(self, name, inst, height, wave, time_string, frame_ax):
         """Annotate with Text"""
         buffer = '' if len(name) == 3 else '  '
         buffer2 = '    ' if len(name) == 2 else ''
         
         title = "{}    {} {}, {}{}".format(buffer2, inst, wave, time_string, buffer)
-        self.frame_ax.annotate(title, (0.15, height + 0.02), xycoords='axes fraction', fontsize='large',
+        frame_ax.annotate(title, (0.15, height + 0.02), xycoords='axes fraction', fontsize='large',
                                color='w', horizontalalignment='center')
         
         the_time = strftime("%Z %I:%M%p")
         if the_time[0] == '0':
             the_time = the_time[1:]
-        self.frame_ax.annotate(the_time, (0.15, height), xycoords='axes fraction', fontsize='large',
+        frame_ax.annotate(the_time, (0.15, height), xycoords='axes fraction', fontsize='large',
                                color='w', horizontalalignment='center')
         
-        self.frame_ax.annotate(the_time, (0.15, height-15), xycoords='axes fraction', fontsize='large',
+        frame_ax.annotate(the_time, (0.15, height-15), xycoords='axes fraction', fontsize='large',
                                color='w', horizontalalignment='center')
         
-        self.frame_ax.annotate("Mode: {}".format(self.params.selection), (0.90, height+15), xycoords='axes fraction', fontsize='large',
+        frame_ax.annotate("Mode: {}".format(self.params.selection), (0.90, height+15), xycoords='axes fraction', fontsize='large',
                                color='w', horizontalalignment='center')
         
     
@@ -191,15 +212,20 @@ class ImageProcessor(Processor):
         inst = '  AIA'
         height = 0.95
         cmap = aia_color_table(int(wave) * u.angstrom)
+        
         if processed:
-            frame = self.changed #.astype(np.float16)
-            vmin = 0.05 #.elf.absolute_min # 0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(out_array))
-            vmax = 1.5  #* self.absolute_max # 0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(out_array))
+            # frame = self.changed #.astype(np.float16)
+            frame = self.absqrt(self.changed, dtype=np.float32)
+            vmin = self.absolute_min # 0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(out_array))
+            vmax = self.absolute_max # 0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(out_array))
             # print("vin, vmax = ", vmin, vmax)
-            ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None, vmin=vmin, vmax=vmax)
+            ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None)
+            ax.set_title(self.hdu_name_list[-1])#, vmin=vmin, vmax=vmax)
         else:
             frame = self.absqrt(self.original, dtype=np.float32)
             ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None)  # ,  vmin=self.vmin_plot, vmax=self.vmax_plot)
+            ax.set_title("original")#, vmin=vmin, vmax=vmax)
+            
             # toprint = self.normalize(self.absqrt(original_image))
             # plt.imshow(toprint, cmap='sdoaia{}'.format(wave), origin='lower', interpolation=None) #,  vmin=self.vmin_plot, vmax=self.vmax_plot)
         plt.tight_layout(pad=0)
@@ -209,13 +235,23 @@ class ImageProcessor(Processor):
     def save_concatinated(self):
         """Make the side by side concatinated images"""
         fmt_string_stem = "ffmpeg -i {} -i {} -y -filter_complex hstack {} -hide_banner -loglevel warning"
-        path_list = listdir(self.png_save_directory)
+        orig_directory = join(self.png_save_directory, "orig")
+        path_list = [join(self.png_save_directory, x) for x in listdir(self.png_save_directory)]
+        path_list2= [join(orig_directory, x) for x in listdir(orig_directory)]
+  
+        path_list_abs =  path_list + path_list2
+        os.makedirs(os.path.dirname(orig_directory), exist_ok=True)
+        
         go_1 = self.params.do_cat
-        go_2 = self.png_save_stem.format("_orig") in path_list
-        go_3 = self.png_save_stem.format("") in path_list
+        go_2 = self.png_save_stem.replace("\\png\\","\\png\\orig\\").format("_orig") in path_list_abs
+        go_3 = self.png_save_stem.format("") in path_list_abs
+        
+        savepath = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
+        os.makedirs(os.path.dirname(savepath), exist_ok=True)
         if go_1 and go_2 and go_3:
-            os.system(fmt_string_stem.format(self.pathBox[1], self.pathBox[0], self.png_save_stem.format("_cat")))
-    
+            os.system(fmt_string_stem.format(self.pathBox[0], self.pathBox[1], savepath))
+        # from processor.VideoProcessor import write_video_in_directory
+        # write_video_in_directory()
     # def make_png_path(self, fits_path):
     #     save_path = fits_path.replace("fits", "png")
     #     return basename(save_path)

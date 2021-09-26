@@ -1,3 +1,4 @@
+import os
 from os import makedirs, getcwd
 from os.path import join, normpath, dirname, abspath, isdir
 from time import time, sleep, strftime, asctime
@@ -432,7 +433,8 @@ class Parameters:
         self.temp_directory(abspath(join(self.fits_directory(), "temp")))
         
         self.time_path(abspath(join(base_directory, "image_times.txt")))
-        self.curve_path(abspath(join(base_directory, "curves.txt")))
+        self.curve_path(abspath(join(base_directory, "radial", "curves.txt")))
+        makedirs(os.path.dirname(self.curve_path()), exist_ok=True)
         file_name = '{}_params.txt'.format(self.current_wave())
         self.params_path(abspath(join(base_directory, file_name)))
         
@@ -509,7 +511,7 @@ class Parameters:
         if self.selection in ['false', 'f', "False", None, False]:
             return False
         
-        key_fixed_cadence = 1
+        key_fixed_cadence = 8
         key_fixed_number = None
         # print("Loading {} cadence.".format(self.selection))
         if self.selection.casefold() in ['slow', 's', 1, "1"]:

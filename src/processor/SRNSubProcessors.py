@@ -58,7 +58,7 @@ class SRNpreProcessor(SRNProcessor):
     def setup(self):
         self.load()
         self.print_keyframes()
-        self.skipped = -1
+        self.skipped = 0
     
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""

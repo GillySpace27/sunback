@@ -42,6 +42,8 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.keyframe_fits_path = None
         self.main_time_period = None
         self.subname = None
+        self.hold = False
+        self.verb=False
         # self.fetch()
 
     # Main Call
@@ -71,7 +73,10 @@ class FidoTimeIntProcessor(FidoFetcher):
     
     def cleanup(self):
         self.reset_params()
-        self.sum_subframes()
+        
+        if self.hold:
+            self.fido_download_fits_ensured(temp=True)
+            self.sum_subframes()
         
         # self.delete_temp() # TEMPCHANGE
 
@@ -81,17 +86,21 @@ class FidoTimeIntProcessor(FidoFetcher):
         """
         if fits_path is None:
             return False
+        self.fits_path = fits_path
         
-        if self.do_exposure(fits_path):
+        self.in_name = self.set_hdul_in_name(fits_path)
+        
+        if self.should_do_exposure(fits_path):
             # Get the Images
-            self.gather_subframes(fits_path, in_name)
-        
+            self.gather_subframes(fits_path)
             # Sum them
+            if not self.hold:
+                self.sum_subframes()
             return self.changed
         
         return None
     
-    def do_exposure(self, fits_path):
+    def should_do_exposure(self, fits_path):
         """Do we need to do time integration here?"""
         self.keyframe_fits_path = fits_path
         in_name = self.set_hdul_in_name(fits_path)
@@ -105,30 +114,31 @@ class FidoTimeIntProcessor(FidoFetcher):
     def download_fits_series(self):
         self.define_range()
         self.fido_check_for_fits()
-        if self.fido_search_found:
+        if self.fido_search_found_num:
             self.prep_temp_folder()
             self.fido_parse_result()
-            self.fido_download_fits_ensured(temp=True, hold=True)
+            self.fido_download_fits_ensured(temp=True, hold=self.hold)
         else:
             print("\n     No Images Found\n")
     
-    def gather_subframes(self, fits_path, in_name):
+    def gather_subframes(self, fits_path):
         # Parse the Keyframe Time
-        self.init_integration_period(fits_path, in_name)
+        self.init_integration_period(fits_path)
         
         # Search fido for those frames + Download the Files
         self.fetch(self.params, True, verb=False)
         
-    def init_integration_period(self, fits_path, in_name):
+    def init_integration_period(self, fits_path):
         
-        
+        # in_name = self.in_name
         self.subname = fits_path.split('\\')[-1][:-5]
         # self.subname = basename(fits_path.split('.')[0])
+        self.set_hdul_in_name(fits_path)
         
-        keyframe, wave, t_rec, center, t_int = self.load_a_fits_field(fits_path, in_name)
+        keyframe, wave, t_rec, center, t_int = self.load_a_fits_field(fits_path, self.in_name)
         self.orig_t_int = t_int
         self.original = keyframe
-        self.changed = self.original / self.orig_t_int
+        self.changed = np.zeros_like(keyframe, dtype=np.float32)
 
         # Define new exposure time window
         self.main_time_period = self.params.time_period([self.params.tstart, self.params.tend])
@@ -145,27 +155,34 @@ class FidoTimeIntProcessor(FidoFetcher):
     def get_exposure_paths(self):
         exposure_files = os.listdir(self.temp_folder)
         self.exposure_paths = [join(self.temp_folder, path) for path in exposure_files]
+        self.exposure_paths.append(self.fits_path)
         return self.exposure_paths
         
     def sum_subframes(self):
         # frame_array = self.original + 0
+        vprint("Summing Arrays", self.verb)
         self.get_exposure_paths()
         self.int_tm_tot = 0
+        self.n_exposures = 0
+        self.changed = np.zeros_like(self.changed, dtype=np.float32)
         for ii, path in enumerate(self.exposure_paths):
             try:
                 if not os.path.isdir(path):
-                    frame, wave, t_rec, center, int_time = self.load_last_fits_field(path)
+                    frame, wave, t_rec, center, int_time = self.load_a_fits_field(path)
                     self.changed += (frame / int_time)
                     self.int_tm_tot += int_time
+                    self.n_exposures += 1
                 # self.force_delete(path)
             except PermissionError as e:
                 print("Sum Subframes:: ", e)
             except TypeError as e:
                 print("Sum Subframes:: ", e)
                 
+        self.changed /= self.n_exposures
         self.changed *= self.orig_t_int
         self.changed = np.asarray(self.changed, dtype=np.float32)
-        # self.delete_temp_folder()
+        if not self.hold:
+            self.delete_temp_folder()
         
         
 
@@ -261,7 +278,7 @@ class FidoTimeIntProcessor(FidoFetcher):
     
     # def download_fits_series(self):
     #     self.fido_check_for_fits()
-    #     if self.fido_search_found:
+    #     if self.fido_search_found_num:
     #         self.fido_parse_result()
     #         self.fido_download_fits_ensured()
     #     else:

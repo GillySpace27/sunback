@@ -1,6 +1,6 @@
 import os
 import sys
-from copy import copy
+from copy import copy, deepcopy
 from os import listdir, getcwd, makedirs
 from os.path import join, dirname, abspath, isdir, basename
 from time import sleep
@@ -225,9 +225,9 @@ class Processor:
         frame, wave, t_rec, center, int_time = self.load_best_fits_field(self.fits_path)
         
         if frame is not None:
-            self.original = np.asarray(copy(frame)).astype(float)
+            self.original = np.asarray(copy(frame), dtype=np.float32)
             self.original_flat = self.original.flatten()
-            self.changed = copy(self.original)
+            self.changed = np.zeros_like(self.original)
             self.changed_flat = self.changed.flatten()
             
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
@@ -464,8 +464,19 @@ class Processor:
                 hdul.append(fit_frame)  # Write
             else:
                 hdul[field] = fit_frame  # Write
+                
+            hdul = self.delete_further_hdus(hdul, field)
             hdul[0].header['total_int_time'] = self.int_tm_tot
             hdul.close(output_verify='fix')
+    
+    def delete_further_hdus(self, hdul, field):
+        
+        self.list_hdus(hdul)
+        ii = self.hdu_name_list.index(field)+1
+        return hdul[0:ii]
+        
+        
+        
     
     def load_last_fits_field(self, fits_path):
         """Load a fits file from disk"""
@@ -491,24 +502,32 @@ class Processor:
     
     def load_a_fits_field(self, fits_path, field=None):
         """Load a fits file from disk"""
-        
         with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
             hdul.verify('silentfix+ignore')  # Verify
-            self.in_name = self.find_correct_in_name(hdul)
+            self.list_hdus(hdul)
+            # self.in_name = self.find_correct_in_name(hdul)
             frame = self.load_single_frame(hdul, field)
             wave, t_rec, center, int_time = self.get_fits_info(hdul)
             
         return frame, wave, t_rec, center, int_time
     
     def load_single_frame(self, hdul, field=None):
-        if field is not None:
-            self.in_name = field
-        
-        frame = None
-        if self.in_name is not None:
-            if self.in_name in hdul:
-                frame = copy(hdul[self.in_name].data)
-        return frame
+        try:
+            if field is not None:
+                self.in_name = field
+            frame = None
+            if self.in_name is not None:
+                if self.in_name in hdul:
+                    hdu = hdul[self.in_name]
+                elif self.in_name =='original':
+                    in_name = "COMPRESSED_IMAGE"
+                    if in_name in hdul:
+                        hdu = hdul[in_name]
+                frame = deepcopy(hdu.data)
+            return frame
+        except OSError as e:
+            print(e)
+            return frame
     
     def load_best_fits_field(self, fits_path):
         """Load a fits file from disk"""
@@ -522,6 +541,7 @@ class Processor:
         return frame, wave, t_rec, center, int_time
     
     def set_hdul_in_name(self, fits_path=None, hdul=None, field=None):
+        """Determine the right in_name given any kind of input"""
         if field is not None:
             self.in_name = field
         if fits_path:
@@ -535,15 +555,16 @@ class Processor:
     
     def remove_blank_frames(self, hdul):
         vprint("Blank Frame Ran")
-        if '' in hdul:
-            names = ['original']
-            for ii, item in enumerate(hdul):
-                # print(ii, item)
-                if item.name == '':
-                    if len(names):
-                        item.name = names.pop(0)
-                    else:
-                        item.name = 'unknown_{}'.format(ii)
+        to_replace_list = ['COMPRESSED_IMAGE', '']
+        for to_replace in to_replace_list:
+            if to_replace in hdul:
+                names = ['original']
+                for ii, item in enumerate(hdul):
+                    if item.name == to_replace:
+                        if len(names):
+                            item.name = names.pop(0)
+                        else:
+                            item.name = 'unknown_{}'.format(ii)
     
     # Curves Save and Load
     def prep_save_outs(self):
@@ -740,8 +761,7 @@ class Processor:
         # if self.ensured:
         #     return self.in_name
         # self.ensured = True
-
-        self.list_hdus(hdul)
+    
     
         if in_name is not None:
             self.in_name = in_name
@@ -749,14 +769,25 @@ class Processor:
             self.in_name = -1
     
     
-
-    
         reprocess_mode = self.params.reprocess_mode(self.reprocess_mode())
-        first_frame_name = self.determine_first_frame_name()
-        penultimate_frame_name = self.determine_penultimate_frame_name()
-        last_frame_name = self.determine_last_frame_name()
+    
+        self.hdu_name_list = self.list_hdus(hdul)
+
         input_frame_name = self.determine_in_frame_name()
+        first_frame_name = self.hdu_name_list[0]
+        last_frame_name = self.hdu_name_list[-1]
         output_frame_name = self.determine_out_frame_name()
+        penultimate_frame_name = self.determine_penultimate_frame_name()
+        try:
+            previous_frame_name = self.hdu_name_list[self.hdu_name_list.index(output_frame_name)-1]
+        except ValueError:
+            previous_frame_name = penultimate_frame_name
+        # input_frame_name = self.determine_in_frame_name()
+        # first_frame_name = self.determine_first_frame_name()
+        # penultimate_frame_name = self.determine_penultimate_frame_name()
+        # last_frame_name = self.determine_last_frame_name()
+        # output_frame_name = self.determine_out_frame_name()
+        # previous_frame_name = self.hdu_name_list[self.hdu_name_list.index(output_frame_name)-1]
     
         filter_already_applied = filter_applied_last = False
         if output_frame_name.casefold() in [x.casefold() for x in self.hdu_name_list if type(x) is str]:
@@ -772,7 +803,7 @@ class Processor:
                 # raise FileExistsError("Skipping File")
             elif reprocess_mode == 'redo' or reprocess_mode is True:
                 # Go to the previous out_array and remake
-                self.in_name = penultimate_frame_name
+                self.in_name = previous_frame_name
             elif reprocess_mode == 'reset':
                 # Go to the first out_array and remake
                 self.in_name = first_frame_name
@@ -794,7 +825,7 @@ class Processor:
         # Determine the called-for input out_array NAME
         if self.in_name is None:
             return None
-        self.in_name = self.set_hdul_in_name(self.fits_path)
+        # self.in_name = self.set_hdul_in_name(self.fits_path)
         if type(self.in_name) is str:
             if self.in_name in self.hdu_name_list:
                 input_frame_name = self.in_name.casefold()

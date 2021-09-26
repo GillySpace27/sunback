@@ -325,13 +325,14 @@ class SRNProcessor(Processor):
     
     def do_raster(self):
         """make the normalization curves that reduce the data to the smaller range"""
+        # Roadrunner
         self.rastered_outer_max = np.squeeze(self.outer_max[self.binInds])
         self.rastered_inner_max = np.squeeze(self.inner_max[self.binInds])
         self.rastered_inner_min = np.squeeze(self.inner_min[self.binInds])
         self.rastered_outer_min = np.squeeze(self.outer_min[self.binInds])
         
-        self.rastered_smooth_max = np.squeeze(self.smooth_max[self.binInds])
-        self.rastered_smooth_min = np.squeeze(self.smooth_min[self.binInds])
+        self.rastered_smooth_max = np.squeeze(self.smooth_maximum[self.binInds])
+        self.rastered_smooth_min = np.squeeze(self.smooth_minimum[self.binInds])
         
         self.norm_curve_max = self.rastered_smooth_max
         self.norm_curve_min = self.rastered_smooth_min
@@ -349,7 +350,7 @@ class SRNProcessor(Processor):
     def plot_inner_outer(self, show=False, save=True):
         # Save the Image
         fig, ax = plt.subplots()
-        
+        plt.ioff()
         ax.set_title("Intensity as a function of radial distance: AIA_{}".format(self.params.current_wave()))
         
         # Plotting
@@ -360,15 +361,19 @@ class SRNProcessor(Processor):
         ax.plot(rrarr, self.outer_min, zorder=3, lw=2, label="Out Min", c='b')
         ax.axvline(1)
         
-        ax.plot(self.n2r(self.output_abscissa), self.smooth_maximum, zorder=10, c="k",label="Smooth")
-        ax.plot(self.n2r(self.output_abscissa), self.smooth_minimum, zorder=10, c='k')
+        ax.plot(self.n2r(self.output_abscissa), self.smooth_maximum, zorder=10, c="r",label="Smooth")
+        ax.plot(self.n2r(self.output_abscissa), self.smooth_minimum, zorder=10, c='r')
+        
+        skip = 500 #TODO Make this sample better, linear isn't appropriate because its a circle
+        ax.scatter(self.n2r(self.rad_flat[::skip]), self.original.flatten()[::skip], c='k', s=2)
+        
         
         #Plot Formatting
         ax.set_ylabel("Intensity")
         ax.set_xlabel("Distrance from Sun Center")
         ax.set_yscale("symlog")
         ax.set_ylim((-10**2, 10**4))
-        plt.legend()
+        plt.legend(loc='lower left')
         
         self.force_save_inner_outer(save, fig, ax, show)
         
@@ -420,7 +425,7 @@ class SRNProcessor(Processor):
             
     def do_bin(self, skip=30): # Bin the intensities by radius
         self.cut_pixels = skip
-        for binI, dat in zip(self.binInds[::self.cut_pixels], self.changed_flat[::self.cut_pixels]):
+        for binI, dat in zip(self.binInds[::self.cut_pixels], self.original_flat[::self.cut_pixels]):
             self.radBins[binI].append(dat)
         
     def save_cached_data(self, radBins=None):
@@ -648,7 +653,7 @@ class SRNProcessor(Processor):
         # plt.plot(np.arange(self.rez), self.smooth_maximum)
         # plt.plot(np.arange(self.rez), self.smooth_minimum)
         # plt.show()
-    
+        #
     
     
 

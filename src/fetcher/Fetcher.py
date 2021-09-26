@@ -17,7 +17,7 @@ class Fetcher(Processor):
         self.movie_folder = None
         self.fits_folder = None
         self.fido_search_result = None
-        self.fido_search_found = None
+        self.fido_search_found_num = None
         
         # self.local_fits_paths = []
         # self.local_img_paths = []
