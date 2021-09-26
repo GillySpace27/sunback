@@ -106,13 +106,13 @@ class SRNradialFiltProcessor(SRNProcessor):
         self.can_use_keyframes = False
     
     def setup(self):
-        # self.make_inner_outer_video()
         self.load_curves()
         self.super_flush()
     
     def do_work(self):
         self.image_modify()
         if self.first:
+            self.plot_radial_norm_keyframes(show=True)
             self.first = False
         return self.changed
     

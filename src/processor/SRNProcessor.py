@@ -392,7 +392,7 @@ class SRNProcessor(Processor):
             makedirs(dirname(save_path_1), exist_ok=True)
             while True:
                 try:
-                    plt.savefig(save_path_1)
+                    plt.savefig(save_path_1, dpi=300)
                     break
                 except OSError as e:
                     print("  !!!!!!! Close the Dang Plot!", end='')
