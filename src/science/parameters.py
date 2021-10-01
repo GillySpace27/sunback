@@ -511,7 +511,7 @@ class Parameters:
         if self.selection in ['false', 'f', "False", None, False]:
             return False
         
-        key_fixed_cadence = 8
+        key_fixed_cadence = 1
         key_fixed_number = None
         # print("Loading {} cadence.".format(self.selection))
         if self.selection.casefold() in ['slow', 's', 1, "1"]:

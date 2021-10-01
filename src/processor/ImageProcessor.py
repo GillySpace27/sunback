@@ -154,7 +154,7 @@ class ImageProcessor(Processor):
                 
     def execute_plot_save(self, fig, ax, processed):
         if processed:
-            out_path = self.png_save_stem.format('')
+            out_path = self.png_save_stem.format("_"+self.hdu_name_list[self.params.png_frame_name])
         else:
             out_path = self.png_save_stem.replace("\\png\\","\\png\\orig\\").format("_orig")
             

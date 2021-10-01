@@ -169,7 +169,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.n_exposures = 0
         self.changed = np.zeros_like(self.changed, dtype=np.float32)
         for ii, path in enumerate(self.exposure_paths):
-            print(path)
+            vprint(path, self.verb)
             try:
                 if not os.path.isdir(path):
                     frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, -1)

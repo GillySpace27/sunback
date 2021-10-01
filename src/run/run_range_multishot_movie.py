@@ -22,10 +22,10 @@ def run_range_multishot_movie(config_name=0, config=None):
     # p.fetchers(FidoFetcher, rp=None)                                     # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N
     
-    # p.processors([SRNpreProcessor], rp=True)  # Learns the bounds of the dataset for SRN
+    p.processors([SRNpreProcessor], rp=True)  # Learns the bounds of the dataset for SRN
     # p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
 
-    p.putters([ImageProcessor], rp=True)  # Makes the PNGs from Fits
+    # p.putters([ImageProcessor], rp=True)  # Makes the PNGs from Fits
     # p.putters([VideoProcessor], rp=None)  # Makes the PNGs into a Movie
     
     # Run the Code
@@ -66,7 +66,7 @@ def make_configs():
     c0 = {
         "name": "Test",
         "debug": True, "do_one": '0304', "stop": True,
-        "tstart": '2013/09/29 00:00:30', "tend": '2013/09/30 00:00:00',
+        "tstart": '2013/09/29 00:00:30', "tend": '2013/09/29 12:00:00',
         "cadence_minutes": None, "fps": None, "exposure_time": None,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
     }
