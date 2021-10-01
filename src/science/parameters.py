@@ -540,7 +540,7 @@ class Parameters:
 
         elif self.selection.casefold() in ['plaid', 'p', 5, "5"]:
             cadence_minutes = 6 * 60
-            exposure_time_secs = 24
+            exposure_time_secs = 36
             fps = 5
             self.selection = 'plaid'
 

@@ -112,7 +112,7 @@ class SRNradialFiltProcessor(SRNProcessor):
     def do_work(self):
         self.image_modify()
         if self.first:
-            self.plot_radial_norm_keyframes(show=True)
+            self.plot_radial_norm_keyframes(True, show=True)
             self.first = False
         return self.changed
     

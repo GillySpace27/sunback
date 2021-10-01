@@ -203,6 +203,7 @@ class SRNProcessor(Processor):
         self.init_statistics()
     
     def init_for_modify(self):
+        self.init_images()
         self.init_radius_array()
     
     def init_radius_array(self, vignette_radius=1.2, s_radius=400, t_factor=1.28, force=False):
@@ -347,9 +348,10 @@ class SRNProcessor(Processor):
         self.outer_min -= self.absolute_min
     
     
-    def plot_inner_outer(self, show=False, save=True):
+    def plot_inner_outer(self, show=False, save=True, fig=None, ax=None):
         # Save the Image
-        fig, ax = plt.subplots()
+        if ax is None or fig is None:
+            fig, ax = plt.subplots()
         plt.ioff()
         ax.set_title("Intensity as a function of radial distance: AIA_{}".format(self.params.current_wave()))
         
@@ -898,12 +900,15 @@ class SRNProcessor(Processor):
         # Init the Plots
         fig, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
         
+        self.plot_inner_outer(fig=fig, ax=ax0, save=False)
+        
+        
         ## Plot the extrema curves
-        self.output_abscissa = np.arange(self.rez)
-        ax0.plot(self.n2r(self.output_abscissa), self.outer_max, label="OuterMax", lw=3, c='orange')
-        ax0.plot(self.n2r(self.output_abscissa), self.inner_max, label="InnerMax", lw=3, c='gold')
-        ax0.plot(self.n2r(self.output_abscissa), self.inner_min, label="InnerMin", lw=3, c='cornflowerblue')
-        ax0.plot(self.n2r(self.output_abscissa), self.outer_min, label="OuterMin", lw=3, c='b')
+        # self.output_abscissa = np.arange(self.rez)
+        # ax0.plot(self.n2r(self.output_abscissa), self.outer_max, label="OuterMax", lw=3, c='orange')
+        # ax0.plot(self.n2r(self.output_abscissa), self.inner_max, label="InnerMax", lw=3, c='gold')
+        # ax0.plot(self.n2r(self.output_abscissa), self.inner_min, label="InnerMin", lw=3, c='cornflowerblue')
+        # ax0.plot(self.n2r(self.output_abscissa), self.outer_min, label="OuterMin", lw=3, c='b')
         # ax0.axvspan(self.n2r(self.found_limb_radius), ls='-', label="Limb")
         #
         # try:
@@ -918,9 +923,9 @@ class SRNProcessor(Processor):
         #     # raise e
         
         ## Scatter Plot the intensities
-        skip = 50
-        ax0.scatter(self.n2r(self.rad_flat[::skip]), self.original.flatten()[::skip], c='k', s=2)
-        
+        # skip = 50
+        # ax0.scatter(self.n2r(self.rad_flat[::skip]), self.original.flatten()[::skip], c='k', s=2)
+        #
         if False:  # get_normed and self.changed.flatten() is None:
             self.image_modify()
             # if self.changed_flat is not None:
@@ -930,7 +935,7 @@ class SRNProcessor(Processor):
         ax0.set_title("Plot Stats")
         ax0.set_ylim((10 ** -2, 10 ** 4))
         ax0.legend()
-        ax0.set_yscale('log')
+        ax0.set_yscale('symlog')
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
         
         # ax1.legend()
@@ -938,7 +943,7 @@ class SRNProcessor(Processor):
         ax1.axhline(0.05)
         ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
         ax1.set_ylabel(r"Normalized Intensity")
-        ax1.set_yscale('log')
+        ax1.set_yscale('symlog')
         ax1.set_ylim((10 ** -2, 10 ** 2.5))
         
         plt.tight_layout()
@@ -947,12 +952,12 @@ class SRNProcessor(Processor):
         self.force_save_radial_figures(save, fig, ax0, show)
         
         # ax.axvline(self.tRadius, c='r')
-        
+        #
         # plt.plot(self.diff_max_abs + 0.5, self.diff_max, 'r')
         # plt.plot(self.binAbss[:-1] + 0.5, self.diff_mean, 'r:')
-        
-        ## Norm Curves
-        
+        #
+        # # Norm Curves
+        #
         # ax0.plot(self.n2r(self.low_abs), self.low_max, 'm', label="low_min/max")
         # ax0.plot(self.n2r(self.low_abs), self.low_min, 'm', label="")
         # # plt.plot(self.low_abs, self.low_max_fit, 'r')
@@ -965,21 +970,21 @@ class SRNProcessor(Processor):
         # ax0.plot(self.n2r(self.mid_abs), self.mid_min, 'y', label="")
         # plt.plot(self.high_abs, self.high_min_fit, 'r')
         # plt.plot(self.high_abs, self.high_max_fit, 'r')
-        
+        #
         # try:
         #     ax0.plot(self.n2r(self.rendered_abss), self.outer_min, label="FinalMax", lw=4, c='blue')
         #     ax0.plot(self.n2r(self.rendered_abss), self.outer_max, label="FinalMin", lw=4, c='orange')
         # except Exception as e:
         #     print("SRNProc2::", e)
         #     # raise e
-        
+        #
         # try:
         #     ax1.plot(self.n2r(self.output_abscissa), self.frame_maximum, 'g', label="Smoothed")
         #     ax1.plot(self.n2r(self.output_abscissa), self.frame_minimum, 'g')
         # except:
         #     ax1.plot(self.n2r(self.binAbss), self.frame_maximum, 'g', label="Smoothed")
         #     ax1.plot(self.n2r(self.binAbss), self.frame_minimum, 'g')
-        
+        #
         # ax1.plot(binAbss, binMax, 'c')
         # ax1.plot(self.n2r(self.binAbss), self.binMin, 'm')
         # ax1.plot(self.n2r(self.binAbss), self.binMean, 'y')
@@ -989,12 +994,12 @@ class SRNProcessor(Processor):
         # ax1.set_ylim((-0.5, 2))
         # ax1.xlim((380* self.extra_rez ,(380+50)* self.extra_rez ))
         # ax1.set_xlim((0, self.n2r(self.highCut)))
-        
+        #
         # ax1.axhline(self.vmax, c='r', label='Confinement')
         # ax1.axhline(self.vmin, c='r')
         # ax1.axhline(self.vmax_plot, c='orange', label='Plot Range')
         # ax1.axhline(self.vmin_plot, c='orange')
-        
+        #
         # locs = np.arange(self.rez)[::int(self.rez/5)]
         # ax1.set_xticks(locs)
         # ax1.set_xticklabels(self.n2r(locs))

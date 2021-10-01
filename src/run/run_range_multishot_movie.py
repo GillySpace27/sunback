@@ -20,13 +20,13 @@ def run_range_multishot_movie(config_name=0, config=None):
     
     # Set the Processes
     # p.fetchers(FidoFetcher, rp=None)                                     # Gets Fits FIDO
-    # p.processors([FidoTimeIntProcessor], rp=False)                        # Integrate several frames for S/N
+    # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N
     
     # p.processors([SRNpreProcessor], rp=True)  # Learns the bounds of the dataset for SRN
-    p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
+    # p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
 
-    # p.putters([ImageProcessor], rp=True)  # Makes the PNGs from Fits
-    # p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
+    p.putters([ImageProcessor], rp=True)  # Makes the PNGs from Fits
+    # p.putters([VideoProcessor], rp=None)  # Makes the PNGs into a Movie
     
     # Run the Code
     run.Runner(p).start()
@@ -47,6 +47,7 @@ def make_params(config=None, config_name=0):
     p.do_one(config["do_one"], config["stop"])
     p.is_debug(config["debug"])
     p.do_cat = True
+    p.png_frame_name = -1
     
     # Set the Times
     if not p.load_preset_time_settings(config["time_preset"]):
@@ -62,6 +63,14 @@ def make_params(config=None, config_name=0):
 
 
 def make_configs():
+    c0 = {
+        "name": "Test",
+        "debug": True, "do_one": '0304', "stop": True,
+        "tstart": '2013/09/29 00:00:30', "tend": '2013/09/30 00:00:00',
+        "cadence_minutes": None, "fps": None, "exposure_time": None,
+        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
+    }
+    
     c1 = {
         "name": "Beautiful 304",
         "debug": True, "do_one": '0304', "stop": True,
@@ -106,19 +115,38 @@ def make_configs():
         "cadence_minutes": None, "fps": None, "exposure_time": None,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "q"
     }
-    ConfigDict = {c1["name"]: c1,
-                  c2["name"]: c2,
-                  c3["name"]: c3,
-                  c4["name"]: c4,
-                  c5["name"]: c5,
-                  c6["name"]: c6,
+    c7 = {
+        "name": "Liftoff 0304",
+        "debug": True, "do_one": '0304', "stop": True,
+        "tstart": '2013/09/29 00:00:00', "tend": '2013/10/01 00:00:00',
+        "cadence_minutes": None, "fps": None, "exposure_time": None,
+        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
+    }
+    c8 = {
+        "name": "Liftoff 0171",
+        "debug": True, "do_one": '0171', "stop": True,
+        "tstart": '2013/09/29 00:00:00', "tend": '2013/10/01 00:00:00',
+        "cadence_minutes": None, "fps": None, "exposure_time": None,
+        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
+    }
+    
+    ConfigDict = {
+        c0["name"]: c0,
+        c1["name"]: c1,
+        c2["name"]: c2,
+        c3["name"]: c3,
+        c4["name"]: c4,
+        c5["name"]: c5,
+        c6["name"]: c6,
+        c7["name"]: c7,
+        c8["name"]: c8,
                   }
     return ConfigDict
 
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run_range_multishot_movie("Short 171")
+    run_range_multishot_movie("Test")
 
 
 

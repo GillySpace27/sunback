@@ -53,13 +53,13 @@ class FidoTimeIntProcessor(FidoFetcher):
             self.verb = verb
         self.fido_get_fits_short_cadence()
 
-    def fido_get_fits_short_cadence(self):
+    def fido_get_fits_short_cadence(self, temp=True, hold=None):
         self.load(self.params, wave=self.params.current_wave())
         vprint(" v Fetching Fits Files: {}".format(self.params.current_wave()), self.verb)
         if self.get_files():
             self.print_load_banner(verb=self.verb)
             self.prep_temp_folder()
-            self.download_fits_series()
+            self.download_fits_series(temp=True, hold=hold)
             self.validate_download()
         else:
             vprint(" ^ Using {} Cached Fits Files\n".format(self.params.n_fits), self.verb)
@@ -70,6 +70,17 @@ class FidoTimeIntProcessor(FidoFetcher):
 
     def setup(self):
         os.makedirs(self.params.temp_directory(), exist_ok=True)
+    
+    def download_fits_series(self, temp=True, hold=None):
+        if hold is None:
+            hold = False # TODO Fix this
+        self.define_range()
+        self.fido_check_for_fits()
+        if self.fido_search_found_num:
+            self.fido_parse_result()
+            self.fido_download_fits_ensured(temp=temp, hold=hold)
+        else:
+            print("\n     No Images Found\n")
     
     def cleanup(self):
         self.reset_params()
@@ -111,15 +122,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         do_exposure = need_exposure and have_input and (not already_made or reprocess)
         return do_exposure
 
-    def download_fits_series(self):
-        self.define_range()
-        self.fido_check_for_fits()
-        if self.fido_search_found_num:
-            self.prep_temp_folder()
-            self.fido_parse_result()
-            self.fido_download_fits_ensured(temp=True, hold=self.hold)
-        else:
-            print("\n     No Images Found\n")
+
     
     def gather_subframes(self, fits_path):
         # Parse the Keyframe Time
@@ -166,9 +169,10 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.n_exposures = 0
         self.changed = np.zeros_like(self.changed, dtype=np.float32)
         for ii, path in enumerate(self.exposure_paths):
+            print(path)
             try:
                 if not os.path.isdir(path):
-                    frame, wave, t_rec, center, int_time = self.load_a_fits_field(path)
+                    frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, -1)
                     self.changed += (frame / int_time)
                     self.int_tm_tot += int_time
                     self.n_exposures += 1
@@ -181,7 +185,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.changed /= self.n_exposures
         self.changed *= self.orig_t_int
         self.changed = np.asarray(self.changed, dtype=np.float32)
-        if not self.hold:
+        if not self.hold and False:
             self.delete_temp_folder()
         
         
@@ -226,8 +230,11 @@ class FidoTimeIntProcessor(FidoFetcher):
         t_start_dt = datetime.datetime.fromtimestamp(mktime(t_start_struct))
         
         # Do math
-        delta = datetime.timedelta(seconds=duration_seconds)
-        t_end_dt = t_start_dt + delta
+        delta = max(duration_seconds - 21, 1)
+        duration = datetime.timedelta(seconds=delta)
+        shift = datetime.timedelta(seconds=delta/1.5)
+        t_end_dt   = t_start_dt + shift + duration
+        t_start_dt = t_start_dt + shift
         
         # Get the formatted outputs
         t_start_out = t_start_dt.strftime('%Y/%m/%d %H:%M:%S')

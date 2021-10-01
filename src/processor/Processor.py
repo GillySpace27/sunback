@@ -346,7 +346,9 @@ class Processor:
             for self.ii, fits_path in enumerate(tqdm(
                     self.keyframes,
                     unit=self.progress_unit,
-                    desc=self.progress_string)):
+                    desc=self.progress_string,
+                    # probesize='50M',
+                    )):
                 
                 # print("NUM = ", self.ii)
                 out = self.modify_one_fits(fits_path)
@@ -366,15 +368,20 @@ class Processor:
     def modify_one_fits(self, fits_path):
         """Apply the given funtion to the given fits path"""
         self.confirm_fits_file(fits_path)
-        # try:
         output = self.do_fits_function(fits_path, self.in_name)
+        # try:
+        #     pass
+        # except AttributeError as e: #TODO make this much better
+        #     print(e)
+        #     return None
+    
         try:
             frame = output.get()
-        
+    
         except AttributeError as e:
             # print(e)
             frame = output
-        
+    
         if self.save_to_fits and frame is not None:
             self.save_frame_to_fits_file(fits_path, frame)
         return frame
@@ -470,11 +477,13 @@ class Processor:
             hdul.close(output_verify='fix')
     
     def delete_further_hdus(self, hdul, field):
-        
-        self.list_hdus(hdul)
-        ii = self.hdu_name_list.index(field)+1
-        return hdul[0:ii]
-        
+        try:
+            self.list_hdus(hdul)
+            ii = self.hdu_name_list.index(field)+1
+            return hdul[0:ii]
+        except ValueError as e:
+            print(e)
+            return hdul
         
         
     
@@ -528,6 +537,9 @@ class Processor:
         except OSError as e:
             print(e)
             return frame
+        except TypeError as e:
+            print("Sum Subframes:: ", e)
+            return None
     
     def load_best_fits_field(self, fits_path):
         """Load a fits file from disk"""
@@ -628,6 +640,8 @@ class Processor:
                 except ValueError as e:
                     print("Failed: {}".format(e))
                     raise e
+        else:
+            print("No Curves to Load")
                 
                 
                 # self.image_learn()
@@ -818,7 +832,7 @@ class Processor:
                 raise NotImplementedError
         else:
             self.in_name = input_frame_name
-        hdul.verify('fix')
+        hdul.verify('silentfix+ignore')
         return self.in_name
     
     def determine_in_frame_name(self):

@@ -50,15 +50,16 @@ class ImageProcessor(Processor):
     
     def do_fits_function(self, fits_path, in_name=None):
         """This is the do_fits_function for this """
-        self.prep_image(fits_path)
+        self.prep_image(fits_path, self.params.png_frame_name)
         if self.render():
             self.export_files()
         return self
     
-    def prep_image(self, fits_path):
+    def prep_image(self, fits_path, in_name=-1):
         """Load the fits file from disk and get a field or two"""
+        # self.load_curves()
         frame0, _, _, _, _ = self.load_first_fits_field(fits_path)
-        frame1, wave1, t_rec1, center1, int_time = self.load_a_fits_field(fits_path, -2)
+        frame1, wave1, t_rec1, center1, int_time = self.load_a_fits_field(fits_path, in_name)
         # frame1, wave1, t_rec1, center1, int_time = self.load_last_fits_field(fits_path)
         self.params.local_imgs_paths()
         self.original, self.changed = copy(frame0), copy(frame1)
@@ -81,7 +82,6 @@ class ImageProcessor(Processor):
         
     
     def make_directories(self):
-        self.load_curves()
         _, self.fits_save_path, _, _ = self.image_data
         self.png_save_path = self.fits_save_path.replace('fits', 'png')
         self.png_save_stem = self.png_save_path[:-4] + '{}' + ".png"
@@ -216,8 +216,8 @@ class ImageProcessor(Processor):
         if processed:
             # frame = self.changed #.astype(np.float16)
             frame = self.absqrt(self.changed, dtype=np.float32)
-            vmin = self.absolute_min # 0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(out_array))
-            vmax = self.absolute_max # 0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(out_array))
+            # vmin = self.absolute_min # 0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(out_array))
+            # vmax = self.absolute_max # 0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(out_array))
             # print("vin, vmax = ", vmin, vmax)
             ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None)
             ax.set_title(self.hdu_name_list[-1])#, vmin=vmin, vmax=vmax)
