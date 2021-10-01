@@ -72,6 +72,8 @@ class SRNpreProcessor(SRNProcessor):
         """Runs after all the images have been modified with do_work"""
         self.skipped -= 1
         self.save_curves()
+        self.make_smoothed_curves()  # Build smooth curves based on the statistics
+        self.save_curves()
         self.make_inner_outer_video()
         
     def make_inner_outer_video(self):

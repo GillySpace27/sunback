@@ -64,6 +64,7 @@ class Processor:
     paper_out = []
     
     def __init__(self, params=None, quick=False, rp=None):
+        self.found_limb_radius = None
         self.int_tm_tot = None
         self.fits_folder = None
         self.absolute_min = None
@@ -467,6 +468,7 @@ class Processor:
             hdul.verify('silentfix+ignore')  # Then Verify
             self.remove_blank_frames(hdul) # THis might not work
             fit_frame = fits.ImageHDU(frame, name=field)
+            # fit_frame = fit_frame.as_type(np.float32)
             if field not in hdul:
                 hdul.append(fit_frame)  # Write
             else:
@@ -516,7 +518,7 @@ class Processor:
             self.list_hdus(hdul)
             # self.in_name = self.find_correct_in_name(hdul)
             frame = self.load_single_frame(hdul, field)
-            wave, t_rec, center, int_time = self.get_fits_info(hdul)
+            wave, t_rec, center, int_time, self.found_limb_radius = self.get_fits_info(hdul)
             
         return frame, wave, t_rec, center, int_time
     
@@ -538,7 +540,7 @@ class Processor:
             print(e)
             return frame
         except TypeError as e:
-            print("Sum Subframes:: ", e)
+            print("load single frame:: ", e)
             return None
     
     def load_best_fits_field(self, fits_path):
@@ -547,7 +549,7 @@ class Processor:
             hdul.verify('silentfix+ignore')  # Verify
             self.list_hdus(hdul)
             self.set_hdul_in_name(hdul=hdul)
-            wave, t_rec, center, int_time = self.get_fits_info(hdul)
+            wave, t_rec, center, int_time, self.found_limb_radius = self.get_fits_info(hdul)
             frame = self.open_fits_hdul(hdul)
             # hdul.close()
         return frame, wave, t_rec, center, int_time
@@ -589,6 +591,9 @@ class Processor:
         if self.absolute_min:
             self.scalar_out_curve[1] = self.absolute_min
             self.scalar_out_curve[2] = self.absolute_max
+        if self.smooth_maximum is None:
+            self.smooth_maximum = np.empty_like(self.outer_min)
+            self.smooth_minimum = np.empty_like(self.outer_min)
         
         out_list = [self.outer_min, self.inner_min, self.inner_max, self.outer_max, self.scalar_out_curve]
         out_list.extend([self.output_abscissa, self.smooth_maximum, self.smooth_minimum])
@@ -727,11 +732,13 @@ class Processor:
                 t_rec = first_data_hdul.header['T_OBS']
                 center = [first_data_hdul.header['X0_MP'], first_data_hdul.header['Y0_MP']]
                 int_time = first_data_hdul.header['EXPTIME']
+                found_limb_radius = first_data_hdul.header['R_SUN']
+                
                 break
             except KeyError as e:
                 continue
         self.first_hIndex = ii
-        return wave, t_rec, center, int_time
+        return wave, t_rec, center, int_time, found_limb_radius
     
     def open_fits_hdul(self, hdul):
         """Load a fits file from disk"""

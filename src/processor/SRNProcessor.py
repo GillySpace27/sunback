@@ -45,7 +45,7 @@ class SRNProcessor(Processor):
     radius = None
     rad_flat = None
     bin_rez = None
-    found_limb_radius = 1600
+    found_limb_radius = None #1600
     
     rendered_abss = None
     norm_avg_max = None
@@ -158,7 +158,7 @@ class SRNProcessor(Processor):
         self.init_for_learn()
         self.bin_radially()  # Create a cloud of intesity values for each radial bin
         self.radial_statistics()  # Find mean and percentiles vs height
-        self.make_smoothed_curves()  # Build smooth curves based on the statistics
+        self.make_smoothed_curves()
         self.add_to_keyframes()  # Update the running curves
         
     
@@ -363,8 +363,9 @@ class SRNProcessor(Processor):
         ax.plot(rrarr, self.outer_min, zorder=3, lw=2, label="Out Min", c='b')
         ax.axvline(1)
         
-        ax.plot(self.n2r(self.output_abscissa), self.smooth_maximum, zorder=10, c="r",label="Smooth")
-        ax.plot(self.n2r(self.output_abscissa), self.smooth_minimum, zorder=10, c='r')
+        if self.smooth_maximum is not None:
+            ax.plot(self.n2r(self.output_abscissa), self.smooth_maximum, zorder=10, c="r",label="Smooth")
+            ax.plot(self.n2r(self.output_abscissa), self.smooth_minimum, zorder=10, c='r')
         
         skip = 500 #TODO Make this sample better, linear isn't appropriate because its a circle
         ax.scatter(self.n2r(self.rad_flat[::skip]), self.original.flatten()[::skip], c='k', s=2)
@@ -563,11 +564,6 @@ class SRNProcessor(Processor):
     def make_smoothed_curves(self):
         """Build the normalization arrays, treating the domain in 3 seperate regions"""
         
-        # Put the nans back in
-        # self.output_abscissa = np.arange(self.rez)
-        # self.frame_maximum = self.franken_max
-        # self.frame_minimum = self.franken_min
-        
         ## Parameters
         self.highCut = 0.8 * self.rez
         
@@ -588,7 +584,7 @@ class SRNProcessor(Processor):
         r1 = self.binAbss[np.argmax(self.binMean[near_limb]) + self.theMin]
         r2 = self.binAbss[np.argmax(self.binMax[near_limb]) + self.theMin]
         r3 = self.binAbss[np.argmax(self.binMed[near_limb]) + self.theMin]
-        Processor.found_limb_radius = self.found_limb_radius = int(np.mean([r1, r2, r3]))
+        # Processor.found_limb_radius = self.found_limb_radius = int(np.mean(self.header_radii))
         self.prep_save_outs()
         
         self.lCut = int(self.found_limb_radius - 0.01 * self.rez)
