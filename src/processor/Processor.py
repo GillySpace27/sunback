@@ -484,11 +484,9 @@ class Processor:
             ii = self.hdu_name_list.index(field)+1
             return hdul[0:ii]
         except ValueError as e:
-            print(e)
+            # print(e)
             return hdul
         
-        
-    
     def load_last_fits_field(self, fits_path):
         """Load a fits file from disk"""
         return self.load_a_fits_field(fits_path, -1)
@@ -499,17 +497,6 @@ class Processor:
         if fields[0] is None:
             fields = self.load_a_fits_field(fits_path, 1)
         return fields
-    
-    # def load_a_fits_attribute(self, fits_path, field=0):
-    #     """Load a fits file from disk"""
-    #     with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
-    #         hdul.verify('silentfix+ignore')  # Verify
-    #         try:
-    #             attr = hdul[field].data
-    #         except TypeError as e:
-    #             print(e)
-    #             attr = None
-    #     return attr
     
     def load_a_fits_field(self, fits_path, field=None):
         """Load a fits file from disk"""
@@ -591,15 +578,23 @@ class Processor:
         if self.absolute_min:
             self.scalar_out_curve[1] = self.absolute_min
             self.scalar_out_curve[2] = self.absolute_max
-        if self.smooth_maximum is None:
-            self.smooth_maximum = np.empty_like(self.outer_min)
-            self.smooth_minimum = np.empty_like(self.outer_min)
+        if self.filtered_inner_maximum is None:
+            self.filtered_outer_maximum = np.empty_like(self.outer_min)
+            self.filtered_inner_minimum = np.empty_like(self.outer_min)
+            self.filtered_inner_maximum = np.empty_like(self.outer_min)
+            self.filtered_outer_minimum = np.empty_like(self.outer_min)
         
         out_list = [self.outer_min, self.inner_min, self.inner_max, self.outer_max, self.scalar_out_curve]
-        out_list.extend([self.output_abscissa, self.smooth_maximum, self.smooth_minimum])
+        out_list.extend([self.output_abscissa, self.filtered_outer_maximum, self.filtered_inner_maximum,
+                         self.filtered_inner_minimum, self.filtered_outer_minimum])
+        self.curve_descriptions = ["outer_min", "inner_min", "inner_max", "outer_max",
+                     ["scalar_out_curve", "found_limb_radius", "abs_min", "abs_max"], "output_abscissa",
+                     "filtered_outer_maximum", "filtered_inner_maximum",
+                     "filtered_inner_minimum", "filtered_outer_minimum"]
+
+        
         none_check = [item is not None for item in out_list]
         self.do_save = np.all(none_check)
-        # print("do save: ", self.do_save)
         self.curve_out_array = np.asarray(out_list)
         return self.do_save
     
@@ -607,7 +602,8 @@ class Processor:
         """Prepare the scalar_out_curve for writing"""
         self.outer_min, self.inner_min, self.inner_max, \
         self.outer_max, self.scalar_in_curve, self.output_abscissa, \
-        self.smooth_maximum, self.smooth_minimum = np.loadtxt(self.params.curve_path())
+        self.filtered_outer_maximum, self.filtered_inner_maximum, \
+        self.filtered_inner_minimum, self.filtered_outer_minimum = np.loadtxt(self.params.curve_path())
         
         self.found_limb_radius = self.scalar_in_curve[0]
         self.absolute_min = self.scalar_in_curve[1]
@@ -617,8 +613,16 @@ class Processor:
         """Save the curves so they don't have to be recalculated"""
         self.super_flush()
         print(" *\n *    Saving Radial Curves...", end='')
-        if self.prep_save_outs(): #self.do_save:
-            np.savetxt(self.params.curve_path(), self.curve_out_array)
+        if self.prep_save_outs():
+            curve_path = self.params.curve_path()
+            descr_path = curve_path.replace("curve.txt", "curve_names.txt")
+            
+            with open(descr_path, mode='w') as fp:
+                for desc, item in zip(self.curve_descriptions, self.curve_out_array):
+                    len_item = str(len(item))
+                    # len_desc = str(len(desc))
+                    fp.write(str(desc) + " : len=" + len_item)
+            np.savetxt(curve_path, self.curve_out_array)
             print("Success!")
         else:
             print("Skipping Save Curves!")
@@ -640,7 +644,7 @@ class Processor:
                 try:
                     
                     self.unpack_save_ins()
-                    self.super_flush("Success!")
+                    self.super_flush("Success!\n")
                 
                 except ValueError as e:
                     print("Failed: {}".format(e))
@@ -723,7 +727,7 @@ class Processor:
     
     def get_fits_info(self, hdul):
         # Load the original out_array
-        wave, t_rec, center, int_time = None, None, None, None
+        wave, t_rec, center, int_time, found_limb_radius = None, None, None, None, None
         ii = 0
         for ii in range(len(hdul)):
             try:
@@ -732,7 +736,7 @@ class Processor:
                 t_rec = first_data_hdul.header['T_OBS']
                 center = [first_data_hdul.header['X0_MP'], first_data_hdul.header['Y0_MP']]
                 int_time = first_data_hdul.header['EXPTIME']
-                found_limb_radius = first_data_hdul.header['R_SUN']
+                found_limb_radius = first_data_hdul.header['R_SUN'] + 12 #TODO make this more real
                 
                 break
             except KeyError as e:

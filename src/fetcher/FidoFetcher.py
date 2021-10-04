@@ -14,22 +14,26 @@ from fetcher.Fetcher import Fetcher
 from utils.time_util import parse_time_string_to_local
 import astropy.units as u
 
-_verb = True
+
 import datetime
 from utils.time_util import define_time_range, define_recent_range
 
 default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
+global global_verb
+global_verb=False
 
-def vprint(in_string, verb=_verb, *args, **kwargs):
-    if verb:
+def vprint(in_string, verb=None, *args, **kwargs):
+    global global_verb
+    if verb is not None:
+        global_verb = verb
+    if FidoFetcher.verb or global_verb:
         print(in_string, *args, **kwargs)
-
 
 class FidoFetcher(Fetcher):
     """Gets some data"""
     description = "Get Fits Files from the Internet using Fido"
-    verb = _verb
+    verb = True
     filt_name = "Fido Fetcher"
     
     def __init__(self, params=None, quick=False, rp=None):

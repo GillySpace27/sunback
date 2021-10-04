@@ -45,7 +45,7 @@ class SRNProcessor(Processor):
     radius = None
     rad_flat = None
     bin_rez = None
-    found_limb_radius = None #1600
+    found_limb_radius = None  # 1600
     
     rendered_abss = None
     norm_avg_max = None
@@ -62,8 +62,19 @@ class SRNProcessor(Processor):
         super().__init__(params, quick, rp)
         # Parse Inputs
 
-        self.smooth_minimum = None
-        self.smooth_maximum = None
+        self.first = True
+        self.lCut = None
+        self.smooth_outer_maximum = None
+        self.smooth_inner_maximum = None
+        self.smooth_inner_minimum = None
+        self.smooth_outer_minimum = None
+        self.smoothed_frame_maximum = None
+        self.smoothed_frame_minimum = None
+        self.filtered_outer_maximum = None
+        self.filtered_inner_maximum = None
+        self.filtered_inner_minimum = None
+        self.filtered_outer_minimum = None
+        
         self.there_is_cached_data = False
         self.output_abscissa = None
         self.floor = 0.01
@@ -158,10 +169,8 @@ class SRNProcessor(Processor):
         self.init_for_learn()
         self.bin_radially()  # Create a cloud of intesity values for each radial bin
         self.radial_statistics()  # Find mean and percentiles vs height
-        self.make_smoothed_curves()
         self.add_to_keyframes()  # Update the running curves
-        
-    
+        self.make_smoothed_curves()
     
     def image_modify(self):
         """Perform the actual normalization on the input array"""
@@ -183,7 +192,6 @@ class SRNProcessor(Processor):
             self.init_running_curves()
         else:
             self.update_running_curves()
-        
     
     def update_keyframe_counters(self, n=1):
         """Keep track of how many items have been added to keyframes"""
@@ -205,6 +213,7 @@ class SRNProcessor(Processor):
     def init_for_modify(self):
         self.init_images()
         self.init_radius_array()
+
     
     def init_radius_array(self, vignette_radius=1.2, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
@@ -317,90 +326,140 @@ class SRNProcessor(Processor):
         self.norm_avg_min = self.avg_min / self.n_keyframes
         self.norm_avg_max = self.avg_max / self.n_keyframes
     
-    def raster_extrema_curves(self):
-        """Raster out the min/max curves from the rendered version"""
-        if self.norm_curve_min is None and self.outer_min is not None:
-            self.do_raster()
-            return True
-        return False
+    # def raster_extrema_curves(self):
+    #     """Raster out the min/max curves from the rendered version"""
+    #     if self.norm_curve_min is None and self.outer_min is not None:
+    #         self.do_raster()
+    #         return True
+    #     return False
     
     def do_raster(self):
         """make the normalization curves that reduce the data to the smaller range"""
         # Roadrunner
-        self.rastered_outer_max = np.squeeze(self.outer_max[self.binInds])
-        self.rastered_inner_max = np.squeeze(self.inner_max[self.binInds])
-        self.rastered_inner_min = np.squeeze(self.inner_min[self.binInds])
-        self.rastered_outer_min = np.squeeze(self.outer_min[self.binInds])
+        # self.rastered_outer_max = np.squeeze(self.outer_max[self.binInds])
+        # self.rastered_inner_max = np.squeeze(self.inner_max[self.binInds])
+        # self.rastered_inner_min = np.squeeze(self.inner_min[self.binInds])
+        # self.rastered_outer_min = np.squeeze(self.outer_min[self.binInds])
         
-        self.rastered_smooth_max = np.squeeze(self.smooth_maximum[self.binInds])
-        self.rastered_smooth_min = np.squeeze(self.smooth_minimum[self.binInds])
+        # self.norm_curve_max = np.squeeze(self.smooth_inner_maximum[self.binInds])
+        # self.norm_curve_min = np.squeeze(self.smooth_inner_minimum[self.binInds])
+        pass
         
-        self.norm_curve_max = self.rastered_smooth_max
-        self.norm_curve_min = self.rastered_smooth_min
-    
     def remove_offset(self):
         """Make sure everything is positive"""
-        self.changed   -= self.absolute_min
-        self.original  -= self.absolute_min
+        self.changed -= self.absolute_min
+        self.original -= self.absolute_min
         self.outer_max -= self.absolute_min
         self.inner_max -= self.absolute_min
         self.inner_min -= self.absolute_min
         self.outer_min -= self.absolute_min
     
-    
     def plot_inner_outer(self, show=False, save=True, fig=None, ax=None):
-        # Save the Image
+        """Look at the results of the algorithm"""
         if ax is None or fig is None:
             fig, ax = plt.subplots()
+            do_save = True
+        else:
+            do_save = False
+            
         plt.ioff()
         ax.set_title("Intensity as a function of radial distance: AIA_{}".format(self.params.current_wave()))
-        
-        # Plotting
+        ## Plotting ##
+        do_all = True
+        raw_alpha = 0.85
+        grey_alpha = 0.90
+    
         rrarr = self.n2r(np.arange(len(self.outer_max)))
-        ax.plot(rrarr, self.outer_max, zorder=4, lw=2, label="Out Max", c='orange')
-        ax.plot(rrarr, self.inner_max, zorder=5,  lw=2, label="In Max", c='gold')
-        ax.plot(rrarr, self.inner_min, zorder=6,  lw=2, label="In Min", c='cornflowerblue')
-        ax.plot(rrarr, self.outer_min, zorder=3, lw=2, label="Out Min", c='b')
+        # Plot Raw Curves
+        if do_all and self.outer_max is not None:
+            ax.plot(rrarr, self.outer_max, zorder=4, lw=2, label="Out Max", alpha=raw_alpha, c='orange')
+            ax.plot(rrarr, self.inner_max, zorder=5, lw=2, label="In Max",  alpha=raw_alpha, c='gold')
+            ax.plot(rrarr, self.inner_min, zorder=6, lw=2, label="In Min",  alpha=raw_alpha, c='cornflowerblue')
+            ax.plot(rrarr, self.outer_min, zorder=3, lw=2, label="Out Min", alpha=raw_alpha, c='b')
+    
+        # Plot Current Frame Curves
+        if do_all and self.frame_maximum is not None:
+            ax.plot(rrarr, self.frame_maximum,          zorder=8, lw=1,                     c='darkgrey', alpha=grey_alpha)
+            ax.plot(rrarr, self.frame_minimum,          zorder=7, lw=1, label="Frame",      c='darkgrey', alpha=grey_alpha)
+            ax.plot(rrarr, self.smoothed_frame_maximum, zorder=10,lw=1,                      c='darkslategrey', alpha=1)
+            ax.plot(rrarr, self.smoothed_frame_minimum, zorder=9, lw=1, label="Smo. Frame",  c='darkslategrey', alpha=1)
+
+        RRarr = self.n2r(self.output_abscissa)
+        # Plot Filtered Curves
+        if self.filtered_inner_maximum is not None:
+            ax.plot(RRarr, self.filtered_outer_maximum, zorder=103, c="r", label="Fltr. Out")
+            ax.plot(RRarr, self.filtered_inner_maximum, zorder=102, c='g', label="Fltr. Inn")
+            ax.plot(RRarr, self.filtered_inner_minimum, zorder=102, c="g", ls='--')
+            ax.plot(RRarr, self.filtered_outer_minimum, zorder=103, c='r', ls='--', )
+
+        # Plot Smoothed Curves
+        if self.smooth_inner_maximum is not None:
+            ax.plot(RRarr, self.smooth_outer_maximum, zorder=105, c="m", label="Sm. Out")
+            ax.plot(RRarr, self.smooth_inner_maximum, zorder=104, c='c', label="Sm. Inn")
+            ax.plot(RRarr, self.smooth_inner_minimum, zorder=104, c="c", ls='--')
+            ax.plot(RRarr, self.smooth_outer_minimum, zorder=105, c='m', ls='--', )
+    
+        # Vertical Lines
         ax.axvline(1)
-        
-        if self.smooth_maximum is not None:
-            ax.plot(self.n2r(self.output_abscissa), self.smooth_maximum, zorder=10, c="r",label="Smooth")
-            ax.plot(self.n2r(self.output_abscissa), self.smooth_minimum, zorder=10, c='r')
-        
-        skip = 500 #TODO Make this sample better, linear isn't appropriate because its a circle
+        if self.lCut is not None:
+            ax.axvline(self.n2r(self.lCut), ls=":")
+            ax.axvline(self.n2r(self.hCut), ls=":")
+    
+        # Plot Scatter Points
+        skip = 500  # TODO Make this sample better, linear isn't appropriate because its a circle
         ax.scatter(self.n2r(self.rad_flat[::skip]), self.original.flatten()[::skip], c='k', s=2)
-        
-        
-        #Plot Formatting
+    
+        ## Plot Formatting
         ax.set_ylabel("Intensity")
         ax.set_xlabel("Distrance from Sun Center")
         ax.set_yscale("symlog")
-        ax.set_ylim((-10**2, 10**4))
-        plt.legend(loc='lower left')
-        
-        self.force_save_inner_outer(save, fig, ax, show)
-        
-        
+        ax.set_ylim((-10 ** 1, 10 ** 4))
+        ax.legend(loc='lower left')
+    
+        # Plot Saving
+        if do_save:
+            self.force_save_inner_outer(save, fig, ax, show)
+    
     def force_save_inner_outer(self, save, fig, ax0, show):
         # Save Path Stuff
+
         if save:
             bs = self.params.base_directory()
             if save == "single":
                 folder_name = "norm_curves"
                 file_name_1 = '{}_keyframe.png'.format(self.params.current_wave())
+                file_name_2 = None
             else:
-                folder_name = "radial"
-                file_name_1 = 'keyframe_{}.png'.format(self.file_basename[:-5])
-            save_path_1 = join(bs, folder_name, file_name_1)
+                folder_name = "analysis"
+                fstring = self.file_basename[:-5]
+                file_name_1 = 'keyframe_{}.png'.format(fstring)
+                file_name_2 = 'zoom_{}.png'.format(fstring)
+                
+            save_path_1 = join(bs, folder_name, 'radial_hist', file_name_1)
+            save_path_2 = join(bs, folder_name, 'radial_hist', 'zoom', file_name_2)
+            
             makedirs(dirname(save_path_1), exist_ok=True)
+            makedirs(dirname(save_path_2), exist_ok=True)
+            fig.set_size_inches((20,10))
+            plt.tight_layout()
+
             while True:
                 try:
-                    plt.savefig(save_path_1, dpi=300)
+                    plt.savefig(save_path_1, dpi=150)
                     break
                 except OSError as e:
                     print("  !!!!!!! Close the Dang Plot!", end='')
                 print('.', end='')
-        
+                
+            plt.xlim((0.9, 1.1))
+            plt.ylim((10**1.5, 10**3.5))
+            while True:
+                try:
+                    plt.savefig(save_path_2, dpi=150)
+                    break
+                except OSError as e:
+                    print("  !!!!!!! Close the Dang Plot!", end='')
+                print('.', end='')
         
         # Show or not
         if not show:
@@ -411,7 +470,6 @@ class SRNProcessor(Processor):
     ###################################
     ## Normalization Curve Stuff ##
     ###################################
-    
     
     def bin_radially(self):  # TODO Make the save to fits work
         """Bin the intensities by radius """
@@ -425,22 +483,21 @@ class SRNProcessor(Processor):
                 self.load_cached_data(self.radBins)
         else:
             self.do_bin()
-            
-    def do_bin(self, skip=30): # Bin the intensities by radius
+    
+    def do_bin(self, skip=30):  # Bin the intensities by radius
         self.cut_pixels = skip
         for binI, dat in zip(self.binInds[::self.cut_pixels], self.original_flat[::self.cut_pixels]):
             self.radBins[binI].append(dat)
-        
+    
     def save_cached_data(self, radBins=None):
         if radBins is not None:
             self.radBins = radBins
         self.save_frame_to_fits_file(fits_path=self.fits_path, frame=np.asarray(self.radBins), out_name='radBins')
         pass
-     
+    
     def load_cached_data(self, in_name='radBins'):
         self.load_a_fits_attribute(fits_path=self.fits_path, field='radBins')
         pass
-    
     
     def radial_statistics(self):  # TODO Make this much faster
         """ Find the statistics in each radial bin"""
@@ -452,7 +509,7 @@ class SRNProcessor(Processor):
         """Do statistics on a given bin"""
         bin_array = self.get_bin_items(bin_list)
         if len(bin_array) > 0:
-            self.binMax[ii] = np.percentile(bin_array, 98)  # np.nanmax(subItems)
+            self.binMax[ii] = np.percentile(bin_array, 96)  # np.nanmax(subItems)
             self.binMin[ii] = np.percentile(bin_array, 2)  # np.min(subItems)
             self.binMean[ii] = np.mean(bin_array)
             self.binMed[ii] = np.median(bin_array)
@@ -474,188 +531,141 @@ class SRNProcessor(Processor):
         self.frame_minimum[n_index] = self.binMin[idx]
         self.frame_mean[n_index] = self.binMean[idx]
         self.frame_med[n_index] = self.binMed[idx]
+    
+        self.smoothed_frame_minimum = savgol_filter(self.frame_minimum, 21, 3, mode='nearest')
+        self.smoothed_frame_maximum = savgol_filter(self.frame_maximum, 21, 3, mode='nearest')
 
-    
-    def make_curves(self):
-        """Build the normalization arrays, treating the domain in 3 seperate regions"""
-        
-        ## Parameters
-        self.highCut = 0.8 * self.rez
-        
-        # Savgol window size
-        lWindow = 7  # 4 * self.extra_rez + 1
-        mWindow = 7  # 4 * self.extra_rez + 1
-        hWindow = 51  # 30 * self.extra_rez + 1
-        fWindow = 7  # int(3 * self.extra_rez) + 51
-        rank = 3
-        
-        ## Algorithm
-        # Locate the Limb
-        self.theMin = int(0.30 * self.rez)
-        self.theMax = int(0.45 * self.rez)
-        near_limb = np.arange(self.theMin, self.theMax)
-        
-        # Split the domain into three regions and treat seperately
-        r1 = self.binAbss[np.argmax(self.binMean[near_limb]) + self.theMin]
-        r2 = self.binAbss[np.argmax(self.binMax[near_limb]) + self.theMin]
-        r3 = self.binAbss[np.argmax(self.binMed[near_limb]) + self.theMin]
-        Processor.found_limb_radius = self.found_limb_radius = int(np.mean([r1, r2, r3]))
-        self.prep_save_outs()
-        
-        self.lCut = int(self.found_limb_radius - 0.01 * self.rez)
-        self.hCut = int(self.found_limb_radius + 0.01 * self.rez)
-        
-        # Split into three regions
-        self.low_abs = self.binAbss[:self.lCut]
-        self.low_max = self.binMax[:self.lCut]
-        self.low_min = self.binMin[:self.lCut]
-        
-        self.mid_abs = self.binAbss[self.lCut:self.hCut]
-        self.mid_max = self.binMax[self.lCut:self.hCut]
-        self.mid_min = self.binMin[self.lCut:self.hCut]
-        
-        self.high_abs = self.binAbss[self.hCut:]
-        self.high_max = self.binMax[self.hCut:]
-        self.high_min = self.binMin[self.hCut:]
-        
-        # Filter the regions separately
-        mode = 'nearest'
-        
-        self.low_max_filt = savgol_filter(self.low_max, lWindow, rank, mode=mode)
-        self.mid_max_filt = savgol_filter(self.mid_max, mWindow, rank, mode=mode)
-        self.high_max_filt = savgol_filter(self.high_max, hWindow, rank, mode=mode)
-        
-        self.low_min_filt = savgol_filter(self.low_min, lWindow, rank, mode=mode)
-        self.mid_min_filt = savgol_filter(self.mid_min, mWindow, rank, mode=mode)
-        self.high_min_filt = savgol_filter(self.high_min, hWindow, rank, mode=mode)
-        
-        # Fit the lowest region with a polynomial to make it much smoother
-        degree = 5
-        p = np.polyfit(self.low_abs, self.low_max_filt, degree)
-        self.low_max_fit = np.polyval(p, self.low_abs)  # * 1.1
-        p = np.polyfit(self.low_abs, self.low_min_filt, degree)
-        self.low_min_fit = np.polyval(p, self.low_abs)
-        
-        ind = 10
-        self.low_max_fit[0:ind] = self.low_max_fit[ind]
-        self.low_min_fit[0:ind] = self.low_min_fit[ind]
-        
-        # Build output curves - max and min as a function of radius
-        self.franken_abscissa = np.hstack((self.low_abs, self.mid_abs, self.high_abs))
-        self.franken_max = np.hstack((self.low_max_fit, self.mid_max_filt, self.high_max_filt))
-        self.franken_min = np.hstack((self.low_min_fit, self.mid_min_filt, self.high_min_filt))
-        
-        # Filter again to smooth boundaraies
-        self.franken_max = self.fill_end(self.fill_start(savgol_filter(self.franken_max, fWindow, rank)))
-        self.franken_min = self.fill_end(self.fill_start(savgol_filter(self.franken_min, fWindow, rank)))
-        
-        # Put the nans back in
-        self.output_abscissa = np.arange(self.rez)
-        self.frame_maximum[self.franken_abscissa] = self.franken_max
-        self.frame_minimum[self.franken_abscissa] = self.franken_min
-        pass
-        
-        # self.plot_radial_norm_keyframes(do=True, show=True, save=False, get_normed=False)
-        
-        # plt.plot(np.arange(self.rez), self.frame_maximum)
-        # plt.plot(np.arange(self.rez), self.frame_minimum)
-        # plt.show()
-    
     def make_smoothed_curves(self):
         """Build the normalization arrays, treating the domain in 3 seperate regions"""
         
-        ## Parameters
-        self.highCut = 0.8 * self.rez
-        
-        # Savgol window size
-        lWindow = 7  # 4 * self.extra_rez + 1
-        mWindow = 7  # 4 * self.extra_rez + 1
-        hWindow = 51  # 30 * self.extra_rez + 1
-        fWindow = 7  # int(3 * self.extra_rez) + 1
-        rank = 3
-        
-        ## Algorithm
-        # Locate the Limb
-        self.theMin = int(0.30 * self.rez)
-        self.theMax = int(0.45 * self.rez)
-        near_limb = np.arange(self.theMin, self.theMax)
-        
-        # Split the domain into three regions and treat seperately
-        r1 = self.binAbss[np.argmax(self.binMean[near_limb]) + self.theMin]
-        r2 = self.binAbss[np.argmax(self.binMax[near_limb]) + self.theMin]
-        r3 = self.binAbss[np.argmax(self.binMed[near_limb]) + self.theMin]
-        # Processor.found_limb_radius = self.found_limb_radius = int(np.mean(self.header_radii))
+        self.split_into_three_regions()
+        self.filter_three_regions()
+        self.concatinate_filtered_regions()
+        self.render_smooth_curves()
         self.prep_save_outs()
-        
+    
+    def split_into_three_regions(self):
+        # Split the domain into three regions
         self.lCut = int(self.found_limb_radius - 0.01 * self.rez)
         self.hCut = int(self.found_limb_radius + 0.01 * self.rez)
         
+        if self.frame_abss is None:
+            self.frame_abss = np.arange(self.rez)
+        abss = self.frame_abss
+        use_max = self.outer_max + 0
+        use_min = self.outer_min + 0
+        
         # Split into three regions
-        self.low_abs = self.binAbss[:self.lCut]
-        self.low_max = self.binMax[:self.lCut]
-        self.low_min = self.binMin[:self.lCut]
+        self.outer_low_abs = abss[:self.lCut]
+        self.outer_low_max = use_max[:self.lCut]
+        self.outer_low_min = use_min[:self.lCut]
         
-        self.mid_abs = self.binAbss[self.lCut:self.hCut]
-        self.mid_max = self.binMax[self.lCut:self.hCut]
-        self.mid_min = self.binMin[self.lCut:self.hCut]
+        self.outer_mid_abs = abss[self.lCut:self.hCut]
+        self.outer_mid_max = use_max[self.lCut:self.hCut]
+        self.outer_mid_min = use_min[self.lCut:self.hCut]
         
-        self.high_abs = self.binAbss[self.hCut:]
-        self.high_max = self.binMax[self.hCut:]
-        self.high_min = self.binMin[self.hCut:]
+        self.outer_high_abs = abss[self.hCut:]
+        self.outer_high_max = use_max[self.hCut:]
+        self.outer_high_min = use_min[self.hCut:]
         
-        # Filter the regions separately
+        abss = self.frame_abss
+        use_max = self.inner_max + 0
+        use_min = self.inner_min + 0
+        
+        # Split into three regions
+        self.inner_low_abs = abss[:self.lCut]
+        self.inner_low_max = use_max[:self.lCut]
+        self.inner_low_min = use_min[:self.lCut]
+        
+        self.inner_mid_abs = abss[self.lCut:self.hCut]
+        self.inner_mid_max = use_max[self.lCut:self.hCut]
+        self.inner_mid_min = use_min[self.lCut:self.hCut]
+        
+        self.inner_high_abs = abss[self.hCut:]
+        self.inner_high_max = use_max[self.hCut:]
+        self.inner_high_min = use_min[self.hCut:]
+    
+    def filter_three_regions(self):
+        ### Filter the regions separately
         mode = 'nearest'
         
-        self.low_max_filt = savgol_filter(self.low_max, lWindow, rank, mode=mode)
-        self.mid_max_filt = savgol_filter(self.mid_max, mWindow, rank, mode=mode)
-        self.high_max_filt = savgol_filter(self.high_max, hWindow, rank, mode=mode)
+        # Savgol windows
+        lWindow = 51  # 4 * self.extra_rez + 1
+        ln = 6
+        mWindow = 11  # 4 * self.extra_rez + 1
+        mn = 3
+        hWindow = 41  # 30 * self.extra_rez + 1
+        hn = 2
         
-        self.low_min_filt = savgol_filter(self.low_min, lWindow, rank, mode=mode)
-        self.mid_min_filt = savgol_filter(self.mid_min, mWindow, rank, mode=mode)
-        self.high_min_filt = savgol_filter(self.high_min, hWindow, rank, mode=mode)
+        rank = 3
+        
+        # Max Curve
+        for i in range(ln):
+            try:
+                self.outer_low_max  = savgol_filter(self.outer_low_max,  lWindow, rank, mode=mode)
+                self.inner_low_max  = savgol_filter(self.inner_low_max,  lWindow, rank, mode=mode)
+                self.inner_low_min  = savgol_filter(self.inner_low_min,  lWindow, rank, mode=mode)
+                self.outer_low_min  = savgol_filter(self.outer_low_min,  lWindow, rank, mode=mode)
+            except np.linalg.LinAlgError as e:
+                print("\n filter:three:regions::")
+                print(e)
+        
+        for i in range(mn):
+            try:
+                self.outer_mid_max  = savgol_filter(self.outer_mid_max,  mWindow, rank, mode=mode)
+                self.inner_mid_max  = savgol_filter(self.inner_mid_max,  mWindow, rank, mode=mode)
+                self.inner_mid_min  = savgol_filter(self.inner_mid_min,  mWindow, rank, mode=mode)
+                self.outer_mid_min  = savgol_filter(self.outer_mid_min,  mWindow, rank, mode=mode)
+            except np.linalg.LinAlgError as e:
+                print("\n filter:three:regions::")
+                print(e)
+        for i in range(hn):
+            try:
+                self.outer_high_max = savgol_filter(self.outer_high_max, hWindow, rank, mode=mode)
+                self.inner_high_max = savgol_filter(self.inner_high_max, hWindow, rank, mode=mode)
+                self.inner_high_min = savgol_filter(self.inner_high_min, hWindow, rank, mode=mode)
+                self.outer_high_min = savgol_filter(self.outer_high_min, hWindow, rank, mode=mode)
+            except np.linalg.LinAlgError as e:
+                print("\n filter:three:regions::")
+                print(e)
+
+        
+    def concatinate_filtered_regions(self):
+        # Concatinate filtered curves
+        self.output_abscissa        = np.hstack((self.inner_low_abs     , self.inner_mid_abs     , self.inner_high_abs))
+        self.filtered_outer_maximum = np.hstack((self.outer_low_max, self.outer_mid_max, self.outer_high_max))
+        self.filtered_inner_maximum = np.hstack((self.inner_low_max, self.inner_mid_max, self.inner_high_max))
+        self.filtered_inner_minimum = np.hstack((self.inner_low_min, self.inner_mid_min, self.inner_high_min))
+        self.filtered_outer_minimum = np.hstack((self.outer_low_min, self.outer_mid_min, self.outer_high_min))
+    
+    def render_smooth_curves(self):
         
         # Fit the lowest region with a polynomial to make it much smoother
+
         # degree = 5
         # p = np.polyfit(self.low_abs, self.low_max_filt, degree)
         # self.low_max_fit = np.polyval(p, self.low_abs)  # * 1.1
         # p = np.polyfit(self.low_abs, self.low_min_filt, degree)
         # self.low_min_fit = np.polyval(p, self.low_abs)
         
-        self.low_max_fit = self.low_max_filt
-        self.low_min_fit = self.low_min_filt
+        self.smooth_outer_maximum = self.filtered_outer_maximum + 0
+        self.smooth_inner_maximum = self.filtered_inner_maximum + 0
+        self.smooth_inner_minimum = self.filtered_inner_minimum + 0
+        self.smooth_outer_minimum = self.filtered_outer_minimum + 0
         
-        ind = 25
-        self.low_max_fit[0:ind] = self.low_max_fit[ind]
-        self.low_min_fit[0:ind] = self.low_min_fit[ind]
+        # Flatten out the edges
+        ind = 200
+        self.smooth_outer_maximum[0:ind] = self.filtered_outer_maximum[ind]
+        self.smooth_inner_maximum[0:ind] = self.filtered_inner_maximum[ind]
+        self.smooth_inner_minimum[0:ind] = self.filtered_inner_minimum[ind]
+        self.smooth_outer_minimum[0:ind] = self.filtered_outer_minimum[ind]
         
-        # Build output curves - max and min as a function of radius
-        self.franken_abscissa = np.hstack((self.low_abs, self.mid_abs, self.high_abs))
-        self.franken_max = np.hstack((self.low_max_fit, self.mid_max_filt, self.high_max_filt))
-        self.franken_min = np.hstack((self.low_min_fit, self.mid_min_filt, self.high_min_filt))
         
-        # Filter again to smooth boundaraies
-        # self.franken_max = self.fill_end(self.fill_start(savgol_filter(self.franken_max, fWindow, rank)))
-        # self.franken_min = self.fill_end(self.fill_start(savgol_filter(self.franken_min, fWindow, rank)))
-        
-        # Put data where there is data
-        self.output_abscissa = np.arange(self.rez)
-        self.smooth_maximum = np.empty_like(self.output_abscissa, dtype=np.float32)
-        self.smooth_minimum = np.empty_like(self.output_abscissa, dtype=np.float32)
-        self.smooth_maximum.fill(np.nan)
-        self.smooth_minimum.fill(np.nan)
-        self.smooth_maximum[self.franken_abscissa] = self.franken_max
-        self.smooth_minimum[self.franken_abscissa] = self.franken_min
-        
-        # self.plot_radial_norm_keyframes(do=True, show=True, save=False, get_normed=False)
-        
-        # plt.plot(np.arange(self.rez), self.smooth_maximum)
-        # plt.plot(np.arange(self.rez), self.smooth_minimum)
-        # plt.show()
-        #
-    
-    
+        self.norm_curve_outer_max = np.squeeze(self.smooth_outer_maximum[self.binInds])
+        self.norm_curve_inner_max = np.squeeze(self.smooth_inner_maximum[self.binInds])
+        self.norm_curve_inner_min = np.squeeze(self.smooth_inner_minimum[self.binInds])
+        self.norm_curve_outer_min = np.squeeze(self.smooth_outer_minimum[self.binInds])
 
-                
     ####################################
     ## Image Reduction Algorithms ##
     ####################################
@@ -665,19 +675,31 @@ class SRNProcessor(Processor):
         # Collect Arrays
         self.init_images(changed)
         
+        # Make Curves
+        self.make_smoothed_curves()
+        
         # Normalize Them
         self.execute_norm()
     
     def execute_norm(self):
         """Apply the Normalization to the Image Array"""
-        if self.raster_extrema_curves():
-            with warnings.catch_warnings():
-                warnings.filterwarnings('error')
-                try:
-                    # Standard Normalization Formula
-                    self.changed_flat = self.norm_formula(self.changed_flat, self.norm_curve_min, self.norm_curve_max)
-                except RuntimeWarning as e:
-                    print(e)
+        # self.norm_curve_outer_max
+        # self.norm_curve_inner_max
+        # self.norm_curve_inner_min
+        # self.norm_curve_outer_min
+        
+        self.norm_curve_max = self.norm_curve_outer_max
+        self.norm_curve_min = self.norm_curve_inner_min
+        
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error')
+            try:
+                # Standard Normalization Formula
+                self.changed_flat = self.norm_formula(self.original.flatten(), self.norm_curve_min, self.norm_curve_max)
+                self.changed = self.changed_flat.reshape(self.changed.shape).astype('float32')
+                
+            except RuntimeWarning as e:
+                print(e)
     
     def coronagraph_touchup(self):
         """Deal with pixel outliers. Lots of adjustable parameters in here"""
@@ -705,9 +727,7 @@ class SRNProcessor(Processor):
         self.mirror_output()
         
         # Un-Flatten the Array
-        self.changed = self.changed_flat.reshape(self.changed.shape)
-        self.changed = np.sign(self.changed) * np.power(np.abs(self.changed), (1 / 5))
-        self.changed = self.changed.astype('float32')
+        # self.changed = np.sign(self.changed) * np.power(np.abs(self.changed), (1 / 5))
     
     def mask_output(self, do_mask=None):
         """Allows you to only show sub-sections of the in_object as reduced images"""
@@ -823,183 +843,59 @@ class SRNProcessor(Processor):
     ## Plotting Stuff ##
     ########################
     
-    # def plot_all(self, do=True):
-    #     # self.plot_curves_2(do, False)
-    #     # self.plot_curves(do, False)
-    #     self.plot_radial_norm_keyframes(do, False)
-    #     # self.SRNPlot()
-    #     pass
-    #     # plt.show()
     
-    def plot_curves_2(self, do=True, show=False):
-        if not do: return
-        
-        fig, ax = plt.subplots()
-        ax.set_title("Plot Curves 2")
-        
-        # Plot the filtered curves
-        ax.plot(self.low_abs, self.low_max_filt, lw=4)
-        ax.plot(self.mid_abs, self.mid_max_filt, lw=4)
-        ax.plot(self.high_abs, self.high_max_filt, lw=4)
-        
-        ax.plot(self.binAbss, self.binMax, label="Max")
-        
-        ax.plot(self.low_abs, self.low_min_filt, lw=4)
-        ax.plot(self.mid_abs, self.mid_min_filt, lw=4)
-        ax.plot(self.high_abs, self.high_min_filt, lw=4)
-        
-        ax.plot(self.binAbss, self.binMin, label="Min")
-        
-        ax.plot(self.low_abs, self.low_min_fit, c='k')
-        ax.plot(self.low_abs, self.low_max_fit, c='k')
-        
-        ax.plot(self.output_abscissa, self.franken_max, label="FinalMax", lw=5)
-        ax.plot(self.output_abscissa, self.franken_min, label="FinalMin", lw=5)
-        
-        # plt.plot(self.binAbss, self.binMean, label="Mid")
-        # plt.plot(self.binAbss, self.binMed, label="Med")
-        
-        # plt.xlim([0.6*theMin,theMax*1.5])
-        
-        ax.legend()
-        if show: plt.show()
-    
-    def plot_curves(self, do=False, show=False):
-        """Plot the radial statistics from the binned array"""
-        if not do: return
-        
-        fig, ax = plt.subplots()
-        ax.set_title("Plot Curves")
-        
-        ax.plot(self.binAbss, self.binMax, label="Max")
-        ax.plot(self.binAbss, self.binMin, label="Min")
-        ax.plot(self.binAbss, self.binMean, label="Mid")
-        ax.plot(self.binAbss, self.binMed, label="Med")
-        
-        ax.axvline(self.theMin)
-        ax.axvline(self.theMax)
-        
-        ax.axvline(self.found_limb_radius)
-        ax.axvline(self.lCut, ls=':')
-        ax.axvline(self.hCut, ls=':')
-        ax.set_xlim([self.lCut, self.hCut])
-        ax.legend()
-        if show:
-            ax.show()
-    
-    def plot_radial_norm_keyframes(self, do=False, show=False, save=True, get_normed=False):
+    def plot_radial_norm_keyframes(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
             overlaid with the norm curves as determined elsewhere"""
         if not do:
             return
+        if self.first:
+            self.first = False
+            return
+    
+        # self.output_abscissa
         dprint("plot_radial_norm_keyframes")
         # Init the Plots
-        fig, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
-        
+        fig, (ax0, ax1) = plt.subplots(2, 1, sharex="all")
+    
+        ## Plot 0
+        self.render_smooth_curves()
         self.plot_inner_outer(fig=fig, ax=ax0, save=False)
-        
-        
-        ## Plot the extrema curves
-        # self.output_abscissa = np.arange(self.rez)
-        # ax0.plot(self.n2r(self.output_abscissa), self.outer_max, label="OuterMax", lw=3, c='orange')
-        # ax0.plot(self.n2r(self.output_abscissa), self.inner_max, label="InnerMax", lw=3, c='gold')
-        # ax0.plot(self.n2r(self.output_abscissa), self.inner_min, label="InnerMin", lw=3, c='cornflowerblue')
-        # ax0.plot(self.n2r(self.output_abscissa), self.outer_min, label="OuterMin", lw=3, c='b')
-        # ax0.axvspan(self.n2r(self.found_limb_radius), ls='-', label="Limb")
-        #
-        # try:
-        #     ## Vertical Lines
-        #     ax0.axvline(self.n2r(self.lCut), ls=':')
-        #     ax0.axvline(self.n2r(self.hCut), ls=':')
-        #
-        #     # ax.axvline(self.n2r(self.noise_radii), c='r', ls='--', label="Scope Edge")
-        #     # ax0.axvline(self.n2r(self.highCut))
-        # except Exception as e:
-        #     print("SRNProc1::", e)
-        #     # raise e
-        
-        ## Scatter Plot the intensities
-        # skip = 50
-        # ax0.scatter(self.n2r(self.rad_flat[::skip]), self.original.flatten()[::skip], c='k', s=2)
-        #
-        if False:  # get_normed and self.changed.flatten() is None:
-            self.image_modify()
-            # if self.changed_flat is not None:
-            ax1.scatter(self.n2r(self.rad_flat[::10]), self.changed.flatten()[::10], c='k', s=2)
-        
-        ## Plot Formatting
+    
+        ## Plot 1
+        skip = 500
+        ax1.scatter(self.n2r(self.rad_flat[::skip]), self.changed.flatten()[::skip], c='k', s=2)
+        ax1.axhline(2)
+        ax1.axhline(1)
+        ax1.axhline(0)
+    
+        ## Plot 0 Formatting
         ax0.set_title("Plot Stats")
-        ax0.set_ylim((10 ** -2, 10 ** 4))
-        ax0.legend()
+        ax0.set_ylim((10 ** -1, 10 ** 4))
+        ax0.set_xlim((0, 1.6))
+        # ax0.legend()
         ax0.set_yscale('symlog')
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
-        
-        # ax1.legend()
-        ax1.axhline(1)
-        ax1.axhline(0.05)
+    
+        ## Plot 1 Formatting
         ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
         ax1.set_ylabel(r"Normalized Intensity")
-        ax1.set_yscale('symlog')
-        ax1.set_ylim((10 ** -2, 10 ** 2.5))
         
-        plt.tight_layout()
+        ax1.set_yscale("symlog")
+        ax1.set_ylim((-0.5, 25))
+    
         fig.set_size_inches(8, 12)
-        
+        plt.tight_layout()
+        # plt.show(block=True)
+    
         self.force_save_radial_figures(save, fig, ax0, show)
-        
-        # ax.axvline(self.tRadius, c='r')
-        #
-        # plt.plot(self.diff_max_abs + 0.5, self.diff_max, 'r')
-        # plt.plot(self.binAbss[:-1] + 0.5, self.diff_mean, 'r:')
-        #
-        # # Norm Curves
-        #
-        # ax0.plot(self.n2r(self.low_abs), self.low_max, 'm', label="low_min/max")
-        # ax0.plot(self.n2r(self.low_abs), self.low_min, 'm', label="")
-        # # plt.plot(self.low_abs, self.low_max_fit, 'r')
-        # # plt.plot(self.low_abs, self.low_min_fit, 'r')
-        #
-        # ax0.plot(self.n2r(self.high_abs), self.high_max, 'c', label="high_min/max")
-        # ax0.plot(self.n2r(self.high_abs), self.high_min, 'c', label="")
-        #
-        # ax0.plot(self.n2r(self.mid_abs), self.mid_max, 'y', label="mid_min/max")
-        # ax0.plot(self.n2r(self.mid_abs), self.mid_min, 'y', label="")
-        # plt.plot(self.high_abs, self.high_min_fit, 'r')
-        # plt.plot(self.high_abs, self.high_max_fit, 'r')
-        #
-        # try:
-        #     ax0.plot(self.n2r(self.rendered_abss), self.outer_min, label="FinalMax", lw=4, c='blue')
-        #     ax0.plot(self.n2r(self.rendered_abss), self.outer_max, label="FinalMin", lw=4, c='orange')
-        # except Exception as e:
-        #     print("SRNProc2::", e)
-        #     # raise e
-        #
-        # try:
-        #     ax1.plot(self.n2r(self.output_abscissa), self.frame_maximum, 'g', label="Smoothed")
-        #     ax1.plot(self.n2r(self.output_abscissa), self.frame_minimum, 'g')
-        # except:
-        #     ax1.plot(self.n2r(self.binAbss), self.frame_maximum, 'g', label="Smoothed")
-        #     ax1.plot(self.n2r(self.binAbss), self.frame_minimum, 'g')
-        #
-        # ax1.plot(binAbss, binMax, 'c')
-        # ax1.plot(self.n2r(self.binAbss), self.binMin, 'm')
-        # ax1.plot(self.n2r(self.binAbss), self.binMean, 'y')
-        # ax1.plot(self.n2r(self.binAbss), self.binMax, 'b')
-        # ax1.plot(binAbss, binMed, 'r')
-        # ax1.plot(binAbss, frame_minimum, 'r')
-        # ax1.set_ylim((-0.5, 2))
-        # ax1.xlim((380* self.extra_rez ,(380+50)* self.extra_rez ))
-        # ax1.set_xlim((0, self.n2r(self.highCut)))
-        #
-        # ax1.axhline(self.vmax, c='r', label='Confinement')
-        # ax1.axhline(self.vmin, c='r')
-        # ax1.axhline(self.vmax_plot, c='orange', label='Plot Range')
-        # ax1.axhline(self.vmin_plot, c='orange')
-        #
+    
+    
         # locs = np.arange(self.rez)[::int(self.rez/5)]
         # ax1.set_xticks(locs)
         # ax1.set_xticklabels(self.n2r(locs))
-        
+        # ax.axvline(self.tRadius, c='r')
+    
         return True
     
     def force_save_radial_figures(self, save, fig, ax0, show):
@@ -1020,10 +916,11 @@ class SRNProcessor(Processor):
         if not do: return
         # print("Saving {}".format(file_name_1))
         bs = self.params.base_directory()
-        folder_name = "radial"
-        file_name_1 = 'Radial_{}.png'.format(self.file_basename[:-5])
+        folder_name = "analysis\\radial_hist_full"
+        file_name_1 = 'full_{}.png'.format(self.file_basename[:-5])
         save_path_1 = join(bs, folder_name, file_name_1)
-        file_name_2 = 'zoom\\Radial_zoom_{}.png'.format(self.file_basename[:-5])
+        
+        file_name_2 = 'zoom\\full_zoom_{}.png'.format(self.file_basename[:-5])
         save_path_2 = join(bs, folder_name, file_name_2)
         
         makedirs(dirname(save_path_1), exist_ok=True)
@@ -1053,134 +950,7 @@ class SRNProcessor(Processor):
         
         out = np.array((xBox, yBox))
         return out
-        # return np.asarray(np.concatinate(xBox, yBox))
-    
-    # def SRNPlot(self):
-    #     if self.outer_min is None:
-    #         self.load_curves()
-    #
-    #     fig, (ax0) = plt.subplots(1, 1, "all")
-    #     ax0.set_title("Plot Stats")
-    #
-    #     # scat = ax0.scatter(*self.get_points(0), c='k', s=2)
-    #
-    #     # ax0.scatter(self.n2r(self.rad_flat[::skip]), self.radBins_all[::skip], c='k', s=2)
-    #
-    #     ## Straight Lines
-    #     ax0.axvline(self.n2r(self.found_limb_radius), ls='--', label="Limb")
-    #     # ax.axvline(self.n2r(self.noise_radii), c='r', ls='--', label="Scope Edge")
-    #     ax0.axvline(self.n2r(self.lCut), ls=':')
-    #     ax0.axvline(self.n2r(self.hCut), ls=':')
-    #     # ax.axvline(self.tRadius, c='r')
-    #     ax0.axvline(self.n2r(self.highCut))
-    #
-    #     # plt.plot()
-    #     maxline = ax0.plot(self.rendered_abss, self.rendered_max_box[0], label="AvgMax", lw=5, c='g', zorder=10)[0]
-    #     minline = ax0.plot(self.rendered_abss, self.rendered_min_box[0], label="AvgMin", lw=5, c='g', zorder=10)[0]
-    #
-    #     thisMax = ax0.plot(self.rendered_abss, self.rendered_max_box[0], label="ThisMax", lw=1, c='k', zorder=0)[0]
-    #     thisMin = ax0.plot(self.rendered_abss, self.rendered_min_box[0], label="ThisMin", lw=1, c='k', zorder=0)[0]
-    #
-    #     # try:
-    #     #     ax.plot(self.n2r(self.output_abscissa), self.frame_maximum, 'g', label="Smoothed")
-    #     #     ax.plot(self.n2r(self.output_abscissa), self.frame_minimum, 'g')
-    #     # except:
-    #     #     ax.plot(self.n2r(self.binAbss), self.frame_maximum, 'g', label="Smoothed")
-    #     #     ax.plot(self.n2r(self.binAbss), self.frame_minimum, 'g')
-    #
-    #     # plt.plot(binAbss, binMax, 'c')
-    #     # plt.plot(self.binAbss, self.binMin, 'm')
-    #     # plt.plot(self.binAbss, self.binMean, 'y')
-    #     # plt.plot(binAbss, binMed, 'r')
-    #     # plt.plot(self.binAbss, self.binMax, 'b')
-    #     # plt.plot(binAbss, frame_minimum, 'r')
-    #     # plt.ylim((-100, 10**3))
-    #     # plt.xlim((380* self.extra_rez ,(380+50)* self.extra_rez ))
-    #     # ax.set_xlim((0, self.n2r(self.highCut)))
-    #     # ax0.legend()
-    #     # fig.set_size_inches((8, 12))
-    #     ax0.set_yscale('log')
-    #
-    #     # ax1.scatter(self.n2r(self.rad_flat[::10]), self.changed_flat[::10], c='k', s=2)
-    #     # ax1.set_ylim((-0.25, 2))
-    #     #
-    #     # # ax1.axhline(self.vmax, c='r', label='Confinement')
-    #     # # ax1.axhline(self.vmin, c='r')
-    #     # # ax1.axhline(self.vmax_plot, c='orange', label='Plot Range')
-    #     # # ax1.axhline(self.vmin_plot, c='orange')
-    #     #
-    #     # # locs = np.arange(self.rez)[::int(self.rez/5)]
-    #     # # ax1.set_xticks(locs)
-    #     # # ax1.set_xticklabels(self.n2r(locs))
-    #     #
-    #     # ax1.legend()
-    #     # ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
-    #     # ax1.set_ylabel(r"Normalized Intensity")
-    #     ax0.set_ylabel(r"Absolute Intensity (Counts)")
-    #
-    #     plt.tight_layout()
-    #
-    #     # plt.show(block=True)
-    #
-    #     def init():
-    #
-    #         maxline.set_ydata(self.rendered_max_box[0])
-    #         minline.set_ydata(self.rendered_min_box[0])
-    #         thisMax.set_ydata(self.rendered_max_box[0])
-    #         thisMin.set_ydata(self.rendered_min_box[0])
-    #
-    #         # scat.set_offsets(self.get_points(0))
-    #
-    #         # tit.set_text("Time: {}".format(self.lastIndex))
-    #         # tit2.set_text("Time: {}".format(self.lastIndex))
-    #         # tickerLine.set_ydata(self.lastIndex)
-    #         # quad.set_array(self.slideArray[self.lastIndex][:-1, :-1].flatten())
-    #         # line1.set_xdata(self.slideCents[self.lastIndex])
-    #         # line9.set_ydata(self.lineArray[self.lastIndex])
-    #
-    #         return maxline, minline, thisMax, thisMin,
-    #
-    #     # Animate
-    #     from matplotlib import animation
-    #
-    #     def animate(i):
-    #         maxline.set_ydata(self.rendered_max_box[i])
-    #         minline.set_ydata(self.rendered_min_box[i])
-    #         if i > 0:
-    #             thisMax.set_ydata(self.rendered_max_box[i - 1])
-    #             thisMin.set_ydata(self.rendered_min_box[i - 1])
-    #         # tit.set_text("Time: {}".format(i))
-    #         # tit2.set_text("Time: {}".format(i))
-    #         # tickerLine.set_ydata(i)
-    #         # quad.set_array(self.slideArray[i][:-1, :-1].flatten())
-    #         # line1.set_xdata(self.slideCents[i])
-    #         # line9.set_ydata(self.lineArray[i]/np.sum(self.lineArray[i]))
-    #
-    #         return maxline, minline, thisMax, thisMin,
-    #
-    #     anim = animation.FuncAnimation(fig, animate, init_func=init,
-    #                                    frames=np.arange(self.firstIndex, self.lastIndex),
-    #                                    repeat=True, interval=100, blit=True)
-    #
-    #     # grid.maximizePlot()
-    #     fig.set_size_inches(14, 6)
-    #     plt.subplots_adjust(
-    #             top=0.911,
-    #             bottom=0.082,
-    #             left=0.06,
-    #             right=0.985,
-    #             hspace=0.2,
-    #             wspace=0.233
-    #     )
-    #     # plt.show()
-    #     # fname = r"renders\{}_{}.mp4".format(self.ions[0]['ionString'], name)
-    #     # anim.save(filename=fname, writer='ffmpeg', bitrate=1000)
-    #     # plt.close()
-    #     # print('Save Complete')
-    #     plt.tight_layout()
-    #     plt.show(block=True)
-    #
-    #     return
+ 
     
     ########################
     ## Utilities ##
@@ -1215,7 +985,6 @@ class SRNProcessor(Processor):
         top = np.subtract(flat_image, the_min)
         bottom = np.subtract(the_max, the_min)
         return np.divide(top, bottom)
-
     
     @staticmethod
     def fill_end(use):
@@ -1226,7 +995,7 @@ class SRNProcessor(Processor):
             val = use[iii]
         use[iii:] = val
         return use
-
+    
     @staticmethod
     def fill_start(use):
         iii = 0
@@ -1237,35 +1006,3 @@ class SRNProcessor(Processor):
         use[:iii] = val
         return use
 
-#######################
-#######################
-## Child Classes ##
-#######################
-#######################
-
-
-
-### Depricated Code Segments  ##################################################
-
-
-# # Locate the Noise Floor
-# noiseMin = 550 * self.extra_rez - self.hCut
-# near_noise = np.arange(noiseMin, noiseMin + 100 * self.extra_rez)
-# self.diff_max_abs = self.high_abs[near_noise]
-# self.diff_max = np.diff(high_max_filt)[near_noise]
-# self.diff_max += np.absolute(np.nanmin(self.diff_max))
-# self.diff_max /= np.nanmean(self.diff_max) / 100
-# self.noise_radii = np.argmin(self.diff_max) + noiseMin + self.hCut
-# self.noise_radii = 565 * self.extra_rez
-
-# for i in range(len(self.rad_flat)):
-#     self.radBins[self.binInds[i]].append(self.dat_flat[i])
-# for i in range(len(self.rad_flat)):
-#     index = np.floor(self.rad_flat[i]).astype(np.int32)
-#     self.radBins[index].append(self.dat_flat[i])
-
-# if not self.original:
-#     self.in_name = 0
-#     self.load_fits_image()
-#     self.init_radius_array()
-#

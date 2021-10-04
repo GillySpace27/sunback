@@ -97,18 +97,25 @@ class VideoProcessor(Processor):
         print(" ^    Successfully {} from {} images! ({} skipped)".format(self.finished_verb, ii, self.skipped))
 
     @staticmethod
-    def write_video_in_directory(directory=None, file_name='wave_inner_outer.avi', fps=10,
-                                 folder_name='radial', desc=" *    CurveVideoing", key_string='keyframe'):
+    def write_video_in_directory(directory=None, file_name=None, fps=10,
+                                 folder_name='analysis', desc=" *    CurveVideoing", key_string='keyframe', fullpath=None, destroy=False, shortcut=False):
         """Make a video out of whatever directory it's pointed at"""
         video_avi = None
+        if file_name is not None:
+            file_name='wave_inner_outer.avi'
         try:
-            radial_directory = join(directory, folder_name)
-            makedirs(radial_directory, exist_ok=True)
-            video_path = join(radial_directory, file_name)
-            good_paths = [join(radial_directory, f) for f in listdir(radial_directory) if key_string in f]
+            if fullpath is not None:
+                folder = os.path.dirname(fullpath)
+                good_paths = [join(folder, f) for f in listdir(folder) if ('png' in f and not os.path.isdir(f))]
+                video_path = fullpath
+            else:
+                radial_directory = join(directory, folder_name)
+                makedirs(radial_directory, exist_ok=True)
+                video_path = radial_directory + "\\" + file_name
+                good_paths = [radial_directory + "\\" + f for f in listdir(radial_directory) if 'png' in f]
             
             # Initialize the Machine
-            if good_paths:
+            if len(good_paths):
                 first_path = good_paths[0]
                 height, width, _ = cv2.imread(first_path).shape
                 video_avi = cv2.VideoWriter(video_path, 0, fps, (width, height))
@@ -116,6 +123,9 @@ class VideoProcessor(Processor):
                 # Write the Frames
                 for img_path in tqdm(good_paths, desc=desc, unit="frames"):
                     video_avi.write(cv2.imread(img_path))
+                    if destroy:
+                        os.remove(img_path)
+                    # for img_path in good_paths:
             else:
                 print('VideoProcessor:: There are no images yet. Make them first.')
                 
@@ -124,7 +134,9 @@ class VideoProcessor(Processor):
             cv2.destroyAllWindows()
             if video_avi is not None:
                 video_avi.release()
-        
+            # if shortcut:
+            #     import winshell
+            #     self.params.basename()
         # print(" ^    Successfully {} from {} images! ({} skipped)".format(self.finished_verb, ii, self.skipped))
 
         

@@ -429,14 +429,14 @@ class Parameters:
         self.base_directory(abspath(base_directory))
         self.imgs_directory(abspath(join(base_directory, 'png')))
         self.fits_directory(abspath(join(base_directory, 'fits')))
-        self.movs_directory(abspath(join(base_directory, "..", 'MOVS')))
+        self.movs_directory(abspath(join(base_directory, 'video')))
         self.temp_directory(abspath(join(self.fits_directory(), "temp")))
         
-        self.time_path(abspath(join(base_directory, "image_times.txt")))
-        self.curve_path(abspath(join(base_directory, "radial", "curves.txt")))
-        makedirs(os.path.dirname(self.curve_path()), exist_ok=True)
         file_name = '{}_params.txt'.format(self.current_wave())
-        self.params_path(abspath(join(base_directory, file_name)))
+        self.time_path(abspath(join(base_directory, "image_times.txt")))
+        self.curve_path(abspath(join(base_directory, "analysis", "curves.txt")))
+        self.params_path(abspath(join(base_directory, "analysis", file_name)))
+        makedirs(os.path.dirname(self.curve_path()), exist_ok=True)
         
     
     def discover_base_directory(self):
@@ -517,31 +517,26 @@ class Parameters:
         if self.selection.casefold() in ['slow', 's', 1, "1"]:
             cadence_minutes = 5
             exposure_time_secs = 180
-            fps = 20
             self.selection = 'slow'
         
         elif self.selection.casefold() in ['medium', 'm', 2, "2"]:
             cadence_minutes = 10
             exposure_time_secs = 120
-            fps = 15
             self.selection = 'medium'
             
         elif self.selection.casefold() in ['quick', 'q', 3, "3"]:
             cadence_minutes = 20
             exposure_time_secs = 60
-            fps = 15
             self.selection = 'quick'
 
         elif self.selection.casefold() in ['ludacris', "ludocrous" 'l', 4, "4"]:
             cadence_minutes = 60
             exposure_time_secs = 36
-            fps = 10
             self.selection = 'ludacris'
 
         elif self.selection.casefold() in ['plaid', 'p', 5, "5"]:
             cadence_minutes = 6 * 60
             exposure_time_secs = 36
-            fps = 5
             self.selection = 'plaid'
 
         else:
@@ -550,15 +545,13 @@ class Parameters:
         if not self.did_print:
             print("Settings: {}".format(self.selection),
                   "\n  Cadence = {} Minutes".format(cadence_minutes),
-                  "\n  Exposure = {} Seconds".format(exposure_time_secs),
-                  "\n  fps = {} frames\n\n".format(fps))
+                  "\n  Exposure = {} Seconds".format(exposure_time_secs),)
             self.did_print = True
         
         # Set the Parameters
         # self.time_period(period=[tstart, tend])
         self.cadence_minutes(cadence_minutes)
         self.exposure_time_seconds(exposure_time_secs)
-        self.frames_per_second(fps)
         self.fixed_cadence_keyframes(key_fixed_cadence)
         self.fixed_number_keyframes(key_fixed_number)
         

@@ -12,7 +12,7 @@ plt.ioff()
 
 # tstart='2014/11/04 01:00:00', tend='2014/11/08 00:00:00',
 # tstart='2016/11/04 01:00:00', tend='2016/11/06 00:00:00',
-
+dostring = "Liftoff 0193"
 
 def run_range_multishot_movie(config_name=0, config=None):
     # Set the Parameters
@@ -20,13 +20,13 @@ def run_range_multishot_movie(config_name=0, config=None):
     
     # Set the Processes
     # p.fetchers(FidoFetcher, rp=True)                                     # Gets Fits FIDO
-    # p.processors([FidoTimeIntProcessor], rp=True)                        # Integrate several frames for S/N
+    # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N
     
-    p.processors([SRNpreProcessor], rp=True)  # Learns the bounds of the dataset for SRN
-    # p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
-
-    # p.putters([ImageProcessor], rp=True)  # Makes the PNGs from Fits
-    # p.putters([VideoProcessor], rp=None)  # Makes the PNGs into a Movie
+    # p.processors([SRNpreProcessor],     rp=None)  # Learns the bounds of the dataset for SRN
+    # p.processors([SRNradialFiltProcessor], rp=None)  # Applies the SRN Filter
+    #
+    p.putters([ImageProcessor], rp=True)  # Makes the PNGs from Fits
+    p.putters([VideoProcessor], rp=None)  # Makes the PNGs into a Movie
     
     # Run the Code
     run.Runner(p).start()
@@ -47,13 +47,13 @@ def make_params(config=None, config_name=0):
     p.do_one(config["do_one"], config["stop"])
     p.is_debug(config["debug"])
     p.do_cat = True
-    p.png_frame_name = -1
+    p.png_frame_name = 'SRN'
     
     # Set the Times
     if not p.load_preset_time_settings(config["time_preset"]):
         p.cadence_minutes(config["cadence_minutes"])
         p.exposure_time_seconds(config["exposure_time"])
-        p.frames_per_second(config["fps"])
+    p.frames_per_second(config["fps"])
     p.fixed_cadence_keyframes(config["key_fixed_cadence"])
     p.fixed_number_keyframes(config["key_fixed_number"])
     p.time_period(period=[config["tstart"], config["tend"]])
@@ -126,10 +126,16 @@ def make_configs():
         "name": "Liftoff 0171",
         "debug": True, "do_one": '0171', "stop": True,
         "tstart": '2013/09/29 00:00:00', "tend": '2013/10/01 00:00:00',
+        "cadence_minutes": None, "fps": 5, "exposure_time": None,
+        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
+    }
+    c9 = {
+        "name": "Liftoff 0193",
+        "debug": True, "do_one": '0193', "stop": True,
+        "tstart": '2013/09/29 00:00:00', "tend": '2013/10/01 00:00:00',
         "cadence_minutes": None, "fps": None, "exposure_time": None,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
     }
-    
     ConfigDict = {
         c0["name"]: c0,
         c1["name"]: c1,
@@ -140,13 +146,15 @@ def make_configs():
         c6["name"]: c6,
         c7["name"]: c7,
         c8["name"]: c8,
+        c9["name"]: c9,
                   }
     return ConfigDict
 
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run_range_multishot_movie("Test")
+    # run_range_multishot_movie("Liftoff 0171")
+    run_range_multishot_movie(dostring)
 
 
 

@@ -1,3 +1,6 @@
+import shutil
+from time import time
+
 from processor.SRNProcessor import SRNProcessor
 import os
 
@@ -64,23 +67,38 @@ class SRNpreProcessor(SRNProcessor):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
             self.image_learn()
-            self.plot_inner_outer()
-        # self.plot_radial_norm_keyframes(do=True, show=False, save=True)
+            
+            self.plot_inner_outer(save=True)
+            # self.plot_radial_norm_keyframes(do=True, show=False, save=True)
         return None
     
     def cleanup(self):
         """Runs after all the images have been modified with do_work"""
-        self.skipped -= 1
-        self.save_curves()
-        self.make_smoothed_curves()  # Build smooth curves based on the statistics
-        self.save_curves()
-        self.make_inner_outer_video()
+        if self.should_run():
+            self.skipped -= 1
+            self.save_curves()
+            self.make_smoothed_curves()  # Build smooth curves based on the statistics
+            self.save_curves()
+        self.render_inner_outer_video()
         
-    def make_inner_outer_video(self):
+        
+    def render_inner_outer_video(self):
+        fps = 8
         os.makedirs(self.params.base_directory(), exist_ok=True)
-        VideoProcessor.write_video_in_directory(
-            self.params.base_directory(), "{}_inner_outer.avi".format(self.params.current_wave()))
         
+        path1 = os.path.join(self.params.base_directory(),"analysis\\radial_hist\\{}_inner_outer_{}.avi".format(self.params.current_wave(), time()))
+        path2 = os.path.join(self.params.base_directory(), "analysis\\radial_hist\\zoom\\{}_zoom_{}.avi".format(self.params.current_wave(), time()))
+        
+        # directory1 = os.path.dirname(path1)
+        # name1 = os.path.basename(path1)
+        # directory2 = os.path.dirname(path2)
+        # name2 = os.path.basename(path2)
+        
+        VideoProcessor.write_video_in_directory(fullpath=path1, fps=fps, key_string="inner", destroy=True)
+        VideoProcessor.write_video_in_directory(fullpath=path2, fps=fps, key_string="zoom" , destroy=True)
+        
+        # self.delete_temp_folder_items(os.path.dirname(path1))
+        # self.delete_temp_folder_items(os.path.dirname(path1))
     
     def should_run(self):
         """Decide of the processor should run on this file"""
@@ -92,6 +110,29 @@ class SRNpreProcessor(SRNProcessor):
         return self.go_ahead
 
 
+    # def delete_temp_folder(self, folder):
+    #     if os.path.isdir(folder):
+    #         shutil.rmtree(folder)
+    #
+    # def delete_temp_folder_items(self, folder):
+    #     for root, dirs, files in os.walk(folder):
+    #         for file in files:
+    #             self.force_delete(file, root)
+
+    @staticmethod
+    def force_delete(file, root='', do=True):
+        if do:
+            if not os.path.isdir(file):
+                os.remove(os.path.join(root, file))
+            else:
+                shutil.rmtree(file)
+    
+    
+    
+    
+    
+    
+    
 class SRNradialFiltProcessor(SRNProcessor):
     """Uses radial curves to normalize images"""
     name = out_name = 'SRN'
@@ -113,13 +154,14 @@ class SRNradialFiltProcessor(SRNProcessor):
     
     def do_work(self):
         self.image_modify()
-        if self.first:
-            self.plot_radial_norm_keyframes(True, show=True)
-            self.first = False
+        self.plot_radial_norm_keyframes(True, show=False, save=True)
+        
+
         return self.changed
     
     def cleanup(self):
         """Runs after all the images have been modified with do_work"""
         # self.plot_all(self.show_plots)  # Plot Radial Details
+
         pass
 

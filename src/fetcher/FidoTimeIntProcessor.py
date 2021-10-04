@@ -12,14 +12,20 @@ import astropy.units as u
 
 from fetcher.FidoFetcher import FidoFetcher
 jsoc_email = "chris.gilly@colorado.edu"
-_verb = False
+
+
 import datetime
 
 default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
+global global_verb
+global_verb=False
 
-def vprint(in_string, verb=_verb, *args, **kwargs):
-    if verb:
+def vprint(in_string, verb=None, *args, **kwargs):
+    global global_verb
+    if verb is not None:
+        global_verb = verb
+    if FidoTimeIntProcessor.verb or global_verb:
         print(in_string, *args, **kwargs)
 
 class FidoTimeIntProcessor(FidoFetcher):
@@ -38,6 +44,7 @@ class FidoTimeIntProcessor(FidoFetcher):
     def __init__(self, params=None, quick=False, rp=False):
         # Initialize class variables
         super().__init__(params, quick, rp)
+        self.do_delete = True
         self.orig_t_int = None
         self.keyframe_fits_path = None
         self.main_time_period = None
@@ -55,8 +62,8 @@ class FidoTimeIntProcessor(FidoFetcher):
 
     def fido_get_fits_short_cadence(self, temp=True, hold=None):
         self.load(self.params, wave=self.params.current_wave())
-        vprint(" v Fetching Fits Files: {}".format(self.params.current_wave()), self.verb)
-        if self.get_files():
+        vprint(" v Fetching Fits Files: {}".format(self.params.current_wave()))
+        if self.should_get_files():
             self.print_load_banner(verb=self.verb)
             self.prep_temp_folder()
             self.download_fits_series(temp=True, hold=hold)
@@ -65,7 +72,7 @@ class FidoTimeIntProcessor(FidoFetcher):
             vprint(" ^ Using {} Cached Fits Files\n".format(self.params.n_fits), self.verb)
 
     
-    def get_files(self):
+    def should_get_files(self):
         return self.params.download_files() or self.reprocess_mode() or not self.verb
 
     def setup(self):
@@ -121,9 +128,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         reprocess = self.reprocess_mode()
         do_exposure = need_exposure and have_input and (not already_made or reprocess)
         return do_exposure
-
-
-    
+ 
     def gather_subframes(self, fits_path):
         # Parse the Keyframe Time
         self.init_integration_period(fits_path)
@@ -162,8 +167,8 @@ class FidoTimeIntProcessor(FidoFetcher):
         return self.exposure_paths
         
     def sum_subframes(self):
-        # frame_array = self.original + 0
-        vprint("Summing Arrays", self.verb)
+        self.verb=False
+        vprint("Summing Arrays", False)
         self.get_exposure_paths()
         self.int_tm_tot = 0
         self.n_exposures = 0
@@ -176,7 +181,7 @@ class FidoTimeIntProcessor(FidoFetcher):
                     self.changed += (frame / int_time)
                     self.int_tm_tot += int_time
                     self.n_exposures += 1
-                # self.force_delete(path)
+                # self.force_delete(path, do=self.do_delete)
             except PermissionError as e:
                 print("Sum Subframes:: ", e)
             except TypeError as e:
@@ -185,7 +190,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.changed /= self.n_exposures
         self.changed *= self.orig_t_int
         self.changed = np.asarray(self.changed, dtype=np.float32)
-        if not self.hold and False:
+        if not self.hold and self.do_delete:
             self.delete_temp_folder()
         
         
@@ -209,17 +214,19 @@ class FidoTimeIntProcessor(FidoFetcher):
         if os.path.isdir(self.temp_folder):
             shutil.rmtree(self.temp_folder)
             
-    def delete_temp_folder_items(self):
-        for root, dirs, files in os.walk(self.temp_folder):
+    def delete_temp_folder_items(self, folder=None):
+        directory = folder if folder is not None else self.temp_folder
+        for root, dirs, files in os.walk(directory):
             for file in files:
                 self.force_delete(file, root)
 
     @staticmethod
-    def force_delete(file, root=''):
-        if not os.path.isdir(file):
-            os.remove(os.path.join(root, file))
-        else:
-            shutil.rmtree(file)
+    def force_delete(file, root='', do=True):
+        if do:
+            if not os.path.isdir(file):
+                os.remove(os.path.join(root, file))
+            else:
+                shutil.rmtree(file)
         
         
     ## Time Range ##

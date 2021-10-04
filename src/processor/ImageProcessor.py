@@ -79,8 +79,6 @@ class ImageProcessor(Processor):
         plt.tight_layout()
         plt.show(block=True)
         
-        
-    
     def make_directories(self):
         _, self.fits_save_path, _, _ = self.image_data
         self.png_save_path = self.fits_save_path.replace('fits', 'png')
@@ -154,7 +152,9 @@ class ImageProcessor(Processor):
                 
     def execute_plot_save(self, fig, ax, processed):
         if processed:
-            out_path = self.png_save_stem.format("_"+self.hdu_name_list[self.params.png_frame_name])
+            nam= self.params.png_frame_name
+            name = nam if type(nam) is str else self.hdu_name_list[nam]
+            out_path = self.png_save_stem.format("_"+name)
         else:
             out_path = self.png_save_stem.replace("\\png\\","\\png\\orig\\").format("_orig")
             
@@ -164,7 +164,6 @@ class ImageProcessor(Processor):
         plt.close(fig)
         self.pathBox.append(out_path)
         self.figbox = []
-        
     
     def format_plot(self, fig, frame_ax):
         """Make a plot look good"""
@@ -197,7 +196,6 @@ class ImageProcessor(Processor):
         
         frame_ax.annotate("Mode: {}".format(self.params.selection), (0.90, height+15), xycoords='axes fraction', fontsize='large',
                                color='w', horizontalalignment='center')
-        
     
     def plot_hmi(self, fig, ax, frame):
         """Plot the data from HMI"""
@@ -214,13 +212,13 @@ class ImageProcessor(Processor):
         cmap = aia_color_table(int(wave) * u.angstrom)
         
         if processed:
-            # frame = self.changed #.astype(np.float16)
-            frame = self.absqrt(self.changed, dtype=np.float32)
-            # vmin = self.absolute_min # 0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(out_array))
-            # vmax = self.absolute_max # 0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(out_array))
+            frame = self.changed #.astype(np.float16)
+            # frame = self.absqrt(self.changed, dtype=np.float32)
+            vmin = 0.0  #self.absolute_min # 0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(out_array))
+            vmax = 4  #self.absolute_max # 0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(out_array))
             # print("vin, vmax = ", vmin, vmax)
-            ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None)
-            ax.set_title(self.hdu_name_list[-1])#, vmin=vmin, vmax=vmax)
+            ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None, vmin=vmin, vmax=vmax)
+            ax.set_title(self.hdu_name_list[-1])
         else:
             frame = self.absqrt(self.original, dtype=np.float32)
             ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None)  # ,  vmin=self.vmin_plot, vmax=self.vmax_plot)
@@ -232,24 +230,31 @@ class ImageProcessor(Processor):
         
         return inst, height
     
-    def save_concatinated(self):
+    def save_concatinated(self, which1="orig", which2="SRN"):
         """Make the side by side concatinated images"""
         fmt_string_stem = "ffmpeg -i {} -i {} -y -filter_complex hstack {} -hide_banner -loglevel warning"
         orig_directory = join(self.png_save_directory, "orig")
         path_list = [join(self.png_save_directory, x) for x in listdir(self.png_save_directory)]
         path_list2= [join(orig_directory, x) for x in listdir(orig_directory)]
+        
+        original = self.pathBox[0]
+        processed = self.pathBox[1]
   
         path_list_abs =  path_list + path_list2
         os.makedirs(os.path.dirname(orig_directory), exist_ok=True)
         
         go_1 = self.params.do_cat
-        go_2 = self.png_save_stem.replace("\\png\\","\\png\\orig\\").format("_orig") in path_list_abs
-        go_3 = self.png_save_stem.format("") in path_list_abs
+        go_2 = self.png_save_stem.replace("\\png\\","\\png\\orig\\").format("_"+which1) in path_list_abs
+        go_3 = self.png_save_stem.format("_"+which2) in path_list_abs
         
         savepath = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
-        os.makedirs(os.path.dirname(savepath), exist_ok=True)
+        make_command = fmt_string_stem.format(original, processed, savepath)
         if go_1 and go_2 and go_3:
-            os.system(fmt_string_stem.format(self.pathBox[0], self.pathBox[1], savepath))
+            os.makedirs(os.path.dirname(savepath), exist_ok=True)
+            os.system(make_command)
+            os.remove(original)
+        pass
+        
         # from processor.VideoProcessor import write_video_in_directory
         # write_video_in_directory()
     # def make_png_path(self, fits_path):
