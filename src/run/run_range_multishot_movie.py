@@ -1,6 +1,9 @@
 from fetcher.FidoFetcher import FidoFetcher
 from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from processor.ImageProcessor import ImageProcessor
+from processor.ImageProcessorCV import ImageProcessorCV
+from processor.ImageProcessorMatplotlib import ImageProcessorMatplotlib
+from processor.ImageProcessorPIL import ImageProcessorPIL
 from processor.SRNSubProcessors import SRNpreProcessor, SRNradialFiltProcessor
 from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
@@ -25,7 +28,7 @@ def run_range_multishot_movie(config_name=0, config=None):
     # p.processors([SRNpreProcessor],     rp=None)  # Learns the bounds of the dataset for SRN
     # p.processors([SRNradialFiltProcessor], rp=None)  # Applies the SRN Filter
     #
-    p.putters([ImageProcessor], rp=True)  # Makes the PNGs from Fits
+    p.putters([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
     p.putters([VideoProcessor], rp=None)  # Makes the PNGs into a Movie
     
     # Run the Code

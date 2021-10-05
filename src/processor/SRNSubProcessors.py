@@ -94,8 +94,8 @@ class SRNpreProcessor(SRNProcessor):
         # directory2 = os.path.dirname(path2)
         # name2 = os.path.basename(path2)
         
-        VideoProcessor.write_video_in_directory(fullpath=path1, fps=fps, key_string="inner", destroy=True)
-        VideoProcessor.write_video_in_directory(fullpath=path2, fps=fps, key_string="zoom" , destroy=True)
+        self.write_video_in_directory(fullpath=path1, fps=fps, key_string="inner", destroy=True)
+        self.write_video_in_directory(fullpath=path2, fps=fps, key_string="zoom" , destroy=True)
         
         # self.delete_temp_folder_items(os.path.dirname(path1))
         # self.delete_temp_folder_items(os.path.dirname(path1))

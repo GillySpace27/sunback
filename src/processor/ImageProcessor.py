@@ -1,4 +1,5 @@
 import os
+import sys
 from copy import copy
 from datetime import datetime, timedelta
 from os import listdir
@@ -39,23 +40,24 @@ class ImageProcessor(Processor):
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
-        
+
+        self.cmap = None
         self.fig, self.frame_ax = None, None
         self.plot_formatted = False
-        self.pathBox = []
-        self.figbox = []
+        self.path_box = []
+        self.figure_box = []
         self.skipped = 0
-        
+        self.frame = None
         self.load_curves()
     
     def do_fits_function(self, fits_path, in_name=None):
         """This is the do_fits_function for this """
-        self.prep_image(fits_path, self.params.png_frame_name)
+        self.init_frame(fits_path, self.params.png_frame_name)
         if self.render():
             self.export_files()
         return self
     
-    def prep_image(self, fits_path, in_name=-1):
+    def init_frame(self, fits_path, in_name=-1):
         """Load the fits file from disk and get a field or two"""
         # self.load_curves()
         frame0, _, _, _, _ = self.load_first_fits_field(fits_path)
@@ -63,12 +65,15 @@ class ImageProcessor(Processor):
         # frame1, wave1, t_rec1, center1, int_time = self.load_last_fits_field(fits_path)
         self.params.local_imgs_paths()
         self.original, self.changed = copy(frame0), copy(frame1)
+        self.frame = np.zeros_like(self.original)
         # self.peek_frames()
         self.image_data = str(wave1), fits_path, t_rec1, frame1.shape
         self.make_directories()
-        self.figbox = []
-        self.pathBox = []
-    
+        self.figure_box = []
+        self.path_box = []
+        self.name, self.wave = self.clean_name_string(self.image_data[0])
+        self.cmap = aia_color_table(int(self.wave) * u.angstrom)
+
     def peek_frames(self):
         fig, (ax1, ax2, ax3) = plt.subplots(1,3, sharex=True, sharey=True)
         
@@ -91,8 +96,7 @@ class ImageProcessor(Processor):
         # Which plots to make?
         if self.skip():
             return False
-        self.params.do_orig = True
-        if self.params.do_orig:
+        if self.params.do_orig or True: #TODO shouldn't be permanent
             trials = [False, True]
         else:
             trials = [True]
@@ -117,155 +121,48 @@ class ImageProcessor(Processor):
                 return False  # don't skip
     
     def render_one(self, processed):
-        """Render one image"""
-        # Pull in the required inputs
-        # out_array = self.changed
-        # original_image = self.original
-        
-        full_name, fits_path, time_string_raw, shape = self.image_data
-        time_string = self.clean_time_string(time_string_raw)
-        name, wave = self.clean_name_string(full_name)
-        
-        # Create the Figure
-        # if self.fig is None:
-        fig, frame_ax = plt.subplots()
-        self.format_plot(fig, frame_ax )
-            
-        inst, height = self.plot_aia(fig, frame_ax, wave, processed)
-        
-        # Format the Plot and Save
-        self.label_plot(name, inst, height, wave, time_string, frame_ax)
-        self.figbox.append([fig, frame_ax, processed])
-        if self.show:
-            plt.show()
+        raise NotImplementedError
             
     def export_files(self):
-        try:
-            for fig, ax, processed in self.figbox:
-                self.execute_plot_save(fig, ax, processed)
-            self.save_concatinated()
-        except Exception as e:
-            print("Export_Files:", e)
-        finally:
-            for fig, _, _ in self.figbox:
-                plt.close(fig)
-                
-    def execute_plot_save(self, fig, ax, processed):
-        if processed:
-            nam= self.params.png_frame_name
-            name = nam if type(nam) is str else self.hdu_name_list[nam]
-            out_path = self.png_save_stem.format("_"+name)
-        else:
-            out_path = self.png_save_stem.replace("\\png\\","\\png\\orig\\").format("_orig")
-            
-        os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        
-        fig.savefig(out_path, facecolor='black', edgecolor='black', dpi=self.dpi)
-        plt.close(fig)
-        self.pathBox.append(out_path)
-        self.figbox = []
+        raise NotImplementedError
     
-    def format_plot(self, fig, frame_ax):
-        """Make a plot look good"""
-        # if not self.plot_formatted:
-        # Tweak the Figure Properties
-        fig.set_facecolor("k")
-        self.inches = 10
-        self.dpi = self.changed.shape[0] / self.inches
-        fig.set_size_inches((self.inches, self.inches))
-        self.blankAxis(frame_ax)
-        self.plot_formatted = True
-    
-    def label_plot(self, name, inst, height, wave, time_string, frame_ax):
-        """Annotate with Text"""
-        buffer = '' if len(name) == 3 else '  '
-        buffer2 = '    ' if len(name) == 2 else ''
-        
-        title = "{}    {} {}, {}{}".format(buffer2, inst, wave, time_string, buffer)
-        frame_ax.annotate(title, (0.15, height + 0.02), xycoords='axes fraction', fontsize='large',
-                               color='w', horizontalalignment='center')
-        
-        the_time = strftime("%Z %I:%M%p")
-        if the_time[0] == '0':
-            the_time = the_time[1:]
-        frame_ax.annotate(the_time, (0.15, height), xycoords='axes fraction', fontsize='large',
-                               color='w', horizontalalignment='center')
-        
-        frame_ax.annotate(the_time, (0.15, height-15), xycoords='axes fraction', fontsize='large',
-                               color='w', horizontalalignment='center')
-        
-        frame_ax.annotate("Mode: {}".format(self.params.selection), (0.90, height+15), xycoords='axes fraction', fontsize='large',
-                               color='w', horizontalalignment='center')
-    
-    def plot_hmi(self, fig, ax, frame):
-        """Plot the data from HMI"""
-        inst = ""
-        height = 1.05
-        ax.imshow(frame, origin='upper', interpolation=None)
-        plt.tight_layout(pad=5.5)
-        return inst, height
-    
-    def plot_aia(self, fig, ax, wave, processed):
-        """Plot the data from AIA"""
-        inst = '  AIA'
-        height = 0.95
-        cmap = aia_color_table(int(wave) * u.angstrom)
-        
-        if processed:
-            frame = self.changed #.astype(np.float16)
-            # frame = self.absqrt(self.changed, dtype=np.float32)
-            vmin = 0.0  #self.absolute_min # 0.1 * 65536 # self.vmin_plot * 65536 #2np.max(np.max(out_array))
-            vmax = 4  #self.absolute_max # 0.9 * 65536 # self.vmax_plot * 65536 # * np.max(np.max(out_array))
-            # print("vin, vmax = ", vmin, vmax)
-            ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None, vmin=vmin, vmax=vmax)
-            ax.set_title(self.hdu_name_list[-1])
-        else:
-            frame = self.absqrt(self.original, dtype=np.float32)
-            ax.imshow(frame, cmap=cmap, origin='lower', interpolation=None)  # ,  vmin=self.vmin_plot, vmax=self.vmax_plot)
-            ax.set_title("original")#, vmin=vmin, vmax=vmax)
-            
-            # toprint = self.normalize(self.absqrt(original_image))
-            # plt.imshow(toprint, cmap='sdoaia{}'.format(wave), origin='lower', interpolation=None) #,  vmin=self.vmin_plot, vmax=self.vmax_plot)
-        plt.tight_layout(pad=0)
-        
-        return inst, height
-    
-    def save_concatinated(self, which1="orig", which2="SRN"):
+    def save_concatinated(self, which1="orig", which2="SRN", destroy=False):
         """Make the side by side concatinated images"""
-        fmt_string_stem = "ffmpeg -i {} -i {} -y -filter_complex hstack {} -hide_banner -loglevel warning"
-        orig_directory = join(self.png_save_directory, "orig")
-        path_list = [join(self.png_save_directory, x) for x in listdir(self.png_save_directory)]
-        path_list2= [join(orig_directory, x) for x in listdir(orig_directory)]
+        self.orig_directory = join(self.png_save_directory, "orig")
+        os.makedirs(os.path.dirname(self.orig_directory), exist_ok=True)
         
-        original = self.pathBox[0]
-        processed = self.pathBox[1]
+        processed_paths = [join(self.png_save_directory, x) for x in listdir(self.png_save_directory)]
+        original_paths  = [join(self.orig_directory, x) for x in listdir(self.orig_directory)]
+        path_list_abs =  processed_paths + original_paths
+        
+        original = self.path_box[0] if self.path_box else self.get_original_path()
+        processed = self.path_box[1] if self.path_box else self.get_changed_path()
   
-        path_list_abs =  path_list + path_list2
-        os.makedirs(os.path.dirname(orig_directory), exist_ok=True)
         
         go_1 = self.params.do_cat
-        go_2 = self.png_save_stem.replace("\\png\\","\\png\\orig\\").format("_"+which1) in path_list_abs
-        go_3 = self.png_save_stem.format("_"+which2) in path_list_abs
+        go_2 = original in original_paths
+        go_3 = self.png_save_stem.format("_"+which2) in processed_paths
         
-        savepath = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
-        make_command = fmt_string_stem.format(original, processed, savepath)
+        self.cat_path = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
+        
+        fmt_string_stem = "ffmpeg -i {} -i {} -y -filter_complex hstack {} -hide_banner -loglevel warning"
+        cat_command = fmt_string_stem.format(original, processed, self.cat_path)
         if go_1 and go_2 and go_3:
-            os.makedirs(os.path.dirname(savepath), exist_ok=True)
-            os.system(make_command)
-            os.remove(original)
-        pass
-        
-        # from processor.VideoProcessor import write_video_in_directory
-        # write_video_in_directory()
-    # def make_png_path(self, fits_path):
-    #     save_path = fits_path.replace("fits", "png")
-    #     return basename(save_path)
-    #     png_path = self.make_png_path(fits_path)
-    #
-    #     if png_path.casefold() in self.done_paths:
-    #         if not self.params.overwrite_pngs():
-    #             return save_path
+            os.makedirs(os.path.dirname(self.cat_path), exist_ok=True)
+            os.system(cat_command) #TODO make this quieter
+            if destroy:
+                os.remove(original)
+                
+                
+    def get_original_path(self):
+        return self.png_save_stem.replace("\\png\\", "\\png\\orig\\").format("_orig")
     
+    def get_changed_path(self):
+        nam = self.params.png_frame_name
+        name = nam if type(nam) is str else self.hdu_name_list[nam]
+        return self.png_save_stem.format("_" + name)
+
+        
     @staticmethod
     def blankAxis(ax):
         ax.patch.set_alpha(0)
@@ -318,83 +215,3 @@ class ImageProcessor(Processor):
     @staticmethod
     def absqrt(image, **kwargs):
         return np.sqrt(np.abs(image, **kwargs))
-    
-    # image_meta = str(wave), str(wave), t_rec, data.shape
-    
-    # self.make_thumbs(img_paths[0])
-    # return img_paths
-    #      if False:
-    #          out_array, center = reduce_array(out_array, center, self.params.resolution())
-
-# def modify_img_series(self):
-#     """Processes the img series"""
-#     img_paths = []
-#
-#     # paths = get_paths(self.params.local_fits_paths(),
-#     #                self.params.use_wavelengths, self.params.download_path())
-#     # self.params.local_fits_paths(paths)
-#     # self.params.local_fits_paths()
-#
-#     for full_path in tqdm(self.params.local_fits_paths()):
-#         self.done_paths = find_done_paths(full_path)
-#         name = basename(full_path).casefold().replace("fits", "png")
-#         if name in self.done_paths and not self.params.overwrite_pngs():
-#             one_path = full_path
-#         else:
-#             with fits.open(full_path) as hdul:
-#                 # try:
-#                 one_path = self.modify_img(hdul, full_path)
-#             # except [TypeError(), IndexError()] as e:
-#             #     skipped += 1
-#             #     print(e)
-#             #     continue
-#         if type(one_path) not in [list]:
-#             one_path = [one_path]
-#         img_paths.extend(one_path)
-#         # break
-#     self.params.local_img_paths(img_paths)
-
-
-#
-# def modify_img(self, hdul, path=None):
-#     """modifies and uploads the in_object"""
-#     hdul.verify('silentfix+warn')
-#
-#     save_path = path.replace("fits", "png")
-#     filename = basename(save_path)
-#     if filename.casefold() in self.done_paths:
-#         if not self.params.overwrite_pngs():
-#             return save_path
-#     try:
-#         hh = 0
-#         wave, t_rec = hdul[hh].header['WAVELNTH'], hdul[hh].header['T_OBS']
-#     except:
-#         hh = 1
-#         wave, t_rec = hdul[hh].header['WAVELNTH'], hdul[hh].header['T_OBS']
-#         # center = [hdul[hh].header[], hdul[hh].header[]]
-#
-#     center = [hdul[hh].header['X0_MP'], hdul[hh].header['Y0_MP']]
-#
-#     data = hdul[hh].data
-#
-#     # Reduce the size of the array
-#     resolution = data.shape[0]
-#     desired = self.params.resolution()
-#
-#     if resolution > desired:
-#         reduce_amount = int(resolution / desired)
-#         data = block_reduce(data, reduce_amount)
-#         center[0] /= reduce_amount
-#         center[1] /= reduce_amount
-#
-#     # while center[0] > 0.9 * desired:
-#     #     center[0] /= 2
-#     #     center[1] /= 2
-#
-#
-#     # image_meta = str(wave), str(wave), t_rec, data.shape
-#     image_meta = str(wave), save_path, t_rec, data.shape
-#
-#     img_paths = Modify(data, image_meta, center=center).get_paths()
-#     return img_paths
-# self.make_thumbs(img_paths[0])

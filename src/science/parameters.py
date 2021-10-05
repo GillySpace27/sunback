@@ -429,7 +429,7 @@ class Parameters:
         self.base_directory(abspath(base_directory))
         self.imgs_directory(abspath(join(base_directory, 'png')))
         self.fits_directory(abspath(join(base_directory, 'fits')))
-        self.movs_directory(abspath(join(base_directory, 'video')))
+        self.movs_directory(abspath(join(self.imgs_directory(), 'video')))
         self.temp_directory(abspath(join(self.fits_directory(), "temp")))
         
         file_name = '{}_params.txt'.format(self.current_wave())
