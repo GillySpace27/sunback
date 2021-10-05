@@ -927,7 +927,7 @@ class SRNProcessor(Processor):
         plt.savefig(save_path_1)
         
         makedirs(dirname(save_path_2), exist_ok=True)
-        # ax.set_xlim((0.9, 1.1))
+        ax.set_xlim((0.9, 1.1))
         plt.savefig(save_path_2)
         
         if not show:

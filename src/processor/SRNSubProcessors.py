@@ -161,7 +161,6 @@ class SRNradialFiltProcessor(SRNProcessor):
     
     def cleanup(self):
         """Runs after all the images have been modified with do_work"""
-        # self.plot_all(self.show_plots)  # Plot Radial Details
-
         pass
-
+        # folder_name = os.path.abspath(os.path.join(self.params.base_directory(), "analysis\\radial_hist_full"))
+        # self.write_video_in_directory(fullpath=folder_name, file_name="full_hist.avi", fps=5, destroy=False)

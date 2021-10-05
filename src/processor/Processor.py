@@ -1007,6 +1007,18 @@ class Processor:
             #     import winshell
             #     self.params.basename()
         # print(" ^    Successfully {} from {} images! ({} skipped)".format(self.finished_verb, ii, self.skipped))
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
         
         # fail_count = 0
         # img_paths = self.params.local_imgs_paths()

@@ -15,21 +15,21 @@ plt.ioff()
 
 # tstart='2014/11/04 01:00:00', tend='2014/11/08 00:00:00',
 # tstart='2016/11/04 01:00:00', tend='2016/11/06 00:00:00',
-dostring = "Liftoff 0193"
+dostring = "Liftoff 0211"
 
 def run_range_multishot_movie(config_name=0, config=None):
     # Set the Parameters
     p = make_params(config, config_name)
     
     # Set the Processes
-    # p.fetchers(FidoFetcher, rp=True)                                     # Gets Fits FIDO
+    # p.fetchers(FidoFetcher, rp=None)                                     # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N
     
-    # p.processors([SRNpreProcessor],     rp=None)  # Learns the bounds of the dataset for SRN
-    # p.processors([SRNradialFiltProcessor], rp=None)  # Applies the SRN Filter
+    p.processors([SRNpreProcessor],     rp=None)  # Learns the bounds of the dataset for SRN
+    p.processors([SRNradialFiltProcessor], rp=None)  # Applies the SRN Filter
     #
     p.putters([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor], rp=None)  # Makes the PNGs into a Movie
+    p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
     
     # Run the Code
     run.Runner(p).start()
@@ -139,25 +139,34 @@ def make_configs():
         "cadence_minutes": None, "fps": None, "exposure_time": None,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
     }
+    c10 = {
+        "name": "Liftoff 0211",
+        "debug": True, "do_one": '0211', "stop": True,
+        "tstart": '2013/09/29 00:00:00', "tend": '2013/10/01 00:00:00',
+        "cadence_minutes": None, "fps": 5, "exposure_time": None,
+        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
+    }
+
     ConfigDict = {
-        c0["name"]: c0,
-        c1["name"]: c1,
-        c2["name"]: c2,
-        c3["name"]: c3,
-        c4["name"]: c4,
-        c5["name"]: c5,
-        c6["name"]: c6,
-        c7["name"]: c7,
-        c8["name"]: c8,
-        c9["name"]: c9,
+        c0["name"]:   c0,
+        c1["name"]:   c1,
+        c2["name"]:   c2,
+        c3["name"]:   c3,
+        c4["name"]:   c4,
+        c5["name"]:   c5,
+        c6["name"]:   c6,
+        c7["name"]:   c7,
+        c8["name"]:   c8,
+        c9["name"]:   c9,
+        c10["name"]: c10,
                   }
     return ConfigDict
 
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    # run_range_multishot_movie("Liftoff 0171")
-    run_range_multishot_movie(dostring)
+    run_range_multishot_movie("Liftoff 0171")
+    # run_range_multishot_movie(dostring)
 
 
 

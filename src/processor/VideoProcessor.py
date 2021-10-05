@@ -12,6 +12,7 @@ from processor.Processor import Processor
 class VideoProcessor(Processor):
     mov_suffix = "_raw.avi"
     filt_name = 'Video Writer'
+    destroy = False
     do_png = True
     wave = None
     progress_stem = " *    {}"
@@ -30,7 +31,7 @@ class VideoProcessor(Processor):
         self.good_paths = []
         self.skipped = 0
         self.final_name = None
-        self.destroy = False
+
     
     def process_one_wavelength(self, wave):
         """Prepare and execute the video writer"""
