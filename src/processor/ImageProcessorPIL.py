@@ -14,7 +14,7 @@ class ImageProcessorPIL(ImageProcessor):
         self.out_path = None
     
     def cleanup(self):
-        self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=5, destroy=True)
+        self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=5, destroy=False)
         # self.write_video_in_directory(fullpath=self.png_save_path, file_name="concatinated.avi", fps=5, destroy=True)
         
     def do_fits_function(self, fits_path, in_name=None):
@@ -27,7 +27,7 @@ class ImageProcessorPIL(ImageProcessor):
         """Render one image"""
         self.plot_aia_original()
         self.plot_aia_changed()
-        self.save_concatinated(destroy=True)
+        self.save_concatinated(destroy=False)
         
     def plot_aia_original(self):
         """Plot the original data from AIA"""

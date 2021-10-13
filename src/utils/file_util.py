@@ -25,7 +25,7 @@ archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Defau
 #     self.temp_fits_pathbox.extend(list_of_files)
 
 
-# def discover_best_data_directory():
+# def find_root_directory():
 #     """Determine where to store the images"""
 #     subdirectory_name = "sunback_images"
 #

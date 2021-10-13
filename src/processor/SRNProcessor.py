@@ -62,6 +62,10 @@ class SRNProcessor(Processor):
         super().__init__(params, quick, rp)
         # Parse Inputs
 
+        self.smoothed_abs_max = None
+        self.smoothed_abs_min = None
+        self.abs_min = None
+        self.abs_max = None
         self.first = True
         self.lCut = None
         self.smooth_outer_maximum = None
@@ -122,8 +126,8 @@ class SRNProcessor(Processor):
         self.radBins = None
         self.binMax = None
         self.binMin = None
-        self.binMean = None
-        self.binMed = None
+        self.binAbsMax = None
+        self.binAbsMin = None
         self.binAbss = None
         self.norm_curve_min = None
         self.norm_curve_max = None
@@ -131,8 +135,8 @@ class SRNProcessor(Processor):
         self.vignette_mask = None
         self.frame_maximum = None
         self.frame_minimum = None
-        self.frame_mean = None
-        self.frame_med = None
+        self.frame_abs_max = None
+        self.frame_abs_min = None
         self.frame_abss = None
         self.norm_avg_max = None
         self.norm_avg_min = None
@@ -256,14 +260,14 @@ class SRNProcessor(Processor):
         dprint("init_frame_curves")
         self.frame_maximum = np.empty(self.rez)
         self.frame_minimum = np.empty(self.rez)
-        self.frame_mean = np.empty(self.rez)
-        self.frame_med = np.empty(self.rez)
+        self.frame_abs_max = np.empty(self.rez)
+        self.frame_abs_min = np.empty(self.rez)
         self.frame_abss = np.empty(self.rez)
         
         self.frame_maximum.fill(np.nan)
         self.frame_minimum.fill(np.nan)
-        self.frame_mean.fill(np.nan)
-        self.frame_med.fill(np.nan)
+        self.frame_abs_max.fill(np.nan)
+        self.frame_abs_min.fill(np.nan)
         self.frame_abss.fill(np.nan)
         
         if self.center is None:
@@ -278,14 +282,14 @@ class SRNProcessor(Processor):
         
         self.binMax = np.empty(self.bin_rez)
         self.binMin = np.empty(self.bin_rez)
-        self.binMean = np.empty(self.bin_rez)
-        self.binMed = np.empty(self.bin_rez)
+        self.binAbsMax = np.empty(self.bin_rez)
+        self.binAbsMin = np.empty(self.bin_rez)
         self.binAbss = np.arange(self.bin_rez)
         
         self.binMax.fill(np.nan)
         self.binMin.fill(np.nan)
-        self.binMean.fill(np.nan)
-        self.binMed.fill(np.nan)
+        self.binAbsMax.fill(np.nan)
+        self.binAbsMin.fill(np.nan)
     
     def init_running_curves(self):
         """Initialize the curves"""
@@ -300,6 +304,8 @@ class SRNProcessor(Processor):
                 self.inner_max = self.frame_maximum + 0
                 self.avg_max = self.frame_maximum + 0
                 self.outer_max = self.frame_maximum + 0
+                self.abs_max = self.frame_abs_max + 0
+                self.abs_min = self.frame_abs_min + 0
                 
                 self.absolute_min = max(np.nanmin(self.outer_min), -10)
                 self.absolute_max = np.nanmax(self.outer_max)
@@ -317,14 +323,18 @@ class SRNProcessor(Processor):
         self.inner_min = np.fmax(self.inner_min, self.frame_minimum)
         self.inner_max = np.fmin(self.inner_max, self.frame_maximum)
         self.outer_max = np.fmax(self.outer_max, self.frame_maximum)
+        self.abs_max   = np.fmax(self.abs_max,   self.frame_abs_max)
+        self.abs_min   = np.fmin(self.abs_min,   self.frame_abs_min)
         
         self.absolute_max = np.fmax(self.absolute_max, np.max(self.outer_max))
         self.absolute_min = np.fmin(self.absolute_min, np.max(self.outer_min))
-        
+
         self.avg_min = self.avg_min + self.frame_minimum
         self.avg_max = self.avg_max + self.frame_maximum
         self.norm_avg_min = self.avg_min / self.n_keyframes
         self.norm_avg_max = self.avg_max / self.n_keyframes
+    
+
     
     # def raster_extrema_curves(self):
     #     """Raster out the min/max curves from the rendered version"""
@@ -372,32 +382,41 @@ class SRNProcessor(Processor):
         rrarr = self.n2r(np.arange(len(self.outer_max)))
         # Plot Raw Curves
         if do_all and self.outer_max is not None:
-            ax.plot(rrarr, self.outer_max, zorder=4, lw=2, label="Out Max", alpha=raw_alpha, c='orange')
-            ax.plot(rrarr, self.inner_max, zorder=5, lw=2, label="In Max",  alpha=raw_alpha, c='gold')
-            ax.plot(rrarr, self.inner_min, zorder=6, lw=2, label="In Min",  alpha=raw_alpha, c='cornflowerblue')
-            ax.plot(rrarr, self.outer_min, zorder=3, lw=2, label="Out Min", alpha=raw_alpha, c='b')
+            ax.plot(rrarr, self.outer_max, zorder=4, lw=1, label="Out Max", alpha=raw_alpha, c='orange')
+            ax.plot(rrarr, self.inner_max, zorder=5, lw=1, label="In Max",  alpha=raw_alpha, c='gold')
+            ax.plot(rrarr, self.inner_min, zorder=6, lw=1, label="In Min",  alpha=raw_alpha, c='cornflowerblue')
+            ax.plot(rrarr, self.outer_min, zorder=3, lw=1, label="Out Min", alpha=raw_alpha, c='b')
     
         # Plot Current Frame Curves
         if do_all and self.frame_maximum is not None:
-            ax.plot(rrarr, self.frame_maximum,          zorder=8, lw=1,                     c='darkgrey', alpha=grey_alpha)
-            ax.plot(rrarr, self.frame_minimum,          zorder=7, lw=1, label="Frame",      c='darkgrey', alpha=grey_alpha)
+            ax.plot(rrarr, self.frame_maximum,zorder=8, lw=1,                     c='darkgrey', alpha=grey_alpha)
+            ax.plot(rrarr, self.frame_minimum,zorder=7, lw=1, label="Frame",      c='darkgrey', alpha=grey_alpha)
             ax.plot(rrarr, self.smoothed_frame_maximum, zorder=10,lw=1,                      c='darkslategrey', alpha=1)
             ax.plot(rrarr, self.smoothed_frame_minimum, zorder=9, lw=1, label="Smo. Frame",  c='darkslategrey', alpha=1)
 
+        # Plot Absolute Curves
+        if do_all and self.abs_max is not None:
+            ax.plot(rrarr, self.abs_max, zorder=1, lw=1,                     c='darkgrey', alpha=grey_alpha)
+            ax.plot(rrarr, self.abs_min, zorder=1, lw=1, label="Absolute",   c='darkgrey', alpha=grey_alpha)
+            ax.plot(rrarr, self.smoothed_abs_max, zorder=200, lw=2,                    c='k', alpha=1)
+            ax.plot(rrarr, self.smoothed_abs_min, zorder=200, lw=2, label="Smo. Abs",  c='k', alpha=1)
+            
         RRarr = self.n2r(self.output_abscissa)
         # Plot Filtered Curves
         if self.filtered_inner_maximum is not None:
-            ax.plot(RRarr, self.filtered_outer_maximum, zorder=103, c="r", label="Fltr. Out")
-            ax.plot(RRarr, self.filtered_inner_maximum, zorder=102, c='g', label="Fltr. Inn")
-            ax.plot(RRarr, self.filtered_inner_minimum, zorder=102, c="g", ls='--')
-            ax.plot(RRarr, self.filtered_outer_minimum, zorder=103, c='r', ls='--', )
+            ax.plot(RRarr, self.filtered_outer_maximum, zorder=103,lw =1, c="m", label="Fltr. Out")
+            ax.plot(RRarr, self.filtered_inner_maximum, zorder=102,lw =1, c='c', label="Fltr. Inn")
+            ax.plot(RRarr, self.filtered_inner_minimum, zorder=102,lw =1, c="c", ls='--')
+            ax.plot(RRarr, self.filtered_outer_minimum, zorder=103,lw =1, c='m', ls='--', )
 
         # Plot Smoothed Curves
         if self.smooth_inner_maximum is not None:
-            ax.plot(RRarr, self.smooth_outer_maximum, zorder=105, c="m", label="Sm. Out")
-            ax.plot(RRarr, self.smooth_inner_maximum, zorder=104, c='c', label="Sm. Inn")
-            ax.plot(RRarr, self.smooth_inner_minimum, zorder=104, c="c", ls='--')
-            ax.plot(RRarr, self.smooth_outer_minimum, zorder=105, c='m', ls='--', )
+            ax.plot(RRarr, self.smooth_outer_maximum, zorder=105, lw=2, c="r", label="Sm. Out")
+            ax.plot(RRarr, self.smooth_inner_maximum, zorder=104, lw=2, c='g', label="Sm. Inn")
+            ax.plot(RRarr, self.smooth_inner_minimum, zorder=104, lw=2, c="g", ls='--')
+            ax.plot(RRarr, self.smooth_outer_minimum, zorder=105, lw=2, c='r', ls='--', )
+            # ax.plot(rrarr, self.smoothed_frame_abs_max, zorder=1, lw=1,                   c='grey', alpha=1)
+            # ax.plot(rrarr, self.smoothed_frame_abs_min, zorder=1, lw=1, label="Smo. Abs", c='grey', alpha=1)
     
         # Vertical Lines
         ax.axvline(1)
@@ -439,7 +458,7 @@ class SRNProcessor(Processor):
             save_path_2 = join(bs, folder_name, 'radial_hist', 'zoom', file_name_2)
             
             makedirs(dirname(save_path_1), exist_ok=True)
-            makedirs(dirname(save_path_2), exist_ok=True)
+            # makedirs(dirname(save_path_2), exist_ok=True)
             fig.set_size_inches((20,10))
             plt.tight_layout()
 
@@ -453,7 +472,7 @@ class SRNProcessor(Processor):
                 
             plt.xlim((0.9, 1.1))
             plt.ylim((10**1.5, 10**3.5))
-            while True:
+            while False:
                 try:
                     plt.savefig(save_path_2, dpi=150)
                     break
@@ -509,10 +528,13 @@ class SRNProcessor(Processor):
         """Do statistics on a given bin"""
         bin_array = self.get_bin_items(bin_list)
         if len(bin_array) > 0:
-            self.binMax[ii] = np.percentile(bin_array, 96)  # np.nanmax(subItems)
-            self.binMin[ii] = np.percentile(bin_array, 2)  # np.min(subItems)
-            self.binMean[ii] = np.mean(bin_array)
-            self.binMed[ii] = np.median(bin_array)
+            
+            a,b,c,d = np.percentile(bin_array, [99, 95, 2, 0.5])
+            
+            self.binAbsMax[ii]  = a     #np.percentile(bin_array, 99.999)
+            self.binMax[ii]     = b    #np.percentile(bin_array, 96)
+            self.binMin[ii]     = c    #np.percentile(bin_array, 2)
+            self.binAbsMin[ii]  = d     #np.percentile(bin_array, 0.001)
     
     @staticmethod
     def get_bin_items(bin_list):
@@ -529,12 +551,11 @@ class SRNProcessor(Processor):
         self.frame_abss[n_index] = n_index
         self.frame_maximum[n_index] = self.binMax[idx]
         self.frame_minimum[n_index] = self.binMin[idx]
-        self.frame_mean[n_index] = self.binMean[idx]
-        self.frame_med[n_index] = self.binMed[idx]
+        self.frame_abs_max[n_index] = self.binAbsMax[idx]
+        self.frame_abs_min[n_index] = self.binAbsMin[idx]
     
-        self.smoothed_frame_minimum = savgol_filter(self.frame_minimum, 21, 3, mode='nearest')
-        self.smoothed_frame_maximum = savgol_filter(self.frame_maximum, 21, 3, mode='nearest')
 
+        
     def make_smoothed_curves(self):
         """Build the normalization arrays, treating the domain in 3 seperate regions"""
         
@@ -584,20 +605,27 @@ class SRNProcessor(Processor):
         self.inner_high_abs = abss[self.hCut:]
         self.inner_high_max = use_max[self.hCut:]
         self.inner_high_min = use_min[self.hCut:]
+        
+        
+        
     
     def filter_three_regions(self):
         ### Filter the regions separately
         mode = 'nearest'
         
         # Savgol windows
-        lWindow = 51  # 4 * self.extra_rez + 1
+        lWindow = 31  # 4 * self.extra_rez + 1
         ln = 6
         mWindow = 11  # 4 * self.extra_rez + 1
         mn = 3
-        hWindow = 41  # 30 * self.extra_rez + 1
+        hWindow = 31  # 30 * self.extra_rez + 1
         hn = 2
         
-        rank = 3
+        maxWindow = 31
+        maxn = 6
+        
+        
+        rank = 2
         
         # Max Curve
         for i in range(ln):
@@ -628,11 +656,34 @@ class SRNProcessor(Processor):
             except np.linalg.LinAlgError as e:
                 print("\n filter:three:regions::")
                 print(e)
-
+                
+                
+        if self.frame_minimum is not None:
+            self.smoothed_frame_minimum = self.frame_minimum+0
+            self.smoothed_frame_maximum = self.frame_maximum+0
+            self.smoothed_frame_abs_max = self.frame_abs_max+0
+            self.smoothed_frame_abs_min = self.frame_abs_min+0
+            
+            self.smoothed_abs_max = self.abs_max+0
+            self.smoothed_abs_min = self.abs_min+0
+            
+        for i in range(maxn):
+            try:
+                # Bonus Extrema Filtering!
+                if self.frame_minimum is not None:
+                    self.smoothed_frame_minimum = savgol_filter(self.smoothed_frame_minimum, maxWindow, rank, mode=mode)
+                    self.smoothed_frame_maximum = savgol_filter(self.smoothed_frame_maximum, maxWindow, rank, mode=mode)
+                    self.smoothed_frame_abs_max = savgol_filter(self.smoothed_frame_abs_max, maxWindow, rank, mode=mode)
+                    self.smoothed_frame_abs_min = savgol_filter(self.smoothed_frame_abs_min, maxWindow, rank, mode=mode)
+                    self.smoothed_abs_max       = savgol_filter(self.smoothed_abs_max,       maxWindow, rank, mode=mode)
+                    self.smoothed_abs_min       = savgol_filter(self.smoothed_abs_min,       maxWindow, rank, mode=mode)
+            except np.linalg.LinAlgError as e:
+                print("\n filter:three:regions::")
+                print(e)
         
     def concatinate_filtered_regions(self):
         # Concatinate filtered curves
-        self.output_abscissa        = np.hstack((self.inner_low_abs     , self.inner_mid_abs     , self.inner_high_abs))
+        self.output_abscissa        = np.hstack((self.inner_low_abs, self.inner_mid_abs, self.inner_high_abs))
         self.filtered_outer_maximum = np.hstack((self.outer_low_max, self.outer_mid_max, self.outer_high_max))
         self.filtered_inner_maximum = np.hstack((self.inner_low_max, self.inner_mid_max, self.inner_high_max))
         self.filtered_inner_minimum = np.hstack((self.inner_low_min, self.inner_mid_min, self.inner_high_min))
@@ -648,10 +699,15 @@ class SRNProcessor(Processor):
         # p = np.polyfit(self.low_abs, self.low_min_filt, degree)
         # self.low_min_fit = np.polyval(p, self.low_abs)
         
+        # filtered_abs_max     = savgol_filter(self.abs_max, 21, 3, mode='nearest')
+        # filtered_abs_min     = savgol_filter(self.abs_min, 21, 3, mode='nearest')
+        
         self.smooth_outer_maximum = self.filtered_outer_maximum + 0
         self.smooth_inner_maximum = self.filtered_inner_maximum + 0
         self.smooth_inner_minimum = self.filtered_inner_minimum + 0
         self.smooth_outer_minimum = self.filtered_outer_minimum + 0
+        # self.smoothed_abs_max     = filtered_abs_max
+        # self.smoothed_abs_min     = filtered_abs_min
         
         # Flatten out the edges
         ind = 200
@@ -659,13 +715,17 @@ class SRNProcessor(Processor):
         self.smooth_inner_maximum[0:ind] = self.filtered_inner_maximum[ind]
         self.smooth_inner_minimum[0:ind] = self.filtered_inner_minimum[ind]
         self.smooth_outer_minimum[0:ind] = self.filtered_outer_minimum[ind]
+        self.smoothed_abs_max[0:ind]     = self.smoothed_abs_max[ind]
+        self.smoothed_abs_min[0:ind]     = self.smoothed_abs_min[ind]
         
         
         self.norm_curve_outer_max = np.squeeze(self.smooth_outer_maximum[self.binInds])
         self.norm_curve_inner_max = np.squeeze(self.smooth_inner_maximum[self.binInds])
         self.norm_curve_inner_min = np.squeeze(self.smooth_inner_minimum[self.binInds])
         self.norm_curve_outer_min = np.squeeze(self.smooth_outer_minimum[self.binInds])
-
+        self.norm_smoothed_abs_max = np.squeeze(self.smoothed_abs_max[self.binInds])
+        self.norm_smoothed_abs_min = np.squeeze(self.smoothed_abs_min[self.binInds])
+        
     ####################################
     ## Image Reduction Algorithms ##
     ####################################
@@ -696,7 +756,7 @@ class SRNProcessor(Processor):
             try:
                 # Standard Normalization Formula
                 self.changed_flat = self.norm_formula(self.original.flatten(), self.norm_curve_min, self.norm_curve_max)
-                self.changed = self.changed_flat.reshape(self.changed.shape).astype('float32')
+                self.changed = self.changed_flat.reshape(self.changed.shape).astype('float32') # # purple
                 
             except RuntimeWarning as e:
                 print(e)

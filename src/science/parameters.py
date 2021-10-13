@@ -8,7 +8,7 @@ from astropy import units as u
 from fetcher.LocalFetcher import LocalFetcher
 from processor.Processor import Processor
 from putter.NullPutter import NullPutter
-# from utils.file_util import discover_best_data_directory
+# from utils.file_util import find_root_directory
 import matplotlib.pyplot as plt
 
 
@@ -25,6 +25,8 @@ class Parameters:
         """Sets all the attributes to None"""
         # Initialize Variables
 
+        self.root_directory = None
+        self._shortcut_directory = None
         self.selection = None
         self.paper_out = []
         
@@ -168,25 +170,43 @@ class Parameters:
             self._archive_url = _archive_url
         return self._archive_url
     
-    def imgs_directory(self, _imgs_directory=None):
+    def imgs_directory(self, _imgs_directory=None, make=True):
         if _imgs_directory is not None:
             self._imgs_directory = _imgs_directory
+            if make:
+                makedirs(self._imgs_directory, exist_ok=True)
         return self._imgs_directory
     
-    def fits_directory(self, _fits_directory=None):
+    def fits_directory(self, _fits_directory=None, make=True):
         if _fits_directory is not None:
             self._fits_directory = _fits_directory
+        if make:
+            makedirs(self._fits_directory, exist_ok=True)
         return self._fits_directory
     
-    def temp_directory(self, _temp_directory=None):
+    def temp_directory(self, _temp_directory=None, make=True):
         if _temp_directory is not None:
             self._temp_directory = _temp_directory
+        if make:
+            makedirs(self._temp_directory, exist_ok=True)
         return self._temp_directory
 
-    def movs_directory(self, _movs_directory=None):
+    def short_directory(self, _shortcut_directory=None, make=True):
+        if _shortcut_directory is not None:
+            self._shortcut_directory = _shortcut_directory
+        if make:
+            makedirs(self._shortcut_directory, exist_ok=True)
+        return self._shortcut_directory
+
+    def movs_directory(self, _movs_directory=None, make=True):
         if _movs_directory is not None:
             self._movs_directory = _movs_directory
+        if make:
+            makedirs(self._movs_directory, exist_ok=True)
         return self._movs_directory
+    
+    
+    
     
     def time_path(self, _time_path=None):
         if _time_path is not None:
@@ -423,54 +443,60 @@ class Parameters:
         """Make the paths for current_wave"""
         # Define and Set Directories
         # print("Target: {}".format(self.current_wave))
-        base_directory = self.discover_base_directory()
         # self.current_wave(self.current_wave)
         
-        self.base_directory(abspath(base_directory))
-        self.imgs_directory(abspath(join(base_directory, 'png')))
-        self.fits_directory(abspath(join(base_directory, 'fits')))
-        self.movs_directory(abspath(join(self.imgs_directory(), 'video')))
-        self.temp_directory(abspath(join(self.fits_directory(), "temp")))
+        ## \\>Batch<\\>Wavelength<\\
+        self.base_directory(abspath(self.get_wave_directory()))
+        
+        ## ## Batch\\Wavelength\\>Format<\\
+        self.imgs_directory(abspath(join(self.base_directory(), 'png')))
+        self.fits_directory(abspath(join(self.base_directory(), 'fits')))
+        
+        ## ## Batch\\Wavelength\\Format\\>product<\\
+        self.movs_directory( abspath(join(self.imgs_directory(), 'video')))
+        self.temp_directory( abspath(join(self.fits_directory(), "temp")))
+        self.short_directory(abspath(join(self.base_directory(), '..', 'MOVS')))
         
         file_name = '{}_params.txt'.format(self.current_wave())
-        self.time_path(abspath(join(base_directory, "image_times.txt")))
-        self.curve_path(abspath(join(base_directory, "analysis", "curves.txt")))
-        self.params_path(abspath(join(base_directory, "analysis", file_name)))
-        makedirs(os.path.dirname(self.curve_path()), exist_ok=True)
+        self.time_path(  abspath(join(self.base_directory(), "image_times.txt")))
         
-    
-    def discover_base_directory(self):
+        self.analysis_directory = join(self.base_directory(), "analysis")
+        self.curve_path( abspath(join(self.analysis_directory, "curves.txt")))
+        self.params_path(abspath(join(self.analysis_directory, file_name)))
+        
+    def get_wave_directory(self):
         """Define the root folder"""
-        root = self.discover_best_data_directory()
-        base_directory = join(root, self.batch_name())
-        base_directory = join(base_directory, self.current_wave())
+        base_directory = join(self.find_root_directory(), self.batch_name(), self.current_wave())
         return self.base_directory(base_directory)
     
-    @staticmethod
-    def discover_best_data_directory():
+    def find_root_directory(self):
         """Determine where to store the images"""
-        subdirectory_name = "sunback_images"
+        root_directory_name = "sunback_images"
         
+        #  Get the current path
         if __file__ in globals():
-            ddd = dirname(abspath(__file__))
+            this_file_path = dirname(abspath(__file__))
         else:
-            ddd = abspath(getcwd())
+            this_file_path = abspath(getcwd())
         
-        while "dropbox".casefold() in ddd.casefold():
-            ddd = abspath(join(ddd, ".."))
+        #  Escape Dropbox
+        while "dropbox".casefold() in this_file_path.casefold():
+            this_file_path = abspath(join(this_file_path, ".."))
         
-        directory = join(ddd, subdirectory_name)
-        if not isdir(directory):
-            makedirs(directory)
-        return directory
+        #  Name and create the root directory
+        root_directory = join(this_file_path, root_directory_name)
+        if not isdir(root_directory):
+            makedirs(root_directory)
+        self.root_directory = root_directory
+        return self.root_directory
     
     def create_subdirectories(self):
         # Make Directories
         makedirs(self.imgs_directory(), exist_ok=True)
         makedirs(self.fits_directory(), exist_ok=True)
-        if "background" not in self.movs_directory():
-            makedirs(self.movs_directory(), exist_ok=True)
-            
+        makedirs(self.movs_directory(), exist_ok=True)
+        makedirs(self.analysis_directory, exist_ok=True)
+        
         # Save Parameters
         self.save_to_txt()
     
@@ -515,28 +541,28 @@ class Parameters:
         key_fixed_number = None
         # print("Loading {} cadence.".format(self.selection))
         if self.selection.casefold() in ['slow', 's', 1, "1"]:
-            cadence_minutes = 5
-            exposure_time_secs = 180
+            cadence_minutes = 10 # One Forty Four Frames Per Day
+            exposure_time_secs = 180 # Fifteen Frames per Frame
             self.selection = 'slow'
         
         elif self.selection.casefold() in ['medium', 'm', 2, "2"]:
-            cadence_minutes = 10
-            exposure_time_secs = 120
+            cadence_minutes = 20 # Seventy Two Frames Per Day
+            exposure_time_secs = 120  # Ten Frames per Frame
             self.selection = 'medium'
             
         elif self.selection.casefold() in ['quick', 'q', 3, "3"]:
-            cadence_minutes = 20
-            exposure_time_secs = 60
+            cadence_minutes = 60 # Twenty Four Frames Per Day
+            exposure_time_secs = 60  # Five Frames per Frame
             self.selection = 'quick'
 
-        elif self.selection.casefold() in ['ludacris', "ludocrous" 'l', 4, "4"]:
-            cadence_minutes = 60
-            exposure_time_secs = 36
+        elif self.selection.casefold() in ['ludacris', "ludicrous " 'l', 4, "4"]:
+            cadence_minutes = 3 * 60 # Eight Frames Per Day
+            exposure_time_secs = 36  # Three Frames per Frame
             self.selection = 'ludacris'
 
         elif self.selection.casefold() in ['plaid', 'p', 5, "5"]:
-            cadence_minutes = 6 * 60
-            exposure_time_secs = 36
+            cadence_minutes = 6 * 60  # Four Frames per Day
+            exposure_time_secs = 36  # Three Frames per Frame
             self.selection = 'plaid'
 
         else:
@@ -659,7 +685,7 @@ class Parameters:
         if path is not None:
             self.local_directory = path
         else:
-            self.local_directory = self.discover_best_data_directory()
+            self.local_directory = self.find_root_directory()
         
         makedirs(self.local_directory, exist_ok=True)
     

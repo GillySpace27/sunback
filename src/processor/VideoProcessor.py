@@ -10,7 +10,8 @@ from processor.Processor import Processor
 
 
 class VideoProcessor(Processor):
-    mov_suffix = "_raw.avi"
+    mov_suffix = "raw"
+    mov_type = "avi"
     filt_name = 'Video Writer'
     destroy = False
     do_png = True
@@ -30,7 +31,7 @@ class VideoProcessor(Processor):
         self.frame_shape = None
         self.good_paths = []
         self.skipped = 0
-        self.final_name = None
+        self.final_output_path = None
 
     
     def process_one_wavelength(self, wave):
@@ -48,10 +49,10 @@ class VideoProcessor(Processor):
                 return False
             
             # Make the Directory
-            makedirs(dirname(self.final_name), exist_ok=True)
+            makedirs(dirname(self.final_output_path), exist_ok=True)
             
             # Make the VideoWriter and return it
-            video_avi = cv2.VideoWriter(self.final_name, 0, self.params.frames_per_second(), self.frame_shape)
+            video_avi = cv2.VideoWriter(self.final_output_path, 0, self.params.frames_per_second(), self.frame_shape)
             return video_avi
         
         else:  # If there are no files then sad
@@ -60,19 +61,25 @@ class VideoProcessor(Processor):
     
     def build_output_paths(self, path_box=None):
         """Build the Path to the Video"""
+        # Parse Inputs
         if path_box is None:
             path_box = self.params.local_imgs_paths()
         height, width, _ = cv2.imread(path_box[0]).shape
-        file_name = '{}_{}_movie{}'.format(self.params.current_wave(), strftime('%m%d_%H%M'), self.mov_suffix)
-        
         self.frame_shape = (width, height)
-        self.final_name = join(self.params.movs_directory(), file_name)
         self.good_paths = [path for path in path_box if ('orig' not in path and 'cat' not in path)]
+        
+        # Build File Name
+        batch_name = self.params.config['name']
+        wave = self.params.current_wave()
+        time_now = strftime('%m%d_%H%M')
+        file_name = '{}_{}_video_{}.{}'.format(batch_name, wave, time_now, self.mov_suffix, self.mov_type)
+        self.final_output_path = join(self.params.movs_directory(), file_name)
         self.progress_text = self.progress_stem.format(self.wave)
+        
         
     def should_continue(self):
         """Skip the video writing if indicated"""
-        if os.path.exists(self.final_name) and \
+        if os.path.exists(self.final_output_path) and \
                 not (self.params.write_video() or self.reprocess_mode()):
             print(" ^    Skipped \n")
             return False

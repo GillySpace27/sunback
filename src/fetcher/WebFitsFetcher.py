@@ -7,7 +7,7 @@ from urllib.request import urlretrieve
 import numpy as np
 import requests
 from bs4 import BeautifulSoup
-# from utils.file_util import discover_best_data_directory
+# from utils.file_util import find_root_directory
 from fetcher.Fetcher import Fetcher
 from tqdm import tqdm
 

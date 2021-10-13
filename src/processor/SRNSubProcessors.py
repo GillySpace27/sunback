@@ -87,15 +87,15 @@ class SRNpreProcessor(SRNProcessor):
         os.makedirs(self.params.base_directory(), exist_ok=True)
         
         path1 = os.path.join(self.params.base_directory(),"analysis\\radial_hist\\{}_inner_outer_{}.avi".format(self.params.current_wave(), time()))
-        path2 = os.path.join(self.params.base_directory(), "analysis\\radial_hist\\zoom\\{}_zoom_{}.avi".format(self.params.current_wave(), time()))
+        # path2 = os.path.join(self.params.base_directory(), "analysis\\radial_hist\\zoom\\{}_zoom_{}.avi".format(self.params.current_wave(), time()))
         
         # directory1 = os.path.dirname(path1)
         # name1 = os.path.basename(path1)
         # directory2 = os.path.dirname(path2)
         # name2 = os.path.basename(path2)
         
-        self.write_video_in_directory(fullpath=path1, fps=fps, key_string="inner", destroy=True)
-        self.write_video_in_directory(fullpath=path2, fps=fps, key_string="zoom" , destroy=True)
+        self.write_video_in_directory(fullpath=path1, fps=fps, key_string="inner", destroy=False)
+        # self.write_video_in_directory(fullpath=path2, fps=fps, key_string="zoom" , destroy=False)
         
         # self.delete_temp_folder_items(os.path.dirname(path1))
         # self.delete_temp_folder_items(os.path.dirname(path1))

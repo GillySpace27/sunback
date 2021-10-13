@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 # from utils.file_util import save_frame_to_fits_file
 # from fetcher.FidoFetcher import vprint
-# from utils.file_util import discover_best_data_directory
+# from utils.file_util import find_root_directory
 
 
 def vprint(in_string, *args, **kwargs):
@@ -151,8 +151,7 @@ class Processor:
             if self.paper_out:
                 self.params.paper_out.extend(self.paper_out)
                 self.paper_out = []
-            if not quick:
-                self.params.create_subdirectories()
+            self.params.create_subdirectories()
             fits_paths, imgs_paths = self.load_paths(verb)
             return fits_paths, imgs_paths
     
@@ -394,7 +393,7 @@ class Processor:
             return True
         else:
             raise FileNotFoundError
-    
+
     ##  Img Files
     def process_img_series(self):
         """Apply the function to all necessary img files"""
@@ -479,6 +478,20 @@ class Processor:
             hdul = self.delete_further_hdus(hdul, field)
             hdul[0].header['total_int_time'] = self.int_tm_tot
             hdul.close(output_verify='fix')
+    
+            
+    def make_shortcut(self, file_in_path=None, shortcut_out_path=None):
+        self.params.short_directory(shortcut_out_path)
+        
+        # import os, winshell, win32com.client, Pythoncom
+        
+        path = os.path.join(self.params.short_directory(), '{}.lnk'.format(self.this_file_name))
+        
+        shell = win32com.client.Dispatch("WScript.Shell")
+        shortcut = shell.CreateShortCut(path)
+        shortcut.Targetpath = shortcut_out_path
+        shortcut.IconLocation = file_in_path
+        shortcut.save()
     
     def delete_further_hdus(self, hdul, field):
         try:
@@ -589,10 +602,11 @@ class Processor:
         out_list = [self.outer_min, self.inner_min, self.inner_max, self.outer_max, self.scalar_out_curve]
         out_list.extend([self.output_abscissa, self.filtered_outer_maximum, self.filtered_inner_maximum,
                          self.filtered_inner_minimum, self.filtered_outer_minimum])
+        # out_list.append([self.smoothed_abs_max, self.smoothed_abs_min])
         self.curve_descriptions = ["outer_min", "inner_min", "inner_max", "outer_max",
                      ["scalar_out_curve", "found_limb_radius", "abs_min", "abs_max"], "output_abscissa",
                      "filtered_outer_maximum", "filtered_inner_maximum",
-                     "filtered_inner_minimum", "filtered_outer_minimum"]
+                     "filtered_inner_minimum", "filtered_outer_minimum", 'smooth_abs_max','smooth_abs_min']
 
         
         none_check = [item is not None for item in out_list]
@@ -618,6 +632,7 @@ class Processor:
         if self.prep_save_outs():
             curve_path = self.params.curve_path()
             descr_path = curve_path.replace("curve.txt", "curve_names.txt")
+            makedirs(os.path.dirname(curve_path), exist_ok=True)
             
             with open(descr_path, mode='w') as fp:
                 for desc, item in zip(self.curve_descriptions, self.curve_out_array):
@@ -975,7 +990,7 @@ class Processor:
         try:
             if fullpath is not None:
                 folder = os.path.dirname(fullpath)
-                good_paths = [join(folder, f) for f in listdir(folder) if ('png' in f and not os.path.isdir(f))]
+                good_paths = [join(folder, f) for f in listdir(folder) if ('png' in f and not os.path.isdir(join(folder, f)))]
                 video_path = fullpath.replace(".png", ".avi")
             else:
                 radial_directory = join(directory, folder_name)

@@ -240,7 +240,7 @@ class Fetcher(Processor):
 #     reprocess_mode = 'mirror'
 #     btma = self.binBtm[::self.extra_rez]
 #     mina = self.binMin[::self.extra_rez]
-#     mida = self.binMean[::self.extra_rez]
+#     mida = self.binAbsMax[::self.extra_rez]
 #     maxa = self.binMax[::self.extra_rez]
 #     topa = self.binTop[::self.extra_rez]
 #

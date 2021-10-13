@@ -116,9 +116,9 @@ class NoiseGateProcessor(Processor):
         #
         #         in_object = cv2.imread(join(self.image_folder, images[0]))
         #         height, width, layers = in_object.shape
-        #         final_name = self.video_name_stem.format("_raw.avi")
-        #         print(final_name)
-        #         video_avi = cv2.VideoWriter(final_name, 0, self.params.frames_per_second(), (width, height))
+        #         final_output_path = self.video_name_stem.format("_raw.avi")
+        #         print(final_output_path)
+        #         video_avi = cv2.VideoWriter(final_output_path, 0, self.params.frames_per_second(), (width, height))
         #
         #         for in_object in tqdm(images, desc=">Noise Gating {}".format(current_wave), unit="in_object"):
         #             # print(join(self.image_folder, in_object))

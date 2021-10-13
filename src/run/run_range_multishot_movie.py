@@ -17,16 +17,16 @@ plt.ioff()
 # tstart='2016/11/04 01:00:00', tend='2016/11/06 00:00:00',
 dostring = "Liftoff 0211"
 
-def run_range_multishot_movie(config_name=0, config=None):
+def run_range_multishot_movie(batch_name= "Liftoff", wave="0335", config=None):
     # Set the Parameters
-    p = make_params(config, config_name)
+    p = make_params(batch_name, wave, config)
     
     # Set the Processes
     # p.fetchers(FidoFetcher, rp=None)                                     # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N
     
-    p.processors([SRNpreProcessor],     rp=None)  # Learns the bounds of the dataset for SRN
-    p.processors([SRNradialFiltProcessor], rp=None)  # Applies the SRN Filter
+    p.processors([SRNpreProcessor],     rp=True)  # Learns the bounds of the dataset for SRN
+    p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
     #
     p.putters([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
@@ -35,16 +35,24 @@ def run_range_multishot_movie(config_name=0, config=None):
     run.Runner(p).start()
 
 
-def make_params(config=None, config_name=0):
-    # Set the Parameters
-    if config is None:
-        ConfigDict = make_configs()
-        config = ConfigDict[config_name]
+def make_params(batch_name=None, wave=None, config=None):
     
+    if wave:
+        batch_name = batch_name + ' ' + wave
+    
+    # Set the Parameters
+    if not config:
+        ConfigDict = make_configs()
+        config = ConfigDict[batch_name]
+    
+
+        
     p = Parameters()
+    p.config = config
+    p.destroy = False
     # tstart, tend = self.params.set_time_range_duration(tstart, duration_seconds=60):
     time_string = config["tstart"].replace('/', '_').replace(' ', '_').replace(':', '')
-    rng = "MultiRange\\MRange_{}".format(time_string)
+    rng = "MultiRange\\{}_{}_{}".format(config['name'], config["time_preset"], time_string)
     p.batch_name(rng)
     p.run_type("Make Movie of Given Time Range, With Time Integration")
     p.do_one(config["do_one"], config["stop"])
@@ -142,9 +150,17 @@ def make_configs():
     c10 = {
         "name": "Liftoff 0211",
         "debug": True, "do_one": '0211', "stop": True,
-        "tstart": '2013/09/29 00:00:00', "tend": '2013/10/01 00:00:00',
+        "tstart": '2013/09/29 00:00:00', "tend": '2013/10/03 00:00:00',
         "cadence_minutes": None, "fps": 5, "exposure_time": None,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
+    }
+
+    c11 = {
+        "name": "Liftoff 0335",
+        "debug": True, "do_one": '0335', "stop": True,
+        "tstart": '2013/09/29 00:00:00', "tend": '2013/10/03 00:00:00',
+        "cadence_minutes": None, "fps": 20, "exposure_time": None,
+        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
     }
 
     ConfigDict = {
@@ -159,13 +175,14 @@ def make_configs():
         c8["name"]:   c8,
         c9["name"]:   c9,
         c10["name"]: c10,
+        c11["name"]: c11,
                   }
     return ConfigDict
 
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run_range_multishot_movie("Liftoff 0171")
+    run_range_multishot_movie(batch_name="Liftoff", wave="0193", config=None)
     # run_range_multishot_movie(dostring)
 
 

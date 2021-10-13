@@ -326,8 +326,8 @@
 #         ax.plot(self.output_abscissa, self.franken_max, label="FinalMax", lw=5)
 #         ax.plot(self.output_abscissa, self.franken_min, label="FinalMin", lw=5)
 #
-#         # plt.plot(self.binAbss, self.binMean, label="Mid")
-#         # plt.plot(self.binAbss, self.binMed, label="Med")
+#         # plt.plot(self.binAbss, self.binAbsMax, label="Mid")
+#         # plt.plot(self.binAbss, self.binAbsMin, label="Med")
 #
 #         # plt.xlim([0.6*theMin,theMax*1.5])
 #
@@ -343,8 +343,8 @@
 #
 #         ax.plot(self.binAbss, self.binMax, label="Max")
 #         ax.plot(self.binAbss, self.binMin, label="Min")
-#         ax.plot(self.binAbss, self.binMean, label="Mid")
-#         ax.plot(self.binAbss, self.binMed, label="Med")
+#         ax.plot(self.binAbss, self.binAbsMax, label="Mid")
+#         ax.plot(self.binAbss, self.binAbsMin, label="Med")
 #
 #         ax.axvline(self.theMin)
 #         ax.axvline(self.theMax)
@@ -450,9 +450,9 @@
 #
 #         # ax1.plot(binAbss, binMax, 'c')
 #         # ax1.plot(self.n2r(self.binAbss), self.binMin, 'm')
-#         # ax1.plot(self.n2r(self.binAbss), self.binMean, 'y')
+#         # ax1.plot(self.n2r(self.binAbss), self.binAbsMax, 'y')
 #         # ax1.plot(self.n2r(self.binAbss), self.binMax, 'b')
-#         # ax1.plot(binAbss, binMed, 'r')
+#         # ax1.plot(binAbss, binAbsMin, 'r')
 #         # ax1.plot(binAbss, frame_minimum, 'r')
 #         # ax1.set_ylim((-0.5, 2))
 #         # ax1.xlim((380* self.extra_rez ,(380+50)* self.extra_rez ))

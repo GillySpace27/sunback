@@ -100,7 +100,7 @@ class Runner:
     ## PRINTING
     def print_header(self):
         print("\n\n", self.wall_1)
-        print("\nSunback SDO Image Manipulator \nWritten by C. R. Gilly")
+        print("\nSunback SDO Image Manipulator \nWritten by C.R. Gilly")
         print("Check out my website: http://gilly.space\n")
         self.start_timestamp = time()
         if self.params.is_debug(): print("DEBUG MODE\n")
