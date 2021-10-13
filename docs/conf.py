@@ -18,7 +18,7 @@ import sys
 sys.path.insert(0, os.path.abspath('..'))
 # sys.path.append('../')
 
-from sunback._version import get_versions
+from movie.dep.sunback import get_versions
 versions = get_versions()
 __version__ = versions['version']
 __git_revision__ = versions['full-revisionid']
@@ -27,9 +27,9 @@ del get_versions, versions
 # -- Project information -----------------------------------------------------
 
 project = 'Solar Background Updater'
-copyright = ("2019, Chris R. Gilly. Project structure based on the "
+copyright = ("2019, C. R. Gilly. Project structure based on the "
              "Computational Molecular Science Python Cookiecutter version 1.1")
-author = 'Chris R. Gilly'
+author = 'C. R. Gilly'
 
 # The short X.Y version
 version = __version__.split('+')[0]
@@ -148,7 +148,7 @@ latex_elements = {
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title,
+# (source start_timestamp file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'sunback.tex', 'SolarBackgroundUpdater Documentation',
@@ -159,7 +159,7 @@ latex_documents = [
 # -- Options for manual page output ------------------------------------------
 
 # One entry per manual page. List of tuples
-# (source start file, name, description, authors, manual section).
+# (source start_timestamp file, name, description, authors, manual section).
 man_pages = [
     (master_doc, 'sunback', 'SolarBackgroundUpdater Documentation',
      [author], 1)
@@ -169,8 +169,8 @@ man_pages = [
 # -- Options for Texinfo output ----------------------------------------------
 
 # Grouping the document tree into Texinfo files. List of tuples
-# (source start file, target name, title, author,
-#  dir menu entry, description, category)
+# (source start_timestamp file, target name, title, author,
+#  imgs_directory menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'sunback', 'Solar Background Updater Documentation',
      author, 'sunback', 'A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series. ',

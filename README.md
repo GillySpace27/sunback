@@ -23,16 +23,18 @@ A program that downloads the most current images of the sun from the SDO satelli
 
 
 Basic Usage:  
+``` bash
 pip install sunback  
 python3  
 import sunback as sb  
 sb.run(delay=20)  
+```
 
 Check contribute.md to see how you can help out!
 
 ### Copyright
 
-Copyright (c) 2019, [Chris R. Gilly](https://gilly.space) [ORCiD](https://orcid.org/0000-0003-0021-9056)
+Copyright (c) 2019, [C. R. Gilly](https://gilly.space) [ORCiD](https://orcid.org/0000-0003-0021-9056)
 
 
 #### Acknowledgements

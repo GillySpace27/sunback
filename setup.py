@@ -4,7 +4,7 @@ A program that downloads the most current images of the sun from the SDO satelli
 """
 import sys
 from setuptools import setup, find_packages
-from sunback import versioneer
+from movie.dep.sunback import versioneer
 
 short_description = __doc__.split("\n")
 
@@ -21,7 +21,7 @@ except:
 setup(
     # Self-descriptive entries which should always be present
     name='Sunback',
-    author='Chris R. Gilly',
+    author='C. R. Gilly',
     author_email='chris.gilly@colorado.edu',
     description=short_description[0],
     long_description=long_description,

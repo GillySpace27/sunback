@@ -24,12 +24,12 @@ var/
 wheels/
 /dist_old/
 /depricated/
-/sunback/data/images/
-/sunback/data/sunback_images/
-/sunback/sunback_images/
-/sunback/fits
-/sunback/renders
-/sunback/function.zip
+/src/data/images/
+/src/data/sunback_images/
+/src/sunback_images/
+/src/fits
+/src/renders
+/src/function.zip
 
 docs/_build
 *.egg-info/
@@ -118,3 +118,8 @@ ENV/
 /devtools/scripts/
 /resources/jythonMusic/
 /venv2/
+
+/renders/
+/src/run/renders
+/src/run/image_times
+/image_times

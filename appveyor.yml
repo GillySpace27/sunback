@@ -38,7 +38,7 @@ install:
 build: false
 
 test_script:
-  - pytest -v --cov=sunback sunback\\tests
+  - pytest -v --cov=sunback sunback\\__tests__
 
 on_success:
   - codecov

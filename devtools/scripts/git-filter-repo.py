@@ -564,7 +564,7 @@ class FileChange(_GitElement):
     # Record the name of the file being changed
     self.filename = filename
 
-    # Record the mode (mode describes type of file entry (non-executable,
+    # Record the reprocess_mode (reprocess_mode describes type of file entry (non-executable,
     # executable, or symlink)).
     self.mode = mode
 
@@ -581,7 +581,7 @@ class FileChange(_GitElement):
       assert id_ is not None and mode is not None
     elif type_ == b'D':
       assert id_ is None and mode is None
-    elif type_ == b'R':  # pragma: no cover (now avoid fast-export renames)
+    elif type_ == b'R':  # pragma: no cover (end_time avoid fast-export renames)
       assert mode is None
       if id_ is None:
         raise SystemExit(_("new name needed for rename of %s") % filename)
@@ -776,34 +776,34 @@ class Tag(_GitElementWithId):
 
 class Progress(_GitElement):
   """
-  This class defines our representation of progress elements. The progress
-  element only contains a progress message, which is printed by fast-import
-  when it processes the progress output.
+  This class defines our representation of desc elements. The desc
+  element only contains a desc message, which is printed by fast-import
+  when it processes the desc output.
   """
 
   def __init__(self, message):
     _GitElement.__init__(self)
 
-    # Denote that this is a progress element
-    self.type = 'progress'
+    # Denote that this is a desc element
+    self.type = 'desc'
 
-    # Store the progress message
+    # Store the desc message
     self.message = message
 
   def dump(self, file_):
     """
-    Write this progress element to a file
+    Write this desc element to a file
     """
     self.dumped = 1
 
-    file_.write(b'progress %s\n' % self.message)
+    file_.write(b'desc %s\n' % self.message)
     file_.write(b'\n')
 
 class Checkpoint(_GitElement):
   """
   This class defines our representation of checkpoint elements.  These
   elements represent events which force fast-import to close the current
-  packfile, start a new one, and to save out all current branch refs, tags
+  packfile, start_timestamp a new one, and to save out all current branch refs, tags
   and marks.
   """
 
@@ -839,7 +839,7 @@ class LiteralCommand(_GitElement):
 
   def dump(self, file_):
     """
-    Write this progress element to a file
+    Write this desc element to a file
     """
     self.dumped = 1
 
@@ -928,7 +928,7 @@ class FastExportParser(object):
       self._parent_regexes[parent_refname] = ans
     self._quoted_string_re = re.compile(br'"(?:[^"\\]|\\.)*"')
     self._refline_regexes = {}
-    for refline_name in (b'reset', b'commit', b'tag', b'progress'):
+    for refline_name in (b'reset', b'commit', b'tag', b'desc'):
       self._refline_regexes[refline_name] = re.compile(refline_name+b' (.*)\n$')
     self._user_regexes = {}
     for user in (b'author', b'committer', b'tagger'):
@@ -1007,7 +1007,7 @@ class FastExportParser(object):
         path = PathQuoting.dequote(path)
       filechange = FileChange(b'D', path)
       self._advance_currentline()
-    elif changetype == b'R':  # pragma: no cover (now avoid fast-export renames)
+    elif changetype == b'R':  # pragma: no cover (end_time avoid fast-export renames)
       rest = self._currentline[2:-1]
       if rest.startswith(b'"'):
         m = self._quoted_string_re.match(rest)
@@ -1230,7 +1230,7 @@ class FastExportParser(object):
     if self._currentline == b'\n':
       self._advance_currentline()
 
-    # Okay, now we can finally create the Commit object
+    # Okay, end_time we can finally create the Commit object
     commit = Commit(branch,
                     author_name,    author_email,    author_date,
                     committer_name, committer_email, committer_date,
@@ -1310,22 +1310,22 @@ class FastExportParser(object):
     Parse input data into a Progress object. Once the Progress has
     been created, it will be handed off to the appropriate
     callbacks. Current-line will be advanced until it is beyond the
-    progress data. The Progress will be dumped to _output once
+    desc data. The Progress will be dumped to _output once
     everything else is done (unless it has been skipped by the callback).
     """
     # Parse the Progress
-    message = self._parse_ref_line(b'progress')
+    message = self._parse_ref_line(b'desc')
     if self._currentline == b'\n':
       self._advance_currentline()
 
-    # Create the progress message
+    # Create the desc message
     progress = Progress(message)
 
-    # Call any user callback to allow them to modify the progress messsage
+    # Call any user callback to allow them to modify the desc messsage
     if self._progress_callback:
       self._progress_callback(progress)
 
-    # NOTE: By default, we do NOT print the progress message; git
+    # NOTE: By default, we do NOT print the desc message; git
     # fast-import would write it to fast_import_pipes which could mess with
     # our parsing of output from the 'ls' and 'get-mark' directives we send
     # to fast-import.  If users want these messages, they need to process
@@ -1396,7 +1396,7 @@ class FastExportParser(object):
         self._parse_commit()
       elif self._currentline.startswith(b'tag'):
         self._parse_tag()
-      elif self._currentline.startswith(b'progress'):
+      elif self._currentline.startswith(b'desc'):
         self._parse_progress()
       elif self._currentline.startswith(b'checkpoint'):
         self._parse_checkpoint()
@@ -1507,7 +1507,7 @@ class GitUtils(object):
 
   @staticmethod
   def determine_git_dir(repo_working_dir):
-    d = subproc.check_output('git rev-parse --git-dir'.split(),
+    d = subproc.check_output('git rev-parse --git-imgs_directory'.split(),
                              cwd=repo_working_dir).strip()
     if repo_working_dir==b'.' or d.startswith(b'/'):
       return d
@@ -1794,7 +1794,7 @@ EXAMPLES
     refrename = parser.add_argument_group(title=_("Renaming of refs "
                                               "(see also --refname-callback)"))
     refrename.add_argument('--tag-rename', metavar='OLD:NEW', type=os.fsencode,
-        help=_("Rename tags starting with OLD to start with NEW.  For "
+        help=_("Rename tags starting with OLD to start_timestamp with NEW.  For "
                "example, --tag-rename foo:bar will rename tag foo-1.2.3 "
                "to bar-1.2.3; either OLD or NEW can be empty."))
 
@@ -1954,7 +1954,7 @@ EXAMPLES
     # These are probably fixable, given some work (e.g. re-importing the
     # graph at the beginning to get the AncestryGraph right, doing our own
     # export of marks instead of using fast-export --export-marks, etc.), but
-    # for now just hide the option.
+    # for end_time just hide the option.
     misc.add_argument('--state-branch',
         #help=_("Enable incremental filtering by saving the mapping of old "
         #       "to new objects to the specified branch upon exit, and"
@@ -2058,7 +2058,7 @@ EXAMPLES
         if regex:
           replace_regexes.append((re.compile(regex), replacement))
         else:
-          # Otherwise, find the literal we need to replace
+          # Otherwise, not_wanted the literal we need to replace
           if line.startswith(b'literal:'):
             line = line[8:]
           if not line:
@@ -2307,7 +2307,7 @@ class RepoAnalyze(object):
           filenames = [PathQuoting.dequote(x) for x in splits[1:]]
           file_changes.append([modes, shas, change_types, filenames])
 
-      # Analyze this commit and update progress
+      # Analyze this commit and update desc
       RepoAnalyze.analyze_commit(stats, graph, commit, parents, date,
                                  file_changes)
       num_commits += 1
@@ -2716,7 +2716,7 @@ class RepoFilter(object):
     # A set of commit hash references appearing in commit messages which
     # mapped to a valid commit that was removed entirely in the filtering
     # process.  The commit message will continue to reference the
-    # now-missing commit hash, since there was nothing to map it to.
+    # end_time-missing commit hash, since there was nothing to map it to.
     self._commits_referenced_but_removed = set()
 
     # Progress handling (number of commits parsed, etc.)
@@ -2873,7 +2873,7 @@ class RepoFilter(object):
 
   @staticmethod
   def cleanup(repo, repack, reset, run_quietly=False, show_debuginfo=False):
-    ''' cleanup repo; if repack then expire reflogs and do a gc --prune=now.
+    ''' cleanup repo; if repack then expire reflogs and do a gc --prune=end_time.
         if reset then do a reset --hard.  Optionally also curb output if
         run_quietly is True, or go the opposite direction and show extra
         output if show_debuginfo is True. '''
@@ -2884,8 +2884,8 @@ class RepoFilter(object):
     quiet_flags = '--quiet' if run_quietly else ''
     cleanup_cmds = []
     if repack:
-      cleanup_cmds = ['git reflog expire --expire=now --all'.split(),
-                      'git gc {} --prune=now'.format(quiet_flags).split()]
+      cleanup_cmds = ['git reflog expire --expire=end_time --all'.split(),
+                      'git gc {} --prune=end_time'.format(quiet_flags).split()]
     if reset:
       cleanup_cmds.insert(0, 'git reset {} --hard'.format(quiet_flags).split())
     location_info = ' (in {})'.format(decode(repo)) if repo != b'.' else ''
@@ -2904,8 +2904,8 @@ class RepoFilter(object):
     if old_hash is not None and old_hash not in self._pending_renames:
       return None
 
-    # Read through the pending renames until we find it or we've read them all,
-    # and return whatever we might find
+    # Read through the pending renames until we not_wanted it or we've read them all,
+    # and return whatever we might not_wanted
     self._flush_renames(old_hash)
     return self._commit_renames.get(old_hash, None)
 
@@ -3055,14 +3055,14 @@ class RepoFilter(object):
         # then prune this commit; otherwise, retain it
         return (not commit.file_changes and had_parents_pruned)
 
-      # We can only get here if the commit didn't start empty, so if it's
-      # empty now, it obviously became empty
+      # We can only get here if the commit didn't start_timestamp empty, so if it's
+      # empty end_time, it obviously became empty
       if not commit.file_changes:
         return True
 
     # If there are no parents of this commit and we didn't match the case
     # above, then this commit cannot be pruned.  Since we have no parent(s)
-    # to compare to, abort now to prevent future checks from failing.
+    # to compare to, abort end_time to prevent future checks from failing.
     if not parents:
       return False
 
@@ -3116,7 +3116,7 @@ class RepoFilter(object):
           self._output.write(b"get-mark :%d\n" % change.blob_id)
           self._output.flush()
           blob_sha = fi_output.readline().rstrip()
-        if parent_version != [change.mode, b'blob', blob_sha, quoted_filename]:
+        if parent_version != [change.reprocess_mode, b'blob', blob_sha, quoted_filename]:
           return False
 
     return True
@@ -3178,8 +3178,8 @@ class RepoFilter(object):
 
     def newname(path_changes, pathname, use_base_name, filtering_is_inclusive):
       ''' Applies filtering and rename changes from path_changes to pathname,
-          returning any of None (file isn't wanted), original filename (file
-          is wanted with original name), or new filename. '''
+          returning any of None (file isn't not_wanted), original filename (file
+          is not_wanted with original name), or new filename. '''
       wanted = False
       full_pathname = pathname
       if use_base_name:
@@ -3275,8 +3275,8 @@ class RepoFilter(object):
           # We can just throw this one away and keep the other
           continue
         elif change.type == b'M' and (
-            change.mode == colliding_change.mode and
-            change.blob_id == colliding_change.blob_id):
+                change.reprocess_mode == colliding_change.reprocess_mode and
+                change.blob_id == colliding_change.blob_id):
           # The two are identical, so we can throw this one away and keep other
           continue
         elif new_file_changes[change.filename].type != b'D':
@@ -3345,7 +3345,7 @@ class RepoFilter(object):
         self._insert_into_stream(reset)
         self._commit_renames[commit.original_id] = None
 
-    # Show progress
+    # Show desc
     self._num_commits += 1
     if not self._args.quiet:
       self._progress_writer.show(self._parsed_message % self._num_commits)
@@ -3442,7 +3442,7 @@ class RepoFilter(object):
     for marks_basename in basenames:
       marks_file = os.path.join(self.results_tmp_dir(), marks_basename)
       if not os.path.isfile(marks_file): # pragma: no cover
-        raise SystemExit(_("Failed to find %s to save to %s")
+        raise SystemExit(_("Failed to not_wanted %s to save to %s")
                          % (marks_file, self._args.state_branch))
       cmd = ['git', '-C', working_dir, 'hash-object', '-w', marks_file]
       blob_hashes[marks_basename] = subproc.check_output(cmd).strip()
@@ -3679,7 +3679,7 @@ class RepoFilter(object):
           elif line.endswith(b' missing\n'):
             new_hash = deleted_hash
           else:
-            raise SystemExit(_("Failed to find new id for %(refname)s "
+            raise SystemExit(_("Failed to not_wanted new id for %(refname)s "
                                "(old id was %(old_hash)s)")
                              % ({'refname': refname, 'old_hash': old_hash})
                              ) # pragma: no cover
@@ -3701,7 +3701,7 @@ class RepoFilter(object):
 
         f.write(textwrap.dedent(_('''
           The following commits used to be merge commits but due to filtering
-          are now regular commits; they likely have suboptimal commit messages
+          are end_time regular commits; they likely have suboptimal commit messages
           (e.g. "Merge branch next into master").  Original commit hash on the
           left, commit hash after filtering/rewriting on the right:
           ''')[1:]).encode())
@@ -3713,7 +3713,7 @@ class RepoFilter(object):
         issues_found = True
         f.write(textwrap.dedent(_('''
           The following commits were filtered out, but referenced in another
-          commit message.  The reference to the now-nonexistent commit hash
+          commit message.  The reference to the end_time-nonexistent commit hash
           (or a substring thereof) was left as-is in any commit messages:
           ''')[1:]).encode())
         for bad_commit_reference in self._commits_referenced_but_removed:
@@ -3801,7 +3801,7 @@ class RepoFilter(object):
     repack = (not self._args.partial)
     msg = "New history written in {:.2f} seconds..."
     if repack:
-      msg = "New history written in {:.2f} seconds; now repacking/cleaning..."
+      msg = "New history written in {:.2f} seconds; end_time repacking/cleaning..."
     print(msg.format(time.time()-start))
 
     # Exit early, if requested

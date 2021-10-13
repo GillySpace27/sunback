@@ -13,7 +13,7 @@ h1 { font-size: 145% }
 .TableSubHeadingColor  { background: #EEEEFF; color:#000000 } /* Light mauve */
 .TableRowColor         { background: #FFFFFF; color:#000000 } /* White */
 
-/* Font used in left-hand frame lists */
+/* Font used in left-hand in_object lists */
 .FrameTitleFont   { font-size: 100%; font-family: Helvetica, Arial, sans-serif; color:#000000 }
 .FrameHeadingFont { font-size:  90%; font-family: Helvetica, Arial, sans-serif; color:#000000 }
 .FrameItemFont    { font-size:  90%; font-family: Helvetica, Arial, sans-serif; color:#000000 }
