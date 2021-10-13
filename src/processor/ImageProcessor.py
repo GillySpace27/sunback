@@ -48,8 +48,10 @@ class ImageProcessor(Processor):
         self.figure_box = []
         self.skipped = 0
         self.frame = None
-        self.load_curves()
-    
+        try:
+            self.load_curves()
+        except AttributeError as e:
+            print(e)
     def do_fits_function(self, fits_path, in_name=None):
         """This is the do_fits_function for this """
         self.init_frame(fits_path, self.params.png_frame_name)

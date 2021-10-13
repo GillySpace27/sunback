@@ -17,7 +17,7 @@ class SRNSingleShotProcessor(SRNProcessor):
     name = filt_name = 'SRN Single Shot Processor'
     description = "Create and Apply the Radial SRN Curves"
     progress_verb = 'Processing'
-    finished_verb = "Applied"
+    finished_verb = "Modified"
     show_plots = True
     
     def __init__(self, fits_path=None, in_name=-1, orig=False,
@@ -25,21 +25,31 @@ class SRNSingleShotProcessor(SRNProcessor):
         super().__init__(fits_path, in_name, orig, show, verb, quick, rp, params)
         self.first = True
         self.go_ahead = True
+        self.params.current_wave('rainbow')
+        self.params.Force_init = True
+        self.can_use_keyframes = False
     
     def setup(self):
+        # self.load(self.params, quietly=True, wave=self.params.current_wave('rainbow'))
+        # self.params.current_wave('rainbow')
+
+        # self.params.fits_directory()
         pass
+    
     
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         self.image_learn()  # Analyze the input to help make normalization curves
+        self.plot_inner_outer(save=True, extra=True)
         self.image_modify()  # Actually Normalize This Image
+        self.plot_radial_norm_keyframes(True, show=False, save=True)
         return self.changed
     
     def cleanup(self):
         """Runs after all the images have been modified with do_work"""
         # print("Save/load!")
-        # self.save_curves()
-        # self.load_curves()
+        self.save_curves()
+        self.load_curves()
         pass
 
 

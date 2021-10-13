@@ -29,6 +29,7 @@ class Parameters:
         self._shortcut_directory = None
         self.selection = None
         self.paper_out = []
+        self.png_frame_name = None
         
         self.tend = ''
         self.tstart = ''

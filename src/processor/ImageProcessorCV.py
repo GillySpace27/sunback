@@ -76,8 +76,11 @@ class ImageProcessorCV(ImageProcessor):
         cv2.putText(img, year,    (0, 300), 0, 3, (255, 255, 255), 3)
     
     def cleanup(self):
-        destroy = True
-        self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=5, destroy=destroy)
+        destroy = False
+        try:
+            self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=5, destroy=destroy)
+        except FileNotFoundError as e:
+            print(e)
         if destroy:
             shutil.rmtree(self.orig_directory)
             

@@ -16,6 +16,13 @@ from tqdm import tqdm
 class WebFitsFetcher(Fetcher):
     base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
     description = "Get Fits Files from {}".format(base_url)
+    
+    # out_name = 'SRN'
+    # name = filt_name = 'SRN Single Shot Processor'
+    progress_verb = 'Downloading'
+    finished_verb = "Aquired"
+    # show_plots = True
+    
     def fetch(self, params=None):
         """Gets the Fits Files from the Archive URL
         :param params:

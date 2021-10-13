@@ -235,6 +235,7 @@ class Processor:
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
             self.file_basename = basename(self.fits_path)
             self.set_centerpoint(center)
+            # self.set_radius()
             return True
         else:
             return False
@@ -263,8 +264,8 @@ class Processor:
         This function only runs once, sort of an __init__
         """
         # if self.dont_ignore:
-        self.use_keyframes = self.params.fixed_cadence_keyframes() or self.params.fixed_number_keyframes()
-        if self.can_use_keyframes and self.use_keyframes:
+        self.use_keyframes = (self.params.fixed_cadence_keyframes() or self.params.fixed_number_keyframes()) and self.can_use_keyframes
+        if self.use_keyframes:
             self.keyframes = self.pick_keyframes()
             pass
         else:
@@ -753,8 +754,9 @@ class Processor:
                 t_rec = first_data_hdul.header['T_OBS']
                 center = [first_data_hdul.header['X0_MP'], first_data_hdul.header['Y0_MP']]
                 int_time = first_data_hdul.header['EXPTIME']
-                found_limb_radius = first_data_hdul.header['R_SUN'] + 12 #TODO make this more real
-                
+                found_limb_radius = first_data_hdul.header['R_SUN'] #TODO make this more real
+                while found_limb_radius > first_data_hdul.header['NAXIS1']:
+                    found_limb_radius /= 4.0
                 break
             except KeyError as e:
                 continue

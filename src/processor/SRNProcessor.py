@@ -192,7 +192,7 @@ class SRNProcessor(Processor):
         """Records the current analysis as one of the radial samples"""
         self.update_keyframe_counters()
         # self.remove_offset()
-        if not self.outputs_initialized:
+        if not self.outputs_initialized or self.params.Force_init:
             self.init_running_curves()
         else:
             self.update_running_curves()
@@ -224,7 +224,7 @@ class SRNProcessor(Processor):
         
         if self.rez is None:
             self.rez = self.changed.shape[0]
-            self.output_abscissa = np.arange(self.rez)
+        self.output_abscissa = np.arange(self.rez)
         
         if self.radius is None or force or self.changed.shape[0] != self.rez:
             dprint("init_radius_array")
@@ -293,27 +293,24 @@ class SRNProcessor(Processor):
     
     def init_running_curves(self):
         """Initialize the curves"""
-        if not self.outputs_initialized:
-            need_to_run = (self.frame_minimum is not None)
-            need_to_run = need_to_run and np.sum(np.isfinite(self.frame_minimum)) > 0
-            if need_to_run:
-                dprint("init_running_curves")
-                self.outer_min = self.frame_minimum + 0
-                self.avg_min = self.frame_minimum + 0
-                self.inner_min = self.frame_minimum + 0
-                self.inner_max = self.frame_maximum + 0
-                self.avg_max = self.frame_maximum + 0
-                self.outer_max = self.frame_maximum + 0
-                self.abs_max = self.frame_abs_max + 0
-                self.abs_min = self.frame_abs_min + 0
-                
-                self.absolute_min = max(np.nanmin(self.outer_min), -10)
-                self.absolute_max = np.nanmax(self.outer_max)
-                # self.check_if_same("init_running_curves")
-                self.outputs_initialized = True
-            return True
-        print("Skipping Init Running Curves")
-        return False
+        need_to_run = (self.frame_minimum is not None)
+        need_to_run = need_to_run and np.sum(np.isfinite(self.frame_minimum)) > 0
+        if need_to_run or self.params.Force_init:
+            dprint("init_running_curves")
+            self.outer_min = self.frame_minimum + 0
+            self.avg_min = self.frame_minimum + 0
+            self.inner_min = self.frame_minimum + 0
+            self.inner_max = self.frame_maximum + 0
+            self.avg_max = self.frame_maximum + 0
+            self.outer_max = self.frame_maximum + 0
+            self.abs_max = self.frame_abs_max + 0
+            self.abs_min = self.frame_abs_min + 0
+            
+            self.absolute_min = max(np.nanmin(self.outer_min), -10)
+            self.absolute_max = np.nanmax(self.outer_max)
+            # self.check_if_same("init_running_curves")
+            self.outputs_initialized = True # TODO I changed this in case something is broken
+        return True
     
     def update_running_curves(self):
         """Update the Curves"""
@@ -364,7 +361,7 @@ class SRNProcessor(Processor):
         self.inner_min -= self.absolute_min
         self.outer_min -= self.absolute_min
     
-    def plot_inner_outer(self, show=False, save=True, fig=None, ax=None):
+    def plot_inner_outer(self, show=False, save=True, fig=None, ax=None, extra=False, raw=True, smooth=True):
         """Look at the results of the algorithm"""
         if ax is None or fig is None:
             fig, ax = plt.subplots()
@@ -378,32 +375,32 @@ class SRNProcessor(Processor):
         do_all = True
         raw_alpha = 0.85
         grey_alpha = 0.90
-    
+        
         rrarr = self.n2r(np.arange(len(self.outer_max)))
         # Plot Raw Curves
         if do_all and self.outer_max is not None:
-            ax.plot(rrarr, self.outer_max, zorder=4, lw=1, label="Out Max", alpha=raw_alpha, c='orange')
-            ax.plot(rrarr, self.inner_max, zorder=5, lw=1, label="In Max",  alpha=raw_alpha, c='gold')
-            ax.plot(rrarr, self.inner_min, zorder=6, lw=1, label="In Min",  alpha=raw_alpha, c='cornflowerblue')
-            ax.plot(rrarr, self.outer_min, zorder=3, lw=1, label="Out Min", alpha=raw_alpha, c='b')
+            if raw: ax.plot(rrarr, self.outer_max, zorder=4, lw=1, label="Top/Bot", alpha=raw_alpha, c='orange')
+            if extra: ax.plot(rrarr, self.inner_max, zorder=5, lw=1, label="In Max",  alpha=raw_alpha, c='cornflowerblue')
+            if extra: ax.plot(rrarr, self.inner_min, zorder=6, lw=1, label="In Min",  alpha=raw_alpha, c='cornflowerblue')
+            if raw: ax.plot(rrarr, self.outer_min, zorder=3, lw=1, alpha=raw_alpha, c='orange')
     
         # Plot Current Frame Curves
-        if do_all and self.frame_maximum is not None:
-            ax.plot(rrarr, self.frame_maximum,zorder=8, lw=1,                     c='darkgrey', alpha=grey_alpha)
-            ax.plot(rrarr, self.frame_minimum,zorder=7, lw=1, label="Frame",      c='darkgrey', alpha=grey_alpha)
-            ax.plot(rrarr, self.smoothed_frame_maximum, zorder=10,lw=1,                      c='darkslategrey', alpha=1)
-            ax.plot(rrarr, self.smoothed_frame_minimum, zorder=9, lw=1, label="Smo. Frame",  c='darkslategrey', alpha=1)
+        if do_all and self.frame_maximum is not None and extra:
+            if raw: ax.plot(rrarr, self.frame_maximum,zorder=8, lw=1,                     c='darkgrey', alpha=grey_alpha)
+            if raw: ax.plot(rrarr, self.frame_minimum,zorder=7, lw=1, label="Frame",      c='darkgrey', alpha=grey_alpha)
+            if smooth: ax.plot(rrarr, self.smoothed_frame_maximum, zorder=10,lw=1,                      c='darkslategrey', alpha=1)
+            if smooth: ax.plot(rrarr, self.smoothed_frame_minimum, zorder=9, lw=1, label="Smooth Frame",  c='darkslategrey', alpha=1)
 
         # Plot Absolute Curves
         if do_all and self.abs_max is not None:
-            ax.plot(rrarr, self.abs_max, zorder=1, lw=1,                     c='darkgrey', alpha=grey_alpha)
-            ax.plot(rrarr, self.abs_min, zorder=1, lw=1, label="Absolute",   c='darkgrey', alpha=grey_alpha)
-            ax.plot(rrarr, self.smoothed_abs_max, zorder=200, lw=2,                    c='k', alpha=1)
-            ax.plot(rrarr, self.smoothed_abs_min, zorder=200, lw=2, label="Smo. Abs",  c='k', alpha=1)
+            if raw: ax.plot(rrarr, self.abs_max, zorder=1, lw=1, label="Hat/Shoe",   c='darkgrey', alpha=grey_alpha)
+            if raw: ax.plot(rrarr, self.abs_min, zorder=1, lw=1,   c='darkgrey', alpha=grey_alpha)
+            if smooth: ax.plot(rrarr, self.smoothed_abs_max, zorder=200, lw=2,                      c='cornflowerblue', alpha=1)
+            if smooth: ax.plot(rrarr, self.smoothed_abs_min, zorder=200, lw=2, label="Smooth Hat/Shoe",  c='cornflowerblue', alpha=1)
             
         RRarr = self.n2r(self.output_abscissa)
         # Plot Filtered Curves
-        if self.filtered_inner_maximum is not None:
+        if self.filtered_inner_maximum is not None and extra:
             ax.plot(RRarr, self.filtered_outer_maximum, zorder=103,lw =1, c="m", label="Fltr. Out")
             ax.plot(RRarr, self.filtered_inner_maximum, zorder=102,lw =1, c='c', label="Fltr. Inn")
             ax.plot(RRarr, self.filtered_inner_minimum, zorder=102,lw =1, c="c", ls='--')
@@ -411,10 +408,10 @@ class SRNProcessor(Processor):
 
         # Plot Smoothed Curves
         if self.smooth_inner_maximum is not None:
-            ax.plot(RRarr, self.smooth_outer_maximum, zorder=105, lw=2, c="r", label="Sm. Out")
-            ax.plot(RRarr, self.smooth_inner_maximum, zorder=104, lw=2, c='g', label="Sm. Inn")
-            ax.plot(RRarr, self.smooth_inner_minimum, zorder=104, lw=2, c="g", ls='--')
-            ax.plot(RRarr, self.smooth_outer_minimum, zorder=105, lw=2, c='r', ls='--', )
+            if smooth: ax.plot(RRarr, self.smooth_outer_maximum, zorder=105, lw=2, c="g", label="Smooth Top/Bot")
+            if extra: ax.plot(RRarr, self.smooth_inner_maximum, zorder=104, lw=2, c='r', label="Smooth Shoulder")
+            if extra: ax.plot(RRarr, self.smooth_inner_minimum, zorder=104, lw=2, c="r", ls='--', label="Smooth Knee")
+            if smooth: ax.plot(RRarr, self.smooth_outer_minimum, zorder=105, lw=2, c='g')
             # ax.plot(rrarr, self.smoothed_frame_abs_max, zorder=1, lw=1,                   c='grey', alpha=1)
             # ax.plot(rrarr, self.smoothed_frame_abs_min, zorder=1, lw=1, label="Smo. Abs", c='grey', alpha=1)
     
@@ -425,8 +422,8 @@ class SRNProcessor(Processor):
             ax.axvline(self.n2r(self.hCut), ls=":")
     
         # Plot Scatter Points
-        skip = 500  # TODO Make this sample better, linear isn't appropriate because its a circle
-        ax.scatter(self.n2r(self.rad_flat[::skip]), self.original.flatten()[::skip], c='k', s=2)
+        self.skip_points = 10 if self.rez < 3000 else 500  # TODO Make this sample better, linear isn't appropriate because its a circle
+        ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), self.original.flatten()[::self.skip_points], c='k', s=2)
     
         ## Plot Formatting
         ax.set_ylabel("Intensity")
@@ -434,7 +431,7 @@ class SRNProcessor(Processor):
         ax.set_yscale("symlog")
         ax.set_ylim((-10 ** 1, 10 ** 4))
         ax.legend(loc='lower left')
-    
+        # plt.show()
         # Plot Saving
         if do_save:
             self.force_save_inner_outer(save, fig, ax, show)
@@ -918,12 +915,12 @@ class SRNProcessor(Processor):
         # Init the Plots
         fig, (ax0, ax1) = plt.subplots(2, 1, sharex="all")
     
-        ## Plot 0
+        ## Plot 0 Absolute Coordinates
         self.render_smooth_curves()
         self.plot_inner_outer(fig=fig, ax=ax0, save=False)
     
-        ## Plot 1
-        skip = 500
+        ## Plot 1 Normalized
+        skip = self.skip_points
         ax1.scatter(self.n2r(self.rad_flat[::skip]), self.changed.flatten()[::skip], c='k', s=2)
         ax1.axhline(2)
         ax1.axhline(1)
@@ -931,7 +928,7 @@ class SRNProcessor(Processor):
     
         ## Plot 0 Formatting
         ax0.set_title("Plot Stats")
-        ax0.set_ylim((10 ** -1, 10 ** 4))
+        ax0.set_ylim((-10 ** 1, 10 ** 4))
         ax0.set_xlim((0, 1.6))
         # ax0.legend()
         ax0.set_yscale('symlog')
@@ -942,9 +939,9 @@ class SRNProcessor(Processor):
         ax1.set_ylabel(r"Normalized Intensity")
         
         ax1.set_yscale("symlog")
-        ax1.set_ylim((-0.5, 25))
+        ax1.set_ylim((-0.5, 10))
     
-        fig.set_size_inches(8, 12)
+        fig.set_size_inches(12, 12)
         plt.tight_layout()
         # plt.show(block=True)
     
