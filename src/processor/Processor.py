@@ -39,6 +39,7 @@ class Processor:
     finished_verb = "Processed"
     progress_unit = "files"
     run_type_string = "Default Actions"
+    out_path = None
     
     style_mode = 'all'
     do_png = False
@@ -151,9 +152,18 @@ class Processor:
             if self.paper_out:
                 self.params.paper_out.extend(self.paper_out)
                 self.paper_out = []
+            # self.clean_directory()
+            
             self.params.create_subdirectories()
             fits_paths, imgs_paths = self.load_paths(verb)
             return fits_paths, imgs_paths
+ 
+    # def clean_directory(self):
+    #     to_rep = "D:/"
+    #     if not self.params.base_directory()[0] == to_rep[0]:
+    #         self.params.base_directory(self.params.base_directory().replace(to_rep,""))
+    #         if self.out_path:
+    #             self.out_path = self.out_path.replace(to_rep,"")
     
     # Define Targets
     def set_names(self, in_name=None, out_name=None, name=None, quietly=None):

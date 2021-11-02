@@ -30,8 +30,8 @@ def run_server(delay=10, debug=True, do_one='rainbow', stop=True):
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
 
-    p.fetchers(WebFitsFetcher, rp=True)  # Gets Fits from JSOC Most Recent
-    p.processors(SRNSingleShotProcessor, rp=True)  # Applies the Radial Filtering
+    # p.fetchers(WebFitsFetcher, rp=True)  # Gets Fits from JSOC Most Recent
+    # p.processors(SRNSingleShotProcessor, rp=True)  # Applies the Radial Filtering
     p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
     
     #

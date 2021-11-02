@@ -90,12 +90,20 @@ class ImageProcessor(Processor):
         plt.tight_layout()
         plt.show(block=True)
         
+
+        
     def make_directories(self):
         _, self.fits_save_path, _, _ = self.image_data
         self.png_save_path = self.fits_save_path.replace('fits', 'png')
         self.png_save_stem = self.png_save_path[:-4] + '{}' + ".png"
         self.png_save_directory = os.path.dirname(self.png_save_path)
+        # self.clean_directory()
+
+    
+        self.orig_directory = join(self.png_save_directory, "orig")
         os.makedirs(self.png_save_directory, exist_ok=True)
+        os.makedirs(os.path.dirname(self.orig_directory), exist_ok=True)
+        os.makedirs(self.orig_directory, exist_ok=True)
     
     def render(self):
         """Render the original and changed plots"""
@@ -135,23 +143,24 @@ class ImageProcessor(Processor):
     def save_concatinated(self, which1="orig", which2="SRN", destroy=False):
         # print("Saving Concatinated!!")
         """Make the side by side concatinated images"""
-        self.orig_directory = join(self.png_save_directory, "orig")
-        os.makedirs(os.path.dirname(self.orig_directory), exist_ok=True)
-        
-        processed_paths = [join(self.png_save_directory, x) for x in listdir(self.png_save_directory) if not os.path.isdir(join(self.png_save_directory, x))]
+    
+
+    
+        processed_paths = [join(self.png_save_directory, x) for x in listdir(self.png_save_directory)
+                           if not os.path.isdir(join(self.png_save_directory, x))]
         original_paths  = [join(self.orig_directory, x) for x in listdir(self.orig_directory)]
         path_list_abs =  processed_paths + original_paths
-        
+    
         original = self.path_box[0] if self.path_box else self.get_original_path()
         processed = self.path_box[1] if self.path_box else self.get_changed_path()
-  
-        
+    
+    
         go_1 = self.params.do_cat
         go_2 = original in original_paths
         go_3 = self.get_changed_path() in processed_paths
-        
+    
         self.cat_path = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
-        
+    
         fmt_string_stem = 'ffmpeg -i "{}" -i "{}" -y -filter_complex hstack "{}" -hide_banner -loglevel error'
         cat_command = fmt_string_stem.format(original, processed, self.cat_path)
         if go_1 and go_2 and go_3:

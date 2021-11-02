@@ -76,12 +76,26 @@ class ImageProcessorCV(ImageProcessor):
         clock = time_list[1].lower()
         day = time_list[0][:-5]
         year = time_list[0][-4:]
+
+        x0 = 3900
+        x1 = 3875
+        scale = 3
+        h1=100
+        h2=200
+        h3=300
+        if shape[0] < 3000:
+            x0 = x0 // 4
+            x1 = x1 // 4
+            scale = 1
+            h1=40
+            h2=80
+            h3=120
         
-        cv2.putText(img, inst, (3900, 100), 0, 3, (255, 255, 255), 3)
-        cv2.putText(img, wave, (3875, 200), 0, 3, (255, 255, 255), 3)
-        cv2.putText(img, clock,   (0, 100), 0, 3, (255, 255, 255), 3)
-        cv2.putText(img, day,     (0, 200), 0, 3, (255, 255, 255), 3)
-        cv2.putText(img, year,    (0, 300), 0, 3, (255, 255, 255), 3)
+        cv2.putText(img, inst, (x0, h1), 0,   scale, (255, 255, 255), 3)
+        cv2.putText(img, wave, (x1, h2), 0,   scale, (255, 255, 255), 3)
+        cv2.putText(img, clock,   (0, h1), 0, scale, (255, 255, 255), 3)
+        cv2.putText(img, day,     (0, h2), 0, scale, (255, 255, 255), 3)
+        cv2.putText(img, year,    (0, h3), 0, scale, (255, 255, 255), 3)
     
     def cleanup(self):
         destroy = False

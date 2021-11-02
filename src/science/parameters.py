@@ -160,6 +160,7 @@ class Parameters:
     def base_directory(self, _base_directory=None):
         if _base_directory is not None:
             self._base_directory = _base_directory
+            
         return self._base_directory
     
     def batch_name(self, _batch_name=None):
@@ -471,14 +472,18 @@ class Parameters:
         base_directory = join(self.find_root_directory(), self.batch_name(), self.current_wave())
         return self.base_directory(base_directory)
     
-    def find_root_directory(self):
+    def find_root_directory(self, root_directory_name = "sunback_images"):
         """Determine where to store the images"""
-        root_directory_name = "sunback_images"
         
-        if True:
+        
+        if False:
             self.root_directory = abspath(join("D://", root_directory_name))
-            makedirs(self.root_directory, exist_ok=True)
-            return self.root_directory
+        else:
+            self.root_directory = abspath(root_directory_name)
+
+        makedirs(self.root_directory, exist_ok=True)
+        return self.root_directory
+        
         #  Get the current path
         if __file__ in globals():
             this_file_path = dirname(abspath(__file__))
