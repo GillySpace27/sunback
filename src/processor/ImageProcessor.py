@@ -69,7 +69,11 @@ class ImageProcessor(Processor):
         self.original, self.changed = copy(frame0), copy(frame1)
         self.frame = np.zeros_like(self.original)
         # self.peek_frames()
-        self.image_data = str(wave1), fits_path, t_rec1, frame1.shape
+        try:
+            shape = frame1.shape
+        except:
+            shape = 4096
+        self.image_data = str(wave1), fits_path, t_rec1, shape
         self.make_directories()
         self.figure_box = []
         self.path_box = []
@@ -129,11 +133,12 @@ class ImageProcessor(Processor):
         raise NotImplementedError
     
     def save_concatinated(self, which1="orig", which2="SRN", destroy=False):
+        # print("Saving Concatinated!!")
         """Make the side by side concatinated images"""
         self.orig_directory = join(self.png_save_directory, "orig")
         os.makedirs(os.path.dirname(self.orig_directory), exist_ok=True)
         
-        processed_paths = [join(self.png_save_directory, x) for x in listdir(self.png_save_directory)]
+        processed_paths = [join(self.png_save_directory, x) for x in listdir(self.png_save_directory) if not os.path.isdir(join(self.png_save_directory, x))]
         original_paths  = [join(self.orig_directory, x) for x in listdir(self.orig_directory)]
         path_list_abs =  processed_paths + original_paths
         
@@ -143,15 +148,15 @@ class ImageProcessor(Processor):
         
         go_1 = self.params.do_cat
         go_2 = original in original_paths
-        go_3 = self.png_save_stem.format("_"+which2) in processed_paths
+        go_3 = self.get_changed_path() in processed_paths
         
         self.cat_path = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
         
-        fmt_string_stem = "ffmpeg -i {} -i {} -y -filter_complex hstack {} -hide_banner -loglevel warning"
+        fmt_string_stem = 'ffmpeg -i "{}" -i "{}" -y -filter_complex hstack "{}" -hide_banner -loglevel error'
         cat_command = fmt_string_stem.format(original, processed, self.cat_path)
         if go_1 and go_2 and go_3:
             os.makedirs(os.path.dirname(self.cat_path), exist_ok=True)
-            os.system(cat_command) #TODO make this quieter
+            os.system(cat_command)
             if destroy:
                 os.remove(original)
                 
@@ -162,7 +167,7 @@ class ImageProcessor(Processor):
     def get_changed_path(self):
         nam = self.params.png_frame_name
         name = nam if type(nam) is str else self.hdu_name_list[nam]
-        return self.png_save_stem.format("_" + name)
+        return self.png_save_stem.format('').replace("aia", name + "_" + "aia")
 
         
     @staticmethod

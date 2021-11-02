@@ -14,14 +14,14 @@ from fetcher.Fetcher import Fetcher
 from utils.time_util import parse_time_string_to_local
 import astropy.units as u
 
-
 import datetime
 from utils.time_util import define_time_range, define_recent_range
 
 default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
 global global_verb
-global_verb=False
+global_verb = False
+
 
 def vprint(in_string, verb=None, *args, **kwargs):
     global global_verb
@@ -29,6 +29,7 @@ def vprint(in_string, verb=None, *args, **kwargs):
         global_verb = verb
     if FidoFetcher.verb or global_verb:
         print(in_string, *args, **kwargs)
+
 
 class FidoFetcher(Fetcher):
     """Gets some data"""
@@ -60,8 +61,12 @@ class FidoFetcher(Fetcher):
     
     def cleanup(self):
         self.fido_download_fits_ensured(hold=False, temp=True)
-        pass
         # self.delete_temp_folder_items(delete_folder_too=True)
+    
+    def enumerate(self):
+        # for fits_path in self.params.local_fits_paths():
+        #     print(fits_path)
+        pass
     
     def fido_get_fits(self, current_wave):
         self.load(self.params, wave=current_wave)
@@ -70,12 +75,13 @@ class FidoFetcher(Fetcher):
             self.print_load_banner(verb=self.verb)
             self.download_fits_series(temp=False)
             self.validate_download()
+            self.enumerate()
         else:
             vprint(" ^ Using {} Cached Fits Files\n".format(self.params.n_fits), self.verb)
     
     def download_fits_series(self, temp=True, hold=None):
         if hold is None:
-            hold = False # TODO Fix this
+            hold = False  # TODO Fix this
         self.define_range()
         self.fido_check_for_fits()
         if self.fido_search_found_num:
@@ -84,26 +90,32 @@ class FidoFetcher(Fetcher):
         else:
             print("\n     No Images Found\n")
     
-    
     def fido_check_for_fits(self):
         """Find the science images"""
-        self.verb=True
+        self.verb = True
         vprint("\n *   Looking for Images of {} from {} to {}...".format(
                 self.params.current_wave(), self.start_time_string, self.end_time_string), flush=True, end='', verb=self.verb)
         jsoc_email = "chris.gilly@colorado.edu"
+        
+        # Make the base required attributes
+        time_attr = attrs.Time(self.start_time, self.end_time)
+        wave_attr = attrs.Wavelength(int(self.params.current_wave()) * u.angstrom)
+        sample_attr = attrs.Sample(self.params.cadence_minutes())
+        base_attrs = time_attr & wave_attr & sample_attr
+        
+        
         # Search for records from the internet
-        fido_search_result = Fido.search(
-                                          attrs.Time(self.start_time, self.end_time),
-                                          attrs.Wavelength(int(self.params.current_wave()) * u.angstrom),
-                                          attrs.Sample(self.params.cadence_minutes()),
-                                          attrs.jsoc.Series.aia_lev1_euv_12s,
-                                          attrs.jsoc.Notify(jsoc_email),
-                                          attrs.jsoc.Segment.image,
-                                          )
+        
+        if self.params.do_recent():
+            inst_attr = attrs.Instrument.aia
+        else:
+            inst_attr = attrs.jsoc.Series.aia_lev1_euv_12s & \
+                        attrs.jsoc.Notify(jsoc_email) & \
+                        attrs.jsoc.Segment.image
+            
+        fido_search_result = Fido.search(base_attrs, inst_attr)
         self.fido_search_result = fido_search_result
         self.fido_search_found_num = self.fido_search_result.file_num
-
-
     
     def fido_parse_result(self):
         """Examine the search results"""
@@ -135,7 +147,7 @@ class FidoFetcher(Fetcher):
             response = self.fido_search_result
         self.needed_files = response
         self.num_files_needed = len(self.needed_files)
-
+    
     def fido_download_fits_ensured(self, ensured=False, temp=False, hold=False):
         """Download the files from fido_search_result"""
         
@@ -157,19 +169,15 @@ class FidoFetcher(Fetcher):
     
     def fido_multi_download(self):
         self.n_fits = len(self.results)
-
+        
         while self.n_fits != self.fido_search_found_num:
             self.results = Fido.fetch(self.results, path=self.out_path)
             self.n_fits = len(self.results)
         self.n_fits = len(self.results)
-
+        
         return self.results
     
-
-
-
     # Time Related Things #########################################
-    
     
     def get_start_and_end_times_from_result(self):
         # self.verb = True
@@ -177,12 +185,16 @@ class FidoFetcher(Fetcher):
         start_time_list = []
         # end_time_list = []
         for result in all_times:
-            start_time_list.append(result["T_REC"])
+            try:
+                start_time_list.append(result["T_REC"])
+            except KeyError:
+                start_time_list.append(result["Start Time"].value)
+            
             # end_time_list.append(result.time.end)
-    
+        
         times = sorted(start_time_list)
         time_start = times[0]
-        time_end   = times[-1]
+        time_end = times[-1]
         # ii=0
         # while time_start[-3:-1] < self.start_time[-2:]:
         #     time_start = times[ii]
@@ -190,9 +202,8 @@ class FidoFetcher(Fetcher):
         # for t in range(ii-1):
         #     self.fido_search_result[0].remove_row(0)
         self.fido_search_found_num = self.fido_search_result.file_num
-    
-        return time_start, time_end
         
+        return time_start, time_end
     
     def define_range(self):
         """Defines the time range of imagery desired"""
@@ -205,8 +216,7 @@ class FidoFetcher(Fetcher):
         """Unpacks the time lists"""
         self.start_time, self.start_time_long, self.start_time_string = start
         self.end_time, self.end_time_long, self.end_time_string = end
-
-        
+    
     # Printing #####################################################
     
     def multi_banner(self):
@@ -217,10 +227,7 @@ class FidoFetcher(Fetcher):
         else:
             print(" ^     Unable to Download...Try again Later.")
             raise (FileNotFoundError(" Unable to Download...Try again Later."))
-        
-        
-        
-        
+    
     # Validation
     def validate_download(self):
         # try:
@@ -271,77 +278,3 @@ class FidoFetcher(Fetcher):
         print('A')
         pass
         return False
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

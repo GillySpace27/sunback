@@ -49,12 +49,20 @@ class ImageProcessorCV(ImageProcessor):
         self.path_box.append(self.out_path)
     
     def make_image(self):
-        self.img_frame = (self.cmap(self.frame)[:, :, :3] * 255).astype(np.uint8)
+        out = self.frame + 0
+        maxmax = np.nanpercentile(out, 99)
+        minmin = np.nanpercentile(out, 1)
+        if maxmax > 100:
+            out = (self.frame-minmin)/(maxmax-minmin)
+            # print("\nRenormalizing", maxmax, minmin, np.max(out), np.min(out))
+            
+        self.img_frame = (self.cmap(out)[:, :, :3] * 255).astype(np.uint8)
     
     def img_save(self, path):
         b, g, r = cv2.split(self.img_frame)  # get b,g,r
         rgb_img = cv2.merge([r, g, b])  # switch it to rgb
         cv2.imwrite(path, rgb_img)
+        
     
     def label_plot(self):
         """Annotate with Text"""
@@ -77,10 +85,10 @@ class ImageProcessorCV(ImageProcessor):
     
     def cleanup(self):
         destroy = False
-        try:
-            self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=5, destroy=destroy)
-        except FileNotFoundError as e:
-            print(e)
+        # try:
+        #     self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=5, destroy=destroy)
+        # except (FileNotFoundError, AttributeError) as e:
+        #     print(e)
         if destroy:
             shutil.rmtree(self.orig_directory)
             

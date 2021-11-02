@@ -1,6 +1,9 @@
 from fetcher.FidoFetcher import FidoFetcher
 from processor.ImageProcessor import ImageProcessor
-from processor.SRNProcessor import SRNProcessor, SRNSingleShotProcessor
+# from processor.SRNProcessor import SRNProcessor, SRNSingleShotProcessor
+from processor.ImageProcessorCV import ImageProcessorCV
+from processor.SRNSubProcessors import SRNSingleShotProcessor, SRNpreProcessor, SRNradialFiltProcessor
+
 from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
 import run
@@ -8,7 +11,7 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_recent_movie(delay=10, debug=True, do_one="0304", stop=True, cadence_minutes=10, fps=23, range_days=2, range_hours=12):
+def run_recent_movie(delay=10, debug=True, do_one="0211", stop=True, cadence_minutes=20, fps=23, range_days=3, range_hours=12):
     # Set the Parameters
     p = Parameters()
     # p.delay_seconds(delay)
@@ -29,19 +32,28 @@ def run_recent_movie(delay=10, debug=True, do_one="0304", stop=True, cadence_min
     # Set the Times
     debug_hours = 36 # Range in Hours
     debug_cadence = 60 # Cadence in Minutes
-    p.range(days=None if debug else range_days, hours=debug_hours if debug else range_hours)
-    p.cadence_minutes(debug_cadence if debug else cadence_minutes)
+    p.range(days=range_days, hours=None)
+    p.cadence_minutes(cadence_minutes)
     p.frames_per_second(fps)
 
+    # # Set the Processes
+    # # if p.download_files():
+    # p.fetchers(FidoFetcher())      # Gets Fits FIDO
+    #
+    # p.processors([SRNSingleShotProcessor])
+    #
+    # p.putters([ImageProcessor])
+    # p.putters([VideoProcessor])
+    
     # Set the Processes
-    # if p.download_files():
-    p.fetchers(FidoFetcher())      # Gets Fits FIDO
-
-    p.processors([SRNSingleShotProcessor])
-
-    p.putters([ImageProcessor])
-    p.putters([VideoProcessor])
-
+    p.fetchers(FidoFetcher, rp=None)                                     # Gets Fits FIDO
+    # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N
+    
+    p.processors([SRNpreProcessor],     rp=True)  # Learns the bounds of the dataset for SRN
+    p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
+    #
+    p.putters([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
+    p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
     # Run the Code
     run.Runner(p).start()
 

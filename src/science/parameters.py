@@ -47,7 +47,7 @@ class Parameters:
         self._temp_directory = ""
         self._delay_seconds = 30
         self._fixed_number_keyframes = None
-        self._fixed_cadence_keyframes = 3
+        self._fixed_cadence_keyframes = 2
         self.time_multiplier_for_long_display = None
         self.local_directory = None
         self.all_wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
@@ -62,6 +62,7 @@ class Parameters:
         self.index_file = None
         self.debug_mode = False
         self.did_print = False
+        self.Force_init = False
         
         self.start_time = time()
         self.is_first_run = True
@@ -105,8 +106,8 @@ class Parameters:
         self._do_multishot = True
         self._do_recent = True
         self._use_default_directories = True
-        self.do_orig = False
-        self.do_cat = False
+        self.do_orig = True
+        self.do_cat = True
 
         self._fetchers = [LocalFetcher]
         self._processors = []
@@ -474,6 +475,10 @@ class Parameters:
         """Determine where to store the images"""
         root_directory_name = "sunback_images"
         
+        if True:
+            self.root_directory = abspath(join("D://", root_directory_name))
+            makedirs(self.root_directory, exist_ok=True)
+            return self.root_directory
         #  Get the current path
         if __file__ in globals():
             this_file_path = dirname(abspath(__file__))
@@ -540,28 +545,34 @@ class Parameters:
         
         key_fixed_cadence = 1
         key_fixed_number = None
+        switch =self.selection.casefold()
         # print("Loading {} cadence.".format(self.selection))
-        if self.selection.casefold() in ['slow', 's', 1, "1"]:
+        if switch in ['slow', 's', 1, "1"]:
             cadence_minutes = 10 # One Forty Four Frames Per Day
             exposure_time_secs = 180 # Fifteen Frames per Frame
             self.selection = 'slow'
         
-        elif self.selection.casefold() in ['medium', 'm', 2, "2"]:
+        elif switch in ['medium', 'm', 2, "2"]:
             cadence_minutes = 20 # Seventy Two Frames Per Day
             exposure_time_secs = 120  # Ten Frames per Frame
             self.selection = 'medium'
             
-        elif self.selection.casefold() in ['quick', 'q', 3, "3"]:
+        elif switch in ['quick', 'q', 3, "3"]:
             cadence_minutes = 60 # Twenty Four Frames Per Day
             exposure_time_secs = 60  # Five Frames per Frame
             self.selection = 'quick'
 
-        elif self.selection.casefold() in ['ludacris', "ludicrous " 'l', 4, "4"]:
+        elif switch in ['ludacris', "ludicrous ", 'l', 4, "4"]:
             cadence_minutes = 3 * 60 # Eight Frames Per Day
             exposure_time_secs = 36  # Three Frames per Frame
             self.selection = 'ludacris'
-
-        elif self.selection.casefold() in ['plaid', 'p', 5, "5"]:
+            
+        elif switch in ['ludacris', "ludicrous ", 'l2', 4, "4"]:
+            cadence_minutes = 60 # 24 Frames Per Day
+            exposure_time_secs = 36  # Three Frames per Frame
+            self.selection = 'ludacris'
+            
+        elif switch in ['plaid', 'p', 5, "5"]:
             cadence_minutes = 6 * 60  # Four Frames per Day
             exposure_time_secs = 36  # Three Frames per Frame
             self.selection = 'plaid'
@@ -571,7 +582,7 @@ class Parameters:
         
         if not self.did_print:
             print("Settings: {}".format(self.selection),
-                  "\n  Cadence = {} Minutes".format(cadence_minutes),
+                  "\n  Cadence = {} Minutes ({} hours), [{}] per day".format(cadence_minutes, cadence_minutes/60, 24*60/cadence_minutes),
                   "\n  Exposure = {} Seconds".format(exposure_time_secs),)
             self.did_print = True
         

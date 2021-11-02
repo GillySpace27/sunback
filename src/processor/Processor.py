@@ -465,20 +465,25 @@ class Processor:
             field = self.out_name
         else:
             field = out_name
+        good_frame = np.any(frame)
         
-        with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True) as hdul:
-            hdul.verify('silentfix+ignore')  # Then Verify
-            self.remove_blank_frames(hdul) # THis might not work
-            fit_frame = fits.ImageHDU(frame, name=field)
-            # fit_frame = fit_frame.as_type(np.float32)
-            if field not in hdul:
-                hdul.append(fit_frame)  # Write
-            else:
-                hdul[field] = fit_frame  # Write
-                
-            hdul = self.delete_further_hdus(hdul, field)
-            hdul[0].header['total_int_time'] = self.int_tm_tot
-            hdul.close(output_verify='fix')
+        if good_frame:
+            
+            frame2 = frame.astype("float32")
+            
+            with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True) as hdul:
+                hdul.verify('silentfix+ignore')  # Then Verify
+                self.remove_blank_frames(hdul) # THis might not work
+                fit_frame = fits.ImageHDU(frame2, name=field, header=self.header)
+                # fit_frame = fit_frame
+                if field not in hdul:
+                    hdul.append(fit_frame)  # Write
+                else:
+                    hdul[field] = fit_frame  # Write
+                    
+                hdul = self.delete_further_hdus(hdul, field)
+                hdul[0].header['total_int_time'] = self.int_tm_tot
+                hdul.close(output_verify='fix')
     
             
     def make_shortcut(self, file_in_path=None, shortcut_out_path=None):
@@ -537,12 +542,15 @@ class Processor:
                     in_name = "COMPRESSED_IMAGE"
                     if in_name in hdul:
                         hdu = hdul[in_name]
+                else:
+                    hdu = hdul[-1]
+                    self.params.png_frame_name = hdu.name
                 frame = deepcopy(hdu.data)
             return frame
         except OSError as e:
             print(e)
             return frame
-        except TypeError as e:
+        except (UnboundLocalError, TypeError) as e:
             print("load single frame:: ", e)
             return None
     
@@ -602,7 +610,9 @@ class Processor:
         
         out_list = [self.outer_min, self.inner_min, self.inner_max, self.outer_max, self.scalar_out_curve]
         out_list.extend([self.output_abscissa, self.filtered_outer_maximum, self.filtered_inner_maximum,
-                         self.filtered_inner_minimum, self.filtered_outer_minimum])
+                         self.filtered_inner_minimum, self.filtered_outer_minimum,
+                         self.abs_max, self.abs_min,
+                         ])
         # out_list.append([self.smoothed_abs_max, self.smoothed_abs_min])
         self.curve_descriptions = ["outer_min", "inner_min", "inner_max", "outer_max",
                      ["scalar_out_curve", "found_limb_radius", "abs_min", "abs_max"], "output_abscissa",
@@ -620,16 +630,18 @@ class Processor:
         self.outer_min, self.inner_min, self.inner_max, \
         self.outer_max, self.scalar_in_curve, self.output_abscissa, \
         self.filtered_outer_maximum, self.filtered_inner_maximum, \
-        self.filtered_inner_minimum, self.filtered_outer_minimum = np.loadtxt(self.params.curve_path())
+        self.filtered_inner_minimum, self.filtered_outer_minimum, \
+        self.abs_max, self.abs_min, = np.loadtxt(self.params.curve_path())
         
         self.found_limb_radius = self.scalar_in_curve[0]
         self.absolute_min = self.scalar_in_curve[1]
         self.absolute_max = self.scalar_in_curve[2]
     
-    def save_curves(self):  #
+    def save_curves(self, banner=True):  #
         """Save the curves so they don't have to be recalculated"""
         self.super_flush()
-        print(" *\n *    Saving Radial Curves...", end='')
+        if banner:
+            print(" *\n *    Saving Radial Curves...", end='')
         if self.prep_save_outs():
             curve_path = self.params.curve_path()
             descr_path = curve_path.replace("curve.txt", "curve_names.txt")
@@ -750,6 +762,7 @@ class Processor:
         for ii in range(len(hdul)):
             try:
                 first_data_hdul = hdul[ii]
+                self.header = first_data_hdul.header
                 wave = first_data_hdul.header['WAVELNTH']
                 t_rec = first_data_hdul.header['T_OBS']
                 center = [first_data_hdul.header['X0_MP'], first_data_hdul.header['Y0_MP']]

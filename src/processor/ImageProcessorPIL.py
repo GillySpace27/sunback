@@ -8,6 +8,7 @@ class ImageProcessorPIL(ImageProcessor):
     filt_name = 'PIL Image Writer'
     description = "Turn all the fits files into png files"
     progress_verb = "Writing Images"
+    cat_path = None
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)

@@ -72,7 +72,7 @@ class VideoProcessor(Processor):
         batch_name = self.params.config['name']
         wave = self.params.current_wave()
         time_now = strftime('%m%d_%H%M')
-        file_name = '{}_{}_video_{}.{}'.format(batch_name, wave, time_now, self.mov_suffix, self.mov_type)
+        file_name = '{}_{}_video_{}.{}'.format(batch_name, time_now, self.mov_suffix, self.mov_type)
         self.final_output_path = join(self.params.movs_directory(), file_name)
         self.progress_text = self.progress_stem.format(self.wave)
         

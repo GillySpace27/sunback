@@ -17,18 +17,19 @@ plt.ioff()
 # tstart='2016/11/04 01:00:00', tend='2016/11/06 00:00:00',
 dostring = "Liftoff 0211"
 
-def run_range_multishot_movie(batch_name= "Liftoff", wave="0335", config=None):
+def run_range_multishot_movie(batch_name= "Liftoff 0171", wave=None, config=None):
     # Set the Parameters
     p = make_params(batch_name, wave, config)
+    p.do_recent(False)
     
     # Set the Processes
-    # p.fetchers(FidoFetcher, rp=None)                                     # Gets Fits FIDO
-    # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N
-    
-    p.processors([SRNpreProcessor],     rp=True)  # Learns the bounds of the dataset for SRN
-    p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
+    # p.fetchers(FidoFetcher, rp=True)                                     # Gets Fits FIDO
+    # p.processors([FidoTimeIntProcessor], rp=True)                        # Integrate several frames for S/N
     #
-    p.putters([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
+    # p.processors([SRNpreProcessor],     rp=True)  # Learns the bounds of the dataset for SRN
+    # p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
+    #
+    # p.putters([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
     
     # Run the Code
@@ -59,11 +60,12 @@ def make_params(batch_name=None, wave=None, config=None):
     p.is_debug(config["debug"])
     p.do_cat = True
     p.png_frame_name = 'SRN'
+    p.do_recent(True)
     
     # Set the Times
-    if not p.load_preset_time_settings(config["time_preset"]):
-        p.cadence_minutes(config["cadence_minutes"])
-        p.exposure_time_seconds(config["exposure_time"])
+    # if not p.load_preset_time_settings(config["time_preset"]):
+    p.cadence_minutes(config["cadence_minutes"])
+    p.exposure_time_seconds(config["exposure_time"])
     p.frames_per_second(config["fps"])
     p.fixed_cadence_keyframes(config["key_fixed_cadence"])
     p.fixed_number_keyframes(config["key_fixed_number"])
@@ -129,23 +131,23 @@ def make_configs():
     c7 = {
         "name": "Liftoff 0304",
         "debug": True, "do_one": '0304', "stop": True,
-        "tstart": '2013/09/29 00:00:00', "tend": '2013/10/01 00:00:00',
-        "cadence_minutes": None, "fps": None, "exposure_time": None,
-        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
+        "tstart": '2013/09/29 00:00:01', "tend": '2013/10/03 00:00:00',
+        "cadence_minutes": 10, "fps": 32, "exposure_time": 60,
+        "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
     }
     c8 = {
         "name": "Liftoff 0171",
         "debug": True, "do_one": '0171', "stop": True,
-        "tstart": '2013/09/29 00:00:00', "tend": '2013/10/01 00:00:00',
-        "cadence_minutes": None, "fps": 5, "exposure_time": None,
-        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
+        "tstart": '2013/09/29 00:00:01', "tend": '2013/10/03 00:00:00',
+        "cadence_minutes": 10, "fps": 16, "exposure_time": 60,
+        "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
     }
     c9 = {
         "name": "Liftoff 0193",
         "debug": True, "do_one": '0193', "stop": True,
-        "tstart": '2013/09/29 00:00:00', "tend": '2013/10/01 00:00:00',
-        "cadence_minutes": None, "fps": None, "exposure_time": None,
-        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
+        "tstart": '2013/09/29 00:00:01', "tend": '2013/10/03 00:00:00',
+        "cadence_minutes": 10, "fps": 32, "exposure_time": 60,
+        "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
     }
     c10 = {
         "name": "Liftoff 0211",
@@ -162,7 +164,13 @@ def make_configs():
         "cadence_minutes": None, "fps": 20, "exposure_time": None,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
     }
-
+    c12 = {
+        "name": "Recent 0211",
+        "debug": True, "do_one": '0211', "stop": True,
+        "tstart": '2021/10/27 00:00:01', "tend": '2021/10/31 00:00:00',
+        "cadence_minutes": None, "fps": 20, "exposure_time": None,
+        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l2"
+    }
     ConfigDict = {
         c0["name"]:   c0,
         c1["name"]:   c1,
@@ -176,13 +184,14 @@ def make_configs():
         c9["name"]:   c9,
         c10["name"]: c10,
         c11["name"]: c11,
+        c12["name"]: c12,
                   }
     return ConfigDict
 
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run_range_multishot_movie(batch_name="Liftoff", wave="0193", config=None)
+    run_range_multishot_movie()
     # run_range_multishot_movie(dostring)
 
 

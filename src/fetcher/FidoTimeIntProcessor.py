@@ -121,7 +121,7 @@ class FidoTimeIntProcessor(FidoFetcher):
     def should_do_exposure(self, fits_path):
         """Do we need to do time integration here?"""
         self.keyframe_fits_path = fits_path
-        in_name = self.set_hdul_in_name(fits_path)
+        in_name = "original" # self.set_hdul_in_name(fits_path)
         need_exposure = self.params.exposure_time_seconds() > 0
         have_input = in_name is not None
         already_made = self.out_name in self.hdu_name_list
@@ -182,10 +182,10 @@ class FidoTimeIntProcessor(FidoFetcher):
                     self.int_tm_tot += int_time
                     self.n_exposures += 1
                 # self.force_delete(path, do=self.do_delete)
-            except PermissionError as e:
+            except (PermissionError, TypeError, ValueError) as e:
                 print("Sum Subframes:: ", e)
-            except TypeError as e:
-                print("Sum Subframes:: ", e)
+            # except TypeError as e:
+            #     print("Sum Subframes:: ", e)
                 
         self.changed /= self.n_exposures
         self.changed *= self.orig_t_int

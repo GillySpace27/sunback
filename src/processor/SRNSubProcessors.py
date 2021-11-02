@@ -28,6 +28,7 @@ class SRNSingleShotProcessor(SRNProcessor):
         self.params.current_wave('rainbow')
         self.params.Force_init = True
         self.can_use_keyframes = False
+        self.can_initialize = False
     
     def setup(self):
         # self.load(self.params, quietly=True, wave=self.params.current_wave('rainbow'))
@@ -48,7 +49,7 @@ class SRNSingleShotProcessor(SRNProcessor):
     def cleanup(self):
         """Runs after all the images have been modified with do_work"""
         # print("Save/load!")
-        self.save_curves()
+        self.save_curves(banner=False)
         self.load_curves()
         pass
 
@@ -77,7 +78,6 @@ class SRNpreProcessor(SRNProcessor):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
             self.image_learn()
-            
             self.plot_inner_outer(save=True)
             # self.plot_radial_norm_keyframes(do=True, show=False, save=True)
         return None
@@ -113,10 +113,12 @@ class SRNpreProcessor(SRNProcessor):
     def should_run(self):
         """Decide of the processor should run on this file"""
         self.can_use_keyframes = True
+        not_dark = self.header["IMG_TYPE"] == "LIGHT"
+        not_weak = self.header["EXPTIME"] > 1.0
         set_to_make = self.params.remake_norm_curves() or self.reprocess_mode()
         not_made_yet = not os.path.exists(self.params.curve_path()) or self.outer_min is None
         frame_is_not_loaded = self.original is None
-        self.go_ahead = set_to_make or not_made_yet or frame_is_not_loaded
+        self.go_ahead = not_weak & not_dark and (set_to_make or not_made_yet or frame_is_not_loaded)
         return self.go_ahead
 
 

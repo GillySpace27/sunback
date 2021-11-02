@@ -10,7 +10,10 @@ import warnings
 warnings.filterwarnings("ignore")
 import matplotlib as mpl
 
-mpl.use("qt5agg")
+try:
+    mpl.use("qt5agg")
+except ImportError as e:
+    print(e)
 import matplotlib.pyplot as plt
 
 plt.ioff()
@@ -33,7 +36,7 @@ class SRNProcessor(Processor):
     do_png = False
     renew_mask = True
     show_plots = True
-    
+    can_initialize= True
     image_data = None
     outer_min = None
     inner_min = None
@@ -168,13 +171,17 @@ class SRNProcessor(Processor):
     ## Top-Level ##
     ###################
     
+    def skip_bad_frame(self):
+        self.header
+    
     def image_learn(self):
         """Analyze the input image to help make normalization curves"""
-        self.init_for_learn()
-        self.bin_radially()  # Create a cloud of intesity values for each radial bin
-        self.radial_statistics()  # Find mean and percentiles vs height
-        self.add_to_keyframes()  # Update the running curves
-        self.make_smoothed_curves()
+        if not self.skip_bad_frame():
+            self.init_for_learn()
+            self.bin_radially()  # Create a cloud of intesity values for each radial bin
+            self.radial_statistics()  # Find mean and percentiles vs height
+            self.add_to_keyframes()  # Update the running curves
+            self.make_smoothed_curves()
     
     def image_modify(self):
         """Perform the actual normalization on the input array"""
@@ -309,7 +316,7 @@ class SRNProcessor(Processor):
             self.absolute_min = max(np.nanmin(self.outer_min), -10)
             self.absolute_max = np.nanmax(self.outer_max)
             # self.check_if_same("init_running_curves")
-            self.outputs_initialized = True # TODO I changed this in case something is broken
+            self.outputs_initialized = True and self.can_initialize # TODO I changed this in case something is broken
         return True
     
     def update_running_curves(self):
@@ -361,7 +368,8 @@ class SRNProcessor(Processor):
         self.inner_min -= self.absolute_min
         self.outer_min -= self.absolute_min
     
-    def plot_inner_outer(self, show=False, save=True, fig=None, ax=None, extra=False, raw=True, smooth=True):
+    def plot_inner_outer(self, show=False, save=True, fig=None, ax=None,
+                         extra=False, raw=False, smooth=True):
         """Look at the results of the algorithm"""
         if ax is None or fig is None:
             fig, ax = plt.subplots()
@@ -395,8 +403,8 @@ class SRNProcessor(Processor):
         if do_all and self.abs_max is not None:
             if raw: ax.plot(rrarr, self.abs_max, zorder=1, lw=1, label="Hat/Shoe",   c='darkgrey', alpha=grey_alpha)
             if raw: ax.plot(rrarr, self.abs_min, zorder=1, lw=1,   c='darkgrey', alpha=grey_alpha)
-            if smooth: ax.plot(rrarr, self.smoothed_abs_max, zorder=200, lw=2,                      c='cornflowerblue', alpha=1)
-            if smooth: ax.plot(rrarr, self.smoothed_abs_min, zorder=200, lw=2, label="Smooth Hat/Shoe",  c='cornflowerblue', alpha=1)
+            if smooth: ax.plot(rrarr, self.smoothed_abs_max, zorder=200, lw=4,                          c='cornflowerblue', alpha=1)
+            if smooth: ax.plot(rrarr, self.smoothed_abs_min, zorder=200, lw=4, label="Smooth Hat/Shoe",  c='cornflowerblue', alpha=1)
             
         RRarr = self.n2r(self.output_abscissa)
         # Plot Filtered Curves
@@ -408,10 +416,10 @@ class SRNProcessor(Processor):
 
         # Plot Smoothed Curves
         if self.smooth_inner_maximum is not None:
-            if smooth: ax.plot(RRarr, self.smooth_outer_maximum, zorder=105, lw=2, c="g", label="Smooth Top/Bot")
-            if extra: ax.plot(RRarr, self.smooth_inner_maximum, zorder=104, lw=2, c='r', label="Smooth Shoulder")
-            if extra: ax.plot(RRarr, self.smooth_inner_minimum, zorder=104, lw=2, c="r", ls='--', label="Smooth Knee")
-            if smooth: ax.plot(RRarr, self.smooth_outer_minimum, zorder=105, lw=2, c='g')
+            if smooth: ax.plot(RRarr, self.smooth_outer_maximum, zorder=105, lw=4, c="g", label="Smooth Top/Bot")
+            if smooth: ax.plot(RRarr, self.smooth_inner_maximum, zorder=104, lw=4, c='r', label="Smooth Shoulder/Knee")
+            if smooth: ax.plot(RRarr, self.smooth_inner_minimum, zorder=104, lw=4, c="r")
+            if smooth: ax.plot(RRarr, self.smooth_outer_minimum, zorder=105, lw=4, c='g')
             # ax.plot(rrarr, self.smoothed_frame_abs_max, zorder=1, lw=1,                   c='grey', alpha=1)
             # ax.plot(rrarr, self.smoothed_frame_abs_min, zorder=1, lw=1, label="Smo. Abs", c='grey', alpha=1)
     
@@ -668,6 +676,7 @@ class SRNProcessor(Processor):
             try:
                 # Bonus Extrema Filtering!
                 if self.frame_minimum is not None:
+                    # print("running")
                     self.smoothed_frame_minimum = savgol_filter(self.smoothed_frame_minimum, maxWindow, rank, mode=mode)
                     self.smoothed_frame_maximum = savgol_filter(self.smoothed_frame_maximum, maxWindow, rank, mode=mode)
                     self.smoothed_frame_abs_max = savgol_filter(self.smoothed_frame_abs_max, maxWindow, rank, mode=mode)
@@ -689,6 +698,7 @@ class SRNProcessor(Processor):
     def render_smooth_curves(self):
         
         # Fit the lowest region with a polynomial to make it much smoother
+        flatten_inner_ind = 200
 
         # degree = 5
         # p = np.polyfit(self.low_abs, self.low_max_filt, degree)
@@ -696,33 +706,35 @@ class SRNProcessor(Processor):
         # p = np.polyfit(self.low_abs, self.low_min_filt, degree)
         # self.low_min_fit = np.polyval(p, self.low_abs)
         
-        # filtered_abs_max     = savgol_filter(self.abs_max, 21, 3, mode='nearest')
-        # filtered_abs_min     = savgol_filter(self.abs_min, 21, 3, mode='nearest')
+
         
         self.smooth_outer_maximum = self.filtered_outer_maximum + 0
         self.smooth_inner_maximum = self.filtered_inner_maximum + 0
         self.smooth_inner_minimum = self.filtered_inner_minimum + 0
         self.smooth_outer_minimum = self.filtered_outer_minimum + 0
-        # self.smoothed_abs_max     = filtered_abs_max
-        # self.smoothed_abs_min     = filtered_abs_min
-        
+
         # Flatten out the edges
-        ind = 200
-        self.smooth_outer_maximum[0:ind] = self.filtered_outer_maximum[ind]
-        self.smooth_inner_maximum[0:ind] = self.filtered_inner_maximum[ind]
-        self.smooth_inner_minimum[0:ind] = self.filtered_inner_minimum[ind]
-        self.smooth_outer_minimum[0:ind] = self.filtered_outer_minimum[ind]
-        self.smoothed_abs_max[0:ind]     = self.smoothed_abs_max[ind]
-        self.smoothed_abs_min[0:ind]     = self.smoothed_abs_min[ind]
-        
-        
+        self.smooth_outer_maximum[0:flatten_inner_ind] = self.filtered_outer_maximum[flatten_inner_ind]
+        self.smooth_inner_maximum[0:flatten_inner_ind] = self.filtered_inner_maximum[flatten_inner_ind]
+        self.smooth_inner_minimum[0:flatten_inner_ind] = self.filtered_inner_minimum[flatten_inner_ind]
+        self.smooth_outer_minimum[0:flatten_inner_ind] = self.filtered_outer_minimum[flatten_inner_ind]
+
         self.norm_curve_outer_max = np.squeeze(self.smooth_outer_maximum[self.binInds])
         self.norm_curve_inner_max = np.squeeze(self.smooth_inner_maximum[self.binInds])
         self.norm_curve_inner_min = np.squeeze(self.smooth_inner_minimum[self.binInds])
         self.norm_curve_outer_min = np.squeeze(self.smooth_outer_minimum[self.binInds])
-        self.norm_smoothed_abs_max = np.squeeze(self.smoothed_abs_max[self.binInds])
-        self.norm_smoothed_abs_min = np.squeeze(self.smoothed_abs_min[self.binInds])
         
+    def render_extrema_curves(self, flatten_inner_ind=200):
+        if self.abs_max is not None:
+            filtered_abs_max     = savgol_filter(self.abs_max, 21, 3, mode='nearest')
+            filtered_abs_min     = savgol_filter(self.abs_min, 21, 3, mode='nearest')
+            self.smoothed_abs_max     = filtered_abs_max
+            self.smoothed_abs_min     = filtered_abs_min
+            self.smoothed_abs_max[0:flatten_inner_ind]     = self.smoothed_abs_max[flatten_inner_ind]
+            self.smoothed_abs_min[0:flatten_inner_ind]     = self.smoothed_abs_min[flatten_inner_ind]
+            self.norm_smoothed_abs_max = np.squeeze(self.smoothed_abs_max[self.binInds])
+            self.norm_smoothed_abs_min = np.squeeze(self.smoothed_abs_min[self.binInds])
+            
     ####################################
     ## Image Reduction Algorithms ##
     ####################################
@@ -744,9 +756,10 @@ class SRNProcessor(Processor):
         # self.norm_curve_inner_max
         # self.norm_curve_inner_min
         # self.norm_curve_outer_min
-        
-        self.norm_curve_max = self.norm_curve_outer_max
-        self.norm_curve_min = self.norm_curve_inner_min
+        self.render_extrema_curves()
+        self.norm_curve_max = self.norm_curve_inner_max
+        # self.norm_curve_min = self.norm_curve_outer_min
+        self.norm_curve_min = self.norm_smoothed_abs_min
         
         with warnings.catch_warnings():
             warnings.filterwarnings('error')
@@ -761,23 +774,40 @@ class SRNProcessor(Processor):
     def coronagraph_touchup(self):
         """Deal with pixel outliers. Lots of adjustable parameters in here"""
         
-        ## Deal with too hot things ##
-        self.vmax = 1
-        self.vmax_plot = 0.95  # np.max(changed_flat) #this is in the header of the imageprocessor now
-        hotpowr = 1 / 2
-        hot = self.changed_flat > self.vmax
-        # self.changed_flat[hot] = self.changed_flat[hot] ** hotpowr
+        # neg = self.changed<0
+        # neg_pts = self.changed[neg]
+        # minn = np.abs(np.min(neg_pts))
+        # normed = neg_pts + min(neg_pts)
         
-        ## Deal with too cold things ##
-        self.vmin = 0.3
-        self.vmin_plot = -0.05  # np.min(changed_flat)# 0.3# -0.03 #this is in the header of the imageprocessor now
-        coldpowr = 1 / 2
-        cold = self.changed_flat < self.vmin
-        self.changed_flat[cold] = -((np.abs(self.changed_flat[cold] - self.vmin) + 1) ** coldpowr - 1) + self.vmin
+        
+        # self.changed += minn
+        self.changed = np.power(self.changed, 1/3)
+        self.changed /= 2.25
+        
+        
+        # self.changed = np.power(self.changed, 1/4)
+        # self.changed -= minn
+        
+        ## Deal with too hot things ##
+        # self.vmax = 2
+        # self.vmax_plot = 0.95  # np.max(changed_flat) #this is in the header of the imageprocessor now
+        # hotpowr = 1 / 2
+        # hot = self.changed > self.vmax
+        # self.changed[hot] = self.changed[hot] ** hotpowr
+        
+        
+        
+        # ## Deal with too cold things ##
+        # self.vmin = 0.3
+        # self.vmin_plot = -0.05  # np.min(changed_flat)# 0.3# -0.03 #this is in the header of the imageprocessor now
+        # coldpowr = 1 / 2
+        # cold = self.changed_flat < self.vmin
+        # self.changed_flat[cold] = -((np.abs(self.changed_flat[cold] - self.vmin) + 1) ** coldpowr - 1) + self.vmin
         
         ## Some Final Normalization ##      TODO: I think this might be breaking things!
         # self.changed_flat = self.normalize(self.changed_flat, high=99.99, low=1)
-    
+
+        
     def prep_output(self):
         
         self.mask_output()
