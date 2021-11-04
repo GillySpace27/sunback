@@ -160,19 +160,24 @@ class SRNProcessor(Processor):
         """Runs once after all the images have been modified with do_work"""
         raise NotImplementedError
     
-    def do_fits_function(self, fits_path=None, in_name=None):
+    def do_fits_function(self, fits_path=None, in_name=None, image=True):
         """Calls the do_work function on a single fits path if indicated"""
         if self.load_fits_image(fits_path):
             if (not self.use_keyframes) or (self.fits_path in self.keyframes):
                 return self.do_work()  # Do the work on the fits files
         return None
+
+    def do_img_function(self):
+        """Calls the do_work function on a single fits path if indicated"""
+        return self.do_work()  # Do the work on the fits files
     
     ###################
     ## Top-Level ##
     ###################
     
     def skip_bad_frame(self):
-        self.header
+        # self.header
+        return False
     
     def image_learn(self):
         """Analyze the input image to help make normalization curves"""
@@ -250,8 +255,12 @@ class SRNProcessor(Processor):
     def init_images(self, changed=None):
         """Get all the variables ready for the normalization"""
         dprint("\ninit_images")
+        if self.params.changed is not None:
+            self.changed = self.params.changed
+        
         if changed is not None:
             self.changed = changed
+        
         self.rez = self.changed.shape[0]
         self.changed = self.changed.astype('float32')
         self.changed[self.changed == 0] = np.nan
@@ -443,6 +452,8 @@ class SRNProcessor(Processor):
         # Plot Saving
         if do_save:
             self.force_save_inner_outer(save, fig, ax, show)
+        else:
+            plt.show(block=True)
     
     def force_save_inner_outer(self, save, fig, ax0, show):
         # Save Path Stuff
@@ -572,6 +583,8 @@ class SRNProcessor(Processor):
     
     def split_into_three_regions(self):
         # Split the domain into three regions
+        if not self.found_limb_radius:
+            self.found_limb_radius = self.params.found_limb_radius
         self.lCut = int(self.found_limb_radius - 0.01 * self.rez)
         self.hCut = int(self.found_limb_radius + 0.01 * self.rez)
         
@@ -782,8 +795,8 @@ class SRNProcessor(Processor):
         
         # self.changed += minn
         self.changed = np.power(self.changed, 1/3)
-        self.changed /= 2.25
-        
+        self.changed /= 1.5
+        self.changed -= 0.15
         
         # self.changed = np.power(self.changed, 1/4)
         # self.changed -= minn

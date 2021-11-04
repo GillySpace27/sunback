@@ -40,10 +40,14 @@ class SRNSingleShotProcessor(SRNProcessor):
     
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
+        verb =True
+        if verb:
+            print(" v ", self.progress_verb, "Image...")
         self.image_learn()  # Analyze the input to help make normalization curves
-        self.plot_inner_outer(save=True, extra=True)
+        self.plot_inner_outer(save=False, show=True, extra=True)
         self.image_modify()  # Actually Normalize This Image
-        self.plot_radial_norm_keyframes(True, show=False, save=True)
+        self.plot_radial_norm_keyframes(save=False, show=True, do=True)
+        print(" ^ Success!\n")
         return self.changed
     
     def cleanup(self):
@@ -90,6 +94,7 @@ class SRNpreProcessor(SRNProcessor):
             self.make_smoothed_curves()  # Build smooth curves based on the statistics
             self.save_curves()
         self.render_inner_outer_video()
+        # print("Curves Saved!")
         
         
     def render_inner_outer_video(self):

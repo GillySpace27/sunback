@@ -3,7 +3,7 @@ import shutil
 import cv2
 from processor.ImageProcessor import ImageProcessor
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 class ImageProcessorCV(ImageProcessor):
     filt_name = 'CV Image Writer'
@@ -14,6 +14,8 @@ class ImageProcessorCV(ImageProcessor):
         super().__init__(params, quick, rp)
         self.img_frame = None
         self.out_path = None
+        # self.write_video_in_directory(fullpath=r"D:\sunback_images\MultiRange\Liftoff 0171_l_2013_09_29_000001\0171\png\cat", file_name="concatinated.avi", fps=15, destroy=False)
+        
     
     def do_fits_function(self, fits_path, in_name=None):
         """ Main Call on the Fits Path """
@@ -21,6 +23,34 @@ class ImageProcessorCV(ImageProcessor):
         self.render_all()
         return self
     
+    def do_img_function(self):
+        """ Main Call on the Fits Path """
+        self.init_image_frame()
+        self.plot_two()
+        
+        # self.display_all()
+        return self
+    
+    def display_all(self):
+        self.display_original()
+        self.display_changed()
+        
+    def display_original(self):
+        print("Original")
+        self.frame = np.flipud(self.original)
+        self.prep_save()
+        plt.imshow(self.frame)
+        plt.title("Original")
+        plt.show(block=True)
+        
+    def display_changed(self):
+        print("Changed")
+        self.frame = np.flipud(self.changed)
+        self.prep_save()
+        plt.imshow(self.frame)
+        plt.title("Changed")
+        plt.show(block=True)
+        
     def render_all(self):
         """Render one image"""
         self.plot_aia_original()
@@ -32,20 +62,26 @@ class ImageProcessorCV(ImageProcessor):
         # Get the Frame and Path
         self.frame = np.flipud(self.original)
         self.out_path = self.get_original_path()
-        self.execute_save()
+        os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
+        
+        self.prep_save()
+        self.img_save(self.out_path)
+        
     
     def plot_aia_changed(self):
         """Plot the changed data from AIA"""
         # Get the Frame and Path
         self.frame = np.flipud(self.changed)
         self.out_path = self.get_changed_path()
-        self.execute_save()
-    
-    def execute_save(self):
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
+        
+        self.prep_save()
+        self.img_save(self.out_path)
+        
+    
+    def prep_save(self):
         self.make_image()
         self.label_plot()
-        self.img_save(self.out_path)
         self.path_box.append(self.out_path)
     
     def make_image(self):
@@ -57,11 +93,17 @@ class ImageProcessorCV(ImageProcessor):
             # print("\nRenormalizing", maxmax, minmin, np.max(out), np.min(out))
             
         self.img_frame = (self.cmap(out)[:, :, :3] * 255).astype(np.uint8)
-    
-    def img_save(self, path):
         b, g, r = cv2.split(self.img_frame)  # get b,g,r
         rgb_img = cv2.merge([r, g, b])  # switch it to rgb
-        cv2.imwrite(path, rgb_img)
+        self.params.rbg_image = rgb_img
+        
+    
+    def img_save(self, path, save=True):
+        if save:
+            cv2.imwrite(path, self.params.rgb_img)
+        else:
+            cv2.imshow(self.params.rbg_image)
+            
         
     
     def label_plot(self):
@@ -99,10 +141,10 @@ class ImageProcessorCV(ImageProcessor):
     
     def cleanup(self):
         destroy = False
-        # try:
-        #     self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=5, destroy=destroy)
-        # except (FileNotFoundError, AttributeError) as e:
-        #     print(e)
+        try:
+            self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=5, destroy=destroy)
+        except (FileNotFoundError, AttributeError) as e:
+            print(e)
         if destroy:
             shutil.rmtree(self.orig_directory)
             

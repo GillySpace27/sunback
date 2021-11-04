@@ -5,6 +5,8 @@ import sys
 from time import sleep, time
 
 import numpy as np
+
+
 class Runner:
     def __init__(self, params):
         self.params = params
@@ -23,7 +25,7 @@ class Runner:
     def __debug_mode(self):
         """Run the program in a way that will break"""
         while True:
-            self.__process()
+            self.process()
             if self.params.stop_after_one():
                 break
     
@@ -35,7 +37,7 @@ class Runner:
         
         while True:
             try:
-                self.__process()
+                self.process()
                 fail_count -= 1
             except (KeyboardInterrupt, SystemExit):
                 print("\n\nOk, I'll Stop. Doot!\n")
@@ -43,7 +45,7 @@ class Runner:
             except Exception as error:
                 fail_count += 1
                 if fail_count < fail_max:
-                    out_string="I failed, but I'm ignoring it. Count: {}/{}\n".format(fail_count, fail_max)
+                    out_string = "I failed, but I'm ignoring it. Count: {}/{}\n".format(fail_count, fail_max)
                     print(out_string, error, "\n\n")
                     continue
                 else:
@@ -52,9 +54,13 @@ class Runner:
             if self.params.stop_after_one():
                 break
     
-    def __process(self):
+    def process(self):
         """Use the provided fetcher, executor,
         and putter to do the thing"""
+        if type(self) is SingleRunner:
+            self.process_single()
+            return
+            
         print(self.wall_2)
         # print(self.params.runner_name)
         print("Starting Batch: {}".format(self.params.batch_name()))
@@ -63,15 +69,13 @@ class Runner:
         
         for wave in self.params.waves_to_do:
             self.params.current_wave(wave)
-
+            
             if len(self.params.fetchers()) > 0:
                 sys.stdout.flush()
                 print("\n>>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
                 # print(" Redownload Mode: {}\n".format(self.params.download_files()))
                 for fet, rp in zip(self.params.fetchers(), self.params._fet_rp):
-                    sleep(0.01)
                     fet(params=self.params, rp=rp).fetch()
-                    sleep(0.01)
             
             if len(self.params.processors()) > 0:
                 sys.stdout.flush()
@@ -79,24 +83,18 @@ class Runner:
                 # print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
                 sys.stdout.flush()
                 for proc, rp in zip(self.params.processors(), self.params._proc_rp):
-                    sleep(0.01)
                     proc(params=self.params, rp=rp).process()
-                    sleep(0.01)
-                    
+            
             if len(self.params.putters()) > 0:
                 sys.stdout.flush()
                 print(">>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
                 # print(" Redo Imgs: {}".format(self.params.overwrite_pngs()))
                 # print(" Redo Videos: {}".format(self.params.write_video()))
                 for put, rp in zip(self.params.putters(), self.params._put_rp):
-                    sleep(0.01)
                     put(params=self.params, rp=rp).put()
-                    sleep(0.01)
-        
+            
             self.print_end_banner()
-
-        
-
+    
     ## PRINTING
     def print_header(self):
         print("\n\n", self.wall_1)
@@ -107,7 +105,7 @@ class Runner:
         self.print_plan()
         print("\n", self.wall_1, "\n\n")
         # print("Runner basename: ", self.file_name)
-   
+    
     def print_plan(self):
         print("Run Name: {}".format(self.params.batch_name()))
         print("Run Type: {}\n".format(self.params.run_type()))
@@ -115,26 +113,25 @@ class Runner:
         if len(self.params.fetchers()) > 0:
             for fet in self.params.fetchers():
                 fet.plan(fet)
-                
+        
         if len(self.params.processors()) > 0:
             for proc in self.params.processors():
                 proc.plan(proc)
-                
+        
         if len(self.params.putters()) > 0:
             for put in self.params.putters():
                 put.plan(put)
-
+        
         print("  And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
         # print("\n")
-
     
     def print_end_banner(self):
         mode_string = "" if self.params.stop_after_one() else ", Restarting Loop"
         print("\n" + self.wall_2)
         self.elapsed = time() - self.start_timestamp
         self.start_timestamp = time()
-        minutes = int(np.floor(self.elapsed/60))
-        seconds = int(self.elapsed-minutes*60)
+        minutes = int(np.floor(self.elapsed / 60))
+        seconds = int(self.elapsed - minutes * 60)
         print("Program Complete in {} minutes and {} seconds. {}".format(minutes, seconds, mode_string))
         print(self.wall_2 + "\n")
         
@@ -161,51 +158,60 @@ class Runner:
                     jgs `'-._|_|;:;_.-'` '::.  `"-
                      .:;.      .:.   ::.     '::.
                      """)
-                
+            
             print("\n")
-   
-   
-   
-   
-    # def __process_parallel(self):
-    #     """Use the provided fetcher, executor,
-    #     and putter to do the thing"""
-    #     print(self.wall_2)
-    #     # print(self.params.runner_name)
-    #     print("Starting Batch: {}".format(self.params.batch_name()))
-    #     print(self.wall_2, "\n")
-    #
-    #     from joblib import Parallel, delayed
-    #     # the_output = Parallel(n_jobs=-1)(delayed(yourfunction)(k) for k in range(1,10))
-    #
-    #
-    #     if len(self.params.fetchers()) > 0:
-    #         sys.stdout.flush()
-    #         print(">>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
-    #         # print(" Redownload Mode: {}\n".format(self.params.download_files()))
-    #         for fet in self.params.fetchers():
-    #             sleep(0.01)
-    #             fet.fetch(self.params)
-    #             sleep(0.01)
-    #
-    #     if len(self.params.processors()) > 0:
-    #         sys.stdout.flush()
-    #         print(">>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
-    #         # print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
-    #         sys.stdout.flush()
-    #         for proc in self.params.processors():
-    #             sleep(0.01)
-    #             proc.process(self.params)
-    #             sleep(0.01)
-    #
-    #     if len(self.params.putters()) > 0:
-    #         sys.stdout.flush()
-    #         print(">>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
-    #         # print(" Redo Imgs: {}".format(self.params.overwrite_pngs()))
-    #         # print(" Redo Videos: {}".format(self.params.write_video()))
-    #         for put in self.params.putters():
-    #             sleep(0.01)
-    #             put.put(self.params)
-    #             sleep(0.01)
-    #
-    #     self.print_end_banner()
+    
+
+
+class SingleRunner(Runner):
+    def __init__(self, params=None):
+        super().__init__(params)
+        self.processor_list = None
+    
+    def set_image(self, path=None, image=None):
+        """Set up the target image"""
+        pass
+    
+    def process_single(self):
+        """Run all of the processors on a single image"""
+        self.print_start_banner()
+        self.assemble_processors()
+        self.do_process()
+        self.print_end_banner()
+    
+    def print_start_banner(self):
+        """Display some Pertinent Values"""
+        print(self.wall_2)
+        print("Starting Job: {}".format(self.params.batch_name()))
+        print(self.wall_2, "\n")
+    
+    def assemble_processors(self):
+        """Concatinate all the types of processor into a single list"""
+        self.processor_list = []
+        if len(self.params.fetchers()) > 0:
+            for fet, rp in zip(self.params.fetchers(), self.params._fet_rp):
+                self.processor_list.append(fet(params=self.params, rp=rp))
+        
+        if len(self.params.processors()) > 0:
+            for proc, rp in zip(self.params.processors(), self.params._proc_rp):
+                self.processor_list.append(proc(params=self.params, rp=rp))
+        
+        if len(self.params.putters()) > 0:
+            for put, rp in zip(self.params.putters(), self.params._put_rp):
+                self.processor_list.append(put(params=self.params, rp=rp))
+                
+        pass
+    
+    def do_process(self):
+        """Call each of the processors in order"""
+        for proc in self.processor_list:
+            # proc.process(image=self.params.use_image_path())
+            print(">>  >>  >>  {}: {} <<  <<  <<  <<  <<".format(proc.filt_name, proc.description))
+            proc.process()
+            print('')
+    
+    # def image_generator(self):
+    #     waves = self.params.set_waves_to_do()
+    #     yield None, None
+    #     for (image, wave) in self.image_generator():
+    #         self.params.current_wave(wave)

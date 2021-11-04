@@ -8,6 +8,8 @@ from time import sleep
 import cv2
 import numpy as np
 
+from run import SingleRunner
+
 verb = False
 # import cv2
 from astropy.io import fits
@@ -97,19 +99,15 @@ class Processor:
     @staticmethod
     def plan(self):
         """Find the name of this processor and print"""
-        # top = str(self.__class__)
-        # self.proc_name = top.split(".")[-1][:-2]
         self.proc_name = self.filt_name
         if 'null' not in self.proc_name.casefold():
             proc_name = self.proc_name + "\t : \t" + self.description
             print('   ' + proc_name)
             
-            # if self.params:
-            #     self.params.paper_out.append('  \subitem ' + proc_name)
-            # else:
-            #     self.paper_out.append('  \subitem ' + proc_name)
-    
     def put(self, params=None):
+        self.process(params)
+
+    def fetch(self, params=None):
         self.process(params)
     
     def reprocess_mode(self, flag=None):
@@ -149,9 +147,9 @@ class Processor:
             self.super_flush()
             self.params.set_current_wave(wave)
             self.set_subset()
-            if self.paper_out:
-                self.params.paper_out.extend(self.paper_out)
-                self.paper_out = []
+            # if self.paper_out:
+            #     self.params.paper_out.extend(self.paper_out)
+            #     self.paper_out = []
             # self.clean_directory()
             
             self.params.create_subdirectories()
@@ -226,7 +224,7 @@ class Processor:
         abs_ext_paths = [join(directory, path) for path in ext_paths]
         return ext_paths, abs_ext_paths
     
-    def load_fits_image(self, fits_path=None):
+    def load_fits_image(self, fits_path=None, in_name=None):
         """open the fits file and grab the necessary data"""
         
         if fits_path is not None:
@@ -234,21 +232,39 @@ class Processor:
         if self.fits_path is None:
             self.fits_path = self.params.local_fits_paths()[0]
         
-        frame, wave, t_rec, center, int_time = self.load_best_fits_field(self.fits_path)
+        frame, wave, t_rec, center, int_time = self.load_best_fits_field(self.fits_path, in_name)
         
         if frame is not None:
             self.original = np.asarray(copy(frame), dtype=np.float32)
             self.original_flat = self.original.flatten()
-            self.changed = np.zeros_like(self.original)
+            self.changed = copy(self.original)
             self.changed_flat = self.changed.flatten()
             
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
             self.file_basename = basename(self.fits_path)
             self.set_centerpoint(center)
             # self.set_radius()
+            self.params.image_data = self.image_data
+            self.params.original = self.original
+            self.params.changed = self.changed
             return True
         else:
+            print("Failed to Load Fits!")
             return False
+    
+    def plot_two(self):
+        import matplotlib.pyplot as plt
+        fig, (ax0, ax1) = plt.subplots(1,2,True, True)
+        ax0.imshow(self.original)
+        ax0.set_title("Original")
+        ax1.imshow(self.changed)
+        ax1.set_title("Changed")
+        
+        fig.set_size_inches(16, 8)
+        plt.tight_layout()
+        
+        plt.show(block=True)
+    
     
     def set_centerpoint(self, center):
         """Parse the centerpoint and ensure correct scaling"""
@@ -331,16 +347,8 @@ class Processor:
     def do_fits_function(self, fits_path, in_name):
         raise NotImplementedError
     
-    def process(self, params=None):
-        # print(' v', self.filt_name + "...", flush=True)
-        self.load(params, quietly=False)
-        self.super_flush()
-        
-        if self.params is not None:
-            if self.do_png:
-                self.process_img_series()
-            else:
-                self.process_fits_series()
+    def do_img_function(self):
+        raise NotImplementedError
     
     def cleanup(self):
         pass
@@ -348,7 +356,26 @@ class Processor:
     def setup(self):
         pass
     
-    ##  Fits Files
+    def process(self, params=None):
+        """Load the parameters and run the algorithm"""
+        self.load(params, quietly=False)
+        self.super_flush()
+        
+        if self.params is not None:
+            if self.params.do_single:
+                self.process_image()
+            elif self.do_png:
+                self.process_img_series()
+            else:
+                self.process_fits_series()
+                
+    def process_image(self):
+        """Apply the function to a single image"""
+        self.setup()
+        self.modify_one_image()
+        self.cleanup()
+        
+    ##  Run on Fits Files
     def process_fits_series(self):
         """Apply the function to all necessary fits files"""
         n_fits_path = len(self.keyframes)
@@ -377,20 +404,18 @@ class Processor:
                 print(" ^ ^ ^Successfully {} {} Files ({} skipped) \n".format(self.finished_verb, n_success, self.skipped), flush=True)
         else:
             print(" ^    No Files Found\n")
-    
+    def confirm_fits_file(self, fits_path):
+        if os.path.exists(fits_path):
+            return True
+        else:
+            raise FileNotFoundError
+        
     def modify_one_fits(self, fits_path):
         """Apply the given funtion to the given fits path"""
         self.confirm_fits_file(fits_path)
         output = self.do_fits_function(fits_path, self.in_name)
-        # try:
-        #     pass
-        # except AttributeError as e: #TODO make this much better
-        #     print(e)
-        #     return None
-    
         try:
             frame = output.get()
-    
         except AttributeError as e:
             # print(e)
             frame = output
@@ -399,13 +424,27 @@ class Processor:
             self.save_frame_to_fits_file(fits_path, frame)
         return frame
     
-    def confirm_fits_file(self, fits_path):
-        if os.path.exists(fits_path):
-            return True
-        else:
-            raise FileNotFoundError
+
 
     ##  Img Files
+    
+    def modify_one_image(self,):
+        """Apply the given funtion to the given fits path"""
+        self.params.changed = self.do_img_function()
+
+
+        # try:
+        #     frame = output.get()
+        # except AttributeError as e:
+        #     # print(e)
+        #     frame = output
+        #
+        # # if self.save_to_fits and frame is not None:
+        # #     self.save_frame_to_fits_file(fits_path, frame)
+        # return frame
+
+
+    
     def process_img_series(self):
         """Apply the function to all necessary img files"""
         self.do_one_wave(self.params.current_wave())
@@ -564,12 +603,15 @@ class Processor:
             print("load single frame:: ", e)
             return None
     
-    def load_best_fits_field(self, fits_path):
+    def load_best_fits_field(self, fits_path, in_name=None):
         """Load a fits file from disk"""
         with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
             hdul.verify('silentfix+ignore')  # Verify
             self.list_hdus(hdul)
-            self.set_hdul_in_name(hdul=hdul)
+            if in_name is None:
+                self.in_name = self.set_hdul_in_name(hdul=hdul)
+            else:
+                self.in_name = in_name
             wave, t_rec, center, int_time, self.found_limb_radius = self.get_fits_info(hdul)
             frame = self.open_fits_hdul(hdul)
             # hdul.close()
@@ -663,7 +705,6 @@ class Processor:
                     # len_desc = str(len(desc))
                     fp.write(str(desc) + " : len=" + len_item)
             np.savetxt(curve_path, self.curve_out_array)
-            print("Success!")
         else:
             print("Skipping Save Curves!")
     
@@ -784,6 +825,7 @@ class Processor:
             except KeyError as e:
                 continue
         self.first_hIndex = ii
+        self.params.found_limb_radius = found_limb_radius
         return wave, t_rec, center, int_time, found_limb_radius
     
     def open_fits_hdul(self, hdul):
@@ -940,7 +982,7 @@ class Processor:
         for ii in range(many):
             sys.stdout.flush()
             sys.stderr.flush()
-            sleep(0.01)
+            
     
     def list_hdus(self, hdul):
         self.hdu_name_list = [frame.name.casefold() for frame in hdul]

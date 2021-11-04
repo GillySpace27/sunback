@@ -25,6 +25,7 @@ class Parameters:
         """Sets all the attributes to None"""
         # Initialize Variables
 
+        self._image = None
         self.root_directory = None
         self._shortcut_directory = None
         self.selection = None
@@ -96,6 +97,9 @@ class Parameters:
         self._debug_delay = 2
         
         self._run_type = "web"
+        self.rbg_image = None
+        self.changed = None
+        self.original= None
         
         # TODO remove this from params or something
         self._archive_url = None
@@ -108,6 +112,7 @@ class Parameters:
         self._use_default_directories = True
         self.do_orig = True
         self.do_cat = True
+        self.do_single = False
 
         self._fetchers = [LocalFetcher]
         self._processors = []
@@ -156,6 +161,12 @@ class Parameters:
     ## Other
 
     # Directories
+ 
+    def use_image_path(self, _image=None):
+        if _image is not None:
+            self._image = _image
+        return self._image
+ 
     
     def base_directory(self, _base_directory=None):
         if _base_directory is not None:
@@ -432,6 +443,7 @@ class Parameters:
             self.waves_to_do = [self.do_one()]
         else:
             self.waves_to_do = self.all_wavelengths
+        return self.waves_to_do
     
     def set_current_wave(self, wave=None):
         """Set the current wave parameter correctly"""
@@ -469,14 +481,17 @@ class Parameters:
         
     def get_wave_directory(self):
         """Define the root folder"""
-        base_directory = join(self.find_root_directory(), self.batch_name(), self.current_wave())
+        last = ''
+        if type(self.current_wave()) is str:
+            last = self.current_wave()
+        base_directory = join(self.find_root_directory(), self.batch_name(), last)
         return self.base_directory(base_directory)
     
     def find_root_directory(self, root_directory_name = "sunback_images"):
         """Determine where to store the images"""
         
-        
-        if False:
+        currently_local = True
+        if currently_local: # True when run locally, False when run in panHelio
             self.root_directory = abspath(join("D://", root_directory_name))
         else:
             self.root_directory = abspath(root_directory_name)

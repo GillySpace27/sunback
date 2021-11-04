@@ -80,6 +80,23 @@ class ImageProcessor(Processor):
         self.name, self.wave = self.clean_name_string(self.image_data[0])
         self.cmap = aia_color_table(int(self.wave) * u.angstrom)
 
+    def init_image_frame(self):
+        """Load the fits file from disk and get a field or two"""
+
+        
+        self.original, self.changed = self.params.original, self.params.changed
+        self.frame = np.zeros_like(self.original)
+        # self.peek_frames()
+        try:
+            shape = self.frame.shape
+        except:
+            shape = 4096
+            
+        self.image_data = wave1, fits_path, t_rec1, shape = self.params.image_data
+
+        self.name, self.wave = self.clean_name_string(self.image_data[0])
+        self.cmap = aia_color_table(int(self.wave) * u.angstrom)
+
     def peek_frames(self):
         fig, (ax1, ax2, ax3) = plt.subplots(1,3, sharex=True, sharey=True)
         

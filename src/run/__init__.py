@@ -2,7 +2,8 @@
 Empty init file in case you choose a package besides PyTest such as Nose which may look for such a file
 """
 from run.run import Runner
-__all__ = [Runner]
+from run.run import SingleRunner
+__all__ = [Runner, SingleRunner]
 
 
 # #  TODO: Make this not bad

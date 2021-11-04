@@ -1,3 +1,5 @@
+import os
+
 from fetcher.FidoFetcher import FidoFetcher
 from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from processor.ImageProcessor import ImageProcessor
@@ -17,20 +19,20 @@ plt.ioff()
 # tstart='2016/11/04 01:00:00', tend='2016/11/06 00:00:00',
 dostring = "Liftoff 0211"
 
-def run_range_multishot_movie(batch_name= "Liftoff 0171", wave=None, config=None):
+def run_range_multishot_movie(batch_name= "Liftoff 0304", wave=None, config=None):
     # Set the Parameters
     p = make_params(batch_name, wave, config)
     p.do_recent(False)
     
     # Set the Processes
-    # p.fetchers(FidoFetcher, rp=True)                                     # Gets Fits FIDO
-    # p.processors([FidoTimeIntProcessor], rp=True)                        # Integrate several frames for S/N
-    #
-    # p.processors([SRNpreProcessor],     rp=True)  # Learns the bounds of the dataset for SRN
-    # p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
-    #
-    # p.putters([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
+    # p.fetchers(FidoFetcher, rp=True)                # Gets Fits FIDO
+    # p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
+
+    # p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
+    # p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
+
+    # p.putters([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
+    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
     
     # Run the Code
     run.Runner(p).start()
@@ -53,7 +55,7 @@ def make_params(batch_name=None, wave=None, config=None):
     p.destroy = False
     # tstart, tend = self.params.set_time_range_duration(tstart, duration_seconds=60):
     time_string = config["tstart"].replace('/', '_').replace(' ', '_').replace(':', '')
-    rng = "MultiRange\\{}_{}_{}".format(config['name'], config["time_preset"], time_string)
+    rng = os.path.normpath("MultiRange\\{}_{}_{}".format(config['name'], config["time_preset"], time_string))
     p.batch_name(rng)
     p.run_type("Make Movie of Given Time Range, With Time Integration")
     p.do_one(config["do_one"], config["stop"])
@@ -79,7 +81,7 @@ def make_configs():
     c0 = {
         "name": "Test",
         "debug": True, "do_one": '0304', "stop": True,
-        "tstart": '2013/09/29 00:00:30', "tend": '2013/09/30 00:00:00',
+        "tstart": '2013/09/29 00:00:30', "tend": '2013/09/29 03:00:30',
         "cadence_minutes": None, "fps": None, "exposure_time": None,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
     }
@@ -131,8 +133,8 @@ def make_configs():
     c7 = {
         "name": "Liftoff 0304",
         "debug": True, "do_one": '0304', "stop": True,
-        "tstart": '2013/09/29 00:00:01', "tend": '2013/10/03 00:00:00',
-        "cadence_minutes": 10, "fps": 32, "exposure_time": 60,
+        "tstart": '2013/09/29 00:00:02', "tend": '2013/10/03 00:00:00',
+        "cadence_minutes": 10, "fps": 16, "exposure_time": 60,
         "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
     }
     c8 = {
@@ -153,16 +155,16 @@ def make_configs():
         "name": "Liftoff 0211",
         "debug": True, "do_one": '0211', "stop": True,
         "tstart": '2013/09/29 00:00:00', "tend": '2013/10/03 00:00:00',
-        "cadence_minutes": None, "fps": 5, "exposure_time": None,
-        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
+        "cadence_minutes": None, "fps": 10, "exposure_time": None,
+        "key_fixed_cadence": None, "key_fixed_number": 100, "time_preset": "p"
     }
 
     c11 = {
-        "name": "Liftoff 0335",
-        "debug": True, "do_one": '0335', "stop": True,
-        "tstart": '2013/09/29 00:00:00', "tend": '2013/10/03 00:00:00',
-        "cadence_minutes": None, "fps": 20, "exposure_time": None,
-        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
+        "name": "The Long One",
+        "debug": True, "do_one": '0171', "stop": True,
+        "tstart": '2010/01/01 00:00:00', "tend": '2012/01/01 00:00:00',
+        "cadence_minutes": 24*60, "fps": 10, "exposure_time": 36,
+        "key_fixed_cadence": None, "key_fixed_number": 100, "time_preset": None
     }
     c12 = {
         "name": "Recent 0211",

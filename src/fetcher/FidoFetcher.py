@@ -103,8 +103,11 @@ class FidoFetcher(Fetcher):
         sample_attr = attrs.Sample(self.params.cadence_minutes())
         base_attrs = time_attr & wave_attr & sample_attr
         
-        
+        # from sunpy.net.attrs import Instrument
+        # from sunpy.net.jsoc.attrs import Keys
         # Search for records from the internet
+        
+        attrs.jsoc.Keys
         
         if self.params.do_recent():
             inst_attr = attrs.Instrument.aia
@@ -112,6 +115,7 @@ class FidoFetcher(Fetcher):
             inst_attr = attrs.jsoc.Series.aia_lev1_euv_12s & \
                         attrs.jsoc.Notify(jsoc_email) & \
                         attrs.jsoc.Segment.image
+                        
             
         fido_search_result = Fido.search(base_attrs, inst_attr)
         self.fido_search_result = fido_search_result
@@ -139,7 +143,15 @@ class FidoFetcher(Fetcher):
         
         while len(self.name) < 4:
             self.name = '0' + self.name
-    
+            
+            
+        if self.fido_search_found_num > 200:
+            response = input("Do you still want to download all {} images?".format(self.fido_search_found_num))
+            if 'n' in response.casefold():
+                print("Stopping!")
+                raise StopIteration
+            print("Continuing...")
+            
     def store_requests(self):
         try:
             response = self.fido_search_result.get_response(0)

@@ -7,3 +7,6 @@ class Putter(Processor):
     def put(self, params=None):
         self.load(params)
         raise NotImplementedError()
+    
+    def process(self, params=None):
+        self.put(params)
