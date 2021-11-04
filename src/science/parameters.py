@@ -490,7 +490,7 @@ class Parameters:
     def find_root_directory(self, root_directory_name = "sunback_images"):
         """Determine where to store the images"""
         
-        currently_local = True
+        currently_local = False
         if currently_local: # True when run locally, False when run in panHelio
             self.root_directory = abspath(join("D://", root_directory_name))
         else:
