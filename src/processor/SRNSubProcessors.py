@@ -44,10 +44,10 @@ class SRNSingleShotProcessor(SRNProcessor):
         if verb:
             print(" v ", self.progress_verb, "Image...")
         self.image_learn()  # Analyze the input to help make normalization curves
-        self.plot_inner_outer(save=False, show=True, extra=True)
+#         self.plot_inner_outer(save=False, show=True, extra=True)
         self.image_modify()  # Actually Normalize This Image
-#         self.first=False
-#         self.plot_radial_norm_keyframes(save=False, show=True, do=True)
+        self.first=False
+        self.plot_radial_norm_keyframes(save=False, show=True, do=True)
         print(" ^ Success!\n")
         return self.changed
     

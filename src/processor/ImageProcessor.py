@@ -66,7 +66,7 @@ class ImageProcessor(Processor):
         frame1, wave1, t_rec1, center1, int_time = self.load_a_fits_field(fits_path, in_name)
         # frame1, wave1, t_rec1, center1, int_time = self.load_last_fits_field(fits_path)
         self.params.local_imgs_paths()
-        self.original, self.changed = copy(frame0), copy(frame1)
+        self.original, self.changed = frame0, frame1
         self.frame = np.zeros_like(self.original)
         # self.peek_frames()
         try:
@@ -85,7 +85,7 @@ class ImageProcessor(Processor):
 
         self.original, self.changed = self.params.original, self.params.changed
         self.frame = np.zeros_like(self.original)
-        # self.peek_frames()
+        self.peek_frames()
         try:
             shape = self.frame.shape
         except:

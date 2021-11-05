@@ -42,8 +42,22 @@ class LocalSingleFetcher(Fetcher):
         print(" v Loading Local File...")
         self.load(params)
         self.load_fits_image(self.params.use_image_path(), 't_integrated')
-        print("     ", self.params.use_image_path())
+        import os.path as path
+        print("     ", path.dirname(self.params.use_image_path()))
+        print("     ", path.basename(self.params.use_image_path()))
+        self.plot_preview()
         print(" ^ Success!")
+    
+    def plot_preview(self):
+        import matplotlib.pyplot as plt
+        import numpy as np
+        fig, ax = plt.subplots(num='Input Image')
+        ax.set_title("Preview of Original")
+#         import pdb; pdb.set_trace()
+        minmin = np.min(self.original)
+        plt.imshow(np.sqrt(np.asarray(self.original-minmin, dtype=np.float32)))
+        plt.show()
+        
         
         # self.params.img_stuff = self.load_first_fits_field()
         # self.params.original, wave, t_rec, center, int_time = self.params.img_stuff

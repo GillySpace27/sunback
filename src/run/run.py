@@ -206,7 +206,7 @@ class SingleRunner(Runner):
         """Call each of the processors in order"""
         for proc in self.processor_list:
             # proc.process(image=self.params.use_image_path())
-            print(">>  >>  >>  {}: {} <<  <<  <<  <<  <<".format(proc.filt_name, proc.description))
+            print(">>-->>  {}: {}  <<--<<".format(proc.filt_name, proc.description))
             proc.process()
             print('')
     

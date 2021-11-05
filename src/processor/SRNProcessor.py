@@ -248,27 +248,32 @@ class SRNProcessor(Processor):
             self.rad_flat = self.radius.flatten()
             self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
             
-            self.vignette_mask = self.radius > (int(vignette_radius * self.rez // 2))
+            self.vignette_mask = bool(self.radius > (int(vignette_radius * self.rez // 2))
             self.s_radius = s_radius
             self.tRadius = self.s_radius * t_factor
-    
+            del self.radius
+                                      
     def init_images(self, changed=None):
         """Get all the variables ready for the normalization"""
         dprint("\ninit_images")
+#         import pdb; pdb.set_trace()
         if self.params.changed is not None:
+            self.params.changed = self.params.changed.astype('float16')
             self.changed = self.params.changed
         
         if changed is not None:
             self.changed = changed
-        
-        self.rez = self.changed.shape[0]
-        self.changed = self.changed.astype('float32')
-        self.changed[self.changed == 0] = np.nan
-        
         if self.original is None:
-            self.original = self.changed + 0
+            self.original = self.changed + 0        
+            
+        self.rez = self.changed.shape[0]
+#         plt.imshow(self.changed)
+#         plt.show()
+#         self.changed[self.changed == 0] = np.nan
         
-        self.original_flat = self.original.flatten()
+
+        
+#         self.original_flat = self.original.flatten()
         self.changed_flat = self.changed.flatten()
     
     def init_frame_curves(self):
@@ -386,7 +391,7 @@ class SRNProcessor(Processor):
         else:
             do_save = False
             
-        plt.ioff()
+#         plt.ioff()
         ax.set_title("Intensity as a function of radial distance: AIA_{}".format(self.params.current_wave()))
         ## Plotting ##
         do_all = True
@@ -521,7 +526,7 @@ class SRNProcessor(Processor):
     
     def do_bin(self, skip=30):  # Bin the intensities by radius
         self.cut_pixels = skip
-        for binI, dat in zip(self.binInds[::self.cut_pixels], self.original_flat[::self.cut_pixels]):
+        for binI, dat in zip(self.binInds[::self.cut_pixels], self.changed_flat[::self.cut_pixels]):
             self.radBins[binI].append(dat)
     
     def save_cached_data(self, radBins=None):
@@ -961,24 +966,26 @@ class SRNProcessor(Processor):
     def plot_radial_norm_keyframes(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
             overlaid with the norm curves as determined elsewhere"""
-        if not do:
-            return
-        if self.first:
-            self.first = False
-            return
-    
+#         if not do:
+#             return
+#         if self.first:
+#             self.first = False
+#             return
+#         import pdb; pdb.set_trace()
         # self.output_abscissa
-        dprint("plot_radial_norm_keyframes")
+#         dprint("plot_radial_norm_keyframes")
         # Init the Plots
-        fig, (ax0, ax1) = plt.subplots(2, 1, sharex="all")
+        fig, (ax0, ax1) = plt.subplots(2, 1, sharex="all", num="Radial Statistics")
     
         ## Plot 0 Absolute Coordinates
         self.render_smooth_curves()
         self.plot_inner_outer(fig=fig, ax=ax0, save=False)
-    
+#         import pdb; pdb.set_trace()
         ## Plot 1 Normalized
-        skip = self.skip_points
-        ax1.scatter(self.n2r(self.rad_flat[::skip]), self.changed.flatten()[::skip], c='k', s=2)
+        skip = 500 #self.skip_points
+        
+        points = np.array(self.changed.flatten(), dtype=np.float32)
+        ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=2)
         ax1.axhline(2)
         ax1.axhline(1)
         ax1.axhline(0)
@@ -998,11 +1005,13 @@ class SRNProcessor(Processor):
         ax1.set_yscale("symlog")
         ax1.set_ylim((-0.5, 10))
     
-        fig.set_size_inches(12, 12)
+        fig.set_size_inches(7, 11)
+#         fig.set_size_inches(7, 14)
+        
         plt.tight_layout()
-        # plt.show(block=True)
+        plt.show()
     
-        self.force_save_radial_figures(save, fig, ax0, show)
+#         self.force_save_radial_figures(save, fig, ax0, show)
     
     
         # locs = np.arange(self.rez)[::int(self.rez/5)]
@@ -1027,7 +1036,7 @@ class SRNProcessor(Processor):
                 print('.', end='')
     
     def save_radial_figures(self, do=False, fig=None, ax=None, show=False):
-        if not do: return
+
         # print("Saving {}".format(file_name_1))
         bs = self.params.base_directory()
         folder_name = "analysis\\radial_hist_full"
@@ -1037,12 +1046,13 @@ class SRNProcessor(Processor):
         file_name_2 = 'zoom\\full_zoom_{}.png'.format(self.file_basename[:-5])
         save_path_2 = join(bs, folder_name, file_name_2)
         
-        makedirs(dirname(save_path_1), exist_ok=True)
-        plt.savefig(save_path_1)
+        if do:
+            makedirs(dirname(save_path_1), exist_ok=True)
+            plt.savefig(save_path_1)
         
-        makedirs(dirname(save_path_2), exist_ok=True)
-        ax.set_xlim((0.9, 1.1))
-        plt.savefig(save_path_2)
+            makedirs(dirname(save_path_2), exist_ok=True)
+            ax.set_xlim((0.9, 1.1))
+            plt.savefig(save_path_2)
         
         if not show:
             plt.close(fig)

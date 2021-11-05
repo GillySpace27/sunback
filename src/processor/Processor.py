@@ -236,10 +236,10 @@ class Processor:
         frame, wave, t_rec, center, int_time = self.load_best_fits_field(self.fits_path, in_name)
         
         if frame is not None:
-            self.original = np.asarray(copy(frame), dtype=np.float32)
-            self.original_flat = self.original.flatten()
+            self.original = np.asarray(frame, dtype=np.float16)
+#             self.original_flat = self.original.flatten()
             self.changed = copy(self.original)
-            self.changed_flat = self.changed.flatten()
+#             self.changed_flat = self.changed.flatten()
             
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
             self.file_basename = basename(self.fits_path)
@@ -254,16 +254,22 @@ class Processor:
             return False
     
     def plot_two(self):
-
         fig, (ax0, ax1) = plt.subplots(1,2,True, True, num="Algorithm Result")
-        ax0.imshow(np.sqrt(self.original), cmap = self.cmap)
-        ax0.set_title("Original")
-        ax1.imshow(self.changed, cmap = self.cmap)
-        ax1.set_title("Changed")
-        
-        plt.tight_layout()
-        
+
+#         ax0.imshow(self.changed)#cmap = self.cmap)
+        ax1.plot(np.linspace(0,10), np.sin(np.linspace(0,10)))
         plt.show()
+        ax0.imshow(self.changed) #cmap = self.cmap) #JUST PLOTTING THIS BREAKS EVERYTHING
+
+#         import pdb; pdb.set_trace()
+        
+#         ax1.imshow(self.changed,           )#cmap = self.cmap)
+#         ax0.set_title("Original")
+#         ax1.set_title("Changed")
+        
+#         plt.tight_layout()
+        
+#         plt.show()
     
     
     def set_centerpoint(self, center):
@@ -716,16 +722,16 @@ class Processor:
     #         else:
     #             print("Skipping Save Curves!")
     
-    def load_curves(self, force=None):
+    def load_curves(self, force=None, verb=False):
         """Load the curves so they don't have to be recalculated"""
         
         if os.path.exists(self.params.curve_path()):
             if self.absolute_min is None or force:
-                print(" *    Loading Radial Curves...", end='')
+                if verb: print(" *    Loading Radial Curves...", end='')
                 try:
                     
                     self.unpack_save_ins()
-                    self.super_flush("Success!\n")
+                    if verb: self.super_flush("Success!\n")
                 
                 except ValueError as e:
                     print("Failed: {}".format(e))
