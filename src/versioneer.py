@@ -250,7 +250,7 @@ To upgrade your project to a new release of Versioneer, do the following:
   indicated by the release notes. See [UPGRADING](./UPGRADING.md) for details.
 * re-run `versioneer install` in your source tree, to replace
   `SRC/_version.py`
-* commit any changed files
+* commit any modified_image files
 
 ## Future Directions
 

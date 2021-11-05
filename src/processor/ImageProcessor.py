@@ -66,8 +66,8 @@ class ImageProcessor(Processor):
         frame1, wave1, t_rec1, center1, int_time = self.load_a_fits_field(fits_path, in_name)
         # frame1, wave1, t_rec1, center1, int_time = self.load_last_fits_field(fits_path)
         self.params.local_imgs_paths()
-        self.original, self.changed = frame0, frame1
-        self.frame = np.zeros_like(self.original)
+        self.params.original_image, self.params.modified_image = frame0, frame1
+        self.frame = np.zeros_like(self.params.original_image)
         # self.peek_frames()
         try:
             shape = frame1.shape
@@ -83,8 +83,8 @@ class ImageProcessor(Processor):
     def init_image_frame(self):
         """Load the fits file from disk and get a field or two"""
 
-        self.original, self.changed = self.params.original, self.params.changed
-        self.frame = np.zeros_like(self.original)
+        # self.original, self.changed = self.params.original_image, self.params.modified_image
+        self.frame = np.zeros_like(self.params.original_image)
         self.peek_frames()
         try:
             shape = self.frame.shape
@@ -100,9 +100,9 @@ class ImageProcessor(Processor):
         fig, (ax1, ax2, ax3) = plt.subplots(1,3, sharex=True, sharey=True)
         
         
-        ax1.imshow(self.original)
-        ax2.imshow(self.changed)
-        ax3.imshow(np.abs(self.changed-self.original))
+        ax1.imshow(self.params.original_image)
+        ax2.imshow(self.params.modified_image)
+        ax3.imshow(np.abs(self.params.modified_image-self.params.original_image))
         plt.tight_layout()
         plt.show(block=True)
         

@@ -192,10 +192,10 @@
 #         """Build an r-coordinate array of shape(in_object)"""
 #
 #         if self.rez is None:
-#             self.rez = self.changed.shape[0]
+#             self.rez = self.modified_image.shape[0]
 #             self.output_abscissa = np.arange(self.rez)
 #
-#         if self.radius is None or force or self.changed.shape[0] != self.rez:
+#         if self.radius is None or force or self.modified_image.shape[0] != self.rez:
 #             dprint("init_radius_array")
 #
 #             xx, yy = np.meshgrid(np.arange(self.rez), np.arange(self.rez))
@@ -209,20 +209,20 @@
 #             self.s_radius = s_radius
 #             self.tRadius = self.s_radius * t_factor
 #
-#     def init_images(self, changed=None):
+#     def init_images(self, modified_image=None):
 #         """Get all the variables ready for the normalization"""
 #         dprint("\ninit_images")
-#         if changed is not None:
-#             self.changed = changed
-#         self.rez = self.changed.shape[0]
-#         self.changed = self.changed.astype('float32')
-#         self.changed[self.changed == 0] = np.nan
+#         if modified_image is not None:
+#             self.modified_image = modified_image
+#         self.rez = self.modified_image.shape[0]
+#         self.modified_image = self.modified_image.astype('float32')
+#         self.modified_image[self.modified_image == 0] = np.nan
 #
-#         if self.original is None:
-#             self.original = self.changed + 0
+#         if self.original_image is None:
+#             self.original_image = self.modified_image + 0
 #
-#         self.original_flat = self.original.flatten()
-#         self.changed_flat = self.changed.flatten()
+#         self.original_flat = self.original_image.flatten()
+#         self.changed_flat = self.modified_image.flatten()
 #
 #
 #
@@ -283,9 +283,9 @@
 #         self.mirror_output()
 #
 #         # Un-Flatten the Array
-#         self.changed = self.changed_flat.reshape(self.changed.shape)
-#         self.changed = np.sign(self.changed) * np.power(np.abs(self.changed), (1 / 5))
-#         self.changed = self.changed.astype('float32')
+#         self.modified_image = self.changed_flat.reshape(self.modified_image.shape)
+#         self.modified_image = np.sign(self.modified_image) * np.power(np.abs(self.modified_image), (1 / 5))
+#         self.modified_image = self.modified_image.astype('float32')
 #
 #
 #
@@ -387,12 +387,12 @@
 #
 #         ## Scatter Plot the intensities
 #         skip = 50
-#         ax0.scatter(self.n2r(self.rad_flat[::skip]), self.original.flatten()[::skip], c='k', s=2)
+#         ax0.scatter(self.n2r(self.rad_flat[::skip]), self.original_image.flatten()[::skip], c='k', s=2)
 #
-#         if False:  # get_normed and self.changed.flatten() is None:
+#         if False:  # get_normed and self.modified_image.flatten() is None:
 #             self.image_modify()
 #             # if self.changed_flat is not None:
-#             ax1.scatter(self.n2r(self.rad_flat[::10]), self.changed.flatten()[::10], c='k', s=2)
+#             ax1.scatter(self.n2r(self.rad_flat[::10]), self.modified_image.flatten()[::10], c='k', s=2)
 #
 #         ## Plot Formatting
 #         ax0.set_title("Plot Stats")

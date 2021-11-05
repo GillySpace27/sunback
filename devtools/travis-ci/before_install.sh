@@ -37,5 +37,5 @@ conda config --set always_yes yes
 conda install conda conda-build jinja2 anaconda-client
 conda update --quiet --all
 
-# Restore original directory
+# Restore original_image directory
 popd

@@ -119,11 +119,11 @@ class SRNProcessor(Processor):
         self.center = None
         # self.outer_max = None
         # self.outer_min = None
-        self.changed_flat = None
-        self.changed_flat = None
+        # self.changed_flat = None
+        # self.changed_flat = None
         self.rez = None
-        self.original = None
-        self.changed = None
+        # self.original_image = None
+        # self.modified_image = None
         self.binInds = None
         self.bin_rez = None
         self.radBins = None
@@ -222,8 +222,8 @@ class SRNProcessor(Processor):
     
     def init_for_learn(self):
         self.init_images()
-        self.init_frame_curves()
         self.init_radius_array()
+        self.init_frame_curves()
         self.init_statistics()
     
     def init_for_modify(self):
@@ -235,10 +235,10 @@ class SRNProcessor(Processor):
         """Build an r-coordinate array of shape(in_object)"""
         
         if self.rez is None:
-            self.rez = self.changed.shape[0]
+            self.rez = self.params.modified_image.shape[0]
         self.output_abscissa = np.arange(self.rez)
         
-        if self.radius is None or force or self.changed.shape[0] != self.rez:
+        if self.radius is None or force or self.params.modified_image.shape[0] != self.rez:
             dprint("init_radius_array")
             
             xx, yy = np.meshgrid(np.arange(self.rez), np.arange(self.rez))
@@ -248,7 +248,7 @@ class SRNProcessor(Processor):
             self.rad_flat = self.radius.flatten()
             self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
             
-            self.vignette_mask = bool(self.radius > (int(vignette_radius * self.rez // 2))
+            self.vignette_mask = np.asarray(self.radius > (int(vignette_radius * self.rez // 2)), dtype=bool)
             self.s_radius = s_radius
             self.tRadius = self.s_radius * t_factor
             del self.radius
@@ -257,24 +257,26 @@ class SRNProcessor(Processor):
         """Get all the variables ready for the normalization"""
         dprint("\ninit_images")
 #         import pdb; pdb.set_trace()
-        if self.params.changed is not None:
-            self.params.changed = self.params.changed.astype('float16')
-            self.changed = self.params.changed
+#         if self.params.modified_image is not None:
+            # self.params.modified_image = self.params.modified_image.astype('float16')
+            # self.params.modified_image = self.params.modified_image
         
         if changed is not None:
-            self.changed = changed
-        if self.original is None:
-            self.original = self.changed + 0        
+            self.params.modified_image = changed
+        if self.params.original_image is None:
+            self.params.original_image = self.params.modified_image + 0
             
-        self.rez = self.changed.shape[0]
-#         plt.imshow(self.changed)
+        self.rez = self.params.modified_image.shape[0]
+        if self.center is None:
+            self.center = [self.rez / 2, self.rez / 2]
+#         plt.imshow(self.modified_image)
 #         plt.show()
-#         self.changed[self.changed == 0] = np.nan
+#         self.modified_image[self.modified_image == 0] = np.nan
         
 
         
-#         self.original_flat = self.original.flatten()
-        self.changed_flat = self.changed.flatten()
+#         self.original_flat = self.original_image.flatten()
+#         self.changed_flat = self.params.modified_image.flatten()
     
     def init_frame_curves(self):
         """These are the main frame_level curves"""
@@ -291,8 +293,7 @@ class SRNProcessor(Processor):
         self.frame_abs_min.fill(np.nan)
         self.frame_abss.fill(np.nan)
         
-        if self.center is None:
-            self.center = [self.rez / 2, self.rez / 2]
+
     
     def init_statistics(self):
         """Initialize the statistical arrays"""
@@ -375,8 +376,8 @@ class SRNProcessor(Processor):
         
     def remove_offset(self):
         """Make sure everything is positive"""
-        self.changed -= self.absolute_min
-        self.original -= self.absolute_min
+        self.params.modified_image -= self.absolute_min
+        self.params.original_image -= self.absolute_min
         self.outer_max -= self.absolute_min
         self.inner_max -= self.absolute_min
         self.inner_min -= self.absolute_min
@@ -445,7 +446,7 @@ class SRNProcessor(Processor):
     
         # Plot Scatter Points
         self.skip_points = 10 if self.rez < 3000 else 500  # TODO Make this sample better, linear isn't appropriate because its a circle
-        ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), self.original.flatten()[::self.skip_points], c='k', s=2)
+        ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), self.params.original_image.flatten()[::self.skip_points], c='k', s=2)
     
         ## Plot Formatting
         ax.set_ylabel("Intensity")
@@ -526,7 +527,7 @@ class SRNProcessor(Processor):
     
     def do_bin(self, skip=30):  # Bin the intensities by radius
         self.cut_pixels = skip
-        for binI, dat in zip(self.binInds[::self.cut_pixels], self.changed_flat[::self.cut_pixels]):
+        for binI, dat in zip(self.binInds[::self.cut_pixels], self.params.modified_image.flatten()[::self.cut_pixels]):
             self.radBins[binI].append(dat)
     
     def save_cached_data(self, radBins=None):
@@ -784,18 +785,16 @@ class SRNProcessor(Processor):
             warnings.filterwarnings('error')
             try:
                 # Standard Normalization Formula
-                del self.changed_flat
-                del self.original_flat
-                self.norm_formula(self.changed, self.norm_curve_min, self.norm_curve_max)
+                self.norm_formula(self.params.modified_image, self.norm_curve_min, self.norm_curve_max)
             except RuntimeWarning as e:
                 print(e)  
         return  
     
-#                 self.changed_flat = self.norm_formula(self.changed, self.norm_curve_min, self.norm_curve_max)
-#                 self.changed = self.changed_flat.reshape(the_shape).astype('float32') # # purple
+#                 self.changed_flat = self.norm_formula(self.modified_image, self.norm_curve_min, self.norm_curve_max)
+#                 self.modified_image = self.changed_flat.reshape(the_shape).astype('float32') # # purple
 #                         import pdb; pdb.set_trace()
 #         del flat_image
-#         del self.original
+#         del self.original_image
 #         del self.original_flat
 #         del the_min
 #         del the_max
@@ -806,26 +805,26 @@ class SRNProcessor(Processor):
     def coronagraph_touchup(self):
         """Deal with pixel outliers. Lots of adjustable parameters in here"""
         
-        # neg = self.changed<0
-        # neg_pts = self.changed[neg]
+        # neg = self.modified_image<0
+        # neg_pts = self.modified_image[neg]
         # minn = np.abs(np.min(neg_pts))
         # normed = neg_pts + min(neg_pts)
         
         
-        # self.changed += minn
-        self.changed = np.power(self.changed, 1/3)
-        self.changed /= 1.5
-        self.changed -= 0.15
+        # self.modified_image += minn
+        self.params.modified_image = np.power(self.params.modified_image, 1 / 3)
+        self.params.modified_image /= 1.5
+        self.params.modified_image -= 0.15
         
-        # self.changed = np.power(self.changed, 1/4)
-        # self.changed -= minn
+        # self.modified_image = np.power(self.modified_image, 1/4)
+        # self.modified_image -= minn
         
         ## Deal with too hot things ##
         # self.vmax = 2
         # self.vmax_plot = 0.95  # np.max(changed_flat) #this is in the header of the imageprocessor now
         # hotpowr = 1 / 2
-        # hot = self.changed > self.vmax
-        # self.changed[hot] = self.changed[hot] ** hotpowr
+        # hot = self.modified_image > self.vmax
+        # self.modified_image[hot] = self.modified_image[hot] ** hotpowr
         
         
         
@@ -846,32 +845,32 @@ class SRNProcessor(Processor):
         self.mirror_output()
         
         # Un-Flatten the Array
-        # self.changed = np.sign(self.changed) * np.power(np.abs(self.changed), (1 / 5))
+        # self.modified_image = np.sign(self.modified_image) * np.power(np.abs(self.modified_image), (1 / 5))
     
     def mask_output(self, do_mask=None):
         """Allows you to only show sub-sections of the in_object as reduced images"""
         if not do_mask:
             return False
         
-        self.grid_mask = self.get_mask(self.changed, force=True)
+        self.grid_mask = self.get_mask(self.params.modified_image, force=True)
         
         if self.grid_mask is not None:
-            self.changed[self.grid_mask] = self.original[self.grid_mask]
+            self.params.modified_image[self.grid_mask] = self.params.original_image[self.grid_mask]
     
     def mirror_output(self, do_mirror=None):
         # Allows you to mirror horizontally, with only one half rfeduced
         if not do_mirror:
             return False
         
-        self.mirror_mask = self.get_mask(self.changed, force=True)
+        self.mirror_mask = self.get_mask(self.params.modified_image, force=True)
         
-        newDat = self.changed[self.mirror_mask]
+        newDat = self.params.modified_image[self.mirror_mask]
         xx, yy = self.mirror_mask.shape[0], int(self.mirror_mask.shape[1] / 2)
         grid = newDat.reshape(xx, yy)
         flipped = np.fliplr(grid)
         
         if self.mirror_mask is not None:
-            self.changed[~self.mirror_mask] = flipped.flatten()  # np.flip(newDat)
+            self.params.modified_image[~self.mirror_mask] = flipped.flatten()  # np.flip(newDat)
     
     def get_mask(self, output_frame, force=None):
         """ Generates a mask that defines which portion of the in_object will be modified"""
@@ -955,8 +954,8 @@ class SRNProcessor(Processor):
     
     def vignette(self):
         """Truncate the in_object above a certain radis"""
-        self.changed[self.vignette_mask] = np.nan
-        self.original[self.vignette_mask] = np.nan
+        self.params.modified_image[self.vignette_mask] = np.nan
+        self.params.original_image[self.vignette_mask] = np.nan
     
     ########################
     ## Plotting Stuff ##
@@ -984,7 +983,7 @@ class SRNProcessor(Processor):
         ## Plot 1 Normalized
         skip = 500 #self.skip_points
         
-        points = np.array(self.changed.flatten(), dtype=np.float32)
+        points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
         ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=2)
         ax1.axhline(2)
         ax1.axhline(1)

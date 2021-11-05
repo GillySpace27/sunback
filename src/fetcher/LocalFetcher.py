@@ -54,14 +54,14 @@ class LocalSingleFetcher(Fetcher):
         fig, ax = plt.subplots(num='Input Image')
         ax.set_title("Preview of Original")
 #         import pdb; pdb.set_trace()
-        minmin = np.min(self.original)
-        plt.imshow(np.sqrt(np.asarray(self.original-minmin, dtype=np.float32)))
+        minmin = np.min(self.params.original_image)
+        plt.imshow(np.sqrt(np.asarray(self.params.original_image - minmin, dtype=np.float32)))
         plt.show()
         
         
         # self.params.img_stuff = self.load_first_fits_field()
-        # self.params.original, wave, t_rec, center, int_time = self.params.img_stuff
-        # self.params.changed = self.params.original + 0
+        # self.params.original_image, wave, t_rec, center, int_time = self.params.img_stuff
+        # self.params.modified_image = self.params.original_image + 0
         # self.params.set_current_wave(wave)
 
         

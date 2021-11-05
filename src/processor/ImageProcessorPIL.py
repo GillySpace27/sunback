@@ -31,16 +31,16 @@ class ImageProcessorPIL(ImageProcessor):
         self.save_concatinated(destroy=False)
         
     def plot_aia_original(self):
-        """Plot the original data from AIA"""
+        """Plot the original_image data from AIA"""
         # Get the Frame and Path
-        self.frame = np.flipud(self.original)
+        self.frame = np.flipud(self.params.original_image)
         self.out_path = self.get_original_path()
         self.execute_save()
     
     def plot_aia_changed(self):
-        """Plot the changed data from AIA"""
+        """Plot the modified_image data from AIA"""
         # Get the Frame and Path
-        self.frame = np.flipud(self.changed)
+        self.frame = np.flipud(self.params.modified_image)
         self.out_path = self.get_changed_path()
         self.path_box.append(self.out_path)
         self.execute_save()

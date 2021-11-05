@@ -26,7 +26,7 @@ operations; however:
   there is not already a testcase for it in t9391-lib-usage.sh or
   t9392-python-callback.sh, please contribute a testcase.  That will not
   prevent me from changing the API, but it will allow you to look at the
-  history of a testcase to see whether and how the API changed.
+  history of a testcase to see whether and how the API modified_image.
   ***** END API BACKWARD COMPATIBILITY CAVEAT *****
 """
 
@@ -492,7 +492,7 @@ class Blob(_GitElementWithId):
     # Denote that this is a blob
     self.type = 'blob'
 
-    # Record original id
+    # Record original_image id
     self.original_id = original_id
 
     # Stores the blob's data
@@ -561,7 +561,7 @@ class FileChange(_GitElement):
     # here but I don't just due to worries about performance overhead...
     self.type = type_
 
-    # Record the name of the file being changed
+    # Record the name of the file being modified_image
     self.filename = filename
 
     # Record the reprocess_mode (reprocess_mode describes type of file entry (non-executable,
@@ -632,7 +632,7 @@ class Commit(_GitElementWithId):
     # Record the affected branch
     self.branch = branch
 
-    # Record original id
+    # Record original_image id
     self.original_id = original_id
 
     # Record author's name
@@ -738,7 +738,7 @@ class Tag(_GitElementWithId):
     # Store the entity being tagged (this should be a commit)
     self.from_ref = from_ref
 
-    # Record original id
+    # Record original_image id
     self.original_id = original_id
 
     # Store the name of the tagger
@@ -1024,7 +1024,7 @@ class FastExportParser(object):
     return filechange
 
   def _parse_original_id(self):
-    original_id = self._currentline[len(b'original-oid '):].rstrip()
+    original_id = self._currentline[len(b'original_image-oid '):].rstrip()
     self._advance_currentline()
     return original_id
 
@@ -1096,7 +1096,7 @@ class FastExportParser(object):
     id_ = self._parse_optional_mark()
 
     original_id = None
-    if self._currentline.startswith(b'original-oid'):
+    if self._currentline.startswith(b'original_image-oid'):
       original_id = self._parse_original_id();
 
     data = self._parse_data()
@@ -1175,7 +1175,7 @@ class FastExportParser(object):
     id_ = self._parse_optional_mark()
 
     original_id = None
-    if self._currentline.startswith(b'original-oid'):
+    if self._currentline.startswith(b'original_image-oid'):
       original_id = self._parse_original_id();
 
     author_name = None
@@ -1271,7 +1271,7 @@ class FastExportParser(object):
     ignoreme, from_ref = self._parse_optional_parent_ref(b'from')
 
     original_id = None
-    if self._currentline.startswith(b'original-oid'):
+    if self._currentline.startswith(b'original_image-oid'):
       original_id = self._parse_original_id();
 
     tagger_name, tagger_email, tagger_date = None, None, None
@@ -1583,7 +1583,7 @@ class GitUtils(object):
     with open(sys.argv[0], 'br') as f:
       contents = f.read()
     # If people replaced @@LOCALEDIR@@ string to point at their local
-    # directory, undo it so we can get original source version.
+    # directory, undo it so we can get original_image source version.
     contents = re.sub(br'^#\!/usr/bin/env python.*',
                       br'#!/usr/bin/env python3', contents)
     contents = re.sub(br'(\("GIT_TEXTDOMAINDIR"\) or ").*"',
@@ -1844,7 +1844,7 @@ EXAMPLES
                          choices=['always', 'auto', 'never'],
         help=_("Whether to prune empty commits.  'auto' (the default) means "
                "only prune commits which become empty (not commits which were "
-               "empty in the original repo, unless their parent was pruned). "
+               "empty in the original_image repo, unless their parent was pruned). "
                "When the parent of a commit is pruned, the first non-pruned "
                "ancestor becomes the new parent."))
     parents.add_argument('--prune-degenerate', default='auto',
@@ -1934,7 +1934,7 @@ EXAMPLES
 
     misc.add_argument('--dry-run', action='store_true',
         help=_("Do not change the repository.  Run `git fast-export` and "
-               "filter its output, and save both the original and the "
+               "filter its output, and save both the original_image and the "
                "filtered version for comparison.  This also disables "
                "rewriting commit messages due to not knowing new commit "
                "IDs and disables filtering of some empty commits due to "
@@ -1965,7 +1965,7 @@ EXAMPLES
         help=_("Instead of running `git fast-export` and filtering its "
                "output, filter the fast-export stream from stdin.    The "
                "stdin must be in the expected input format (e.g. it needs "
-               "to include original-oid directives)."))
+               "to include original_image-oid directives)."))
     misc.add_argument('--quiet', action='store_true',
         help=_("Pass --quiet to other git commands called"))
     return parser
@@ -2665,7 +2665,7 @@ class RepoFilter(object):
     # Defaults for input
     self._input = None
     self._fep = None  # Fast Export Process
-    self._fe_orig = None  # Path to where original fast-export output stored
+    self._fe_orig = None  # Path to where original_image fast-export output stored
     self._fe_filt = None  # Path to where filtered fast-export output stored
     self._parser = None # FastExportParser object we are working with
 
@@ -2680,7 +2680,7 @@ class RepoFilter(object):
     # speak).  The depth of a commit is one more than the max depth of any
     # of its ancestors.
     self._graph = AncestryGraph()
-    # Another one, for ancestry of commits in the original repo
+    # Another one, for ancestry of commits in the original_image repo
     self._orig_graph = AncestryGraph()
 
     # Names of files that were tweaked in any commit; such paths could lead
@@ -2696,7 +2696,7 @@ class RepoFilter(object):
     # A dict of original_ids to new_ids; filtering commits means getting
     # new commit hash (sha1sums), and we record the mapping both for
     # diagnostic purposes and so we can rewrite commit messages.  Note that
-    # the new_id can be None rather than a commit hash if the original
+    # the new_id can be None rather than a commit hash if the original_image
     # commit became empty and was pruned or was otherwise dropped.
     self._commit_renames = {}
 
@@ -2964,7 +2964,7 @@ class RepoFilter(object):
     always_prune = (self._args.prune_degenerate == 'always')
 
     # Pruning of empty commits means multiple things:
-    #   * An original parent of this commit may have been pruned causing the
+    #   * An original_image parent of this commit may have been pruned causing the
     #     need to rewrite the reported parent to the nearest ancestor.  We
     #     want to know when we're dealing with such a parent.
     #   * Further, there may be no "nearest ancestor" if the entire history
@@ -3016,13 +3016,13 @@ class RepoFilter(object):
           continue
         # parents[cur] is an ancestor of parents[other], so parents[cur]
         # seems redundant.  However, if it was intentionally redundant
-        # (e.g. a no-ff merge) in the original, then we want to keep it.
+        # (e.g. a no-ff merge) in the original_image, then we want to keep it.
         if not always_prune and \
            self._orig_graph.is_ancestor(orig_parents[cur],
                                         orig_parents[other]):
           continue
         # Okay so the cur-th parent is an ancestor of the other-th parent,
-        # and it wasn't that way in the original repository; mark the
+        # and it wasn't that way in the original_image repository; mark the
         # cur-th parent as removable.
         to_remove.append(cur)
         break # cur removed, so skip rest of others -- i.e. check cur+=1
@@ -3085,10 +3085,10 @@ class RepoFilter(object):
     # an empty commit.  Check by comparing the contents of this commit to its
     # (remaining) parent.
     #
-    # NOTE on why this works, for the case of original first parent history
+    # NOTE on why this works, for the case of original_image first parent history
     # having been pruned away due to being empty:
     #     The first parent history having been pruned away due to being
-    #     empty implies the original first parent would have a tree (after
+    #     empty implies the original_image first parent would have a tree (after
     #     filtering) that matched the merge base's tree.  Since
     #     file_changes has the changes needed to go from what would have
     #     been the first parent to our new commit, and what would have been
@@ -3178,8 +3178,8 @@ class RepoFilter(object):
 
     def newname(path_changes, pathname, use_base_name, filtering_is_inclusive):
       ''' Applies filtering and rename changes from path_changes to pathname,
-          returning any of None (file isn't not_wanted), original filename (file
-          is not_wanted with original name), or new filename. '''
+          returning any of None (file isn't not_wanted), original_image filename (file
+          is not_wanted with original_image name), or new filename. '''
       wanted = False
       full_pathname = pathname
       if use_base_name:
@@ -3268,7 +3268,7 @@ class RepoFilter(object):
         #      both to the same location poses no problem; we only need one
         #      file.  (This could come up if someone copied a file in some
         #      commit, then later either deleted the file or kept it exactly
-        #      in sync with the original with any changes, and then decides
+        #      in sync with the original_image with any changes, and then decides
         #      they want to rewrite history to only have one of the two files)
         colliding_change = new_file_changes[change.filename]
         if change.type == b'D':
@@ -3508,7 +3508,7 @@ class RepoFilter(object):
         reencode = 'no' if self._args.preserve_commit_encoding else 'yes'
         extra_flags.append('--reencode='+reencode)
       location = ['-C', self._args.source] if self._args.source else []
-      fep_cmd = ['git'] + location + ['fast-export', '--show-original-ids',
+      fep_cmd = ['git'] + location + ['fast-export', '--show-original_image-ids',
                  '--signed-tags=strip', '--tag-of-filtered-object=rewrite',
                  '--fake-missing-tagger', '--reference-excluded-parents'
                  ] + extra_flags + self._args.refs
@@ -3516,7 +3516,7 @@ class RepoFilter(object):
       self._input = self._fep.stdout
       if self._args.dry_run or self._args.debug:
         self._fe_orig = os.path.join(self.results_tmp_dir(),
-                                     b'fast-export.original')
+                                     b'fast-export.original_image')
         output = open(self._fe_orig, 'bw')
         self._input = InputFileBackup(self._input, output)
         if self._args.debug:

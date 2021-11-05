@@ -114,14 +114,14 @@ class FidoTimeIntProcessor(FidoFetcher):
             # Sum them
             if not self.hold:
                 self.sum_subframes()
-            return self.changed
+            return self.params.modified_image
         
         return None
     
     def should_do_exposure(self, fits_path):
         """Do we need to do time integration here?"""
         self.keyframe_fits_path = fits_path
-        in_name = "original" # self.set_hdul_in_name(fits_path)
+        in_name = "original_image" # self.set_hdul_in_name(fits_path)
         need_exposure = self.params.exposure_time_seconds() > 0
         have_input = in_name is not None
         already_made = self.out_name in self.hdu_name_list
@@ -145,8 +145,8 @@ class FidoTimeIntProcessor(FidoFetcher):
         
         keyframe, wave, t_rec, center, t_int = self.load_a_fits_field(fits_path, self.in_name)
         self.orig_t_int = t_int
-        self.original = keyframe
-        self.changed = np.zeros_like(keyframe, dtype=np.float32)
+        self.params.original_image = keyframe
+        self.params.modified_image = np.zeros_like(keyframe, dtype=np.float32)
 
         # Define new exposure time window
         self.main_time_period = self.params.time_period([self.params.tstart, self.params.tend])
@@ -172,13 +172,13 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.get_exposure_paths()
         self.int_tm_tot = 0
         self.n_exposures = 0
-        self.changed = np.zeros_like(self.changed, dtype=np.float32)
+        self.params.modified_image = np.zeros_like(self.params.modified_image, dtype=np.float32)
         for ii, path in enumerate(self.exposure_paths):
             # vprint(path, self.verb)
             try:
                 if not os.path.isdir(path):
                     frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, -1)
-                    self.changed += (frame / int_time)
+                    self.params.modified_image += (frame / int_time)
                     self.int_tm_tot += int_time
                     self.n_exposures += 1
                 # self.force_delete(path, do=self.do_delete)
@@ -187,9 +187,9 @@ class FidoTimeIntProcessor(FidoFetcher):
             # except TypeError as e:
             #     print("Sum Subframes:: ", e)
                 
-        self.changed /= self.n_exposures
-        self.changed *= self.orig_t_int
-        self.changed = np.asarray(self.changed, dtype=np.float32)
+        self.params.modified_image /= self.n_exposures
+        self.params.modified_image *= self.orig_t_int
+        self.params.modified_image = np.asarray(self.params.modified_image, dtype=np.float32)
         if not self.hold and self.do_delete:
             self.delete_temp_folder()
         

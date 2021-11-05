@@ -98,8 +98,7 @@ class Parameters:
         
         self._run_type = "web"
         self.rbg_image = None
-        self.changed = None
-        self.original= None
+        # self.changed = None
         
         # TODO remove this from params or something
         self._archive_url = None

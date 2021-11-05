@@ -38,7 +38,7 @@ class ImageProcessorCV(ImageProcessor):
         
     def display_original(self):
         print("Original")
-        self.frame = np.flipud(self.original)
+        self.frame = np.flipud(self.params.original_image)
         self.prep_save()
         plt.imshow(self.frame)
         plt.title("Original")
@@ -46,7 +46,7 @@ class ImageProcessorCV(ImageProcessor):
         
     def display_changed(self):
         print("Changed")
-        self.frame = np.flipud(self.changed)
+        self.frame = np.flipud(self.params.modified_image)
         self.prep_save()
         plt.imshow(self.frame)
         plt.title("Changed")
@@ -59,9 +59,9 @@ class ImageProcessorCV(ImageProcessor):
         self.save_concatinated(destroy=True)
     
     def plot_aia_original(self):
-        """Plot the original data from AIA"""
+        """Plot the original_image data from AIA"""
         # Get the Frame and Path
-        self.frame = np.flipud(self.original)
+        self.frame = np.flipud(self.params.original_image)
         self.out_path = self.get_original_path()
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
         
@@ -70,9 +70,9 @@ class ImageProcessorCV(ImageProcessor):
         
     
     def plot_aia_changed(self):
-        """Plot the changed data from AIA"""
+        """Plot the modified_image data from AIA"""
         # Get the Frame and Path
-        self.frame = np.flipud(self.changed)
+        self.frame = np.flipud(self.params.modified_image)
         self.out_path = self.get_changed_path()
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
         
