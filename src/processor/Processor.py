@@ -50,8 +50,8 @@ class Processor:
     params = None
     # current_wave = 'rainbow'
     proc_name = None
-    changed = None
-    original = None
+    modified_image = None
+    original_image = None
     n_fits = None
     n_imgs = None
     ii = 0
@@ -79,8 +79,7 @@ class Processor:
         self.hdu_name_list = None
         self.file_basename = None
         self.image_data = None
-        self.changed_flat = None
-        self.original_flat = None
+        # self.changed_flat = None
         self.can_use_keyframes = False
         self.use_keyframes = None
         self.skipped = 0
@@ -236,18 +235,18 @@ class Processor:
         frame, wave, t_rec, center, int_time = self.load_best_fits_field(self.fits_path, in_name)
         
         if frame is not None:
-            self.original = np.asarray(frame, dtype=np.float16)
-#             self.original_flat = self.original.flatten()
-            self.changed = copy(self.original)
-#             self.changed_flat = self.changed.flatten()
+            self.params.original_image = np.asarray(frame, dtype=np.float32)
+            self.params.modified_image = copy(self.params.original_image)
+#             self.original_flat = self.original_image.flatten()
+#             self.changed_flat = self.modified_image.flatten()
             
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
             self.file_basename = basename(self.fits_path)
             self.set_centerpoint(center)
             # self.set_radius()
             self.params.image_data = self.image_data
-            self.params.original = self.original
-            self.params.changed = self.changed
+            # self.params.original_image = self.original_image
+            # self.params.modified_image = self.modified_image
             return True
         else:
             print("Failed to Load Fits!")
@@ -257,13 +256,24 @@ class Processor:
         fig, (ax0, ax1) = plt.subplots(1,2,True, True, num="Algorithm Result")
 
 #         ax0.imshow(self.changed)#cmap = self.cmap)
-        ax1.plot(np.linspace(0,10), np.sin(np.linspace(0,10)))
-        plt.show()
-        ax0.imshow(self.changed) #cmap = self.cmap) #JUST PLOTTING THIS BREAKS EVERYTHING
+#         ax1.plot(np.linspace(0,10), np.sin(np.linspace(0,10)))
+#         plt.show()
+#         ax0.imshow(self.params.original_image, cmap = self.cmap) #JUST PLOTTING THIS BREAKS EVERYTHING
+        ax1.imshow(self.params.modified_image, cmap = self.cmap)
 
 #         import pdb; pdb.set_trace()
         
-#         ax1.imshow(self.changed,           )#cmap = self.cmap)
+        ax0.set_title("Original")
+        ax1.set_title("Changed")
+        
+        plt.tight_layout()
+        
+        plt.show()
+        ax0.imshow(self.params.modified_image) #cmap = self.cmap) #JUST PLOTTING THIS BREAKS EVERYTHING
+
+#         import pdb; pdb.set_trace()
+        
+#         ax1.imshow(self.modified_image,           )#cmap = self.cmap)
 #         ax0.set_title("Original")
 #         ax1.set_title("Changed")
         
@@ -275,7 +285,7 @@ class Processor:
     def set_centerpoint(self, center):
         """Parse the centerpoint and ensure correct scaling"""
         self.center = center
-        image_edge = self.original.shape
+        image_edge = self.params.original_image.shape
         center_given = np.abs(self.center)
         
         Top_Tolerance = 0.65
@@ -436,7 +446,7 @@ class Processor:
     
     def modify_one_image(self,):
         """Apply the given funtion to the given fits path"""
-        self.params.changed = self.do_img_function()
+        self.params.modified_image = self.do_img_function()
 
 
         # try:
@@ -974,12 +984,12 @@ class Processor:
     
     ## UTIL
     def get(self):
-        """Return just the changed frome"""
-        return self.changed
+        """Return just the modified_image frome"""
+        return self.params.modified_image
     
     def get_orig(self):
-        """Return just the original frome"""
-        return self.original
+        """Return just the original_image frome"""
+        return self.params.original_image
     
     def super_flush(self, txt=None, end=None, many=5):
         """Flush the stdout many times"""
