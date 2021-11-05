@@ -85,7 +85,7 @@ class ImageProcessor(Processor):
 
         # self.original, self.changed = self.params.original_image, self.params.modified_image
         self.frame = np.zeros_like(self.params.original_image)
-        self.peek_frames()
+        # self.peek_frames()
         try:
             shape = self.frame.shape
         except:

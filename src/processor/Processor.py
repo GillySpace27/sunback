@@ -258,7 +258,7 @@ class Processor:
 #         ax0.imshow(self.changed)#cmap = self.cmap)
 #         ax1.plot(np.linspace(0,10), np.sin(np.linspace(0,10)))
 #         plt.show()
-#         ax0.imshow(self.params.original_image, cmap = self.cmap) #JUST PLOTTING THIS BREAKS EVERYTHING
+        ax0.imshow(self.params.original_image, cmap = self.cmap) #JUST PLOTTING THIS BREAKS EVERYTHING
         ax1.imshow(self.params.modified_image, cmap = self.cmap)
 
 #         import pdb; pdb.set_trace()
