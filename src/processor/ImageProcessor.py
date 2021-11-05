@@ -83,7 +83,6 @@ class ImageProcessor(Processor):
     def init_image_frame(self):
         """Load the fits file from disk and get a field or two"""
 
-        
         self.original, self.changed = self.params.original, self.params.changed
         self.frame = np.zeros_like(self.original)
         # self.peek_frames()

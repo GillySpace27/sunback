@@ -25,7 +25,11 @@ class ImageProcessorCV(ImageProcessor):
     
     def do_img_function(self):
         """ Main Call on the Fits Path """
+
         self.init_image_frame()
+#         print("WOOOOWWWIIIIEEEE")
+#         import pdb; pdb.set_trace()
+
         self.plot_two()
         
         # self.display_all()

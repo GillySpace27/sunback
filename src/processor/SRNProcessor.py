@@ -756,7 +756,7 @@ class SRNProcessor(Processor):
         """Normalize the in_object using the radial percentile curves"""
         # Collect Arrays
         self.init_images(changed)
-        
+
         # Make Curves
         self.make_smoothed_curves()
         
@@ -769,6 +769,7 @@ class SRNProcessor(Processor):
         # self.norm_curve_inner_max
         # self.norm_curve_inner_min
         # self.norm_curve_outer_min
+
         self.render_extrema_curves()
         self.norm_curve_max = self.norm_curve_inner_max
         # self.norm_curve_min = self.norm_curve_outer_min
@@ -778,11 +779,24 @@ class SRNProcessor(Processor):
             warnings.filterwarnings('error')
             try:
                 # Standard Normalization Formula
-                self.changed_flat = self.norm_formula(self.original.flatten(), self.norm_curve_min, self.norm_curve_max)
-                self.changed = self.changed_flat.reshape(self.changed.shape).astype('float32') # # purple
-                
+                del self.changed_flat
+                del self.original_flat
+                self.norm_formula(self.changed, self.norm_curve_min, self.norm_curve_max)
             except RuntimeWarning as e:
-                print(e)
+                print(e)  
+        return  
+    
+#                 self.changed_flat = self.norm_formula(self.changed, self.norm_curve_min, self.norm_curve_max)
+#                 self.changed = self.changed_flat.reshape(the_shape).astype('float32') # # purple
+#                         import pdb; pdb.set_trace()
+#         del flat_image
+#         del self.original
+#         del self.original_flat
+#         del the_min
+#         del the_max
+        
+#         pass
+
     
     def coronagraph_touchup(self):
         """Deal with pixel outliers. Lots of adjustable parameters in here"""
@@ -1080,11 +1094,17 @@ class SRNProcessor(Processor):
         return out
     
     @staticmethod
-    def norm_formula(flat_image, the_min, the_max):
+    def norm_formula(image, the_min, the_max):
         """Standard Normalization Formula"""
-        top = np.subtract(flat_image, the_min)
-        bottom = np.subtract(the_max, the_min)
-        return np.divide(top, bottom)
+#         import pdb; pdb.set_trace()
+        shape=image.shape
+        image=image.flatten()
+        diff = np.subtract(the_max, the_min)
+        np.subtract(image, the_min, out=image)
+        np.divide(image, diff, out=image)
+        return image.reshape(shape)
+
+    
     
     @staticmethod
     def fill_end(use):

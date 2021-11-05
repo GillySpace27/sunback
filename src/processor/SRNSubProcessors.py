@@ -46,7 +46,8 @@ class SRNSingleShotProcessor(SRNProcessor):
         self.image_learn()  # Analyze the input to help make normalization curves
         self.plot_inner_outer(save=False, show=True, extra=True)
         self.image_modify()  # Actually Normalize This Image
-        self.plot_radial_norm_keyframes(save=False, show=True, do=True)
+#         self.first=False
+#         self.plot_radial_norm_keyframes(save=False, show=True, do=True)
         print(" ^ Success!\n")
         return self.changed
     

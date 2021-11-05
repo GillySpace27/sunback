@@ -15,7 +15,8 @@ verb = False
 from astropy.io import fits
 from tqdm import tqdm
 
-
+import matplotlib.pyplot as plt
+# %matplotlib notebook
 # from utils.file_util import save_frame_to_fits_file
 # from fetcher.FidoFetcher import vprint
 # from utils.file_util import find_root_directory
@@ -253,17 +254,16 @@ class Processor:
             return False
     
     def plot_two(self):
-        import matplotlib.pyplot as plt
+
         fig, (ax0, ax1) = plt.subplots(1,2,True, True)
-        ax0.imshow(self.original)
+        ax0.imshow(np.sqrt(self.original), cmap = self.cmap)
         ax0.set_title("Original")
-        ax1.imshow(self.changed)
+        ax1.imshow(self.changed, cmap = self.cmap)
         ax1.set_title("Changed")
         
-        fig.set_size_inches(16, 8)
         plt.tight_layout()
         
-        plt.show(block=True)
+        plt.show()
     
     
     def set_centerpoint(self, center):
