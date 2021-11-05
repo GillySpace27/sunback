@@ -41,7 +41,7 @@ class ImageProcessor(Processor):
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
 
-        self.cmap = None
+        self.params.cmap = None
         self.fig, self.frame_ax = None, None
         self.plot_formatted = False
         self.path_box = []
@@ -78,7 +78,7 @@ class ImageProcessor(Processor):
         self.figure_box = []
         self.path_box = []
         self.name, self.wave = self.clean_name_string(self.image_data[0])
-        self.cmap = aia_color_table(int(self.wave) * u.angstrom)
+        self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
 
     def init_image_frame(self):
         """Load the fits file from disk and get a field or two"""
@@ -94,7 +94,7 @@ class ImageProcessor(Processor):
         self.image_data = wave1, fits_path, t_rec1, shape = self.params.image_data
 
         self.name, self.wave = self.clean_name_string(self.image_data[0])
-        self.cmap = aia_color_table(int(self.wave) * u.angstrom)
+        self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
 
     def peek_frames(self):
         fig, (ax1, ax2, ax3) = plt.subplots(1,3, sharex=True, sharey=True)

@@ -51,6 +51,6 @@ class ImageProcessorPIL(ImageProcessor):
         self.get_img().save(self.out_path)
     
     def get_img(self):
-        colored_array = (self.cmap(self.frame)[:, :, :3] * 255).astype(np.uint8)
+        colored_array = (self.params.cmap(self.frame)[:, :, :3] * 255).astype(np.uint8)
         return Image.fromarray(colored_array)
 

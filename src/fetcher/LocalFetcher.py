@@ -41,7 +41,15 @@ class LocalSingleFetcher(Fetcher):
     def fetch(self, params=None):
         print(" v Loading Local File...")
         self.load(params)
-        self.load_fits_image(self.params.use_image_path(), 't_integrated')
+        for self.params.hdu_name in self.params.start_frame:
+            try:
+                self.load_fits_image(self.params.use_image_path(), self.params.hdu_name)
+                print("Using {} HDU".format(self.params.hdu_name))
+                break
+            except Exception as e:
+                print("LocalSingleFetcher")
+                print(e)
+                
         import os.path as path
         print("     ", path.dirname(self.params.use_image_path()))
         print("     ", path.basename(self.params.use_image_path()))
@@ -52,10 +60,11 @@ class LocalSingleFetcher(Fetcher):
         import matplotlib.pyplot as plt
         import numpy as np
         fig, ax = plt.subplots(num='Input Image')
-        ax.set_title("Preview of Original")
+        ax.set_title("Preview of Start Frame: {}".format(self.params.hdu_name))
 #         import pdb; pdb.set_trace()
         minmin = np.min(self.params.original_image)
-        plt.imshow(np.sqrt(np.asarray(self.params.original_image - minmin, dtype=np.float32)))
+        img = np.sqrt(np.asarray(self.params.original_image - minmin, dtype=np.float32))
+        ax.imshow(img, cmap=self.params.cmap)
         plt.show()
         
         

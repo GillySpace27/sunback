@@ -3,12 +3,14 @@ import sys
 from copy import copy, deepcopy
 from os import listdir, getcwd, makedirs
 from os.path import join, dirname, abspath, isdir, basename
+import astropy.units as u
 from time import sleep
 
 import cv2
 import numpy as np
 
 from run import SingleRunner
+from science.color_tables import aia_color_table
 
 verb = False
 # import cv2
@@ -237,16 +239,16 @@ class Processor:
         if frame is not None:
             self.params.original_image = np.asarray(frame, dtype=np.float32)
             self.params.modified_image = copy(self.params.original_image)
+            
+            self.params.cmap = aia_color_table(int(wave) * u.angstrom)
+            
 #             self.original_flat = self.original_image.flatten()
 #             self.changed_flat = self.modified_image.flatten()
             
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
             self.file_basename = basename(self.fits_path)
             self.set_centerpoint(center)
-            # self.set_radius()
             self.params.image_data = self.image_data
-            # self.params.original_image = self.original_image
-            # self.params.modified_image = self.modified_image
             return True
         else:
             print("Failed to Load Fits!")
@@ -255,13 +257,17 @@ class Processor:
     def plot_two(self):
         fig, (ax0, ax1) = plt.subplots(1,2,True, True, num="Algorithm Result")
 
-#         ax0.imshow(self.changed)#cmap = self.cmap)
-#         ax1.plot(np.linspace(0,10), np.sin(np.linspace(0,10)))
-#         plt.show()
-        ax0.imshow(self.params.original_image, cmap = self.cmap) #JUST PLOTTING THIS BREAKS EVERYTHING
-        ax1.imshow(self.params.modified_image, cmap = self.cmap)
-
-#         import pdb; pdb.set_trace()
+        org = self.params.original_image
+        minmin_org = np.nanmin(org)
+        org2 = np.sqrt(org - minmin_org)
+        mod = self.params.modified_image
+        minmin_mod = np.nanmin(mod)
+        mod2 = mod - minmin_mod
+        
+        ax0.imshow(org2, cmap = self.params.cmap)
+        ax1.imshow(mod2, cmap = self.params.cmap)
+        ax1.set_xlim((3400,4000))
+        ax1.set_ylim((2300,3200))
         
         ax0.set_title("Original")
         ax1.set_title("Changed")
@@ -269,24 +275,13 @@ class Processor:
         plt.tight_layout()
         
         plt.show()
-        ax0.imshow(self.params.modified_image) #cmap = self.cmap) #JUST PLOTTING THIS BREAKS EVERYTHING
 
-#         import pdb; pdb.set_trace()
-        
-#         ax1.imshow(self.modified_image,           )#cmap = self.cmap)
-#         ax0.set_title("Original")
-#         ax1.set_title("Changed")
-        
-#         plt.tight_layout()
-        
-#         plt.show()
-    
     
     def set_centerpoint(self, center):
         """Parse the centerpoint and ensure correct scaling"""
-        self.center = center
+        self.params.center = center
         image_edge = self.params.original_image.shape
-        center_given = np.abs(self.center)
+        center_given = np.abs(self.params.center)
         
         Top_Tolerance = 0.65
         Bottom_Tolerance = 0.35
@@ -299,7 +294,7 @@ class Processor:
                 center_given *= 2
             else:
                 break
-        self.center = center_given
+        self.params.center = center_given
     
     def set_subset(self):
         """Sets the list of which frames get used as keyframes

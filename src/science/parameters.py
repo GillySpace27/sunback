@@ -64,7 +64,8 @@ class Parameters:
         self.debug_mode = False
         self.did_print = False
         self.Force_init = False
-        
+        self.start_frame = ['t_integrated', 'original', 0, 1]
+        self.hdu_name = None
         self.start_time = time()
         self.is_first_run = True
         self._do_HMI = True
@@ -97,7 +98,9 @@ class Parameters:
         self._debug_delay = 2
         
         self._run_type = "web"
+        self.rez = None
         self.rbg_image = None
+        self.center = None
         # self.changed = None
         
         # TODO remove this from params or something

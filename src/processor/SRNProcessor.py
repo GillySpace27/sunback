@@ -7,6 +7,8 @@ from processor.Processor import Processor
 
 import warnings
 
+from science.color_tables import aia_color_table
+import astropy.units as u
 warnings.filterwarnings("ignore")
 import matplotlib as mpl
 
@@ -116,12 +118,12 @@ class SRNProcessor(Processor):
         self.grid_mask = None
         self.t_factor = None
         self.tRadius = None
-        self.center = None
+        # self.center = None
         # self.outer_max = None
         # self.outer_min = None
         # self.changed_flat = None
         # self.changed_flat = None
-        self.rez = None
+        # self.rez = None
         # self.original_image = None
         # self.modified_image = None
         self.binInds = None
@@ -221,54 +223,54 @@ class SRNProcessor(Processor):
     ######################################
     
     def init_for_learn(self):
-        self.init_images()
+        # self.init_images()
         self.init_radius_array()
         self.init_frame_curves()
         self.init_statistics()
     
     def init_for_modify(self):
-        self.init_images()
+        # self.init_images()
         self.init_radius_array()
 
     
     def init_radius_array(self, vignette_radius=1.2, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
         
-        if self.rez is None:
-            self.rez = self.params.modified_image.shape[0]
-        self.output_abscissa = np.arange(self.rez)
+        if self.params.rez is None:
+            self.params.rez = self.params.modified_image.shape[0]
+        if self.params.center is None:
+            self.params.center = [self.params.rez / 2, self.params.rez / 2]
+            
+        self.output_abscissa = np.arange(self.params.rez)
         
-        if self.radius is None or force or self.params.modified_image.shape[0] != self.rez:
+        if self.radius is None or force or self.params.modified_image.shape[0] != self.params.rez:
             dprint("init_radius_array")
             
-            xx, yy = np.meshgrid(np.arange(self.rez), np.arange(self.rez))
-            xc, yc = xx - self.center[0], yy - self.center[1]
+            xx, yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
+            xc, yc = xx - self.params.center[0], yy - self.params.center[1]
             
             self.radius = np.sqrt(xc * xc + yc * yc)
             self.rad_flat = self.radius.flatten()
             self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
             
-            self.vignette_mask = np.asarray(self.radius > (int(vignette_radius * self.rez // 2)), dtype=bool)
+            self.vignette_mask = np.asarray(self.radius > (int(vignette_radius * self.params.rez // 2)), dtype=bool)
             self.s_radius = s_radius
             self.tRadius = self.s_radius * t_factor
             del self.radius
                                       
-    def init_images(self, changed=None):
+    def init_images(self):
         """Get all the variables ready for the normalization"""
         dprint("\ninit_images")
+
+        
 #         import pdb; pdb.set_trace()
 #         if self.params.modified_image is not None:
             # self.params.modified_image = self.params.modified_image.astype('float16')
             # self.params.modified_image = self.params.modified_image
         
-        if changed is not None:
-            self.params.modified_image = changed
-        if self.params.original_image is None:
-            self.params.original_image = self.params.modified_image + 0
-            
-        self.rez = self.params.modified_image.shape[0]
-        if self.center is None:
-            self.center = [self.rez / 2, self.rez / 2]
+        # if self.params.original_image is None:
+        #     self.params.original_image = self.params.modified_image + 0
+        
 #         plt.imshow(self.modified_image)
 #         plt.show()
 #         self.modified_image[self.modified_image == 0] = np.nan
@@ -281,11 +283,11 @@ class SRNProcessor(Processor):
     def init_frame_curves(self):
         """These are the main frame_level curves"""
         dprint("init_frame_curves")
-        self.frame_maximum = np.empty(self.rez)
-        self.frame_minimum = np.empty(self.rez)
-        self.frame_abs_max = np.empty(self.rez)
-        self.frame_abs_min = np.empty(self.rez)
-        self.frame_abss = np.empty(self.rez)
+        self.frame_maximum = np.empty(self.params.rez)
+        self.frame_minimum = np.empty(self.params.rez)
+        self.frame_abs_max = np.empty(self.params.rez)
+        self.frame_abs_min = np.empty(self.params.rez)
+        self.frame_abss = np.empty(self.params.rez)
         
         self.frame_maximum.fill(np.nan)
         self.frame_minimum.fill(np.nan)
@@ -445,7 +447,7 @@ class SRNProcessor(Processor):
             ax.axvline(self.n2r(self.hCut), ls=":")
     
         # Plot Scatter Points
-        self.skip_points = 10 if self.rez < 3000 else 500  # TODO Make this sample better, linear isn't appropriate because its a circle
+        self.skip_points = 10 if self.params.rez < 3000 else 500  # TODO Make this sample better, linear isn't appropriate because its a circle
         ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), self.params.original_image.flatten()[::self.skip_points], c='k', s=2)
     
         ## Plot Formatting
@@ -591,11 +593,11 @@ class SRNProcessor(Processor):
         # Split the domain into three regions
         if not self.found_limb_radius:
             self.found_limb_radius = self.params.found_limb_radius
-        self.lCut = int(self.found_limb_radius - 0.01 * self.rez)
-        self.hCut = int(self.found_limb_radius + 0.01 * self.rez)
+        self.lCut = int(self.found_limb_radius - 0.01 * self.params.rez)
+        self.hCut = int(self.found_limb_radius + 0.01 * self.params.rez)
         
         if self.frame_abss is None:
-            self.frame_abss = np.arange(self.rez)
+            self.frame_abss = np.arange(self.params.rez)
         abss = self.frame_abss
         use_max = self.outer_max + 0
         use_min = self.outer_min + 0
@@ -758,10 +760,10 @@ class SRNProcessor(Processor):
     ## Image Reduction Algorithms ##
     ####################################
     
-    def coronaNorm(self, changed=None):
+    def coronaNorm(self):
         """Normalize the in_object using the radial percentile curves"""
         # Collect Arrays
-        self.init_images(changed)
+        self.init_images()
 
         # Make Curves
         self.make_smoothed_curves()
@@ -785,6 +787,7 @@ class SRNProcessor(Processor):
             warnings.filterwarnings('error')
             try:
                 # Standard Normalization Formula
+                self.plot_two()
                 self.norm_formula(self.params.modified_image, self.norm_curve_min, self.norm_curve_max)
             except RuntimeWarning as e:
                 print(e)  

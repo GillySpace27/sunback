@@ -93,7 +93,7 @@ class ImageProcessorCV(ImageProcessor):
             out = (self.frame-minmin)/(maxmax-minmin)
             # print("\nRenormalizing", maxmax, minmin, np.max(out), np.min(out))
             
-        self.img_frame = (self.cmap(out)[:, :, :3] * 255).astype(np.uint8)
+        self.img_frame = (self.params.cmap(out)[:, :, :3] * 255).astype(np.uint8)
         b, g, r = cv2.split(self.img_frame)  # get b,g,r
         rgb_img = cv2.merge([r, g, b])  # switch it to rgb
         self.params.rbg_image = rgb_img
