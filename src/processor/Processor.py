@@ -255,7 +255,7 @@ class Processor:
     
     def plot_two(self):
 
-        fig, (ax0, ax1) = plt.subplots(1,2,True, True)
+        fig, (ax0, ax1) = plt.subplots(1,2,True, True, num="Algorithm Result")
         ax0.imshow(np.sqrt(self.original), cmap = self.cmap)
         ax0.set_title("Original")
         ax1.imshow(self.changed, cmap = self.cmap)

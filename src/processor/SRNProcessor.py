@@ -381,7 +381,7 @@ class SRNProcessor(Processor):
                          extra=False, raw=False, smooth=True):
         """Look at the results of the algorithm"""
         if ax is None or fig is None:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(num="Doing Statistics on Intensity vs Height")
             do_save = True
         else:
             do_save = False
