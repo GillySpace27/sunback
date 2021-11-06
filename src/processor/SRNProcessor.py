@@ -67,6 +67,7 @@ class SRNProcessor(Processor):
         super().__init__(params, quick, rp)
         # Parse Inputs
 
+        self.fit_limb_radius = None
         self.skip_points = None
         self.norm_curve_min_name = None
         self.norm_curve_max_name = None
@@ -604,27 +605,29 @@ class SRNProcessor(Processor):
         
         # outer_mid_abs = abss[self.lCut:self.hCut]
         
-        outer_mid_max = use_max[self.lCut:self.hCut]
+        # outer_mid_max = use_max[self.lCut:self.hCut]
         inner_mid_max = use_max[self.lCut:self.hCut]
         inner_mid_min = use_min[self.lCut:self.hCut]
-        outer_mid_min = use_min[self.lCut:self.hCut]
+        # outer_mid_min = use_min[self.lCut:self.hCut]
         
-        outer_mid_max_maxInd = np.argmax(outer_mid_max)
-        inner_mid_max_maxInd = np.argmax(inner_mid_max)
-        inner_mid_min_maxInd = np.argmax(inner_mid_min)
-        outer_mid_min_maxInd = np.argmax(outer_mid_min)
+        # outer_mid_max_maxInd = np.argmax(outer_mid_max) + self.lCut
+        inner_mid_max_maxInd = np.argmax(inner_mid_max) + self.lCut
+        inner_mid_min_maxInd = np.argmax(inner_mid_min) + self.lCut
+        # outer_mid_min_maxInd = np.argmax(outer_mid_min) + self.lCut
         
-        print(outer_mid_max_maxInd,
-        inner_mid_max_maxInd,
-        inner_mid_min_maxInd,
-        outer_mid_min_maxInd)
+        self.fit_limb_radius = (inner_mid_max_maxInd + inner_mid_min_maxInd) // 2
+
+        # print(inner_mid_max_maxInd, inner_mid_min_maxInd, fit_limb_radius)
         
-        outer_mid_max_maxVal = outer_mid_max[outer_mid_max_maxInd]
-        inner_mid_max_maxVal = inner_mid_max[inner_mid_max_maxInd]
-        inner_mid_min_maxVal = inner_mid_min[inner_mid_min_maxInd]
-        outer_mid_min_maxVal = outer_mid_min[outer_mid_min_maxInd]
+        
+        # outer_mid_max_maxVal = outer_mid_max[outer_mid_max_maxInd]
+        # inner_mid_max_maxVal = inner_mid_max[inner_mid_max_maxInd]
+        # inner_mid_min_maxVal = inner_mid_min[inner_mid_min_maxInd]
+        # outer_mid_min_maxVal = outer_mid_min[outer_mid_min_maxInd]
         # import pdb; pdb.set_trace()
         
+        
+        # 1/0
         
         
         
@@ -1097,7 +1100,7 @@ class SRNProcessor(Processor):
         ## Plot 1 Formatting
         ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
         ax1.set_ylabel(r"Normalized Intensity")
-        
+        ax1.set_title("")
         ax1.set_yscale("symlog")
         ax1.set_ylim((-0.5, 20))
         ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
@@ -1191,7 +1194,7 @@ class SRNProcessor(Processor):
         """Convert index to solar radius"""
         if n is None:
             n = 0
-        return n / self.found_limb_radius
+        return n / self.fit_limb_radius
     
     @staticmethod
     def normalize(image, high=98, low=15):

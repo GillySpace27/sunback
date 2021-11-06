@@ -667,7 +667,7 @@ class Processor:
             return None
         self.scalar_out_curve = np.zeros(len(self.outer_min))
         if self.found_limb_radius:
-            self.scalar_out_curve[0] = self.found_limb_radius
+            self.scalar_out_curve[0] = self.fit_limb_radius
         if self.absolute_min:
             self.scalar_out_curve[1] = self.absolute_min
             self.scalar_out_curve[2] = self.absolute_max
@@ -684,7 +684,7 @@ class Processor:
                          ])
         # out_list.append([self.smoothed_abs_max, self.smoothed_abs_min])
         self.curve_descriptions = ["outer_min", "inner_min", "inner_max", "outer_max",
-                     ["scalar_out_curve", "found_limb_radius", "abs_min", "abs_max"], "output_abscissa",
+                     ["scalar_out_curve", "fit_limb_radius", "abs_min", "abs_max"], "output_abscissa",
                      "filtered_outer_maximum", "filtered_inner_maximum",
                      "filtered_inner_minimum", "filtered_outer_minimum", 'smooth_abs_max','smooth_abs_min']
 
@@ -702,7 +702,7 @@ class Processor:
         self.filtered_inner_minimum, self.filtered_outer_minimum, \
         self.abs_max, self.abs_min, = np.loadtxt(self.params.curve_path())
         
-        self.found_limb_radius = self.scalar_in_curve[0]
+        self.fit_limb_radius = self.scalar_in_curve[0]
         self.absolute_min = self.scalar_in_curve[1]
         self.absolute_max = self.scalar_in_curve[2]
     
