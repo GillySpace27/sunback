@@ -53,19 +53,11 @@ class LocalSingleFetcher(Fetcher):
         import os.path as path
         print("     ", path.dirname(self.params.use_image_path()))
         print("     ", path.basename(self.params.use_image_path()))
-        self.plot_preview()
+        # self.view_original()
         print(" ^ Success!")
     
-    def plot_preview(self):
-        import matplotlib.pyplot as plt
-        import numpy as np
-        fig, ax = plt.subplots(num='Input Image')
-        ax.set_title("Preview of Start Frame: {}".format(self.params.hdu_name))
-#         import pdb; pdb.set_trace()
-        minmin = np.min(self.params.original_image)
-        img = np.sqrt(np.asarray(self.params.original_image - minmin, dtype=np.float32))
-        ax.imshow(img, cmap=self.params.cmap)
-        plt.show()
+
+        # plt.show()
         
         
         # self.params.img_stuff = self.load_first_fits_field()

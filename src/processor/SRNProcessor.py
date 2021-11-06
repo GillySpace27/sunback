@@ -67,6 +67,9 @@ class SRNProcessor(Processor):
         super().__init__(params, quick, rp)
         # Parse Inputs
 
+        self.skip_points = None
+        self.norm_curve_min_name = None
+        self.norm_curve_max_name = None
         self.smoothed_abs_max = None
         self.smoothed_abs_min = None
         self.abs_min = None
@@ -194,9 +197,9 @@ class SRNProcessor(Processor):
         """Perform the actual normalization on the input array"""
         self.init_for_modify()
         self.coronaNorm()  # Use curves to rescale the in_object
-        self.coronagraph_touchup()  # Deal with some outliers
+        # self.coronagraph_touchup()  # Deal with some outliers
         self.prep_output()
-        self.vignette()  # Truncate the in_object above given radius
+        # self.vignette()  # Truncate the in_object above given radius
     
     ###################
     ## Keyframes ##
@@ -252,8 +255,9 @@ class SRNProcessor(Processor):
             self.radius = np.sqrt(xc * xc + yc * yc)
             self.rad_flat = self.radius.flatten()
             self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
-            
-            self.vignette_mask = np.asarray(self.radius > (int(vignette_radius * self.params.rez // 2)), dtype=bool)
+            self.vcut = int(vignette_radius * self.params.rez // 2)
+            self.vrad = self.n2r(self.vcut)
+            self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
             self.s_radius = s_radius
             self.tRadius = self.s_radius * t_factor
             del self.radius
@@ -385,7 +389,7 @@ class SRNProcessor(Processor):
         self.inner_min -= self.absolute_min
         self.outer_min -= self.absolute_min
     
-    def plot_inner_outer(self, show=False, save=True, fig=None, ax=None,
+    def plot_norm_curves(self, show=False, save=True, fig=None, ax=None,
                          extra=False, raw=False, smooth=True):
         """Look at the results of the algorithm"""
         if ax is None or fig is None:
@@ -420,8 +424,8 @@ class SRNProcessor(Processor):
         if do_all and self.abs_max is not None:
             if raw: ax.plot(rrarr, self.abs_max, zorder=1, lw=1, label="Hat/Shoe",   c='darkgrey', alpha=grey_alpha)
             if raw: ax.plot(rrarr, self.abs_min, zorder=1, lw=1,   c='darkgrey', alpha=grey_alpha)
-            if smooth: ax.plot(rrarr, self.smoothed_abs_max, zorder=200, lw=4,                          c='cornflowerblue', alpha=1)
-            if smooth: ax.plot(rrarr, self.smoothed_abs_min, zorder=200, lw=4, label="Smooth Hat/Shoe",  c='cornflowerblue', alpha=1)
+            if smooth: ax.plot(rrarr, self.smoothed_abs_max, zorder=200, lw=3,                       c='cornflowerblue', alpha=1)
+            if smooth: ax.plot(rrarr, self.smoothed_abs_min, zorder=200, lw=3, label="Abs Max/Min",  c='cornflowerblue', alpha=1)
             
         RRarr = self.n2r(self.output_abscissa)
         # Plot Filtered Curves
@@ -433,22 +437,21 @@ class SRNProcessor(Processor):
 
         # Plot Smoothed Curves
         if self.smooth_inner_maximum is not None:
-            if smooth: ax.plot(RRarr, self.smooth_outer_maximum, zorder=105, lw=4, c="g", label="Smooth Top/Bot")
-            if smooth: ax.plot(RRarr, self.smooth_inner_maximum, zorder=104, lw=4, c='r', label="Smooth Shoulder/Knee")
-            if smooth: ax.plot(RRarr, self.smooth_inner_minimum, zorder=104, lw=4, c="r")
-            if smooth: ax.plot(RRarr, self.smooth_outer_minimum, zorder=105, lw=4, c='g')
+            if smooth: ax.plot(RRarr, self.smooth_outer_maximum, zorder=105, lw=3, c="g", label="Outer Max/Min")
+            if smooth: ax.plot(RRarr, self.smooth_inner_maximum, zorder=104, lw=3, c='r', label="Inner Max/Min")
+            if smooth: ax.plot(RRarr, self.smooth_inner_minimum, zorder=104, lw=3, c="r")
+            if smooth: ax.plot(RRarr, self.smooth_outer_minimum, zorder=105, lw=3, c='g')
             # ax.plot(rrarr, self.smoothed_frame_abs_max, zorder=1, lw=1,                   c='grey', alpha=1)
             # ax.plot(rrarr, self.smoothed_frame_abs_min, zorder=1, lw=1, label="Smo. Abs", c='grey', alpha=1)
     
-        # Vertical Lines
-        ax.axvline(1)
-        if self.lCut is not None:
-            ax.axvline(self.n2r(self.lCut), ls=":")
-            ax.axvline(self.n2r(self.hCut), ls=":")
+
+    
     
         # Plot Scatter Points
-        self.skip_points = 10 if self.params.rez < 3000 else 500  # TODO Make this sample better, linear isn't appropriate because its a circle
-        ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), self.params.original_image.flatten()[::self.skip_points], c='k', s=2)
+        # self.skip_points = 10 if self.params.rez < 3000 else 500  # TODO Make this sample better, linear isn't appropriate because its a circle
+        # scat = self.params.original_image.flatten()
+        # ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat[::self.skip_points], c='k', s=2)
+        # self.touchup(self.params.original_image+0)
     
         ## Plot Formatting
         ax.set_ylabel("Intensity")
@@ -588,16 +591,51 @@ class SRNProcessor(Processor):
         self.concatinate_filtered_regions()
         self.render_smooth_curves()
         self.prep_save_outs()
-    
-    def split_into_three_regions(self):
-        # Split the domain into three regions
-        if not self.found_limb_radius:
-            self.found_limb_radius = self.params.found_limb_radius
+        self.render_extrema_curves()
+        
+    def find_limb_radius(self):
+        self.found_limb_radius = self.params.found_limb_radius
         self.lCut = int(self.found_limb_radius - 0.01 * self.params.rez)
         self.hCut = int(self.found_limb_radius + 0.01 * self.params.rez)
         
+        # abss = self.frame_abss
+        use_max = self.outer_max + 0
+        use_min = self.outer_min + 0
+        
+        # outer_mid_abs = abss[self.lCut:self.hCut]
+        
+        outer_mid_max = use_max[self.lCut:self.hCut]
+        inner_mid_max = use_max[self.lCut:self.hCut]
+        inner_mid_min = use_min[self.lCut:self.hCut]
+        outer_mid_min = use_min[self.lCut:self.hCut]
+        
+        outer_mid_max_maxInd = np.argmax(outer_mid_max)
+        inner_mid_max_maxInd = np.argmax(inner_mid_max)
+        inner_mid_min_maxInd = np.argmax(inner_mid_min)
+        outer_mid_min_maxInd = np.argmax(outer_mid_min)
+        
+        print(outer_mid_max_maxInd,
+        inner_mid_max_maxInd,
+        inner_mid_min_maxInd,
+        outer_mid_min_maxInd)
+        
+        outer_mid_max_maxVal = outer_mid_max[outer_mid_max_maxInd]
+        inner_mid_max_maxVal = inner_mid_max[inner_mid_max_maxInd]
+        inner_mid_min_maxVal = inner_mid_min[inner_mid_min_maxInd]
+        outer_mid_min_maxVal = outer_mid_min[outer_mid_min_maxInd]
+        # import pdb; pdb.set_trace()
+        
+        
+        
+        
+    def split_into_three_regions(self):
+        # Split the domain into three regions
+        # if not self.found_limb_radius:
+        self.find_limb_radius()
+        
         if self.frame_abss is None:
             self.frame_abss = np.arange(self.params.rez)
+            
         abss = self.frame_abss
         use_max = self.outer_max + 0
         use_min = self.outer_min + 0
@@ -773,40 +811,57 @@ class SRNProcessor(Processor):
     
     def execute_norm(self):
         """Apply the Normalization to the Image Array"""
+        # self.norm_smoothed_abs_max
         # self.norm_curve_outer_max
         # self.norm_curve_inner_max
         # self.norm_curve_inner_min
         # self.norm_curve_outer_min
-
-        self.render_extrema_curves()
-        self.norm_curve_max = self.norm_curve_inner_max
-        # self.norm_curve_min = self.norm_curve_outer_min
-        self.norm_curve_min = self.norm_smoothed_abs_min
+        # self.norm_smoothed_abs_min
         
+        self.norm_curve_max_name = "norm_curve_inner_max"
+        self.norm_curve_min_name = "norm_smoothed_abs_min"
+
+        self.norm_curve_max = getattr(self, self.norm_curve_max_name)
+        self.norm_curve_min = getattr(self, self.norm_curve_min_name)
+
         with warnings.catch_warnings():
             warnings.filterwarnings('error')
             try:
                 # Standard Normalization Formula
-                self.plot_two()
-                self.norm_formula(self.params.modified_image, self.norm_curve_min, self.norm_curve_max)
+                self.params.modified_image = self.norm_formula(self.params.modified_image, self.norm_curve_min, self.norm_curve_max)
+                
             except RuntimeWarning as e:
                 print(e)  
         return  
-    
-#                 self.changed_flat = self.norm_formula(self.modified_image, self.norm_curve_min, self.norm_curve_max)
-#                 self.modified_image = self.changed_flat.reshape(the_shape).astype('float32') # # purple
-#                         import pdb; pdb.set_trace()
-#         del flat_image
-#         del self.original_image
-#         del self.original_flat
-#         del the_min
-#         del the_max
+
+    @staticmethod
+    def norm_formula(image, the_min, the_max):
+        """Standard Normalization Formula"""
         
-#         pass
+        image_flat=image.flatten()
+        
+        diff = np.subtract(the_max, the_min)
+        np.subtract(image_flat, the_min, out=image_flat)
+        np.divide(image_flat, diff, out=image_flat)
+        
+        image = image_flat.reshape(image.shape)
+        
+        return image
 
     
+    def touchup(self, img):
+        np.power(img, 1 / 3, out=img)
+        img /= 1.5
+        img -= 0.15
+        img[img<0.]=0.
+        img[~np.isfinite(img)]=0.
+        
+        pass
+
     def coronagraph_touchup(self):
         """Deal with pixel outliers. Lots of adjustable parameters in here"""
+        pass
+        
         
         # neg = self.modified_image<0
         # neg_pts = self.modified_image[neg]
@@ -815,9 +870,12 @@ class SRNProcessor(Processor):
         
         
         # self.modified_image += minn
-        self.params.modified_image = np.power(self.params.modified_image, 1 / 3)
-        self.params.modified_image /= 1.5
-        self.params.modified_image -= 0.15
+
+        # self.params.modified_image = np.power(self.params.modified_image, 1 / 3)
+        # self.params.modified_image -= 0.15
+        # self.params.modified_image /= 1.5
+ 
+
         
         # self.modified_image = np.power(self.modified_image, 1/4)
         # self.modified_image -= minn
@@ -847,9 +905,7 @@ class SRNProcessor(Processor):
         self.mask_output()
         self.mirror_output()
         
-        # Un-Flatten the Array
-        # self.modified_image = np.sign(self.modified_image) * np.power(np.abs(self.modified_image), (1 / 5))
-    
+
     def mask_output(self, do_mask=None):
         """Allows you to only show sub-sections of the in_object as reduced images"""
         if not do_mask:
@@ -965,38 +1021,76 @@ class SRNProcessor(Processor):
     ########################
     
     
-    def plot_radial_norm_keyframes(self, do=False, show=False, save=True):
+    
+    
+    
+    def plot_full_normalization(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
             overlaid with the norm curves as determined elsewhere"""
-#         if not do:
-#             return
-#         if self.first:
-#             self.first = False
-#             return
-#         import pdb; pdb.set_trace()
-        # self.output_abscissa
-#         dprint("plot_radial_norm_keyframes")
-        # Init the Plots
+        the_alpha = 0.05
+
+        # Init the Figure
         fig, (ax0, ax1) = plt.subplots(2, 1, sharex="all", num="Radial Statistics")
     
-        ## Plot 0 Absolute Coordinates
-        self.render_smooth_curves()
-        self.plot_inner_outer(fig=fig, ax=ax0, save=False)
-#         import pdb; pdb.set_trace()
-        ## Plot 1 Normalized
-        skip = 500 #self.skip_points
+        skip = 100
+        self.skip_points = 10 if self.params.rez < 3000 else skip
+
+        ########################
+        ##  Plot 0: Absolute  ##
+        ########################
+        self.plot_norm_curves(fig=fig, ax=ax0, save=False)
         
+        # Vertical Lines
+        ax0.axvline(1)
+        if self.lCut is not None:
+            ax0.axvline(self.n2r(self.lCut), ls=":")
+            ax0.axvline(self.n2r(self.hCut), ls=":")
+        
+        # Plot Scattered Points from the original image in midnightblue
+        orig_abs = self.params.original_image.flatten()
+        ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
+                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
+
+        ########################
+        ## Plot 1: Normalized ##
+        ########################
+
+        # Plot Scattered Points from the original image in midnightblue
+        ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
+                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
+        
+        # Plot Scattered Points from the original image but rooted, in red
+        self.touchup(self.params.original_image)
+        scat2 = self.params.original_image.flatten()
+        ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
+                    alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
+        
+        # Plot Scattered Points from the final modified image, in black
+        self.touchup(self.params.modified_image)
         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
-        ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=2)
-        ax1.axhline(2)
-        ax1.axhline(1)
-        ax1.axhline(0)
+        ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
+        
+        
+        # Extra Lines
+        ax1.axhline(2, c='lightgrey', ls=':', zorder=-1)
+        ax1.axhline(1, c='k', ls=':', zorder=-1)
+        ax1.axhline(0, c='k', ls=':', zorder=-1)
     
         ## Plot 0 Formatting
-        ax0.set_title("Plot Stats")
+        ax0.set_title("Various Norm Curves in Absolute Scale")
         ax0.set_ylim((-10 ** 1, 10 ** 4))
-        ax0.set_xlim((0, 1.6))
+        ax0.set_xlim((0, 1.85))
+
+        ax0.axvline(self.vrad, ls=':', c='lightgrey')
+        ax0.annotate("Top Curve:\n{}".format(self.norm_curve_max_name), (0.025, 0.3),
+                     xycoords='axes fraction', fontsize='medium', color='k')#, horizontalalignment='center')
+        ax0.annotate("Bot Curve:\n{}".format(self.norm_curve_min_name), (0.025, 0.2),
+                     xycoords='axes fraction', fontsize='medium', color='k')#, horizontalalignment='center')
         # ax0.legend()
+        import matplotlib as mpl
+        
+        
+        
         ax0.set_yscale('symlog')
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
     
@@ -1005,23 +1099,34 @@ class SRNProcessor(Processor):
         ax1.set_ylabel(r"Normalized Intensity")
         
         ax1.set_yscale("symlog")
-        ax1.set_ylim((-0.5, 10))
+        ax1.set_ylim((-0.5, 20))
+        ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
     
+        ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x>=1 else x ))
         fig.set_size_inches(7, 11)
 #         fig.set_size_inches(7, 14)
         
         plt.tight_layout()
         plt.show()
-    
+        return True
 #         self.force_save_radial_figures(save, fig, ax0, show)
-    
+        #         if not do:
+        #             return
+        #         if self.first:
+        #             self.first = False
+        #             return
+        #         import pdb; pdb.set_trace()
+                # self.output_abscissa
+        #         dprint("plot_full_normalization")
     
         # locs = np.arange(self.rez)[::int(self.rez/5)]
         # ax1.set_xticks(locs)
         # ax1.set_xticklabels(self.n2r(locs))
         # ax.axvline(self.tRadius, c='r')
+    # original_touch = self.params.original_image+0
+    # self.touchup(original_touch)
     
-        return True
+
     
     def force_save_radial_figures(self, save, fig, ax0, show):
         first = True
@@ -1105,16 +1210,7 @@ class SRNProcessor(Processor):
                 out = image
         return out
     
-    @staticmethod
-    def norm_formula(image, the_min, the_max):
-        """Standard Normalization Formula"""
-#         import pdb; pdb.set_trace()
-        shape=image.shape
-        image=image.flatten()
-        diff = np.subtract(the_max, the_min)
-        np.subtract(image, the_min, out=image)
-        np.divide(image, diff, out=image)
-        return image.reshape(shape)
+
 
     
     

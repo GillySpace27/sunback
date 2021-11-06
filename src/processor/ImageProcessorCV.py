@@ -29,6 +29,8 @@ class ImageProcessorCV(ImageProcessor):
         self.init_image_frame()
         self.plot_two()
         
+        self.plot_two("Less Zoomed", True)
+        
         # self.display_all()
         return self
     

@@ -269,7 +269,7 @@
 #         self.absolute_min = self.scalar_in_curve[1]
 #         self.absolute_max = self.scalar_in_curve[2]
 #
-#         # self.plot_inner_outer(show=True, save=False)
+#         # self.plot_norm_curves(show=True, save=False)
 #
 #
 #
@@ -296,7 +296,7 @@
 #     # def plot_all(self, do=True):
 #     #     # self.plot_curves_2(do, False)
 #     #     # self.plot_curves(do, False)
-#     #     self.plot_radial_norm_keyframes(do, False)
+#     #     self.plot_full_normalization(do, False)
 #     #     # self.SRNPlot()
 #     #     pass
 #     #     # plt.show()
@@ -357,12 +357,12 @@
 #         if show:
 #             ax.show()
 #
-#     def plot_radial_norm_keyframes(self, do=False, show=False, save=True, get_normed=False):
+#     def plot_full_normalization(self, do=False, show=False, save=True, get_normed=False):
 #         """This plot is in radius and has a scatter plot
 #             overlaid with the norm curves as determined elsewhere"""
 #         if not do:
 #             return
-#         dprint("plot_radial_norm_keyframes")
+#         dprint("plot_full_normalization")
 #         # Init the Plots
 #         fig, (ax0, ax1) = plt.subplots(2, 1, sharex=True)
 #

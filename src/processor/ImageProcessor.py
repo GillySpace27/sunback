@@ -62,12 +62,13 @@ class ImageProcessor(Processor):
     def init_frame(self, fits_path, in_name=-1):
         """Load the fits file from disk and get a field or two"""
         # self.load_curves()
-        frame0, _, _, _, _ = self.load_first_fits_field(fits_path)
-        frame1, wave1, t_rec1, center1, int_time = self.load_a_fits_field(fits_path, in_name)
-        # frame1, wave1, t_rec1, center1, int_time = self.load_last_fits_field(fits_path)
-        self.params.local_imgs_paths()
-        self.params.original_image, self.params.modified_image = frame0, frame1
-        self.frame = np.zeros_like(self.params.original_image)
+        if self.params.original_image is None:
+            frame0, _, _, _, _ = self.load_first_fits_field(fits_path)
+            frame1, wave1, t_rec1, center1, int_time = self.load_a_fits_field(fits_path, in_name)
+            # frame1, wave1, t_rec1, center1, int_time = self.load_last_fits_field(fits_path)
+            self.params.local_imgs_paths()
+            self.params.original_image, self.params.modified_image = frame0, frame1
+            self.frame = np.zeros_like(self.params.original_image)
         # self.peek_frames()
         try:
             shape = frame1.shape

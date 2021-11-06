@@ -236,7 +236,7 @@ class Processor:
         
         frame, wave, t_rec, center, int_time = self.load_best_fits_field(self.fits_path, in_name)
         
-        if frame is not None:
+        if frame is not None and self.params.original_image is None:
             self.params.original_image = np.asarray(frame, dtype=np.float32)
             self.params.modified_image = copy(self.params.original_image)
             
@@ -254,20 +254,23 @@ class Processor:
             print("Failed to Load Fits!")
             return False
     
-    def plot_two(self):
-        fig, (ax0, ax1) = plt.subplots(1,2,True, True, num="Algorithm Result")
+    def plot_two(self, name="Algorithm Result", bounds=None):
+        fig, (ax0, ax1) = plt.subplots(1,2,True, True, num=name)
 
-        org = self.params.original_image
-        minmin_org = np.nanmin(org)
-        org2 = np.sqrt(org - minmin_org)
-        mod = self.params.modified_image
-        minmin_mod = np.nanmin(mod)
-        mod2 = mod - minmin_mod
+        org = self.prep_one(self.params.original_image)
+        mod = self.prep_one(self.params.modified_image)
         
-        ax0.imshow(org2, cmap = self.params.cmap)
-        ax1.imshow(mod2, cmap = self.params.cmap)
-        ax1.set_xlim((3400,4000))
-        ax1.set_ylim((2300,3200))
+        # self.view_original(fig, ax0)
+        ax0.imshow(org, cmap = self.params.cmap)
+        ax1.imshow(mod, cmap = self.params.cmap)
+        
+        if bounds is None:
+            ax1.set_xlim((0,1500))
+            ax1.set_ylim((600,2000))
+        
+        # else:
+        #     ax1.set_xlim((3400,4000))
+        #     ax1.set_ylim((2300,3200))
         
         ax0.set_title("Original")
         ax1.set_title("Changed")
@@ -276,6 +279,9 @@ class Processor:
         
         plt.show()
 
+    def prep_one(self, img):
+        minmin = np.nanmin(img)
+        return img - minmin
     
     def set_centerpoint(self, center):
         """Parse the centerpoint and ensure correct scaling"""
@@ -1016,6 +1022,14 @@ class Processor:
             
             for ff in to_find:
                 self.print_with(HDU, ff)
+    
+    def view_original(self, fig=None, ax=None):
+        if fig is None and ax is None:
+            fig, ax = plt.subplots(num='Input Image')
+        ax.set_title("Preview of Start Frame: {}".format(self.params.hdu_name))
+        minmin = np.min(self.params.original_image)
+        img = np.sqrt(np.asarray(self.params.original_image - minmin, dtype=np.float32))
+        ax.imshow(img, cmap=self.params.cmap)
     
     def print_without(self, HDU, not_wanted=None):
         print("      ** " + "Remainder without these:  " + str(not_wanted) + " **")

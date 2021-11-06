@@ -44,10 +44,10 @@ class SRNSingleShotProcessor(SRNProcessor):
         if verb:
             print(" v ", self.progress_verb, "Image...")
         self.image_learn()  # Analyze the input to help make normalization curves
-#         self.plot_inner_outer(save=False, show=True, extra=True)
+#         self.plot_norm_curves(save=False, show=True, extra=True)
         self.image_modify()  # Actually Normalize This Image
         self.first=False
-        self.plot_radial_norm_keyframes(save=False, show=True, do=True)
+        self.plot_full_normalization(save=False, show=True, do=True)
         print(" ^ Success!\n")
         return self.params.modified_image
     
@@ -83,8 +83,8 @@ class SRNpreProcessor(SRNProcessor):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
             self.image_learn()
-            self.plot_inner_outer(save=True)
-            # self.plot_radial_norm_keyframes(do=True, show=False, save=True)
+            self.plot_norm_curves(save=True)
+            # self.plot_full_normalization(do=True, show=False, save=True)
         return None
     
     def cleanup(self):
@@ -172,7 +172,7 @@ class SRNradialFiltProcessor(SRNProcessor):
     
     def do_work(self):
         self.image_modify()
-        self.plot_radial_norm_keyframes(True, show=False, save=True)
+        self.plot_full_normalization(True, show=False, save=True)
         
 
         return self.params.modified_image

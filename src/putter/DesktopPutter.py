@@ -82,6 +82,6 @@ class DesktopPutter(Putter):
             raise e
         #
         # if self.params.is_debug():
-        #     self.plot_radial_norm_keyframes()
+        #     self.plot_full_normalization()
         
         return 0
