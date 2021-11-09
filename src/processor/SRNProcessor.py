@@ -865,9 +865,10 @@ class SRNProcessor(Processor):
 
     
     def touchup(self, img):
-        np.power(img, 1 / 3, out=img)
-        img /= 1.5
-        img -= 0.15
+        np.power(img, 1 / 5, out=img)
+        img *= 1.5
+        img -= 0.75
+        
         img[img<0.]=0.
         img[~np.isfinite(img)]=0.
         
