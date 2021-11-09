@@ -25,6 +25,7 @@ class Parameters:
         """Sets all the attributes to None"""
         # Initialize Variables
 
+        self.use_curves = None
         self._image = None
         self.root_directory = None
         self._shortcut_directory = None
@@ -480,7 +481,8 @@ class Parameters:
         self.time_path(  abspath(join(self.base_directory(), "image_times.txt")))
         
         self.analysis_directory = join(self.base_directory(), "analysis")
-        self.curve_path( abspath(join(self.analysis_directory, "curves.txt")))
+        use_curves = self.use_curves or "curves.txt"
+        self.curve_path( abspath(join(self.analysis_directory, use_curves)))
         self.params_path(abspath(join(self.analysis_directory, file_name)))
         
     def get_wave_directory(self):

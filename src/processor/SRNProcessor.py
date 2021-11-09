@@ -228,8 +228,8 @@ class SRNProcessor(Processor):
     
     def init_for_learn(self):
         # self.init_images()
-        self.init_radius_array()
         self.init_frame_curves()
+        self.init_radius_array()
         self.init_statistics()
     
     def init_for_modify(self):
@@ -239,20 +239,20 @@ class SRNProcessor(Processor):
     
     def init_radius_array(self, vignette_radius=1.2, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
-        
         if self.params.rez is None:
             self.params.rez = self.params.modified_image.shape[0]
         if self.params.center is None:
             self.params.center = [self.params.rez / 2, self.params.rez / 2]
-            
+    
         self.output_abscissa = np.arange(self.params.rez)
-        
+    
+        self.find_limb_radius()
         if self.radius is None or force or self.params.modified_image.shape[0] != self.params.rez:
             dprint("init_radius_array")
-            
+        
             xx, yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
             xc, yc = xx - self.params.center[0], yy - self.params.center[1]
-            
+        
             self.radius = np.sqrt(xc * xc + yc * yc)
             self.rad_flat = self.radius.flatten()
             self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
@@ -557,7 +557,7 @@ class SRNProcessor(Processor):
         bin_array = self.get_bin_items(bin_list)
         if len(bin_array) > 0:
             
-            a,b,c,d = np.percentile(bin_array, [99, 95, 2, 0.5])
+            a,b,c,d = np.percentile(bin_array, [99, 90, 3, 0.5])
             
             self.binAbsMax[ii]  = a     #np.percentile(bin_array, 99.999)
             self.binMax[ii]     = b    #np.percentile(bin_array, 96)
@@ -595,7 +595,8 @@ class SRNProcessor(Processor):
         self.render_extrema_curves()
         
     def find_limb_radius(self):
-        self.found_limb_radius = self.params.found_limb_radius
+        self.load_curves()
+        self.found_limb_radius = self.params.found_limb_radius or 1600
         self.lCut = int(self.found_limb_radius - 0.01 * self.params.rez)
         self.hCut = int(self.found_limb_radius + 0.01 * self.params.rez)
         
@@ -821,11 +822,22 @@ class SRNProcessor(Processor):
         # self.norm_curve_outer_min
         # self.norm_smoothed_abs_min
         
-        self.norm_curve_max_name = "norm_curve_inner_max"
-        self.norm_curve_min_name = "norm_smoothed_abs_min"
+        # Select Bottom Norms
+        self.norm_curve_max_bottom_name = "norm_curve_inner_max"
+        self.norm_curve_min_bottom_name = "norm_smoothed_abs_min"
+        self.norm_curve_max = getattr(self, self.norm_curve_max_bottom_name)
+        self.norm_curve_min = getattr(self, self.norm_curve_min_bottom_name)
 
-        self.norm_curve_max = getattr(self, self.norm_curve_max_name)
-        self.norm_curve_min = getattr(self, self.norm_curve_min_name)
+        # Select Top Norms
+        self.norm_curve_max_top_name = "norm_curve_inner_max"
+        self.norm_curve_min_top_name = "norm_smoothed_abs_min"
+        norm_curve_max_top = getattr(self, self.norm_curve_max_top_name)
+        norm_curve_min_top = getattr(self, self.norm_curve_min_top_name)
+
+        # Merge the two
+        low = self.fit_limb_radius
+        self.norm_curve_max[low:] =  norm_curve_max_top[low:]
+        self.norm_curve_min[low:] =  norm_curve_min_top[low:]
 
         with warnings.catch_warnings():
             warnings.filterwarnings('error')
@@ -1192,6 +1204,8 @@ class SRNProcessor(Processor):
     ## Static Methods ##
     def n2r(self, n):
         """Convert index to solar radius"""
+        if not self.fit_limb_radius:
+            self.find_limb_radius()
         if n is None:
             n = 0
         return n / self.fit_limb_radius
