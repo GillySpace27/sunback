@@ -113,7 +113,7 @@
 #
 #     def remove_all_old_pngs(self):
 #         requested_pngs = [x.replace('fits', 'png') for x in self.params.local_fits_paths()]
-#         png_directory = join(self.params.imgs_directory(), self.params.current_wave(), 'png')
+#         png_directory = join(self.params.imgs_top_directory(), self.params.current_wave(), 'png')
 #         got_png = self.params.local_imgs_paths()  # list_files_in_directory(png_directory, 'png')
 #         remove_count = 0
 #         for png_path in got_png:

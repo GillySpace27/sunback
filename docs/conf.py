@@ -170,7 +170,7 @@ man_pages = [
 
 # Grouping the document tree into Texinfo files. List of tuples
 # (source start_timestamp file, target name, title, author,
-#  imgs_directory menu entry, description, category)
+#  imgs_top_directory menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'sunback', 'Solar Background Updater Documentation',
      author, 'sunback', 'A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series. ',

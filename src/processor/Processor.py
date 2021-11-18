@@ -133,7 +133,7 @@ class Processor:
         """ M1
         Create and return two lists
             the fits files in params.fits_directory()
-            the img  files in params.imgs_directory()
+            the img  files in params.imgs_top_directory()
         """
         verb = not quietly
         if params is not None:
@@ -181,8 +181,13 @@ class Processor:
         """Store the directories into self"""
         if fits_directory:
             self.base_fits_dir = fits_directory
+        elif self.base_fits_dir is None:
+            self.base_fits_dir = self.params.fits_directory()
         if imgs_directory:
             self.base_imgs_dir = imgs_directory
+        elif self.base_imgs_dir is None:
+            self.base_imgs_dir = self.params.imgs_directory()
+            
         if absolute is not None:
             self.base_absolute = absolute
     
@@ -211,11 +216,11 @@ class Processor:
         return out_paths
     
     def load_imgs_paths(self, absolute=True, ext=".png"):
-        """ Creates a List of the existant img files in the imgs_directory"""
+        """ Creates a List of the existant img files in the imgs_top_directory"""
         paths, abs_paths = self.__find_ext_files_in_directory(self.params.imgs_directory(), ext)
         out_paths = self.params.local_imgs_paths(abs_paths if absolute else paths)
         self.n_imgs = self.params.n_imgs = len(self.params.local_imgs_paths())
-        if not self.quietly: print("   Found {} {} Files in {}".format(self.params.n_imgs, ext, self.params.imgs_directory()))
+        if not self.quietly: print("   Found {} {} Files in {}".format(self.params.n_imgs, ext, self.params.imgs_top_directory()))
         return out_paths
     
     @staticmethod
@@ -236,7 +241,7 @@ class Processor:
         
         frame, wave, t_rec, center, int_time = self.load_best_fits_field(self.fits_path, in_name)
         
-        if frame is not None and self.params.original_image is None:
+        if frame is not None: #and self.params.original_image is None:
             self.params.original_image = np.asarray(frame, dtype=np.float32)
             self.params.modified_image = copy(self.params.original_image)
             
@@ -553,15 +558,22 @@ class Processor:
     
             
     def make_shortcut(self, file_in_path=None, shortcut_out_path=None):
-        self.params.short_directory(shortcut_out_path)
+        path = self.params.shortcut_directory(shortcut_out_path)
         
         # import os, winshell, win32com.client, Pythoncom
+        import os, win32com.client
         
-        path = os.path.join(self.params.short_directory(), '{}.lnk'.format(self.this_file_name))
+        basename = os.path.basename(file_in_path)
+        basename = basename.replace("___raw.avi", '')
+        basename = basename.replace("__comp.avi", '')
+        basename = basename.replace("_small.avi", '')
+        path = os.path.join(path, '{}.lnk'.format(basename))
+        print(path)
+        
         
         shell = win32com.client.Dispatch("WScript.Shell")
         shortcut = shell.CreateShortCut(path)
-        shortcut.Targetpath = shortcut_out_path
+        shortcut.Targetpath = path
         shortcut.IconLocation = file_in_path
         shortcut.save()
     
@@ -898,9 +910,10 @@ class Processor:
         reprocess_mode = self.params.reprocess_mode(self.reprocess_mode())
     
         self.hdu_name_list = self.list_hdus(hdul)
-
+    
         input_frame_name = self.determine_in_frame_name()
         first_frame_name = self.hdu_name_list[0]
+        second_frame_name = self.hdu_name_list[1]
         last_frame_name = self.hdu_name_list[-1]
         output_frame_name = self.determine_out_frame_name()
         penultimate_frame_name = self.determine_penultimate_frame_name()
@@ -908,12 +921,7 @@ class Processor:
             previous_frame_name = self.hdu_name_list[self.hdu_name_list.index(output_frame_name)-1]
         except ValueError:
             previous_frame_name = penultimate_frame_name
-        # input_frame_name = self.determine_in_frame_name()
-        # first_frame_name = self.determine_first_frame_name()
-        # penultimate_frame_name = self.determine_penultimate_frame_name()
-        # last_frame_name = self.determine_last_frame_name()
-        # output_frame_name = self.determine_out_frame_name()
-        # previous_frame_name = self.hdu_name_list[self.hdu_name_list.index(output_frame_name)-1]
+    
     
         filter_already_applied = filter_applied_last = False
         if output_frame_name.casefold() in [x.casefold() for x in self.hdu_name_list if type(x) is str]:
@@ -944,6 +952,8 @@ class Processor:
                 raise NotImplementedError
         else:
             self.in_name = input_frame_name
+            if self.in_name == 'primary':
+                self.in_name = second_frame_name
         hdul.verify('silentfix+ignore')
         return self.in_name
     
@@ -957,7 +967,7 @@ class Processor:
                 input_frame_name = self.in_name.casefold()
             else:
                 input_frame_name = self.hdu_name_list[0]
-                print("HDU Not Found, using {}".format(input_frame_name))
+                # print("HDU Not Found, using {}".format(input_frame_name))
                 # raise FileNotFoundError
         else:
             input_frame_name = self.hdu_name_list[self.in_name].casefold()
@@ -1173,9 +1183,9 @@ class Processor:
 
 
 # def build_paths(self, wave):
-#     self.local_wave_directory = join(self.params.imgs_directory(), wave)
+#     self.local_wave_directory = join(self.params.imgs_top_directory(), wave)
 #     self.image_folder = join(self.local_wave_directory, 'png')
-#     self.movie_folder = abspath(join(self.params.imgs_directory(), "movies\\"))
+#     self.movie_folder = abspath(join(self.params.imgs_top_directory(), "movies\\"))
 #     self.video_name_stem = join(self.movie_folder, '{}_{}_movie{}'.format(wave, strftime('%m%d_%H%M'), '{}'))
 #     # print(self.video_name_stem)
 #     makedirs(self.movie_folder, exist_ok=True)

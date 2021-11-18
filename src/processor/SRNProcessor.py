@@ -10,12 +10,12 @@ import warnings
 from science.color_tables import aia_color_table
 import astropy.units as u
 warnings.filterwarnings("ignore")
-import matplotlib as mpl
+# import matplotlib as mpl
 
-try:
-    mpl.use("qt5agg")
-except ImportError as e:
-    print(e)
+# try:
+#     mpl.use("qt5agg")
+# except ImportError as e:
+#     print(e)
 import matplotlib.pyplot as plt
 
 plt.ioff()
@@ -228,8 +228,8 @@ class SRNProcessor(Processor):
     
     def init_for_learn(self):
         # self.init_images()
-        self.init_frame_curves()
         self.init_radius_array()
+        self.init_frame_curves()
         self.init_statistics()
     
     def init_for_modify(self):
@@ -449,9 +449,9 @@ class SRNProcessor(Processor):
     
     
         # Plot Scatter Points
-        # self.skip_points = 10 if self.params.rez < 3000 else 500  # TODO Make this sample better, linear isn't appropriate because its a circle
-        # scat = self.params.original_image.flatten()
-        # ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat[::self.skip_points], c='k', s=2)
+        self.skip_points = 10 if self.params.rez < 3000 else 500  # TODO Make this sample better, linear isn't appropriate because its a circle
+        scat = self.params.original_image.flatten()
+        ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat[::self.skip_points], c='k', s=2)
         # self.touchup(self.params.original_image+0)
     
         ## Plot Formatting
@@ -600,24 +600,27 @@ class SRNProcessor(Processor):
         self.lCut = int(self.found_limb_radius - 0.01 * self.params.rez)
         self.hCut = int(self.found_limb_radius + 0.01 * self.params.rez)
         
-        # abss = self.frame_abss
-        use_max = self.outer_max + 0
-        use_min = self.outer_min + 0
-        
-        # outer_mid_abs = abss[self.lCut:self.hCut]
-        
-        # outer_mid_max = use_max[self.lCut:self.hCut]
-        inner_mid_max = use_max[self.lCut:self.hCut]
-        inner_mid_min = use_min[self.lCut:self.hCut]
-        # outer_mid_min = use_min[self.lCut:self.hCut]
-        
-        # outer_mid_max_maxInd = np.argmax(outer_mid_max) + self.lCut
-        inner_mid_max_maxInd = np.argmax(inner_mid_max) + self.lCut
-        inner_mid_min_maxInd = np.argmax(inner_mid_min) + self.lCut
-        # outer_mid_min_maxInd = np.argmax(outer_mid_min) + self.lCut
-        
-        self.fit_limb_radius = (inner_mid_max_maxInd + inner_mid_min_maxInd) // 2
-
+        try:
+            # abss = self.frame_abss
+            use_max = self.outer_max + 0
+            use_min = self.outer_min + 0
+            
+            # outer_mid_abs = abss[self.lCut:self.hCut]
+            
+            # outer_mid_max = use_max[self.lCut:self.hCut]
+            inner_mid_max = use_max[self.lCut:self.hCut]
+            inner_mid_min = use_min[self.lCut:self.hCut]
+            # outer_mid_min = use_min[self.lCut:self.hCut]
+            
+            # outer_mid_max_maxInd = np.argmax(outer_mid_max) + self.lCut
+            inner_mid_max_maxInd = np.argmax(inner_mid_max) + self.lCut
+            inner_mid_min_maxInd = np.argmax(inner_mid_min) + self.lCut
+            # outer_mid_min_maxInd = np.argmax(outer_mid_min) + self.lCut
+            
+            self.fit_limb_radius = (inner_mid_max_maxInd + inner_mid_min_maxInd) // 2
+        except TypeError as e:
+            print("find_limb_radius: ", e)
+            self.fit_limb_radius = self.found_limb_radius
         # print(inner_mid_max_maxInd, inner_mid_min_maxInd, fit_limb_radius)
         
         
@@ -1103,7 +1106,7 @@ class SRNProcessor(Processor):
         ax0.annotate("Bot Curve:\n{}".format(self.norm_curve_min_name), (0.025, 0.2),
                      xycoords='axes fraction', fontsize='medium', color='k')#, horizontalalignment='center')
         # ax0.legend()
-        import matplotlib as mpl
+        # import matplotlib as mpl
         
         
         
@@ -1118,6 +1121,7 @@ class SRNProcessor(Processor):
         ax1.set_ylim((-0.5, 20))
         ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
     
+        import matplotlib as mpl
         ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x>=1 else x ))
         fig.set_size_inches(7, 11)
 #         fig.set_size_inches(7, 14)

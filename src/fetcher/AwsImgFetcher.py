@@ -27,7 +27,7 @@ class AwsImgFetcher(Fetcher):
         """
         self.__init__(params)
         sys.stdout.flush()
-        print("   Downloading PNGs from Amazon S3 to {}".format(self.params.imgs_directory()), flush=True)
+        print("   Downloading PNGs from Amazon S3 to {}".format(self.params.imgs_top_directory()), flush=True)
         for ii, obj in enumerate(self.objects):
             self.grab(obj)
         
@@ -35,7 +35,7 @@ class AwsImgFetcher(Fetcher):
         
         if self.n_imgs >= ii:
             print("\r   All Downloads Complete", flush=True)
-        elif len(self.params.imgs_directory()) == 0:
+        elif len(self.params.imgs_top_directory()) == 0:
             print("\r     No Files Loaded", flush=True)
         else:print("\r     {} Files Loaded".format(self.n_imgs), flush=True)
         
@@ -53,7 +53,7 @@ class AwsImgFetcher(Fetcher):
         # Identify File
         path, filename = os.path.split(obj.key)
         # print(filename, end=', ')
-        loc = join(self.params.imgs_directory(), "dl_" + filename)
+        loc = join(self.params.imgs_top_directory(), "dl_" + filename)
         
         # Download File
         self.my_bucket.download_file(obj.key, loc)

@@ -48,7 +48,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.orig_t_int = None
         self.keyframe_fits_path = None
         self.main_time_period = None
-        self.subname = None
+        self.subname = 'default'
         self.hold = False
         self.verb=False
         # self.fetch()

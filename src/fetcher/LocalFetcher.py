@@ -30,7 +30,7 @@ class LocalFetcher(Fetcher):
             print("\n    !!Quitting Program!!\n")
             print(self.params.base_directory())
             print(self.params.fits_directory())
-            print(self.params.imgs_directory())
+            print(self.params.imgs_top_directory())
             
             sys.exit(1)
 
@@ -75,6 +75,6 @@ class LocalSingleFetcher(Fetcher):
         #     print("\n    !!Quitting Program!!\n")
         #     print(self.params.base_directory())
         #     print(self.params.fits_directory())
-        #     print(self.params.imgs_directory())
+        #     print(self.params.imgs_top_directory())
         #
         #     sys.exit(1)

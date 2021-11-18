@@ -103,7 +103,7 @@ class ImageProcessorCV(ImageProcessor):
     
     def img_save(self, path, save=True):
         if save:
-            cv2.imwrite(path, self.params.rgb_img)
+            cv2.imwrite(path, self.params.rbg_image)
         else:
             cv2.imshow(self.params.rbg_image)
             
@@ -145,7 +145,8 @@ class ImageProcessorCV(ImageProcessor):
     def cleanup(self):
         destroy = False
         try:
-            self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=5, destroy=destroy)
+            self.write_video_in_directory(fullpath="analysis\\radial_hist_full", fps=15, key_string="inner", destroy=False)
+            self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=15, destroy=destroy)
         except (FileNotFoundError, AttributeError) as e:
             print(e)
         if destroy:

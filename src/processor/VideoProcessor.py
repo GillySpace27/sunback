@@ -28,6 +28,8 @@ class VideoProcessor(Processor):
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
+        self.final_output_path3 = None
+        self.final_output_path2 = None
         self.frame_shape = None
         self.good_paths = []
         self.skipped = 0
@@ -37,7 +39,7 @@ class VideoProcessor(Processor):
     def process_one_wavelength(self, wave):
         """Prepare and execute the video writer"""
         video_avi =     self.prep_video_writer(wave)
-        if video_avi:   self.run_video_writer(video_avi)
+        if video_avi is not False:   self.run_video_writer(video_avi)
     
     def prep_video_writer(self, wave):
         """Build all the paths and initialize everything"""
@@ -48,12 +50,7 @@ class VideoProcessor(Processor):
             if not self.should_continue():
                 return False
             
-            # Make the Directory
-            makedirs(dirname(self.final_output_path), exist_ok=True)
-            
-            # Make the VideoWriter and return it
-            video_avi = cv2.VideoWriter(self.final_output_path, 0, self.params.frames_per_second(), self.frame_shape)
-            return video_avi
+            return self.init_writers()
         
         else:  # If there are no files then sad
             print("    No Files Found \n")
@@ -70,13 +67,39 @@ class VideoProcessor(Processor):
         
         # Build File Name
         batch_name = self.params.config['name']
-        wave = self.params.current_wave()
-        time_now = strftime('%m%d_%H%M')
-        file_name = '{}_{}_video_{}.{}'.format(batch_name, time_now, self.mov_suffix, self.mov_type)
+
+        file_name = '{}_video_{}.{}'.format(batch_name,  "1___raw", self.mov_type)
         self.final_output_path = join(self.params.movs_directory(), file_name)
+        
+        file_name2 = '{}_video_{}.{}'.format(batch_name, "2__comp", self.mov_type)
+        self.final_output_path2 = join(self.params.movs_directory(), file_name2)
+
+        file_name3 = '{}_video_{}.{}'.format(batch_name, "3_small", self.mov_type)
+        self.final_output_path3 = join(self.params.movs_directory(), file_name3)
+
         self.progress_text = self.progress_stem.format(self.wave)
         
+        # Make the Directory
+        makedirs(dirname(self.final_output_path), exist_ok=True)
+
+    def init_writers(self):
+        shape  = self.frame_shape
+        shape2 = (self.frame_shape[0]//2, self.frame_shape[1]//2)
+        shape3 = (self.frame_shape[0]//4, self.frame_shape[1]//4)
         
+        # Make the VideoWriter and return it
+        video_avi = cv2.VideoWriter(self.final_output_path,   0, self.params.frames_per_second(), shape  )
+        # video_avi2 = cv2.VideoWriter(self.final_output_path2, 0, self.params.frames_per_second(), shape )
+        # video_avi3 = cv2.VideoWriter(self.final_output_path3, 0, self.params.frames_per_second(), shape )
+        # video_avi2 = cv2.VideoWriter(self.final_output_path2, cv2.VideoWriter.fourcc("m", "p", "4", "v"), self.params.frames_per_second(), shape )
+        video_avi2 = cv2.VideoWriter(self.final_output_path2, cv2.VideoWriter.fourcc("M", "J", "P", "G"),
+                                     self.params.frames_per_second(), shape )
+        
+        video_avi3 = cv2.VideoWriter(self.final_output_path3, cv2.VideoWriter.fourcc("M", "J", "P", "G"),
+                                     self.params.frames_per_second(), shape3 )
+
+        return [video_avi, video_avi2, video_avi3]
+    
     def should_continue(self):
         """Skip the video writing if indicated"""
         if os.path.exists(self.final_output_path) and \
@@ -96,16 +119,24 @@ class VideoProcessor(Processor):
         self.skipped = 0
         for img_path in tqdm(self.good_paths, desc=self.progress_text, unit="frames"):
             if 'orig' not in img_path and 'cat' not in img_path:
+                img = cv2.imread(img_path)
+                img_small = cv2.resize(img, (1024, 1024), interpolation = cv2.INTER_AREA)
                 if self.reprocess_mode() or True:  # TODO THis is a like truth
-                    video_avi.write(cv2.imread(img_path))
+                    w1, w2, w3 = video_avi
+                    w1.write(img)
+                    w2.write(img)
+                    w3.write(img_small)
                     ii += 1
                 else:
                     self.skipped += 1
             if self.destroy:
                 os.remove(img_path)
         cv2.destroyAllWindows()
-        video_avi.release()
+        for writer in video_avi:
+            writer.release()
+        # self.make_shortcut(self.final_output_path)
         print(" ^    Successfully {} from {} images! ({} skipped)".format(self.finished_verb, ii, self.skipped))
+        pass
 
 
 

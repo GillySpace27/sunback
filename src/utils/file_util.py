@@ -10,7 +10,7 @@ archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Defau
 ##  PATHS
 # def build_paths(self):
 #   """Make the file structure to hold the images"""
-#   self.wave_directory = join(self.params.imgs_directory(), self.current_wave)
+#   self.wave_directory = join(self.params.imgs_top_directory(), self.current_wave)
 #   self.fits_folder = join(self.wave_directory, "fits\\")
 #   self.image_folder = join(self.wave_directory, "png\\")
 #   self.movie_folder = abspath(join(self.wave_directory, "..\\movies\\"))

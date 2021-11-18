@@ -19,14 +19,14 @@ plt.ioff()
 # tstart='2016/11/04 01:00:00', tend='2016/11/06 00:00:00',
 dostring = "Liftoff 0211"
 
-def run_range_multishot_movie(batch_name= "Liftoff 0304", wave=None, config=None):
+def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None):
     # Set the Parameters
     p = make_params(batch_name, wave, config)
     p.do_recent(False)
     
     # Set the Processes
-    p.fetchers(FidoFetcher, rp=True)                # Gets Fits FIDO
-    p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
+    # p.fetchers(FidoFetcher, rp=True)                # Gets Fits FIDO
+    # p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
 
     p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
     p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
@@ -63,6 +63,7 @@ def make_params(batch_name=None, wave=None, config=None):
     p.do_cat = True
     p.png_frame_name = 'SRN'
     p.do_recent(True)
+    p.currently_local = True
     
     # Set the Times
     # if not p.load_preset_time_settings(config["time_preset"]):
@@ -138,10 +139,10 @@ def make_configs():
         "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
     }
     c8 = {
-        "name": "Liftoff 0171",
-        "debug": True, "do_one": '0171', "stop": True,
-        "tstart": '2013/09/29 00:00:01', "tend": '2013/10/03 00:00:00',
-        "cadence_minutes": 10, "fps": 16, "exposure_time": 60,
+        "name": "Liftoff",
+        "debug": True, "do_one": '0304', "stop": True,
+        "tstart": '2013/09/28 00:00:05', "tend": '2013/09/30 00:00:00',
+        "cadence_minutes": 15, "fps": 13, "exposure_time": 60,
         "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
     }
     c9 = {

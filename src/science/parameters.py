@@ -25,6 +25,9 @@ class Parameters:
         """Sets all the attributes to None"""
         # Initialize Variables
 
+        self.analysis_directory = None
+        self._imgs_top_directory = None
+        self.currently_local = True
         self.use_curves = None
         self._image = None
         self.root_directory = None
@@ -42,11 +45,11 @@ class Parameters:
         self._overwrite_pngs = False
         self._reprocess_mode = False
         self._current_wave = 'rainbow'
-        self._imgs_directory = ""
-        self._fits_directory = ""
-        self._movs_directory = ""
-        self._base_directory = ""
-        self._temp_directory = ""
+        self._imgs_directory = None
+        self._fits_directory = None
+        self._movs_directory = None
+        self._base_directory = None
+        self._temp_directory = None
         self._delay_seconds = 30
         self._fixed_number_keyframes = None
         self._fixed_cadence_keyframes = 2
@@ -189,35 +192,42 @@ class Parameters:
             self._archive_url = _archive_url
         return self._archive_url
     
-    def imgs_directory(self, _imgs_directory=None, make=True):
+    def imgs_top_directory(self, _imgs_top_directory=None, make=False):
+        if _imgs_top_directory is not None:
+            self._imgs_top_directory = _imgs_top_directory
+            if make:
+                makedirs(self._imgs_top_directory, exist_ok=True)
+        return self._imgs_top_directory
+
+    def imgs_directory(self, _imgs_directory=None, make=False):
         if _imgs_directory is not None:
             self._imgs_directory = _imgs_directory
             if make:
                 makedirs(self._imgs_directory, exist_ok=True)
         return self._imgs_directory
     
-    def fits_directory(self, _fits_directory=None, make=True):
+    def fits_directory(self, _fits_directory=None, make=False):
         if _fits_directory is not None:
             self._fits_directory = _fits_directory
-        if make:
+        if make and self._fits_directory is not None:
             makedirs(self._fits_directory, exist_ok=True)
         return self._fits_directory
     
-    def temp_directory(self, _temp_directory=None, make=True):
+    def temp_directory(self, _temp_directory=None, make=False):
         if _temp_directory is not None:
             self._temp_directory = _temp_directory
         if make:
             makedirs(self._temp_directory, exist_ok=True)
         return self._temp_directory
 
-    def short_directory(self, _shortcut_directory=None, make=True):
+    def shortcut_directory(self, _shortcut_directory=None, make=False):
         if _shortcut_directory is not None:
             self._shortcut_directory = _shortcut_directory
         if make:
             makedirs(self._shortcut_directory, exist_ok=True)
         return self._shortcut_directory
 
-    def movs_directory(self, _movs_directory=None, make=True):
+    def movs_directory(self, _movs_directory=None, make=False):
         if _movs_directory is not None:
             self._movs_directory = _movs_directory
         if make:
@@ -463,27 +473,33 @@ class Parameters:
         """Make the paths for current_wave"""
         # Define and Set Directories
         # print("Target: {}".format(self.current_wave))
-        # self.current_wave(self.current_wave)
         
         ## \\>Batch<\\>Wavelength<\\
         self.base_directory(abspath(self.get_wave_directory()))
         
-        ## ## Batch\\Wavelength\\>Format<\\
-        self.imgs_directory(abspath(join(self.base_directory(), 'png')))
-        self.fits_directory(abspath(join(self.base_directory(), 'fits')))
+        # Time
+        self.time_path(         abspath(join(self.base_directory(), "image_times.txt")))
         
-        ## ## Batch\\Wavelength\\Format\\>product<\\
-        self.movs_directory( abspath(join(self.imgs_directory(), 'video')))
-        self.temp_directory( abspath(join(self.fits_directory(), "temp")))
-        self.short_directory(abspath(join(self.base_directory(), '..', 'MOVS')))
+        # Shortcuts to Videos
+        self.shortcut_directory(abspath(join(self.base_directory(), '..', 'MOVS')))
+
+        # Fits Folders
+        self.fits_directory(    abspath(join(self.base_directory(), 'fits')))
+        self.temp_directory(    abspath(join(self.fits_directory(), "temp")))
+
+        # Images Folders
+        self.imgs_top_directory(abspath(join(self.base_directory(), 'imgs')))
+        self.imgs_directory(    abspath(join(self.imgs_top_directory(), 'png')))
+        self.movs_directory(    abspath(join(self.imgs_top_directory(), 'video')))
+        # self.cat_path = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
+        # self.png_save_stem = self.png_save_path[:-4] + '{}' + ".png"
         
-        file_name = '{}_params.txt'.format(self.current_wave())
-        self.time_path(  abspath(join(self.base_directory(), "image_times.txt")))
-        
+        # Analysis Folders
         self.analysis_directory = join(self.base_directory(), "analysis")
         use_curves = self.use_curves or "curves.txt"
-        self.curve_path( abspath(join(self.analysis_directory, use_curves)))
-        self.params_path(abspath(join(self.analysis_directory, file_name)))
+        file_name = '{}_params.txt'.format(self.current_wave())
+        self.curve_path(        abspath(join(self.analysis_directory, use_curves)))
+        self.params_path(       abspath(join(self.analysis_directory, file_name)))
         
     def get_wave_directory(self):
         """Define the root folder"""
@@ -496,8 +512,8 @@ class Parameters:
     def find_root_directory(self, root_directory_name = "sunback_images"):
         """Determine where to store the images"""
         
-        currently_local = False
-        if currently_local: # True when run locally, False when run in panHelio
+        # self.currently_local = False
+        if self.currently_local: # True when run locally, False when run in panHelio
             self.root_directory = abspath(join("D://", root_directory_name))
         else:
             self.root_directory = abspath(root_directory_name)
@@ -524,7 +540,7 @@ class Parameters:
     
     def create_subdirectories(self):
         # Make Directories
-        makedirs(self.imgs_directory(), exist_ok=True)
+        makedirs(self.imgs_top_directory(), exist_ok=True)
         makedirs(self.fits_directory(), exist_ok=True)
         makedirs(self.movs_directory(), exist_ok=True)
         makedirs(self.analysis_directory, exist_ok=True)
