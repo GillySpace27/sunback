@@ -544,22 +544,25 @@ class Parameters:
         assert number > 0
     
     def save_to_txt(self):  # , current_wave=None):
-        # print("Txt Save Fail")
-        # pass
-        # Save contents of environment to text file
-        # name = self.current_wave(current_wave)
+        try:
+            # print("Txt Save Fail")
+            # pass
+            # Save contents of environment to text file
+            # name = self.current_wave(current_wave)
+
+            infoEnv = self
+            with open(self.params_path(), 'w') as output:
+                output.write(asctime() + '\n\n')
+                myVars = (infoEnv.__class__.__dict__, vars(infoEnv))
+                for pile in myVars:
+                    for ii in sorted(pile.keys()):
+                        if not callable(pile[ii]):
+                            string = str(ii) + " : " + str(pile[ii]) + '\n'
+                            output.write(string)
+                    output.write('\n\n')
+        except:
+            print("Failed to print")
         
-        infoEnv = self
-        with open(self.params_path(), 'w') as output:
-            output.write(asctime() + '\n\n')
-            myVars = (infoEnv.__class__.__dict__, vars(infoEnv))
-            for pile in myVars:
-                for ii in sorted(pile.keys()):
-                    if not callable(pile[ii]):
-                        string = str(ii) + " : " + str(pile[ii]) + '\n'
-                        output.write(string)
-                output.write('\n\n')
-        pass
     
     def load_preset_time_settings(self, selection=None):
         """Load one of a few presets for the time settings"""
