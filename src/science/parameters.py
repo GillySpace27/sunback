@@ -68,7 +68,7 @@ class Parameters:
         self.debug_mode = False
         self.did_print = False
         self.Force_init = False
-        self.start_frame = ['t_integrated', 'original', 0, 1]
+        self.list_of_default_hdus = ['t_integrated', 'original', 0, 1]
         self.original_image=None
         self.modified_image=None
         self.hdu_name = None

@@ -11,6 +11,7 @@ from fetcher.Fetcher import Fetcher
 # from os import listdir
 # from time import sleep
 # from os.path import join
+import os.path as path
 
 default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
@@ -41,20 +42,21 @@ class LocalSingleFetcher(Fetcher):
     def fetch(self, params=None):
         print(" v Loading Local File...")
         self.load(params)
-        for self.params.hdu_name in self.params.start_frame:
+        for self.params.hdu_name in self.params.list_of_default_hdus:
             try:
                 self.load_fits_image(self.params.use_image_path(), self.params.hdu_name)
-                print("Using {} HDU".format(self.params.hdu_name))
+                print(" *   Loaded the '{}' HDU from".format(self.params.hdu_name))
+                print(" *     ", path.basename(self.params.use_image_path()))
+                print(" *    in\n *     ", path.dirname(self.params.use_image_path()))
+                print(" ^ Success!")
                 break
             except Exception as e:
                 print("LocalSingleFetcher")
                 raise e
                 
-        import os.path as path
-        print("     ", path.dirname(self.params.use_image_path()))
-        print("     ", path.basename(self.params.use_image_path()))
-        # self.view_original()
-        print(" ^ Success!")
+                # self.view_original()
+
+
     
 
         # plt.show()
