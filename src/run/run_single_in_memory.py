@@ -33,21 +33,21 @@ def make_params():
     p = Parameters()
     p.config = None
     p.destroy = False
-    rng = "Single"
-    p.batch_name(rng)
+    p.batch_name("Single")
+    p.png_frame_name = 'Single'
     p.run_type("Process a Single Image")
     p.do_single = True
     p.do_one(True, True)
     p.is_debug(True)
     p.do_cat = True
-    p.png_frame_name = 'Single'
-    p.do_recent(False)
-    p.frames_per_second(12)
+    # p.frames_per_second(12)
+    # p.do_recent(False)
     return p
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-09-29T120009Z.304.image_lev1.fits"
+    # test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-09-29T120009Z.304.image_lev1.fits"
+    test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-10-02T162012Z.171.image_lev1.fits"
     run_single_in_memory(image=test_image)
 
 

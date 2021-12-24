@@ -463,11 +463,24 @@ class Parameters:
     def set_current_wave(self, wave=None):
         """Set the current wave parameter correctly"""
         
-        if self.do_one():
+        if type(self.do_one()) in [str, int, float]:
             self.current_wave(self.do_one())
-        else:
+        elif wave is not None:
             self.current_wave(wave)
+        else:
+            self.parse_wave()
+        
         self.set_current_wave_paths()
+    
+    def parse_wave(self):
+        pathName = self.use_image_path()
+        for wave in self.all_wavelengths:
+            if wave.lstrip('0') in pathName:
+                self.current_wave(wave)
+                return wave
+        raise AttributeError("Could not parse wavelength from filename")
+    
+    
     
     def set_current_wave_paths(self):
         """Make the paths for current_wave"""
@@ -483,20 +496,20 @@ class Parameters:
         # Shortcuts to Videos
         self.shortcut_directory(abspath(join(self.base_directory(), '..', 'MOVS')))
 
-        # Fits Folders
-        self.fits_directory(    abspath(join(self.base_directory(), 'fits')))
-        self.temp_directory(    abspath(join(self.fits_directory(), "temp")))
-
         # Images Folders
         self.imgs_top_directory(abspath(join(self.base_directory(), 'imgs')))
         self.imgs_directory(    abspath(join(self.imgs_top_directory(), 'png')))
         self.movs_directory(    abspath(join(self.imgs_top_directory(), 'video')))
         # self.cat_path = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
         # self.png_save_stem = self.png_save_path[:-4] + '{}' + ".png"
+
+        # Fits Folders
+        self.fits_directory(    abspath(join(self.imgs_top_directory(), 'fits')))
+        self.temp_directory(    abspath(join(self.fits_directory(), "temp")))
         
         # Analysis Folders
         self.analysis_directory = join(self.base_directory(), "analysis")
-        use_curves = self.use_curves or "curves.txt"
+        use_curves = self.use_curves or "{}_curves.txt".format(self.current_wave())
         file_name = '{}_params.txt'.format(self.current_wave())
         self.curve_path(        abspath(join(self.analysis_directory, use_curves)))
         self.params_path(       abspath(join(self.analysis_directory, file_name)))
@@ -521,22 +534,22 @@ class Parameters:
         makedirs(self.root_directory, exist_ok=True)
         return self.root_directory
         
-        #  Get the current path
-        if __file__ in globals():
-            this_file_path = dirname(abspath(__file__))
-        else:
-            this_file_path = abspath(getcwd())
-        
-        #  Escape Dropbox
-        while "dropbox".casefold() in this_file_path.casefold():
-            this_file_path = abspath(join(this_file_path, ".."))
-        
-        #  Name and create the root directory
-        root_directory = join(this_file_path, root_directory_name)
-        if not isdir(root_directory):
-            makedirs(root_directory)
-        self.root_directory = root_directory
-        return self.root_directory
+        # #  Get the current path
+        # if __file__ in globals():
+        #     this_file_path = dirname(abspath(__file__))
+        # else:
+        #     this_file_path = abspath(getcwd())
+        #
+        # #  Escape Dropbox
+        # while "dropbox".casefold() in this_file_path.casefold():
+        #     this_file_path = abspath(join(this_file_path, ".."))
+        #
+        # #  Name and create the root directory
+        # root_directory = join(this_file_path, root_directory_name)
+        # if not isdir(root_directory):
+        #     makedirs(root_directory)
+        # self.root_directory = root_directory
+        # return self.root_directory
     
     def create_subdirectories(self):
         # Make Directories

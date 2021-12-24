@@ -1,6 +1,6 @@
 import os
 from os import makedirs
-from os.path import join, dirname
+from os.path import join, dirname, basename
 import numpy as np
 from scipy.signal import savgol_filter
 from processor.Processor import Processor
@@ -196,12 +196,13 @@ class SRNProcessor(Processor):
     
     def image_modify(self):
         """Perform the actual normalization on the input array"""
+        print(" *    Applying Normalization...", end="")
         self.init_for_modify()
         self.coronaNorm()  # Use curves to rescale the in_object
         # self.coronagraph_touchup()  # Deal with some outliers
         self.prep_output()
         # self.vignette()  # Truncate the in_object above given radius
-    
+        print("Success!")
     ###################
     ## Keyframes ##
     ###################
@@ -1127,24 +1128,28 @@ class SRNProcessor(Processor):
 #         fig.set_size_inches(7, 14)
         
         plt.tight_layout()
-        plt.show()
-        return True
-#         self.force_save_radial_figures(save, fig, ax0, show)
-        #         if not do:
-        #             return
-        #         if self.first:
-        #             self.first = False
-        #             return
-        #         import pdb; pdb.set_trace()
-                # self.output_abscissa
-        #         dprint("plot_full_normalization")
-    
+        # plt.show(block=True)
+        # 1/0
+        # return True
+        self.force_save_radial_figures(save, fig, ax0, show)
+        
+        
+        if not do:
+            return
+        if self.first:
+            self.first = False
+            return
+        import pdb; pdb.set_trace()
+        self.output_abscissa
+        dprint("plot_full_normalization")
+        
+
         # locs = np.arange(self.rez)[::int(self.rez/5)]
         # ax1.set_xticks(locs)
         # ax1.set_xticklabels(self.n2r(locs))
         # ax.axvline(self.tRadius, c='r')
-    # original_touch = self.params.original_image+0
-    # self.touchup(original_touch)
+        # original_touch = self.params.original_image+0
+        # self.touchup(original_touch)
     
 
     
@@ -1166,6 +1171,10 @@ class SRNProcessor(Processor):
 
         # print("Saving {}".format(file_name_1))
         bs = self.params.base_directory()
+        
+        if not self.file_basename:
+            self.file_basename = basename(self.params.use_image_path())
+        
         folder_name = "analysis\\radial_hist_full"
         file_name_1 = 'full_{}.png'.format(self.file_basename[:-5])
         save_path_1 = join(bs, folder_name, file_name_1)

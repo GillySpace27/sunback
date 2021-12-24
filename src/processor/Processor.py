@@ -149,11 +149,6 @@ class Processor:
             self.super_flush()
             self.params.set_current_wave(wave)
             self.set_subset()
-            # if self.paper_out:
-            #     self.params.paper_out.extend(self.paper_out)
-            #     self.paper_out = []
-            # self.clean_directory()
-            
             self.params.create_subdirectories()
             fits_paths, imgs_paths = self.load_paths(verb)
             return fits_paths, imgs_paths
@@ -260,7 +255,7 @@ class Processor:
             return False
     
     def plot_two(self, name="Algorithm Result", bounds=None):
-        fig, (ax0, ax1) = plt.subplots(1,2,True, True, num=name)
+        fig, (ax0, ax1) = plt.subplots(1,2, True, True, num=name)
 
         org = self.prep_one(self.params.original_image)
         mod = self.prep_one(self.params.modified_image)
@@ -747,20 +742,51 @@ class Processor:
     
     def load_curves(self, force=None, verb=False):
         """Load the curves so they don't have to be recalculated"""
-        
-        if os.path.exists(self.params.curve_path()):
-            if self.absolute_min is None or force:
-                if verb: print(" *    Loading Radial Curves...", end='')
+
+        if not os.path.exists(self.params.curve_path()):
+            path_list = self.params.curve_path().split("\\")
+            short_path = os.path.join(*path_list[1:3])
+            hail_mary_path = os.path.join(path_list[0],"\\", short_path, path_list[5])
+            if  os.path.exists(hail_mary_path):
+                import shutil
+                shutil.copy(hail_mary_path, self.params.curve_path())
+                print(" **** Copied Curves File from Root ****")
+    
+                # Copy over the fits file too if it's there
                 try:
-                    
-                    self.unpack_save_ins()
-                    if verb: self.super_flush("Success!\n")
-                
-                except ValueError as e:
-                    print("Failed: {}".format(e))
+                    base = basename(self.params.use_image_path())
+                    correct_path = join(self.params.fits_directory(), base)
+                    shutil.copy(self.params.use_image_path(), correct_path)
+                    self.params.use_image_path(correct_path)
+                except FileNotFoundError as e:
+                    print("Failed to Copy Fits File")
                     raise e
-        else:
-            print("No Curves to Load")
+                    
+                print(" **** Copied Fits File from Root ****")
+                
+            else:
+                raise FileNotFoundError("\n  No Norm Curves Found. \n    Place the curves file at {}\n      or run the preProcessor".format(curve_path))
+
+        self.actual_load(force)
+        
+    def actual_load(self, force):
+        if self.absolute_min is None or force:
+            print(" *    Loading Radial Curves...", end='')
+            try:
+              self.unpack_save_ins()
+              self.super_flush(" Success!")
+            
+            except ValueError as e:
+              print("Failed: {}".format(e))
+              raise e
+                
+                
+                
+                
+                
+                
+                
+                
                 
                 
                 # self.image_learn()
