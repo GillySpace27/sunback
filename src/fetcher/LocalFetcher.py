@@ -48,7 +48,7 @@ class LocalSingleFetcher(Fetcher):
                 break
             except Exception as e:
                 print("LocalSingleFetcher")
-                print(e)
+                raise e
                 
         import os.path as path
         print("     ", path.dirname(self.params.use_image_path()))

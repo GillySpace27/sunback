@@ -235,7 +235,7 @@ class Processor:
         """open the fits file and grab the necessary data"""
         
         if fits_path is not None:
-            self.fits_path = fits_path
+            self.fits_path = os.path.normpath(fits_path)
         if self.fits_path is None:
             self.fits_path = self.params.local_fits_paths()[0]
         

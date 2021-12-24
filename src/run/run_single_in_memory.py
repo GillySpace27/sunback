@@ -14,8 +14,6 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-dostring = "Liftoff 0211"
-
 def run_single_in_memory(image=None):
     # Set the Parameters
     p = make_params()
@@ -23,7 +21,8 @@ def run_single_in_memory(image=None):
     
     # Set the Processes
     p.fetchers(LocalSingleFetcher,                rp=True)  # Gets the desired file
-    p.processors([SRNSingleShotProcessor],  rp=True)  # Applies the SRN Filter
+    # p.processors([SRNpreProcessor],  rp=True)  # Applies the SRN Filter
+    p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
     p.putters([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
     
     # Run the Code
@@ -48,9 +47,8 @@ def make_params():
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-09-29T000009Z.304.image_lev1.fits"
+    test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-09-29T120009Z.304.image_lev1.fits"
     run_single_in_memory(image=test_image)
-    # run_range_multishot_movie(dostring)
 
 
 
