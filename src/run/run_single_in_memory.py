@@ -22,8 +22,8 @@ def run_single_in_memory(image=None):
     # Set the Processes
     p.fetchers(LocalSingleFetcher,                rp=True)  # Gets the desired file
     # p.processors([SRNpreProcessor],  rp=True)  # Applies the SRN Filter
-    p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
-    p.putters([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
+    # p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
+    p.putters(ImageProcessorCV,           rp=True)  # Makes the PNGs from Fits
     
     # Run the Code
     aa = SingleRunner(p)
@@ -34,7 +34,7 @@ def make_params():
     p.config = None
     p.destroy = False
     p.batch_name("Single")
-    p.png_frame_name = 'Single'
+    p.png_frame_name = 'SRN'
     p.run_type("Process a Single Image")
     p.do_single = True
     p.do_one(True, True)
@@ -46,8 +46,8 @@ def make_params():
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    # test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-09-29T120009Z.304.image_lev1.fits"
-    test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-10-02T162012Z.171.image_lev1.fits"
+    test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-09-29T120009Z.304.image_lev1.fits"
+    # test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-10-02T162012Z.171.image_lev1.fits"
     run_single_in_memory(image=test_image)
 
 

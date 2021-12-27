@@ -1047,13 +1047,14 @@ class SRNProcessor(Processor):
     def plot_full_normalization(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
             overlaid with the norm curves as determined elsewhere"""
+        print(" *    Plotting Analysis...     ", end='')
         the_alpha = 0.05
 
         # Init the Figure
         fig, (ax0, ax1) = plt.subplots(2, 1, sharex="all", num="Radial Statistics")
     
-        skip = 100
-        self.skip_points = 10 if self.params.rez < 3000 else skip
+        skip = 1000
+        self.skip_points = 100 if self.params.rez < 3000 else skip
 
         ########################
         ##  Plot 0: Absolute  ##
@@ -1133,15 +1134,15 @@ class SRNProcessor(Processor):
         # return True
         self.force_save_radial_figures(save, fig, ax0, show)
         
-        
+        print("Success!")
         if not do:
             return
         if self.first:
             self.first = False
             return
-        import pdb; pdb.set_trace()
-        self.output_abscissa
-        dprint("plot_full_normalization")
+        # import pdb; pdb.set_trace()
+        # self.output_abscissa
+        # dprint("plot_full_normalization")
         
 
         # locs = np.arange(self.rez)[::int(self.rez/5)]

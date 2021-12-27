@@ -9,6 +9,7 @@ class ImageProcessorCV(ImageProcessor):
     filt_name = 'CV Image Writer'
     description = "Turn all the fits files into png files"
     progress_verb = "Writing Images"
+    do_png = True
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
@@ -19,20 +20,20 @@ class ImageProcessorCV(ImageProcessor):
     
     def do_fits_function(self, fits_path, in_name=None):
         """ Main Call on the Fits Path """
-        self.init_frame(fits_path, self.params.png_frame_name)
+        self.init_frame(fits_path) #, self.params.png_frame_name)
         self.render_all()
         return self
     
-    def do_img_function(self):
-        """ Main Call on the Fits Path """
-
-        self.init_image_frame()
-        self.plot_two()
-        
-        self.plot_two("Less Zoomed", True)
-        
-        # self.display_all()
-        return self
+    # def do_img_function(self):
+    #     """ Main Call on the Fits Path """
+    #
+    #     self.init_image_frame()
+    #     self.plot_two()
+    #
+    #     self.plot_two("Less Zoomed", True)
+    #
+    #     self.display_all()
+    #     return self
     
     def display_all(self):
         self.display_original()
@@ -59,6 +60,27 @@ class ImageProcessorCV(ImageProcessor):
         self.plot_aia_original()
         self.plot_aia_changed()
         self.save_concatinated(destroy=True)
+        
+        # self.do_shortcut()
+        
+    def do_shortcut(self):
+    
+        cat_png_path = self.cat_path
+        root_folder = os.path.dirname(self.params.base_directory())
+        fits_folder = os.path.dirname(self.params.use_image_path())
+        cat_png_filename = os.path.basename(cat_png_path)
+        shorts_folder =  os.path.join(root_folder, "shorts")
+        # short_path = os.path.join(shorts_folder, cat_png_filename.replace(".png", ".lnk"))
+        
+        
+        timestamp = self.image_data[2]
+        short_path = os.path.join(shorts_folder, "{}_{}.png".format(self.params.current_wave(), timestamp.split('.')[0]))
+        os.makedirs(shorts_folder, exist_ok=True)
+
+        src_file  =  cat_png_path
+        dest_file =  os.path.normpath(short_path)
+        shutil.copyfile(src_file, dest_file, follow_symlinks=True)
+        # self.make_shortcut(src_file,dest_file , False)
     
     def plot_aia_original(self):
         """Plot the original_image data from AIA"""
@@ -143,14 +165,17 @@ class ImageProcessorCV(ImageProcessor):
         cv2.putText(img, year,    (0, h3), 0, scale, (255, 255, 255), 3)
     
     def cleanup(self):
-        destroy = False
         try:
-            self.write_video_in_directory(fullpath="analysis\\radial_hist_full", fps=15, key_string="inner", destroy=False)
-            self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=15, destroy=destroy)
+            radial_hist_path = "analysis\\radial_hist_full"
+            pathh = os.path.join(self.params.base_directory(), radial_hist_path)
+            num_pics = len([x for x in os.listdir(pathh) if "png" in x])
+            if num_pics > 1:
+                self.write_video_in_directory(fullpath=pathh, fps=15, key_string="inner", destroy=False)
+                self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=15, destroy=destroy)
         except (FileNotFoundError, AttributeError) as e:
-            print(e)
-        if destroy:
-            shutil.rmtree(self.orig_directory)
+            # print("ImageProcessorCV")
+            # print(e)
+            pass
             
     @staticmethod
     def peek_frame(img):

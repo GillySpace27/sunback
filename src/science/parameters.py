@@ -25,6 +25,7 @@ class Parameters:
         """Sets all the attributes to None"""
         # Initialize Variables
 
+        self.last_wave = None
         self.analysis_directory = None
         self._imgs_top_directory = None
         self.currently_local = True
@@ -121,7 +122,7 @@ class Parameters:
         self.do_orig = True
         self.do_cat = True
         self.do_single = False
-
+        
         self._fetchers = [LocalFetcher]
         self._processors = []
         self._putters = [NullPutter]
@@ -142,7 +143,7 @@ class Parameters:
             else:
                 self._fetchers.extend(_fetchers)
                 self._fet_rp.extend([rp])
-                
+        
         return self._fetchers
     
     def processors(self, _processors=None, rp=None):
@@ -163,23 +164,23 @@ class Parameters:
             else:
                 self._putters.extend(_putters)
                 self._put_rp.extend([rp])
-                
+        
         return self._putters
     
     ## Other
-
+    
     # Directories
- 
+    
     def use_image_path(self, _image=None):
         if _image is not None:
             self._image = _image
         return self._image
- 
+    
     
     def base_directory(self, _base_directory=None):
         if _base_directory is not None:
             self._base_directory = _base_directory
-            
+        
         return self._base_directory
     
     def batch_name(self, _batch_name=None):
@@ -198,7 +199,7 @@ class Parameters:
             if make:
                 makedirs(self._imgs_top_directory, exist_ok=True)
         return self._imgs_top_directory
-
+    
     def imgs_directory(self, _imgs_directory=None, make=False):
         if _imgs_directory is not None:
             self._imgs_directory = _imgs_directory
@@ -219,14 +220,14 @@ class Parameters:
         if make:
             makedirs(self._temp_directory, exist_ok=True)
         return self._temp_directory
-
+    
     def shortcut_directory(self, _shortcut_directory=None, make=False):
         if _shortcut_directory is not None:
             self._shortcut_directory = _shortcut_directory
         if make:
             makedirs(self._shortcut_directory, exist_ok=True)
         return self._shortcut_directory
-
+    
     def movs_directory(self, _movs_directory=None, make=False):
         if _movs_directory is not None:
             self._movs_directory = _movs_directory
@@ -261,7 +262,7 @@ class Parameters:
         if _local_imgs_paths is not None:
             self._local_imgs_paths = _local_imgs_paths
         return self._local_imgs_paths
-
+    
     # BOOLEANS
     
     def fixed_cadence_keyframes(self, cadence=None):
@@ -460,6 +461,14 @@ class Parameters:
             self.waves_to_do = self.all_wavelengths
         return self.waves_to_do
     
+    def parse_wave(self):
+        pathName = self.use_image_path()
+        for wave in self.all_wavelengths:
+            if wave.lstrip('0') in pathName:
+                self.current_wave(wave)
+                return wave
+        raise AttributeError("Could not parse wavelength from filename")
+    
     def set_current_wave(self, wave=None):
         """Set the current wave parameter correctly"""
         
@@ -469,24 +478,16 @@ class Parameters:
             self.current_wave(wave)
         else:
             self.parse_wave()
-        
-        self.set_current_wave_paths()
-    
-    def parse_wave(self):
-        pathName = self.use_image_path()
-        for wave in self.all_wavelengths:
-            if wave.lstrip('0') in pathName:
-                self.current_wave(wave)
-                return wave
-        raise AttributeError("Could not parse wavelength from filename")
-    
-    
-    
+            
+        if self.current_wave() is not self.last_wave:
+            self.set_current_wave_paths()
+            self.last_wave = self.current_wave()
+            print("Current Wave Set to {}".format(self.current_wave()))
+
     def set_current_wave_paths(self):
         """Make the paths for current_wave"""
         # Define and Set Directories
         # print("Target: {}".format(self.current_wave))
-        
         ## \\>Batch<\\>Wavelength<\\
         self.base_directory(abspath(self.get_wave_directory()))
         
@@ -495,14 +496,14 @@ class Parameters:
         
         # Shortcuts to Videos
         self.shortcut_directory(abspath(join(self.base_directory(), '..', 'MOVS')))
-
+        
         # Images Folders
         self.imgs_top_directory(abspath(join(self.base_directory(), 'imgs')))
         self.imgs_directory(    abspath(join(self.imgs_top_directory(), 'png')))
         self.movs_directory(    abspath(join(self.imgs_top_directory(), 'video')))
         # self.cat_path = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
         # self.png_save_stem = self.png_save_path[:-4] + '{}' + ".png"
-
+        
         # Fits Folders
         self.fits_directory(    abspath(join(self.imgs_top_directory(), 'fits')))
         self.temp_directory(    abspath(join(self.fits_directory(), "temp")))
@@ -514,6 +515,37 @@ class Parameters:
         self.curve_path(        abspath(join(self.analysis_directory, use_curves)))
         self.params_path(       abspath(join(self.analysis_directory, file_name)))
         
+
+        print("Make_Directories Started")
+        # _, self.fits_save_path, _, _ = self.image_data
+        self.fits_save_path = self.use_image_path()
+    
+        directory = os.path.dirname(self.fits_save_path)
+        self.png_save_path = self.fits_save_path.replace('fits', 'png')
+        self.png_save_stem = self.png_save_path[:-4] + '{}' + ".png"
+        self.png_save_directory = os.path.dirname(self.png_save_path)
+        # self.clean_directory()
+        
+        cat_path = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
+        self.cat_path = cat_path.replace("aia", "{}_aia".format(0))
+    
+        self.orig_directory = join(self.png_save_directory, "orig")
+        os.makedirs(self.png_save_directory, exist_ok=True)
+        os.makedirs(os.path.dirname(self.orig_directory), exist_ok=True)
+        os.makedirs(self.orig_directory, exist_ok=True)
+        print("Make_Directories Finished")
+        # Make Directories
+        
+        print("Create_Subdirectories Started")
+        makedirs(self.imgs_top_directory(), exist_ok=True)
+        makedirs(self.fits_directory(), exist_ok=True)
+        makedirs(self.movs_directory(), exist_ok=True)
+        makedirs(self.analysis_directory, exist_ok=True)
+    
+        # Save Parameters
+        self.save_to_txt()
+        print("Create_Subdirectories Finished")
+    
     def get_wave_directory(self):
         """Define the root folder"""
         last = ''
@@ -530,7 +562,7 @@ class Parameters:
             self.root_directory = abspath(join("D://", root_directory_name))
         else:
             self.root_directory = abspath(root_directory_name)
-
+        
         makedirs(self.root_directory, exist_ok=True)
         return self.root_directory
         
@@ -550,16 +582,24 @@ class Parameters:
         #     makedirs(root_directory)
         # self.root_directory = root_directory
         # return self.root_directory
-    
-    def create_subdirectories(self):
-        # Make Directories
-        makedirs(self.imgs_top_directory(), exist_ok=True)
-        makedirs(self.fits_directory(), exist_ok=True)
-        makedirs(self.movs_directory(), exist_ok=True)
-        makedirs(self.analysis_directory, exist_ok=True)
+    def render(self):
+        """Render the original and changed plots"""
+        # Which plots to make?
+        if self.skip():
+            return False
+        if self.params.do_orig or True: #TODO shouldn't be permanent
+            trials = [False, True]
+        else:
+            trials = [True]
         
-        # Save Parameters
-        self.save_to_txt()
+        # Make them
+        for processed in trials:
+            self.render_one(processed)
+        
+        return True
+    
+    
+    
     
     def current_wave(self, _current_wave=None):
         if _current_wave is not None:
@@ -578,7 +618,7 @@ class Parameters:
             # pass
             # Save contents of environment to text file
             # name = self.current_wave(current_wave)
-
+            
             infoEnv = self
             with open(self.params_path(), 'w') as output:
                 output.write(asctime() + '\n\n')
@@ -591,13 +631,13 @@ class Parameters:
                     output.write('\n\n')
         except:
             print("Failed to print")
-        
+    
     
     def load_preset_time_settings(self, selection=None):
         """Load one of a few presets for the time settings"""
         if selection is not None:
             self.selection = selection.casefold()
-
+        
         if self.selection in ['false', 'f', "False", None, False]:
             return False
         
@@ -614,27 +654,27 @@ class Parameters:
             cadence_minutes = 20 # Seventy Two Frames Per Day
             exposure_time_secs = 120  # Ten Frames per Frame
             self.selection = 'medium'
-            
+        
         elif switch in ['quick', 'q', 3, "3"]:
             cadence_minutes = 60 # Twenty Four Frames Per Day
             exposure_time_secs = 60  # Five Frames per Frame
             self.selection = 'quick'
-
+        
         elif switch in ['ludacris', "ludicrous ", 'l', 4, "4"]:
             cadence_minutes = 3 * 60 # Eight Frames Per Day
             exposure_time_secs = 36  # Three Frames per Frame
             self.selection = 'ludacris'
-            
+        
         elif switch in ['ludacris', "ludicrous ", 'l2', 4, "4"]:
             cadence_minutes = 60 # 24 Frames Per Day
             exposure_time_secs = 36  # Three Frames per Frame
             self.selection = 'ludacris'
-            
+        
         elif switch in ['plaid', 'p', 5, "5"]:
             cadence_minutes = 6 * 60  # Four Frames per Day
             exposure_time_secs = 36  # Three Frames per Frame
             self.selection = 'plaid'
-
+        
         else:
             return False
         

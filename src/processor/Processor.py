@@ -12,7 +12,7 @@ import numpy as np
 from run import SingleRunner
 from science.color_tables import aia_color_table
 
-verb = False
+verb = True
 # import cv2
 from astropy.io import fits
 from tqdm import tqdm
@@ -148,8 +148,7 @@ class Processor:
             self.name = self.params.batch_name(batch_name)
             self.super_flush()
             self.params.set_current_wave(wave)
-            self.set_subset()
-            self.params.create_subdirectories()
+            self.select_keyframe_subset()
             fits_paths, imgs_paths = self.load_paths(verb)
             return fits_paths, imgs_paths
  
@@ -255,7 +254,7 @@ class Processor:
             return False
     
     def plot_two(self, name="Algorithm Result", bounds=None):
-        fig, (ax0, ax1) = plt.subplots(1,2, True, True, num=name)
+        fig, (ax0, ax1) = plt.subplots(1,2, sharex=True, sharey=True, num=name)
 
         org = self.prep_one(self.params.original_image)
         mod = self.prep_one(self.params.modified_image)
@@ -302,7 +301,7 @@ class Processor:
                 break
         self.params.center = center_given
     
-    def set_subset(self):
+    def select_keyframe_subset(self):
         """Sets the list of which frames get used as keyframes
         This function only runs once, sort of an __init__
         """
@@ -447,8 +446,11 @@ class Processor:
     
     def modify_one_image(self,):
         """Apply the given funtion to the given fits path"""
-        self.params.modified_image = self.do_img_function()
-
+        
+        try:
+            self.params.modified_image = self.do_img_function()
+        except NotImplementedError as e:
+            self.params.modified_image = self.do_fits_function(self.params.use_image_path())
 
         # try:
         #     frame = output.get()
@@ -517,6 +519,7 @@ class Processor:
         
         directory = join(ddd, subdirectory_name)
         if not isdir(directory):
+            print("This is thing BB in Processor boing")
             makedirs(directory)
         return directory
     
@@ -552,9 +555,8 @@ class Processor:
                 hdul.close(output_verify='fix')
     
             
-    def make_shortcut(self, file_in_path=None, shortcut_out_path=None):
+    def make_shortcut(self, file_in_path=None, shortcut_out_path=None, doAppend=True):
         path = self.params.shortcut_directory(shortcut_out_path)
-        
         # import os, winshell, win32com.client, Pythoncom
         import os, win32com.client
         
@@ -562,8 +564,8 @@ class Processor:
         basename = basename.replace("___raw.avi", '')
         basename = basename.replace("__comp.avi", '')
         basename = basename.replace("_small.avi", '')
-        path = os.path.join(path, '{}.lnk'.format(basename))
-        print(path)
+        if doAppend: path = os.path.join(path, '{}.lnk'.format(basename))
+        # print(path)
         
         
         shell = win32com.client.Dispatch("WScript.Shell")
@@ -744,14 +746,17 @@ class Processor:
         """Load the curves so they don't have to be recalculated"""
 
         if not os.path.exists(self.params.curve_path()):
+            # If you can't find the curve Files
             path_list = self.params.curve_path().split("\\")
             short_path = os.path.join(*path_list[1:3])
             hail_mary_path = os.path.join(path_list[0],"\\", short_path, path_list[5])
+            #Try this spot
             if  os.path.exists(hail_mary_path):
                 import shutil
+                #Copy the curves where they should go
                 shutil.copy(hail_mary_path, self.params.curve_path())
                 print(" **** Copied Curves File from Root ****")
-    
+        
                 # Copy over the fits file too if it's there
                 try:
                     base = basename(self.params.use_image_path())
@@ -761,11 +766,11 @@ class Processor:
                 except FileNotFoundError as e:
                     print("Failed to Copy Fits File")
                     raise e
-                    
-                print(" **** Copied Fits File from Root ****")
-                
+        
+                print("  **** Copied Fits File from Root ****")
+    
             else:
-                raise FileNotFoundError("\n  No Norm Curves Found. \n    Place the curves file at {}\n      or run the preProcessor".format(curve_path))
+                raise FileNotFoundError("\n  No Norm Curves Found. \n    Place the curves file at {}\n      or run the preProcessor".format(self.params.curve_path()))
 
         self.actual_load(force)
         
