@@ -601,6 +601,7 @@ class Parameters:
     
     
     
+    
     def current_wave(self, _current_wave=None):
         if _current_wave is not None:
             self._current_wave = _current_wave

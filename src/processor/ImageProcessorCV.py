@@ -64,6 +64,22 @@ class ImageProcessorCV(ImageProcessor):
         # self.do_shortcut()
         
     def do_shortcut(self):
+        cat_png_path = self.cat_path
+        root_folder = os.path.dirname(self.params.base_directory())
+        fits_folder = os.path.dirname(self.params.use_image_path())
+        cat_png_filename = os.path.basename(cat_png_path)
+        shorts_folder =  os.path.join(root_folder, "shorts")
+        # short_path = os.path.join(shorts_folder, cat_png_filename.replace(".png", ".lnk"))
+        
+        
+        timestamp = self.image_data[2]
+        short_path = os.path.join(shorts_folder, "{}_{}.png".format(self.params.current_wave(), timestamp.split('.')[0]))
+        os.makedirs(shorts_folder, exist_ok=True)
+
+        src_file  =  cat_png_path
+        dest_file =  os.path.normpath(short_path)
+        shutil.copyfile(src_file, dest_file, follow_symlinks=True)
+        # self.make_shortcut(src_file,dest_file , False)
     
         cat_png_path = self.cat_path
         root_folder = os.path.dirname(self.params.base_directory())
@@ -165,17 +181,20 @@ class ImageProcessorCV(ImageProcessor):
         cv2.putText(img, year,    (0, h3), 0, scale, (255, 255, 255), 3)
     
     def cleanup(self):
+        destroy = False
         try:
             radial_hist_path = "analysis\\radial_hist_full"
             pathh = os.path.join(self.params.base_directory(), radial_hist_path)
             num_pics = len([x for x in os.listdir(pathh) if "png" in x])
             if num_pics > 1:
-                self.write_video_in_directory(fullpath=pathh, fps=15, key_string="inner", destroy=False)
-                self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=15, destroy=destroy)
+                self.write_video_in_directory(fullpath=pathh,            fps=15, key_string="inner", destroy=False)
+                # self.write_video_in_directory(fullpath=radial_hist_path, fps=15, key_string="inner", destroy=False)
+                self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=15, destroy=False)
         except (FileNotFoundError, AttributeError) as e:
-            # print("ImageProcessorCV")
-            # print(e)
-            pass
+            print("ImageProcessorCV")
+            raise(e)
+        if False: #destroy:
+            shutil.rmtree(self.orig_directory)
             
     @staticmethod
     def peek_frame(img):

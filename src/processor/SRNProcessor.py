@@ -1173,7 +1173,7 @@ class SRNProcessor(Processor):
         # print("Saving {}".format(file_name_1))
         bs = self.params.base_directory()
         
-        if not self.file_basename:
+        if not self.file_basename: #gender
             self.file_basename = basename(self.params.use_image_path())
         
         folder_name = "analysis\\radial_hist_full"
