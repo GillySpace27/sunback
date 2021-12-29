@@ -57,9 +57,9 @@ class Runner:
     def process(self):
         """Use the provided fetcher, executor,
         and putter to do the thing"""
-        if type(self) is SingleRunner:
-            self.process_single()
-            return
+        # if type(self) is SingleRunner:
+        #     self.process_single()
+        #     return
             
         print(self.wall_2)
         # print(self.params.runner_name)

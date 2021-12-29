@@ -40,7 +40,7 @@ class ImageProcessor(Processor):
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
-
+    
         self.params.cmap = None
         self.fig, self.frame_ax = None, None
         self.plot_formatted = False
@@ -48,10 +48,14 @@ class ImageProcessor(Processor):
         self.figure_box = []
         self.skipped = 0
         self.frame = None
+        self.load_curves()
+        
         try:
-            self.load_curves()
+            pass
         except AttributeError as e:
             print(e)
+            print("I failed in ImageProceesor 55")
+            
     def do_fits_function(self, fits_path, in_name=None):
         """This is the do_fits_function for this """
         self.init_frame(fits_path, self.params.png_frame_name)
@@ -77,7 +81,7 @@ class ImageProcessor(Processor):
         #     shape = 4096
             
         self.image_data = str(self.wave1), fits_path, self.t_rec1, frame1.shape
-        # self.params.make_directories()
+        self.make_directories()
         self.figure_box = []
         self.path_box = []
         self.name, self.wave = self.clean_name_string(self.image_data[0])
@@ -111,7 +115,34 @@ class ImageProcessor(Processor):
         
 
         
+    def make_directories(self):
+        _, self.fits_save_path, _, _ = self.image_data
+        self.png_save_path = self.fits_save_path.replace('fits', 'png')
+        self.png_save_stem = self.png_save_path[:-4] + '{}' + ".png"
+        self.png_save_directory = os.path.dirname(self.png_save_path)
+        # self.clean_directory()
 
+    
+        self.orig_directory = join(self.png_save_directory, "orig")
+        os.makedirs(self.png_save_directory, exist_ok=True)
+        os.makedirs(os.path.dirname(self.orig_directory), exist_ok=True)
+        os.makedirs(self.orig_directory, exist_ok=True)
+    
+    def render(self):
+        """Render the original and changed plots"""
+        # Which plots to make?
+        if self.skip():
+            return False
+        if self.params.do_orig or True: #TODO shouldn't be permanent
+            trials = [False, True]
+        else:
+            trials = [True]
+        
+        # Make them
+        for processed in trials:
+            self.render_one(processed)
+        
+        return True
     
     def skip(self):
         if self.params.overwrite_pngs() or self.reprocess_mode():
@@ -119,7 +150,7 @@ class ImageProcessor(Processor):
             return False  # Don't Skip
         else:
             # If you don't want to overwrite
-            if self.params.png_save_path in self.params.local_imgs_paths():
+            if self.png_save_path in self.params.local_imgs_paths():
                 # Make images you don't already have
                 self.skipped += 1
                 return True  # do skip
@@ -132,45 +163,45 @@ class ImageProcessor(Processor):
     def export_files(self):
         raise NotImplementedError
     
-    def save_concatinated(self, which1="orig", which2="SRN", destroy=True):
+    def save_concatinated(self, which1="orig", which2="SRN", destroy=False):
         # print("Saving Concatinated!!")
         """Make the side by side concatinated images"""
-        delete_processed = False
-        destroy = False
-        
-        processed_paths = [join(self.params.png_save_directory, x) for x in listdir(self.params.png_save_directory)
-                           if not os.path.isdir(join(self.params.png_save_directory, x))]
-        original_paths  = [join(self.params.orig_directory, x) for x in listdir(self.params.orig_directory)]
+    
+
+    
+        processed_paths = [join(self.png_save_directory, x) for x in listdir(self.png_save_directory)
+                           if not os.path.isdir(join(self.png_save_directory, x))]
+        original_paths  = [join(self.orig_directory, x) for x in listdir(self.orig_directory)]
+        path_list_abs =  processed_paths + original_paths
     
         original = self.path_box[0] if self.path_box else self.get_original_path()
         processed = self.path_box[1] if self.path_box else self.get_changed_path()
+    
     
         go_1 = self.params.do_cat
         go_2 = original in original_paths
         go_3 = self.get_changed_path() in processed_paths
     
-
+        self.cat_path = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
+    
         fmt_string_stem = 'ffmpeg -i "{}" -i "{}" -y -filter_complex hstack "{}" -hide_banner -loglevel error'
-        cat_command = fmt_string_stem.format(original, processed, self.params.cat_path)
+        cat_command = fmt_string_stem.format(original, processed, self.cat_path)
         if go_1 and go_2 and go_3:
-            os.makedirs(os.path.dirname(self.params.cat_path), exist_ok=True)
+            os.makedirs(os.path.dirname(self.cat_path), exist_ok=True)
             os.system(cat_command)
             if destroy:
                 os.remove(original)
-                if delete_processed: os.remove(processed)
-                import shutil
-                shutil.rmtree(self.params.orig_directory)
                 
                 
     def get_original_path(self):
-        return self.params.png_save_stem.replace("\\png\\", "\\png\\orig\\").format("_orig")
+        return self.png_save_stem.replace("\\png\\", "\\png\\orig\\").format("_orig")
     
     def get_changed_path(self):
         nam = self.params.png_frame_name
         name = nam if type(nam) is str else self.hdu_name_list[nam]
-        out = self.params.png_save_stem.format('').replace("aia", name + "_" + "aia")
-        out = os.path.join(out, )
+        out = self.png_save_stem.format('').replace("aia", name + "_" + "aia")
         return out
+
         
     @staticmethod
     def blankAxis(ax):

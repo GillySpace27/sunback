@@ -12,7 +12,6 @@ import numpy as np
 from run import SingleRunner
 from science.color_tables import aia_color_table
 
-verb = True
 # import cv2
 from astropy.io import fits
 from tqdm import tqdm
@@ -23,6 +22,7 @@ import matplotlib.pyplot as plt
 # from fetcher.FidoFetcher import vprint
 # from utils.file_util import find_root_directory
 
+verb = True
 
 def vprint(in_string, *args, **kwargs):
     if verb:
@@ -149,7 +149,7 @@ class Processor:
             self.super_flush()
             self.params.set_current_wave(wave)
             self.select_keyframe_subset()
-            self.params.create_subdirectories()  #Gender
+            # self.params.create_subdirectories()  #Gender
             fits_paths, imgs_paths = self.load_paths(verb)
             return fits_paths, imgs_paths
  
@@ -719,7 +719,7 @@ class Processor:
         """Save the curves so they don't have to be recalculated"""
         self.super_flush()
         if banner:
-            print(" *\n *    Saving Radial Curves...", end='')
+            vprint(" *\n *    Saving Radial Curves...", end='')
         if self.prep_save_outs():
             curve_path = self.params.curve_path()
             descr_path = curve_path.replace("curve.txt", "curve_names.txt")
@@ -732,7 +732,7 @@ class Processor:
                     fp.write(str(desc) + " : len=" + len_item)
             np.savetxt(curve_path, self.curve_out_array)
         else:
-            print("Skipping Save Curves!")
+            vprint("Skipping Save Curves!")
     
     # def save_smoothed_curves(self):
     #     print(" *\n *    Saving Smoothed Curves...", end='')
@@ -747,7 +747,7 @@ class Processor:
         
         if os.path.exists(self.params.curve_path()):
             if self.absolute_min is None or force:
-                if verb: print(" *    Loading Radial Curves...", end='')
+                vprint(" *    Loading Radial Curves...", end='')
                 try:
                     
                     self.unpack_save_ins()
@@ -869,7 +869,7 @@ class Processor:
         try:
             data = field_hdu.data
         except TypeError:
-            print("Processor: 705 !Failed to Load Frame!")
+            vprint("Processor: 705 !Failed to Load Frame!")
         return data
     
     def determine_penultimate_frame_name(self, hdul=None):

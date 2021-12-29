@@ -461,33 +461,20 @@ class Parameters:
             self.waves_to_do = self.all_wavelengths
         return self.waves_to_do
     
-    def parse_wave(self):
-        pathName = self.use_image_path()
-        for wave in self.all_wavelengths:
-            if wave.lstrip('0') in pathName:
-                self.current_wave(wave)
-                return wave
-        raise AttributeError("Could not parse wavelength from filename")
-    
     def set_current_wave(self, wave=None):
         """Set the current wave parameter correctly"""
         
-        if type(self.do_one()) in [str, int, float]:
+        if self.do_one():
             self.current_wave(self.do_one())
-        elif wave is not None:
-            self.current_wave(wave)
         else:
-            self.parse_wave()
-            
-        if self.current_wave() is not self.last_wave:
-            self.set_current_wave_paths()
-            self.last_wave = self.current_wave()
-            print("Current Wave Set to {}".format(self.current_wave()))
-
+            self.current_wave(wave)
+        self.set_current_wave_paths()
+    
     def set_current_wave_paths(self):
         """Make the paths for current_wave"""
         # Define and Set Directories
         # print("Target: {}".format(self.current_wave))
+        
         ## \\>Batch<\\>Wavelength<\\
         self.base_directory(abspath(self.get_wave_directory()))
         
@@ -496,7 +483,11 @@ class Parameters:
         
         # Shortcuts to Videos
         self.shortcut_directory(abspath(join(self.base_directory(), '..', 'MOVS')))
-        
+
+        # Fits Folders
+        self.fits_directory(    abspath(join(self.base_directory(), 'fits')))
+        self.temp_directory(    abspath(join(self.fits_directory(), "temp")))
+
         # Images Folders
         self.imgs_top_directory(abspath(join(self.base_directory(), 'imgs')))
         self.imgs_directory(    abspath(join(self.imgs_top_directory(), 'png')))
@@ -504,48 +495,13 @@ class Parameters:
         # self.cat_path = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
         # self.png_save_stem = self.png_save_path[:-4] + '{}' + ".png"
         
-        # Fits Folders
-        self.fits_directory(    abspath(join(self.imgs_top_directory(), 'fits')))
-        self.temp_directory(    abspath(join(self.fits_directory(), "temp")))
-        
         # Analysis Folders
         self.analysis_directory = join(self.base_directory(), "analysis")
-        use_curves = self.use_curves or "{}_curves.txt".format(self.current_wave())
+        use_curves = self.use_curves or '{}_curves.txt'.format(self.current_wave())
         file_name = '{}_params.txt'.format(self.current_wave())
         self.curve_path(        abspath(join(self.analysis_directory, use_curves)))
         self.params_path(       abspath(join(self.analysis_directory, file_name)))
         
-
-        print("Make_Directories Started")
-        # _, self.fits_save_path, _, _ = self.image_data
-        self.fits_save_path = self.use_image_path()
-    
-        directory = os.path.dirname(self.fits_save_path)
-        self.png_save_path = self.fits_save_path.replace('fits', 'png')
-        self.png_save_stem = self.png_save_path[:-4] + '{}' + ".png"
-        self.png_save_directory = os.path.dirname(self.png_save_path)
-        # self.clean_directory()
-        
-        cat_path = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
-        self.cat_path = cat_path.replace("aia", "{}_aia".format(0))
-    
-        self.orig_directory = join(self.png_save_directory, "orig")
-        os.makedirs(self.png_save_directory, exist_ok=True)
-        os.makedirs(os.path.dirname(self.orig_directory), exist_ok=True)
-        os.makedirs(self.orig_directory, exist_ok=True)
-        print("Make_Directories Finished")
-        # Make Directories
-        
-        print("Create_Subdirectories Started")
-        makedirs(self.imgs_top_directory(), exist_ok=True)
-        makedirs(self.fits_directory(), exist_ok=True)
-        makedirs(self.movs_directory(), exist_ok=True)
-        makedirs(self.analysis_directory, exist_ok=True)
-    
-        # Save Parameters
-        self.save_to_txt()
-        print("Create_Subdirectories Finished")
-    
     def get_wave_directory(self):
         """Define the root folder"""
         last = ''
@@ -562,44 +518,36 @@ class Parameters:
             self.root_directory = abspath(join("D://", root_directory_name))
         else:
             self.root_directory = abspath(root_directory_name)
-        
+
         makedirs(self.root_directory, exist_ok=True)
         return self.root_directory
         
-        # #  Get the current path
-        # if __file__ in globals():
-        #     this_file_path = dirname(abspath(__file__))
-        # else:
-        #     this_file_path = abspath(getcwd())
-        #
-        # #  Escape Dropbox
-        # while "dropbox".casefold() in this_file_path.casefold():
-        #     this_file_path = abspath(join(this_file_path, ".."))
-        #
-        # #  Name and create the root directory
-        # root_directory = join(this_file_path, root_directory_name)
-        # if not isdir(root_directory):
-        #     makedirs(root_directory)
-        # self.root_directory = root_directory
-        # return self.root_directory
-    def render(self):
-        """Render the original and changed plots"""
-        # Which plots to make?
-        if self.skip():
-            return False
-        if self.params.do_orig or True: #TODO shouldn't be permanent
-            trials = [False, True]
+        #  Get the current path
+        if __file__ in globals():
+            this_file_path = dirname(abspath(__file__))
         else:
-            trials = [True]
+            this_file_path = abspath(getcwd())
         
-        # Make them
-        for processed in trials:
-            self.render_one(processed)
+        #  Escape Dropbox
+        while "dropbox".casefold() in this_file_path.casefold():
+            this_file_path = abspath(join(this_file_path, ".."))
         
-        return True
+        #  Name and create the root directory
+        root_directory = join(this_file_path, root_directory_name)
+        if not isdir(root_directory):
+            makedirs(root_directory)
+        self.root_directory = root_directory
+        return self.root_directory
     
-    
-    
+    def create_subdirectories(self):
+        # Make Directories
+        makedirs(self.imgs_top_directory(), exist_ok=True)
+        makedirs(self.fits_directory(), exist_ok=True)
+        makedirs(self.movs_directory(), exist_ok=True)
+        makedirs(self.analysis_directory, exist_ok=True)
+        
+        # Save Parameters
+        self.save_to_txt()
     
     
     def current_wave(self, _current_wave=None):

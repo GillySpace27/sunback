@@ -9,7 +9,7 @@ class ImageProcessorCV(ImageProcessor):
     filt_name = 'CV Image Writer'
     description = "Turn all the fits files into png files"
     progress_verb = "Writing Images"
-    do_png = True
+
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)

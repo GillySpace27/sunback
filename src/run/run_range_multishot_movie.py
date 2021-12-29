@@ -17,7 +17,7 @@ plt.ioff()
 
 # tstart='2014/11/04 01:00:00', tend='2014/11/08 00:00:00',
 # tstart='2016/11/04 01:00:00', tend='2016/11/06 00:00:00',
-dostring = "Liftoff 0211"
+# dostring = "Beautiful 304_l"
 
 def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None):
     # Set the Parameters
@@ -28,11 +28,11 @@ def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None):
     # p.fetchers(FidoFetcher, rp=True)                # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
 
-    p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
-    p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
+    # p.processors([SRNpreProcessor],         rp=False)  # Learns the bounds of the dataset for SRN
+    # p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
 
-    p.putters([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
+    p.processors([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
+    # p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
     
     # Run the Code
     run.Runner(p).start()
@@ -174,6 +174,14 @@ def make_configs():
         "cadence_minutes": None, "fps": 20, "exposure_time": None,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l2"
     }
+    c14 = {
+        "name": "Beautiful 304_p",
+        "debug": True, "do_one": '0304', "stop": True,
+        "tstart": '2014/11/04 00:00:01', "tend": '2014/11/06 00:00:00',
+        "cadence_minutes": None, "fps": None, "exposure_time": None,
+        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
+    }
+    
     ConfigDict = {
         c0["name"]:   c0,
         c1["name"]:   c1,
@@ -188,6 +196,7 @@ def make_configs():
         c10["name"]: c10,
         c11["name"]: c11,
         c12["name"]: c12,
+        c14["name"]: c14,
                   }
     return ConfigDict
 
