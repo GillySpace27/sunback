@@ -25,11 +25,14 @@ class Parameters:
         """Sets all the attributes to None"""
         # Initialize Variables
 
+        self.orig_path = None
+        self.cat_path  = None
+        self.mod_path  = None
         self.last_wave = None
         self.analysis_directory = None
         self._imgs_top_directory = None
         self.currently_local = True
-        self.use_curves = None
+        self.norm_curves_name = None
         self._image = None
         self.root_directory = None
         self._shortcut_directory = None
@@ -120,7 +123,7 @@ class Parameters:
         self._do_recent = True
         self._use_default_directories = True
         self.do_orig = True
-        self.do_cat = True
+        self.do_cat = False
         self.do_single = False
         
         self._fetchers = [LocalFetcher]
@@ -200,7 +203,7 @@ class Parameters:
                 makedirs(self._imgs_top_directory, exist_ok=True)
         return self._imgs_top_directory
     
-    def imgs_directory(self, _imgs_directory=None, make=False):
+    def mods_directory(self, _imgs_directory=None, make=False):
         if _imgs_directory is not None:
             self._imgs_directory = _imgs_directory
             if make:
@@ -468,40 +471,11 @@ class Parameters:
             self.current_wave(self.do_one())
         else:
             self.current_wave(wave)
+            
         self.set_current_wave_paths()
-    
-    def set_current_wave_paths(self):
-        """Make the paths for current_wave"""
-        # Define and Set Directories
-        # print("Target: {}".format(self.current_wave))
+        self.make_directories()
         
-        ## \\>Batch<\\>Wavelength<\\
-        self.base_directory(abspath(self.get_wave_directory()))
-        
-        # Time
-        self.time_path(         abspath(join(self.base_directory(), "image_times.txt")))
-        
-        # Shortcuts to Videos
-        self.shortcut_directory(abspath(join(self.base_directory(), '..', 'MOVS')))
 
-        # Fits Folders
-        self.fits_directory(    abspath(join(self.base_directory(), 'fits')))
-        self.temp_directory(    abspath(join(self.fits_directory(), "temp")))
-
-        # Images Folders
-        self.imgs_top_directory(abspath(join(self.base_directory(), 'imgs')))
-        self.imgs_directory(    abspath(join(self.imgs_top_directory(), 'png')))
-        self.movs_directory(    abspath(join(self.imgs_top_directory(), 'video')))
-        # self.cat_path = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
-        # self.png_save_stem = self.png_save_path[:-4] + '{}' + ".png"
-        
-        # Analysis Folders
-        self.analysis_directory = join(self.base_directory(), "analysis")
-        use_curves = self.use_curves or '{}_curves.txt'.format(self.current_wave())
-        file_name = '{}_params.txt'.format(self.current_wave())
-        self.curve_path(        abspath(join(self.analysis_directory, use_curves)))
-        self.params_path(       abspath(join(self.analysis_directory, file_name)))
-        
     def get_wave_directory(self):
         """Define the root folder"""
         last = ''
@@ -539,16 +513,85 @@ class Parameters:
         self.root_directory = root_directory
         return self.root_directory
     
-    def create_subdirectories(self):
-        # Make Directories
-        makedirs(self.imgs_top_directory(), exist_ok=True)
-        makedirs(self.fits_directory(), exist_ok=True)
-        makedirs(self.movs_directory(), exist_ok=True)
-        makedirs(self.analysis_directory, exist_ok=True)
+    def set_current_wave_paths(self):
+        """Make the paths for current_wave"""
+        # Define and Set Directories
+        # print("Target: {}".format(self.current_wave))
         
+        ## \\>Batch<\\>Wavelength<\\
+        self.base_directory(abspath(self.get_wave_directory()))
+        
+        # Top Folders
+        self.shortcut_directory(    abspath(join(self.base_directory(), '..', 'MOVS')))
+        self.time_path(             abspath(join(self.base_directory(), "image_times.txt")))
+        self.imgs_top_directory(    abspath(join(self.base_directory(), 'imgs')))
+        self.movs_directory(        abspath(join(self.base_directory(), 'video')))
+        self.analysis_directory =   abspath(join(self.base_directory(), "analysis"))
+
+        # Fits Folders
+        self.fits_directory(        abspath(join(self.imgs_top_directory(), 'fits')))
+        self.temp_directory(        abspath(join(self.fits_directory(), "temp")))
+        
+        # Png Folders
+        self.mods_directory(        abspath(join(self.imgs_top_directory(), 'png', 'mod')))
+        self.orig_directory =       abspath(join(self.imgs_top_directory(), 'png', "orig"))
+        self.cat_directory =        abspath(join(self.imgs_top_directory(), 'png', "cat"))
+        
+        # Analysis Folders
+        
+        norm_curves_name =      self.norm_curves_name or '{}_curves.txt'.format(self.current_wave())
+        self.curve_path(        abspath(join(self.analysis_directory, norm_curves_name)))
+        
+        param_file_name =       '{}_params.txt'.format(self.current_wave())
+        self.params_path(       abspath(join(self.analysis_directory, param_file_name)))
+        
+        
+        
+        # self.radial_hist_path = abspath(join(self.analysis_directory, param_file_name))
+        
+    def make_directories(self):
+        # Make Directories
+        makedirs(self.analysis_directory,   exist_ok=True)
+        makedirs(self.imgs_top_directory(), exist_ok=True)
+        makedirs(self.fits_directory(),     exist_ok=True)
+        makedirs(self.orig_directory,       exist_ok=True)
+        makedirs(self.mods_directory(),     exist_ok=True)
+        makedirs(self.movs_directory(),     exist_ok=True)
+        makedirs(self.cat_directory,        exist_ok=True)
         # Save Parameters
         self.save_to_txt()
-    
+        
+    def make_file_paths(self, image_data):
+        _, self.fits_save_path, _, _ = image_data
+        fits_name = os.path.basename(self.fits_save_path)
+        png_name =  fits_name.replace('fits', 'png')
+        self.mod_path = join(self.mods_directory(), png_name)
+        self.cat_path = self.mod_path.replace("mod", "cat")
+        self.orig_path = self.mod_path.replace("mod", "orig")
+        return self.mod_path, self.cat_path, self.orig_path
+
+
+    def get_pre_radial_fig_paths(self):
+        bs = self.base_directory()
+        
+        if not self.file_basename:  # gender
+            self.file_basename = os.path.basename(self.use_image_path())
+        
+        folder_name = "analysis\\radial_hist_full"
+        file_name_1 = 'full_{}.png'.format(self.file_basename[:-5])
+        save_path_1 = join(bs, folder_name, file_name_1)
+        
+        file_name_2 = 'zoom\\full_zoom_{}.png'.format(self.file_basename[:-5])
+        save_path_2 = join(bs, folder_name, file_name_2)
+        
+        makedirs(dirname(save_path_1), exist_ok=True)
+        makedirs(dirname(save_path_2), exist_ok=True)
+        
+        return save_path_1, save_path_2
+        
+
+
+
     
     def current_wave(self, _current_wave=None):
         if _current_wave is not None:

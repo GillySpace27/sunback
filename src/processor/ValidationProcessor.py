@@ -116,10 +116,10 @@
 #         png_directory = join(self.params.imgs_top_directory(), self.params.current_wave(), 'png')
 #         got_png = self.params.local_imgs_paths()  # list_files_in_directory(png_directory, 'png')
 #         remove_count = 0
-#         for png_path in got_png:
-#             if png_path not in requested_pngs:
+#         for mod_path in got_png:
+#             if mod_path not in requested_pngs:
 #                 try:
-#                     os.remove(join(png_directory, png_path))
+#                     os.remove(join(png_directory, mod_path))
 #                     remove_count += 1
 #                 except FileNotFoundError as e:
 #                     # print(e)

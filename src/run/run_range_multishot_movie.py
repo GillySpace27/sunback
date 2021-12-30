@@ -1,13 +1,6 @@
 import os
 
-from fetcher.FidoFetcher import FidoFetcher
-from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
-from processor.ImageProcessor import ImageProcessor
 from processor.ImageProcessorCV import ImageProcessorCV
-from processor.ImageProcessorMatplotlib import ImageProcessorMatplotlib
-from processor.ImageProcessorPIL import ImageProcessorPIL
-from processor.SRNSubProcessors import SRNpreProcessor, SRNradialFiltProcessor
-from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
 import run
 import matplotlib.pyplot as plt

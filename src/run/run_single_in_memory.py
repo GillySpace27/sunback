@@ -1,14 +1,7 @@
-from fetcher.FidoFetcher import FidoFetcher
-from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
-from fetcher.LocalFetcher import LocalFetcher, LocalSingleFetcher
-from processor.ImageProcessor import ImageProcessor
+from fetcher.LocalFetcher import LocalSingleFetcher
 from processor.ImageProcessorCV import ImageProcessorCV
-from processor.ImageProcessorMatplotlib import ImageProcessorMatplotlib
-from processor.ImageProcessorPIL import ImageProcessorPIL
-from processor.SRNSubProcessors import SRNpreProcessor, SRNradialFiltProcessor, SRNSingleShotProcessor
-from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
-from run import Runner, SingleRunner
+from run import SingleRunner
 import matplotlib.pyplot as plt
 
 plt.ioff()

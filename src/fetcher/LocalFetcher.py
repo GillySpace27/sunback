@@ -29,9 +29,9 @@ class LocalFetcher(Fetcher):
         if num == 0:
             # self.params.fetchers([self.params.alternate])
             print("\n    !!Quitting Program!!\n")
-            print(self.params.base_directory())
-            print(self.params.fits_directory())
-            print(self.params.imgs_top_directory())
+            print("Base: ", self.params.base_directory())
+            print("Imgs: ", self.params.imgs_top_directory())
+            print("Fits: ", self.params.fits_directory())
             
             sys.exit(1)
 

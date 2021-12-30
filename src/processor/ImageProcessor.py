@@ -1,12 +1,12 @@
 import os
-import sys
-from copy import copy
+# import sys
+# from copy import copy
 from datetime import datetime, timedelta
 from os import listdir
 # from os.path import dirname
 from os.path import join
-from time import strftime
-import matplotlib as mpl
+# from time import strftime
+# import matplotlib as mpl
 # mpl.use('Agg')
 # import matplotlib.pyplot as plt
 from processor.Processor import Processor
@@ -27,7 +27,8 @@ class ImageProcessor(Processor):
     progress_text = ""
     video_name_stem = ""
     description = "Turn all the fits files into png files"
-    progress_verb = "Writing Images"
+    progress_verb = "Writing"
+    progress_unit = "Images"
     
     changed = None
     original = None
@@ -70,18 +71,11 @@ class ImageProcessor(Processor):
         if True: #self.params.original_image is None:
             frame0, _, _, _, _ = self.load_first_fits_field(fits_path)
             frame1, self.wave1, self.t_rec1, center1, int_time = self.load_a_fits_field(fits_path, in_name)
-            # frame1, wave1, t_rec1, center1, int_time = self.load_last_fits_field(fits_path)
-            self.params.local_imgs_paths()
             self.params.original_image, self.params.modified_image = frame0, frame1
             self.frame = np.zeros_like(self.params.original_image)
         # self.peek_frames()
-        # try:
-        #     shape = frame1.shape
-        # except:
-        #     shape = 4096
-            
         self.image_data = str(self.wave1), fits_path, self.t_rec1, frame1.shape
-        self.make_directories()
+        self.params.make_file_paths(self.image_data)
         self.figure_box = []
         self.path_box = []
         self.name, self.wave = self.clean_name_string(self.image_data[0])
@@ -104,9 +98,7 @@ class ImageProcessor(Processor):
         self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
 
     def peek_frames(self):
-        fig, (ax1, ax2, ax3) = plt.subplots(1,3, sharex=True, sharey=True)
-        
-        
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, sharex='True', sharey='True')
         ax1.imshow(self.params.original_image)
         ax2.imshow(self.params.modified_image)
         ax3.imshow(np.abs(self.params.modified_image-self.params.original_image))
@@ -115,18 +107,7 @@ class ImageProcessor(Processor):
         
 
         
-    def make_directories(self):
-        _, self.fits_save_path, _, _ = self.image_data
-        self.png_save_path = self.fits_save_path.replace('fits', 'png')
-        self.png_save_stem = self.png_save_path[:-4] + '{}' + ".png"
-        self.png_save_directory = os.path.dirname(self.png_save_path)
-        # self.clean_directory()
 
-    
-        self.orig_directory = join(self.png_save_directory, "orig")
-        os.makedirs(self.png_save_directory, exist_ok=True)
-        os.makedirs(os.path.dirname(self.orig_directory), exist_ok=True)
-        os.makedirs(self.orig_directory, exist_ok=True)
     
     def render(self):
         """Render the original and changed plots"""
@@ -150,7 +131,7 @@ class ImageProcessor(Processor):
             return False  # Don't Skip
         else:
             # If you don't want to overwrite
-            if self.png_save_path in self.params.local_imgs_paths():
+            if self.params.png_save_path in self.params.local_imgs_paths():
                 # Make images you don't already have
                 self.skipped += 1
                 return True  # do skip
@@ -159,48 +140,56 @@ class ImageProcessor(Processor):
     
     def render_one(self, processed):
         raise NotImplementedError
-            
+        
     def export_files(self):
         raise NotImplementedError
     
-    def save_concatinated(self, which1="orig", which2="SRN", destroy=False):
+    def save_concatinated(self, destroy=False):
         # print("Saving Concatinated!!")
         """Make the side by side concatinated images"""
-    
-
-    
-        processed_paths = [join(self.png_save_directory, x) for x in listdir(self.png_save_directory)
-                           if not os.path.isdir(join(self.png_save_directory, x))]
-        original_paths  = [join(self.orig_directory, x) for x in listdir(self.orig_directory)]
-        path_list_abs =  processed_paths + original_paths
-    
-        original = self.path_box[0] if self.path_box else self.get_original_path()
-        processed = self.path_box[1] if self.path_box else self.get_changed_path()
-    
-    
-        go_1 = self.params.do_cat
-        go_2 = original in original_paths
-        go_3 = self.get_changed_path() in processed_paths
-    
-        self.cat_path = self.png_save_stem.replace("\\png\\","\\png\\cat\\").format("_cat")
-    
-        fmt_string_stem = 'ffmpeg -i "{}" -i "{}" -y -filter_complex hstack "{}" -hide_banner -loglevel error'
-        cat_command = fmt_string_stem.format(original, processed, self.cat_path)
-        if go_1 and go_2 and go_3:
-            os.makedirs(os.path.dirname(self.cat_path), exist_ok=True)
+        cat_command_stem = 'ffmpeg -i "{}" -i "{}" -y -filter_complex hstack "{}" -hide_banner -loglevel error'
+        orig_path, mod_path, cat_path = self.check_concat_readiness()
+        
+        if cat_path:
+            cat_command = cat_command_stem.format(orig_path, mod_path, cat_path)
             os.system(cat_command)
             if destroy:
-                os.remove(original)
+                os.remove(orig_path)
+                os.remove(mod_path)
                 
+    def check_concat_readiness(self):
+        # Select Directories
+        mod_dir = self.params.mods_directory()
+        orig_dir = self.params.orig_directory
+        cat_path = self.params.cat_path
+        
+        # Select Paths
+        orig_path = self.path_box[0] if self.path_box else self.get_original_path()
+        mod_path = self.path_box[1] if self.path_box else self.get_changed_path()
+
+        # Confirm Original
+        original_paths  = [join(orig_dir, x) for x in listdir(orig_dir)]
+        have_orig = orig_path in original_paths
+        
+        # Confirm Modified
+        processed_paths = [join(mod_dir, x) for x in listdir(mod_dir)]
+        have_mod = mod_path in processed_paths
+        
+        do_cat = self.params.do_cat
+        if do_cat and have_mod and have_orig:
+            return orig_path, mod_path, cat_path
+        else:
+            return None, None, None
                 
     def get_original_path(self):
-        return self.png_save_stem.replace("\\png\\", "\\png\\orig\\").format("_orig")
+        return self.params.orig_path
     
     def get_changed_path(self):
-        nam = self.params.png_frame_name
-        name = nam if type(nam) is str else self.hdu_name_list[nam]
-        out = self.png_save_stem.format('').replace("aia", name + "_" + "aia")
-        return out
+        # nam = self.params.png_frame_name
+        # name = nam if type(nam) is str else self.hdu_name_list[nam]
+        # out = self.params.png_save_stem.format('').replace("aia", name + "_" + "aia")
+        # return out
+        return self.params.mod_path
 
         
     @staticmethod

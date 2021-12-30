@@ -181,7 +181,7 @@ class Processor:
         if imgs_directory:
             self.base_imgs_dir = imgs_directory
         elif self.base_imgs_dir is None:
-            self.base_imgs_dir = self.params.imgs_directory()
+            self.base_imgs_dir = self.params.mods_directory()
             
         if absolute is not None:
             self.base_absolute = absolute
@@ -212,7 +212,7 @@ class Processor:
     
     def load_imgs_paths(self, absolute=True, ext=".png"):
         """ Creates a List of the existant img files in the imgs_top_directory"""
-        paths, abs_paths = self.__find_ext_files_in_directory(self.params.imgs_directory(), ext)
+        paths, abs_paths = self.__find_ext_files_in_directory(self.params.mods_directory(), ext)
         out_paths = self.params.local_imgs_paths(abs_paths if absolute else paths)
         self.n_imgs = self.params.n_imgs = len(self.params.local_imgs_paths())
         if not self.quietly: print("   Found {} {} Files in {}".format(self.params.n_imgs, ext, self.params.imgs_top_directory()))
@@ -751,10 +751,11 @@ class Processor:
                 try:
                     
                     self.unpack_save_ins()
-                    if verb: self.super_flush("Success!\n")
+                    # if verb: self.super_flush("Success!\n")
+                    vprint("Success!\n", flush=True)
                 
                 except ValueError as e:
-                    print("Failed: {}".format(e))
+                    print("Failed to load Curves: {}".format(e))
                     raise e
         else:
             print("No Curves to Load")
@@ -1081,19 +1082,18 @@ class Processor:
         
     @staticmethod
     def write_video_in_directory(directory=None, file_name=None, fps=10,
-                                 folder_name='analysis', desc=" *    CurveVideoing", key_string='keyframe', fullpath=None, destroy=False, shortcut=False):
+                                 folder_name=None, desc=" *    CurveVideoing", key_string='keyframe', fullpath=None, destroy=False, shortcut=False):
         """Make a video out of whatever directory it's pointed at"""
         video_avi = None
-        if file_name is not None:
-            file_name='wave_inner_outer.avi'if file_name is None else file_name
+        file_name = file_name or 'default_videoname.avi'
         try:
             if fullpath is not None:
                 folder = os.path.dirname(fullpath)
                 good_paths = [join(folder, f) for f in listdir(folder) if ('png' in f and not os.path.isdir(join(folder, f)))]
                 video_path = fullpath.replace(".png", ".avi")
             else:
-                radial_directory = join(directory, folder_name)
-                makedirs(radial_directory, exist_ok=True)
+                radial_directory = directory
+                # makedirs(radial_directory, exist_ok=True)
                 video_path = radial_directory + "\\" + file_name
                 good_paths = [radial_directory + "\\" + f for f in listdir(radial_directory) if 'png' in f]
             

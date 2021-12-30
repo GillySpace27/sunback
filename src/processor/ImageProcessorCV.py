@@ -15,25 +15,24 @@ class ImageProcessorCV(ImageProcessor):
         super().__init__(params, quick, rp)
         self.img_frame = None
         self.out_path = None
-        # self.write_video_in_directory(fullpath=r"D:\sunback_images\MultiRange\Liftoff 0171_l_2013_09_29_000001\0171\png\cat", file_name="concatinated.avi", fps=15, destroy=False)
         
     
     def do_fits_function(self, fits_path, in_name=None):
         """ Main Call on the Fits Path """
-        self.init_frame(fits_path) #, self.params.png_frame_name)
+        self.init_frame(fits_path, self.params.png_frame_name)
         self.render_all()
         return self
     
-    # def do_img_function(self):
-    #     """ Main Call on the Fits Path """
-    #
-    #     self.init_image_frame()
-    #     self.plot_two()
-    #
-    #     self.plot_two("Less Zoomed", True)
-    #
-    #     self.display_all()
-    #     return self
+    def do_img_function(self):
+        """ Main Call on the Fits Path """
+
+        self.init_image_frame()
+        self.plot_two()
+        
+        self.plot_two("Less Zoomed", True)
+        
+        # self.display_all()
+        return self
     
     def display_all(self):
         self.display_original()
@@ -59,28 +58,11 @@ class ImageProcessorCV(ImageProcessor):
         """Render one image"""
         self.plot_aia_original()
         self.plot_aia_changed()
-        self.save_concatinated(destroy=True)
+        self.save_concatinated()
         
         # self.do_shortcut()
         
     def do_shortcut(self):
-        cat_png_path = self.cat_path
-        root_folder = os.path.dirname(self.params.base_directory())
-        fits_folder = os.path.dirname(self.params.use_image_path())
-        cat_png_filename = os.path.basename(cat_png_path)
-        shorts_folder =  os.path.join(root_folder, "shorts")
-        # short_path = os.path.join(shorts_folder, cat_png_filename.replace(".png", ".lnk"))
-        
-        
-        timestamp = self.image_data[2]
-        short_path = os.path.join(shorts_folder, "{}_{}.png".format(self.params.current_wave(), timestamp.split('.')[0]))
-        os.makedirs(shorts_folder, exist_ok=True)
-
-        src_file  =  cat_png_path
-        dest_file =  os.path.normpath(short_path)
-        shutil.copyfile(src_file, dest_file, follow_symlinks=True)
-        # self.make_shortcut(src_file,dest_file , False)
-    
         cat_png_path = self.cat_path
         root_folder = os.path.dirname(self.params.base_directory())
         fits_folder = os.path.dirname(self.params.use_image_path())
@@ -145,8 +127,7 @@ class ImageProcessorCV(ImageProcessor):
         else:
             cv2.imshow(self.params.rbg_image)
             
-        
-    
+            
     def label_plot(self):
         """Annotate with Text"""
         img = self.img_frame
@@ -181,21 +162,34 @@ class ImageProcessorCV(ImageProcessor):
         cv2.putText(img, year,    (0, h3), 0, scale, (255, 255, 255), 3)
     
     def cleanup(self):
-        destroy = False
+        self.make_intermediate_videos()
+        pass
+    
+    def make_intermediate_videos(self):
         try:
             radial_hist_path = "analysis\\radial_hist_full"
-            pathh = os.path.join(self.params.base_directory(), radial_hist_path)
-            num_pics = len([x for x in os.listdir(pathh) if "png" in x])
-            if num_pics > 1:
-                self.write_video_in_directory(fullpath=pathh,            fps=15, key_string="inner", destroy=False)
-                # self.write_video_in_directory(fullpath=radial_hist_path, fps=15, key_string="inner", destroy=False)
-                self.write_video_in_directory(fullpath=self.cat_path, file_name="concatinated.avi", fps=15, destroy=False)
+            hist_path_0 = os.path.join(self.params.base_directory(), radial_hist_path)
+            hist_path_1 = hist_path_0[:-5]
+            
+            n_hist_0 = len(os.listdir(hist_path_0))
+            n_hist_1 = len(os.listdir(hist_path_1))
+            
+            if n_hist_0:
+                self.write_video_in_directory(directory=hist_path_0, fps=15, destroy=False)
+            if n_hist_1:
+                self.write_video_in_directory(directory=hist_path_1, fps=15, destroy=False)
+            if self.params.do_cat:
+                self.write_video_in_directory(directory=self.params.cat_directory, file_name="concatinated.avi", fps=15, destroy=False)
+                
         except (FileNotFoundError, AttributeError) as e:
             print("ImageProcessorCV")
             raise(e)
-        if False: #destroy:
-            shutil.rmtree(self.orig_directory)
-            
+        
+          # destroy = False
+          # if destroy:
+          #     shutil.rmtree(self.orig_directory)
+    
+        
     @staticmethod
     def peek_frame(img):
         shrink = 5

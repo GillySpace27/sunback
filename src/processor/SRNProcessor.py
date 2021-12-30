@@ -1133,31 +1133,16 @@ class SRNProcessor(Processor):
     
     def save_radial_figures(self, do=False, fig=None, ax=None, show=False):
         
-        # print("Saving {}".format(file_name_1))
-        bs = self.params.base_directory()
-        
-        if not self.file_basename:  # gender
-            self.file_basename = basename(self.params.use_image_path())
-        
-        folder_name = "analysis\\radial_hist_full"
-        file_name_1 = 'full_{}.png'.format(self.file_basename[:-5])
-        save_path_1 = join(bs, folder_name, file_name_1)
-        
-        file_name_2 = 'zoom\\full_zoom_{}.png'.format(self.file_basename[:-5])
-        save_path_2 = join(bs, folder_name, file_name_2)
-        
         if do:
-            makedirs(dirname(save_path_1), exist_ok=True)
+            save_path_1, save_path_2 = self.params.get_pre_radial_fig_paths()
             plt.savefig(save_path_1)
-            
-            makedirs(dirname(save_path_2), exist_ok=True)
             ax.set_xlim((0.9, 1.1))
             plt.savefig(save_path_2)
-        
+
         if not show:
             plt.close(fig)
         else:
-            plt.show()
+            plt.show(block=True)
     
     def get_points(self, index):
         ## Scatter Plot
