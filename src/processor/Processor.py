@@ -657,7 +657,7 @@ class Processor:
         return self.in_name
     
     def remove_blank_frames(self, hdul):
-        vprint("Blank Frame Ran")
+        # vprint("Blank Frame Ran")
         to_replace_list = ['COMPRESSED_IMAGE', '']
         for to_replace in to_replace_list:
             if to_replace in hdul:
@@ -1082,7 +1082,7 @@ class Processor:
         
     @staticmethod
     def write_video_in_directory(directory=None, file_name=None, fps=10,
-                                 folder_name=None, desc=" *    CurveVideoing", key_string='keyframe', fullpath=None, destroy=False, shortcut=False):
+                                 folder_name=None, desc=None, key_string='keyframe', fullpath=None, destroy=False, shortcut=False):
         """Make a video out of whatever directory it's pointed at"""
         video_avi = None
         file_name = file_name or 'default_videoname.avi'
@@ -1096,6 +1096,10 @@ class Processor:
                 # makedirs(radial_directory, exist_ok=True)
                 video_path = radial_directory + "\\" + file_name
                 good_paths = [radial_directory + "\\" + f for f in listdir(radial_directory) if 'png' in f]
+                
+                if desc is None:
+                    desc = " *    Writing Video {}".format(basename(directory))
+                
             
             # Initialize the Machine
             if len(good_paths):

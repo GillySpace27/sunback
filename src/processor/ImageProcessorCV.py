@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 class ImageProcessorCV(ImageProcessor):
     filt_name = 'CV Image Writer'
     description = "Turn all the fits files into png files"
-    progress_verb = "Writing Images"
+    progress_verb = "Writing"
+    progress_unit = "Images"
 
     
     def __init__(self, params=None, quick=False, rp=None):

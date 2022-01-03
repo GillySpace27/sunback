@@ -461,7 +461,7 @@ class SRNProcessor(Processor):
         # Plot Saving
         if do_save:
             self.force_save_inner_outer(save, fig, ax, show)
-        else:
+        if show:
             plt.show(block=True)
     
     def force_save_inner_outer(self, save, fig, ax0, show):

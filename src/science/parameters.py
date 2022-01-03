@@ -25,6 +25,7 @@ class Parameters:
         """Sets all the attributes to None"""
         # Initialize Variables
 
+        self.file_basename = None
         self.orig_path = None
         self.cat_path  = None
         self.mod_path  = None
@@ -572,16 +573,17 @@ class Parameters:
 
 
     def get_pre_radial_fig_paths(self):
-        bs = self.base_directory()
-        
+
         if not self.file_basename:  # gender
-            self.file_basename = os.path.basename(self.use_image_path())
-        
-        folder_name = "analysis\\radial_hist_full"
-        file_name_1 = 'full_{}.png'.format(self.file_basename[:-5])
+            self.file_basename = os.path.basename(self.use_image_path(self.image_data[1]))
+        file_name = self.file_basename[:-5]
+
+        bs = self.analysis_directory
+        folder_name = "radial_hist_full"
+        file_name_1 = 'full_{}.png'.format(file_name)
         save_path_1 = join(bs, folder_name, file_name_1)
         
-        file_name_2 = 'zoom\\full_zoom_{}.png'.format(self.file_basename[:-5])
+        file_name_2 = 'zoom\\full_zoom_{}.png'.format(file_name)
         save_path_2 = join(bs, folder_name, file_name_2)
         
         makedirs(dirname(save_path_1), exist_ok=True)
