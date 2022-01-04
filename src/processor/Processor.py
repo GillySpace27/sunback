@@ -686,7 +686,7 @@ class Processor:
                          self.savgol_filtered_inner_minimum, self.savgol_filtered_outer_minimum,
                          self.abs_max, self.abs_min,
                          ])
-        # out_list.append([self.savgol_filtered_abs_max, self.savgol_filtered_abs_min])
+        # out_list.append([self.savgol_filtered_absol_maximum, self.savgol_filtered_absol_minimum])
         self.curve_descriptions = ["outer_min", "inner_min", "inner_max", "outer_max",
                      ["scalar_out_curve", "fit_limb_radius", "abs_min", "abs_max"], "output_abscissa",
                      "savgol_filtered_outer_maximum", "savgol_filtered_inner_maximum",
