@@ -172,9 +172,8 @@ class SRNradialFiltProcessor(SRNProcessor):
     
     def do_work(self):
         self.image_modify()
+        self.peek_norm()
         self.plot_full_normalization(True, show=False, save=True)
-        
-
         return self.params.modified_image
     
     def cleanup(self):

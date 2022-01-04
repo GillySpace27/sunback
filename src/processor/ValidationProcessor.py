@@ -161,7 +161,6 @@
 #     def add_to_keyframes(self):
 #         """Records the current analysis as one of the radial samples"""
 #         self.update_keyframe_counters()
-#         # self.remove_offset()
 #         if not self.outputs_initialized:
 #             self.init_running_curves()
 #         else:

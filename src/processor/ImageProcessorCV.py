@@ -163,7 +163,7 @@ class ImageProcessorCV(ImageProcessor):
         cv2.putText(img, year,    (0, h3), 0, scale, (255, 255, 255), 3)
     
     def cleanup(self):
-        self.make_intermediate_videos()
+        # self.make_intermediate_videos()
         pass
     
     def make_intermediate_videos(self):

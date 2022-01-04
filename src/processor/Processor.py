@@ -498,11 +498,6 @@ class Processor:
     def process_one_wavelength(self, wave):
         raise NotImplementedError()
     
-    def remove_offset(self, in_frame):
-        """Set min of array to zero"""
-        offset = np.nanmean(in_frame.flatten())
-        out_frame = in_frame - offset
-        return out_frame, offset
     
     ########################################
     ## M3: Identify Directory of Interest ##
@@ -680,22 +675,22 @@ class Processor:
         if self.absolute_min:
             self.scalar_out_curve[1] = self.absolute_min
             self.scalar_out_curve[2] = self.absolute_max
-        if self.filtered_inner_maximum is None:
-            self.filtered_outer_maximum = np.empty_like(self.outer_min)
-            self.filtered_inner_minimum = np.empty_like(self.outer_min)
-            self.filtered_inner_maximum = np.empty_like(self.outer_min)
-            self.filtered_outer_minimum = np.empty_like(self.outer_min)
+        if self.savgol_filtered_inner_maximum is None:
+            self.savgol_filtered_outer_maximum = np.empty_like(self.outer_min)
+            self.savgol_filtered_inner_minimum = np.empty_like(self.outer_min)
+            self.savgol_filtered_inner_maximum = np.empty_like(self.outer_min)
+            self.savgol_filtered_outer_minimum = np.empty_like(self.outer_min)
         
         out_list = [self.outer_min, self.inner_min, self.inner_max, self.outer_max, self.scalar_out_curve]
-        out_list.extend([self.output_abscissa, self.filtered_outer_maximum, self.filtered_inner_maximum,
-                         self.filtered_inner_minimum, self.filtered_outer_minimum,
+        out_list.extend([self.output_abscissa, self.savgol_filtered_outer_maximum, self.savgol_filtered_inner_maximum,
+                         self.savgol_filtered_inner_minimum, self.savgol_filtered_outer_minimum,
                          self.abs_max, self.abs_min,
                          ])
-        # out_list.append([self.smoothed_abs_max, self.smoothed_abs_min])
+        # out_list.append([self.savgol_filtered_abs_max, self.savgol_filtered_abs_min])
         self.curve_descriptions = ["outer_min", "inner_min", "inner_max", "outer_max",
                      ["scalar_out_curve", "fit_limb_radius", "abs_min", "abs_max"], "output_abscissa",
-                     "filtered_outer_maximum", "filtered_inner_maximum",
-                     "filtered_inner_minimum", "filtered_outer_minimum", 'smooth_abs_max','smooth_abs_min']
+                     "savgol_filtered_outer_maximum", "savgol_filtered_inner_maximum",
+                     "savgol_filtered_inner_minimum", "savgol_filtered_outer_minimum", 'smooth_abs_max','smooth_abs_min']
 
         
         none_check = [item is not None for item in out_list]
@@ -707,8 +702,8 @@ class Processor:
         """Prepare the scalar_out_curve for writing"""
         self.outer_min, self.inner_min, self.inner_max, \
         self.outer_max, self.scalar_in_curve, self.output_abscissa, \
-        self.filtered_outer_maximum, self.filtered_inner_maximum, \
-        self.filtered_inner_minimum, self.filtered_outer_minimum, \
+        self.savgol_filtered_outer_maximum, self.savgol_filtered_inner_maximum, \
+        self.savgol_filtered_inner_minimum, self.savgol_filtered_outer_minimum, \
         self.abs_max, self.abs_min, = np.loadtxt(self.params.curve_path())
         
         self.fit_limb_radius = self.scalar_in_curve[0]
