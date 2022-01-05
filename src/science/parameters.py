@@ -573,10 +573,9 @@ class Parameters:
 
 
     def get_pre_radial_fig_paths(self):
-
-        if not self.file_basename:  # gender
-            self.file_basename = os.path.basename(self.use_image_path(self.image_data[1]))
-        file_name = self.file_basename[:-5]
+        
+        file_basename = self.file_basename or os.path.basename(self.use_image_path(self.image_data[1]))
+        file_name = file_basename[:-5]
 
         bs = self.analysis_directory
         folder_name = "radial_hist_full"

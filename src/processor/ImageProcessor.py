@@ -64,10 +64,10 @@ class ImageProcessor(Processor):
             self.export_files()
         return self
     
-    def init_frame(self, fits_path, in_name=-1):
+    def init_frame(self, fits_path=None, in_name=-1):
         """Load the fits file from disk and get a field or two"""
         # self.load_curves()
-        self.fits_path = fits_path
+        self.fits_path = fits_path or self.fits_path
         if True: #self.params.original_image is None:
             frame0, _, _, _, _ = self.load_first_fits_field(fits_path)
             frame1, self.wave1, self.t_rec1, center1, int_time = self.load_a_fits_field(fits_path, in_name)
@@ -98,7 +98,7 @@ class ImageProcessor(Processor):
         self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
 
     def peek_frames(self):
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, sharex='True', sharey='True')
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex='all', sharey='all')
         ax1.imshow(self.params.original_image)
         ax2.imshow(self.params.modified_image)
         ax3.imshow(np.abs(self.params.modified_image-self.params.original_image))

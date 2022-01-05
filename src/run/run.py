@@ -97,19 +97,19 @@ class Runner:
     
     ## PRINTING
     def print_header(self):
-        print("\n\n", self.wall_1)
-        print("\nSunback SDO Image Manipulator \nWritten by C.R. Gilly")
-        print("Check out my website: http://gilly.space\n")
+        print("\n\n", self.wall_1, "\n")
+        print("          Sunback SDO Image Manipulator ")
+        print("              Written by C.R. Gilly")
+        print("     Check out my website: http://gilly.space\n")
         self.start_timestamp = time()
         if self.params.is_debug(): print("DEBUG MODE\n")
         self.print_plan()
         print("\n", self.wall_1, "\n\n")
-        # print("Runner basename: ", self.file_name)
     
     def print_plan(self):
-        print("Run Name: {}".format(self.params.batch_name()))
-        print("Run Type: {}\n".format(self.params.run_type()))
-        print(" Here's the Plan:")
+        print("     Run Name: {}".format(self.params.batch_name()))
+        print("     Run Type: {}\n".format(self.params.run_type()))
+        print("        Here's the Plan:")
         if len(self.params.fetchers()) > 0:
             for fet in self.params.fetchers():
                 fet.plan(fet)

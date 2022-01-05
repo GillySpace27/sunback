@@ -72,6 +72,7 @@ class Processor:
     paper_out = []
     
     def __init__(self, params=None, quick=False, rp=None):
+        self.load_print_latch = True
         self.found_limb_radius = None
         self.int_tm_tot = None
         self.fits_folder = None
@@ -194,12 +195,12 @@ class Processor:
     
     def print_load_banner(self, verb=False):
         if self.n_fits + self.n_imgs > 0 and verb:
-            print(' v {}...'.format(self.filt_name), flush=True)
+            print(' v {}...  ------------------------------------------------  v'.format(self.filt_name), flush=True)
             if self.progress_verb.casefold() in ["binning"]:
                 exp = self.params.exposure_time_seconds()
                 print(" *    Exposure Time is {} seconds, which is {} frames".format(exp, exp / 12))
-            print(" *    {}: {}, Redo = {}".format(self.progress_verb, self.params.current_wave(), self.reprocess_mode()))
-            vprint(" *   Loaded {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()), verb)
+            print(" +    {}: {}, Redo = {}".format(self.progress_verb, self.params.current_wave(), self.reprocess_mode()))
+            vprint(" +    Using {} fits and {} imgs from {}".format(self.n_fits, self.n_imgs, self.params.base_directory()))
     
     def load_fits_paths(self, absolute=True, ext=".fits"):
         """ Creates a List of the existant fits files in the fits_directory"""
@@ -238,6 +239,7 @@ class Processor:
         
         if frame is not None: #and self.params.original_image is None:
             self.params.original_image = np.asarray(frame, dtype=np.float32)
+            self.params.original_image2 = np.asarray(frame, dtype=np.float32)
             self.params.modified_image = copy(self.params.original_image)
             
             self.params.cmap = aia_color_table(int(wave) * u.angstrom)
@@ -419,6 +421,7 @@ class Processor:
                 print(" X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(self.skipped))
             else:
                 print(" ^ ^ ^Successfully {} {} Files ({} skipped) \n".format(self.finished_verb, n_success, self.skipped), flush=True)
+                print(" ^ --------------------------------------------------------------------  ^")
         else:
             print(" ^    No Files Found\n")
     def confirm_fits_file(self, fits_path):
@@ -710,11 +713,15 @@ class Processor:
         self.absolute_min = self.scalar_in_curve[1]
         self.absolute_max = self.scalar_in_curve[2]
     
-    def save_curves(self, banner=True):  #
+    def save_curves(self, banner=True, extra_line=False):  #
         """Save the curves so they don't have to be recalculated"""
         self.super_flush()
         if banner:
-            vprint(" *\n *    Saving Radial Curves...", end='')
+            if extra_line:
+                vprint(" *\n *    Saving Radial Curves...", end='')
+            else:
+                vprint(" *        Saving Radial Curves...", end='')
+            
         if self.prep_save_outs():
             curve_path = self.params.curve_path()
             descr_path = curve_path.replace("curve.txt", "curve_names.txt")
@@ -726,6 +733,7 @@ class Processor:
                     # len_desc = str(len(desc))
                     fp.write(str(desc) + " : len=" + len_item)
             np.savetxt(curve_path, self.curve_out_array)
+            vprint("Success!")
         else:
             vprint("Skipping Save Curves!")
     
@@ -739,18 +747,18 @@ class Processor:
     
     def load_curves(self, force=None, verb=False):
         """Load the curves so they don't have to be recalculated"""
-        
+        lc = self.load_print_latch
         if os.path.exists(self.params.curve_path()):
             if self.absolute_min is None or force:
-                vprint(" *    Loading Radial Curves...", end='')
+                if lc: vprint(" *    Loading Radial Curves...", end='')
                 try:
                     
                     self.unpack_save_ins()
                     # if verb: self.super_flush("Success!\n")
-                    vprint("Success!\n", flush=True)
-                
+                    if lc: vprint("Success!\n", flush=True)
+                    self.load_print_latch = False
                 except ValueError as e:
-                    print("Failed to load Curves: {}".format(e))
+                    print("Failed to load Radial Curves: {}".format(e))
                     raise e
         else:
             print("No Curves to Load")

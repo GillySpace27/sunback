@@ -59,7 +59,7 @@ class ImageProcessorCV(ImageProcessor):
         """Render one image"""
         self.plot_aia_original()
         self.plot_aia_changed()
-        self.save_concatinated()
+        # self.save_concatinated()
         
         # self.do_shortcut()
         

@@ -47,7 +47,7 @@ class SRNSingleShotProcessor(SRNProcessor):
 #         self.plot_norm_curves(save=False, show=True, extra=True)
         self.image_modify()  # Actually Normalize This Image
         self.first=False
-        self.plot_full_normalization(save=False, show=True, do=True)
+        self.plot_full_normalization(save=True, show=False, do=True)
         print(" ^ Success!\n")
         return self.params.modified_image
     
@@ -157,22 +157,24 @@ class SRNradialFiltProcessor(SRNProcessor):
     filt_name = 'SRN Radial Filter'
     description = "Filter the Images Radially with SRN"
     progress_verb = 'Filtering'
+    progress_unit = 'Images'
     finished_verb = "Filtered"
     
     def __init__(self, fits_path=None, in_name=-1, orig=False,
                  show=False, verb=False, quick=False, rp=None, params=None):
+    
         super().__init__(fits_path, in_name, orig, show, verb, quick, rp, params)
         self.first = True
         self.go_ahead = True
         self.can_use_keyframes = False
     
     def setup(self):
-        self.load_curves()
         self.super_flush()
+        self.load_curves()
     
     def do_work(self):
         self.image_modify()
-        self.peek_norm()
+        # self.peek_norm()
         self.plot_full_normalization(True, show=False, save=True)
         return self.params.modified_image
     

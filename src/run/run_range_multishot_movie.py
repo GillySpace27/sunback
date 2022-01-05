@@ -24,10 +24,10 @@ def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None):
     # p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
 
     # p.processors([SRNpreProcessor],         rp=False)  # Learns the bounds of the dataset for SRN
-    p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
+    # p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
 
     p.processors([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
-    # p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
+    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
     
     # Run the Code
     run.Runner(p).start()
