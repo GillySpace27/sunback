@@ -60,7 +60,7 @@ class Runner:
         # if type(self) is SingleRunner:
         #     self.process_single()
         #     return
-            
+        
         print(self.wall_2)
         # print(self.params.runner_name)
         print("Starting Batch: {}".format(self.params.batch_name()))
@@ -68,15 +68,16 @@ class Runner:
         self.params.set_waves_to_do()
         
         for wave in self.params.waves_to_do:
+            print("Wavelength = {}".format(self.params.current_wave()))
             self.params.current_wave(wave)
-            
+    
             if len(self.params.fetchers()) > 0:
                 sys.stdout.flush()
                 print("\n>>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
                 # print(" Redownload Mode: {}\n".format(self.params.download_files()))
                 for fet, rp in zip(self.params.fetchers(), self.params._fet_rp):
                     fet(params=self.params, rp=rp).fetch()
-            
+    
             if len(self.params.processors()) > 0:
                 sys.stdout.flush()
                 print(">>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
@@ -84,7 +85,7 @@ class Runner:
                 sys.stdout.flush()
                 for proc, rp in zip(self.params.processors(), self.params._proc_rp):
                     proc(params=self.params, rp=rp).process()
-            
+    
             if len(self.params.putters()) > 0:
                 sys.stdout.flush()
                 print(">>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
@@ -92,7 +93,7 @@ class Runner:
                 # print(" Redo Videos: {}".format(self.params.write_video()))
                 for put, rp in zip(self.params.putters(), self.params._put_rp):
                     put(params=self.params, rp=rp).put()
-            
+    
             self.print_end_banner()
     
     ## PRINTING
@@ -102,14 +103,17 @@ class Runner:
         print("              Written by C.R. Gilly")
         print("     Check out my website: http://gilly.space\n")
         self.start_timestamp = time()
-        if self.params.is_debug(): print("DEBUG MODE\n")
+        if self.params.is_debug(): print("                    DEBUG MODE\n")
         self.print_plan()
         print("\n", self.wall_1, "\n\n")
     
-    def print_plan(self):
+    def print_plan(self, end=False):
         print("     Run Name: {}".format(self.params.batch_name()))
         print("     Run Type: {}\n".format(self.params.run_type()))
-        print("        Here's the Plan:")
+        if end:
+            print("        Summery of Job:")
+        else:
+            print("   Here's the Plan:")
         if len(self.params.fetchers()) > 0:
             for fet in self.params.fetchers():
                 fet.plan(fet)
@@ -122,17 +126,20 @@ class Runner:
             for put in self.params.putters():
                 put.plan(put)
         
-        print("  And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
+        print("   And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
         # print("\n")
     
     def print_end_banner(self):
         mode_string = "" if self.params.stop_after_one() else ", Restarting Loop"
         print("\n" + self.wall_2)
+        print("Started at {}".format(self.start_timestamp))
         self.elapsed = time() - self.start_timestamp
         self.start_timestamp = time()
+        print("Ended at {}".format(self.start_timestamp))
         minutes = int(np.floor(self.elapsed / 60))
         seconds = int(self.elapsed - minutes * 60)
         print("Program Complete in {} minutes and {} seconds. {}".format(minutes, seconds, mode_string))
+        self.print_plan(end=True)
         print(self.wall_2 + "\n")
         
         # for ii in range(4):

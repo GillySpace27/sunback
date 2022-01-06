@@ -23,21 +23,24 @@
 #         print(txt, **kwargs)
 #
 #
-# class ValidationProcessor(Processor):
-#     """This is the primary code used in the RadialFiltProcessor"""
-#
-#     name = "Default"
-#     filt_name = '  SRN Radial Base Class'
-#     description = "Create and Apply the Radial SRN Curves"
-#     out_name = None
-#     do_png = False
-#     renew_mask = True
-#     show_plots = True
-#
-#
-#     def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
-#         """Initialize the main class"""
-#         super().__init__(params, quick, rp)
+import os
+from os.path import join
+
+from astropy.io import fits
+from tqdm import tqdm
+
+from processor.Processor import Processor
+
+
+class ValidationProcessor(Processor):
+    filt_name = 'Validation Processor'
+    description = "Verify Good Images"
+    progress_verb = "Validating"
+    progress_unit = "Fits Files"
+
+    def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
+        """Initialize the main class"""
+        super().__init__(params, quick, rp)
 #         # Parse Inputs
 #
 #     ###################
@@ -48,10 +51,11 @@
 #         """Do prep work once before the main algorithm"""
 #         raise NotImplementedError
 #
-#     def do_work(self):
-#         """Do whatever you want to each image in the directory"""
-#         self.image_validate()
-#
+    def fetch(self):
+        """Do whatever you want to each image in the directory"""
+        to_destroy = self.validate_fits()
+        self.destroy_files(to_destroy)
+#                self.remove_files(local_fits_path)
 #     def cleanup(self):
 #         """Runs once after all the images have been modified with do_work"""
 #         raise NotImplementedError
@@ -67,42 +71,119 @@
 #     ## Top-Level ##
 #     ###################
 #
-#     def image_validate(self):
-#         print("I Validated!")
-#         pass
-#
-#     def validate_fits(self):
-#         from statistics import mode
-#         # self.file_size_mode = reprocess_mode(self.file_size)
-#         self.redownload = []
-#         for local_file in self.params.local_fits_paths():
-#             abs_path = join(self.fits_folder, local_file)
-#             with fits.open(abs_path, ignore_missing_end=True) as hdul:
-#                 hdul.verify('silentfix+warn')
-#                 delete = False
-#                 try:
-#                     try:
-#                         hh = 0
-#                         total_counts = np.nansum(hdul[hh].data)
-#                     except Exception as e:
-#                         print(e)
-#                         hh = 1
-#                         delete = True
-#                         total_counts = np.nansum(hdul[hh].data)
-#                         delete = False
-#                     this_size = stat(abs_path).st_size
-#                     data = hdul[hh].data
-#                     if total_counts < 0:  # or not this_size == self.file_size_mode:
-#                         delete = True
-#                 except TypeError as e:
-#                     print(e)
-#                     delete = True
-#
-#             if delete:
-#                 self.remove_and_mark_redownload(local_file)
-#         n_corrupt = len(self.redownload)
-#         if n_corrupt:
-#             print("        Deleted {} corrupted files. Re-downloading...".format(n_corrupt))
+    def validate_fits(self):
+        import numpy as np
+        
+        all_fits_paths = self.params.local_fits_paths()
+        n_fits = len(all_fits_paths)
+        destroyed = 0
+        dark = 0
+        missing = 0
+        to_destroy = []
+        print('')
+        for local_fits_path in tqdm(all_fits_paths, desc=" > Validating Fits Files", unit='imgs'):
+        # for local_fits_path in all_fits_paths:
+            delete = False
+            
+            with fits.open(local_fits_path, ignore_missing_end=True) as hdul:
+                hdul.verify('silentfix+warn')
+                
+                #TEST 1 - IS IT A DARK FRAME?
+                img_type = hdul[1].header['IMG_TYPE']
+                if img_type.casefold() == 'dark'.casefold():
+                    delete = True
+                    dark += 1
+                    print("Dark Image Detected")
+                    
+                #TEST 2 - IS FILLED WITH NULLS?
+                frame = hdul[-1].data
+                good_pix = np.sum(np.isfinite(frame))
+                total_pix = frame.shape[0]*frame.shape[1]
+                good_percent = good_pix / total_pix
+                # Dark Frame had 0.37
+                if good_percent < 0.6:
+                    # print("Good Percent: {:0.4f}".format(good_percent))
+                    delete = True
+                    missing += 1
+                    print("Missing Data Detected")
+                hdul.close()
+
+            if delete:
+                to_destroy.append(local_fits_path)
+                destroyed += 1
+                n_fits -= 1
+        if destroyed:
+            print(" ii     Fits Files Validated: {}, Bad Frames: {}\n".format(n_fits, destroyed))
+        else:
+            print(" ii     Fits Files Validated: {}. No Bad Frames!\n".format(n_fits))
+    
+        if missing:
+            print(" ii          > {} missing data".format(missing))
+        if dark:
+            print(" ii          > {} dark frames".format(dark))
+            
+        return to_destroy
+       
+    def destroy_files(self, to_destroy=[]):
+        for path in to_destroy:
+            self.remove_files(path)
+        
+    def remove_files(self, local_fits_path):
+        # if local_fits_path in self.params.local_fits_paths():
+        #     self.params.local_fits_paths().remove(local_fits_path)
+        
+        dir = os.path.dirname(local_fits_path)
+        directory = dir.replace('fits', 'png\\mod')
+        file = os.path.basename(local_fits_path)
+        png_file = file.replace('.fits', '.png')
+        png_path = os.path.join(directory, png_file)
+    
+        dead_paths = [local_fits_path, png_path, png_path.replace("mod", "cat"), png_path.replace("mod", "orig")]
+        deleted_files = 0
+        print()
+        for path in dead_paths:
+            try:
+                print("    Deleting a File...", end="")
+                os.remove(path)
+                if os.path.exists(path):
+                    raise FileExistsError(path)
+                print("Success!")
+                deleted_files += 1
+            except PermissionError as e:
+                print(" Couldn't Access/Delete\n {}".format(path))
+                print(e)
+                # raise e
+            except FileExistsError as e:
+                print(" File was still there after attempted deletion\n{}".format(os.path.basename(path)))
+                # print(e)
+            except FileNotFoundError as e:
+                # print(" Not Found to Delete\n {}".format(path))
+                pass
+            except Exception as e:
+                print(" Failed to Delete\n {}".format(path))
+                print(e)
+                1+1
+        print("Actually Deleted {} Files".format(deleted_files))
+        
+        # try:
+        # # try:
+        # #     hh = 0
+        # #     total_counts = np.nansum(hdul[hh].data)
+        # # except Exception as e:
+        # #     print(e)
+        # #     hh = 1
+        # #     delete = True
+        # #     total_counts = np.nansum(hdul[hh].data)
+        # #     delete = False
+        # # this_size = stat(abs_path).st_size
+        # # data = hdul[hh].data
+        # # if total_counts < 0:  # or not this_size == self.file_size_mode:
+        # #     delete = True
+        # except TypeError as e:
+        #     print(e)
+        #     delete = True
+
+
 #
 #     def redownload_bad_fits(self):
 #         if len(self.redownload) > 0:

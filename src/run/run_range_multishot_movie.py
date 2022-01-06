@@ -1,12 +1,20 @@
 import os
 
+from fetcher.LocalFetcher import LocalFetcher
 from processor.ImageProcessorCV import ImageProcessorCV
 from processor.SRNSubProcessors import SRNradialFiltProcessor
+from processor.ValidationProcessor import ValidationProcessor
 from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
 import run
-import matplotlib.pyplot as plt
 
+import matplotlib as mpl
+
+try:
+    mpl.use("qt5agg")
+except ImportError as e:
+    print(e)
+import matplotlib.pyplot as plt
 plt.ioff()
 
 
@@ -24,11 +32,11 @@ def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None):
     # p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
 
     # p.processors([SRNpreProcessor],         rp=False)  # Learns the bounds of the dataset for SRN
-    # p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
+    p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
 
     p.processors([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
-    
+    # p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
+    print(p.fetchers())
     # Run the Code
     run.Runner(p).start()
 
@@ -135,8 +143,8 @@ def make_configs():
     }
     c8 = {
         "name": "Liftoff",
-        "debug": True, "do_one": '0304', "stop": True,
-        "tstart": '2013/09/28 00:00:05', "tend": '2013/09/30 00:00:00',
+        "debug": True, "do_one": '193', "stop": True,
+        "tstart": '2013/09/28 00:00:05', "tend": '2013/09/31 00:00:00',
         "cadence_minutes": 15, "fps": 13, "exposure_time": 60,
         "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
     }

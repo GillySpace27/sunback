@@ -164,6 +164,7 @@ class SRNradialFiltProcessor(SRNProcessor):
                  show=False, verb=False, quick=False, rp=None, params=None):
     
         super().__init__(fits_path, in_name, orig, show, verb, quick, rp, params)
+        self.show_norm = False
         self.first = True
         self.go_ahead = True
         self.can_use_keyframes = False
@@ -175,7 +176,8 @@ class SRNradialFiltProcessor(SRNProcessor):
     def do_work(self):
         self.image_modify()
         # self.peek_norm()
-        self.plot_full_normalization(True, show=False, save=True)
+        
+        self.plot_full_normalization(True, show=self.show_norm, save=True)
         return self.params.modified_image
     
     def cleanup(self):

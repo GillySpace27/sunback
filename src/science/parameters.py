@@ -7,6 +7,7 @@ import numpy as np
 from astropy import units as u
 from fetcher.LocalFetcher import LocalFetcher
 from processor.Processor import Processor
+from processor.ValidationProcessor import ValidationProcessor
 from putter.NullPutter import NullPutter
 # from utils.file_util import find_root_directory
 import matplotlib.pyplot as plt
@@ -127,11 +128,11 @@ class Parameters:
         self.do_cat = False
         self.do_single = False
         
-        self._fetchers = [LocalFetcher]
+        self._fetchers = [LocalFetcher, ValidationProcessor]
         self._processors = []
         self._putters = [NullPutter]
         
-        self._fet_rp = [None]
+        self._fet_rp = [None, None]
         self._proc_rp = []
         self._put_rp = [None]
         # self.set_default_values()

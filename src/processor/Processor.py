@@ -105,7 +105,7 @@ class Processor:
         self.proc_name = self.filt_name
         if 'null' not in self.proc_name.casefold():
             proc_name = self.proc_name + "\t : \t" + self.description
-            print('   ' + proc_name)
+            print('      ' + proc_name)
             
     def put(self, params=None):
         self.process(params)
@@ -195,7 +195,7 @@ class Processor:
     
     def print_load_banner(self, verb=False):
         if self.n_fits + self.n_imgs > 0 and verb:
-            print(' v {}...  ------------------------------------------------  v'.format(self.filt_name), flush=True)
+            print('\r v {}...  ------------------------------------------------  v'.format(self.filt_name), flush=True)
             if self.progress_verb.casefold() in ["binning"]:
                 exp = self.params.exposure_time_seconds()
                 print(" *    Exposure Time is {} seconds, which is {} frames".format(exp, exp / 12))
@@ -235,9 +235,9 @@ class Processor:
         if self.fits_path is None:
             self.fits_path = self.params.local_fits_paths()[0]
         
-        frame, wave, t_rec, center, int_time = self.load_best_fits_field(self.fits_path, in_name)
+        frame, wave, t_rec, center, int_time, img_type = self.load_best_fits_field(self.fits_path, in_name)
         
-        if frame is not None: #and self.params.original_image is None:
+        if frame is not None and img_type.casefold() != 'dark':
             self.params.original_image = np.asarray(frame, dtype=np.float32)
             self.params.original_image2 = np.asarray(frame, dtype=np.float32)
             self.params.modified_image = copy(self.params.original_image)
@@ -253,8 +253,23 @@ class Processor:
             self.params.image_data = self.image_data
             return True
         else:
-            print("Failed to Load Fits!")
+            print("Skipped Fits!")
+            if img_type.casefold() == 'dark':
+                self.delete_fits_and_png(fits_path)
             return False
+    
+    def delete_fits_and_png(self, fits_path):
+        # fitsPath = join(self.fits_folder, filename[:-5] + '.fits')
+        pngPath = fits_path.replace("fits", "png")
+        try:
+            os.remove(fits_path)
+        except PermissionError as e:
+            print(e)
+        try:
+            os.remove(pngPath)
+        except FileNotFoundError as e:
+            print(e)
+            pass
     
     def plot_two(self, name="Algorithm Result", bounds=None):
         fig, (ax0, ax1) = plt.subplots(1,2, sharex=True, sharey=True, num=name)
@@ -421,7 +436,7 @@ class Processor:
                 print(" X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(self.skipped))
             else:
                 print(" ^ ^ ^Successfully {} {} Files ({} skipped) \n".format(self.finished_verb, n_success, self.skipped), flush=True)
-                print(" ^ --------------------------------------------------------------------  ^")
+                print(" ^ ------------------------------------------------------------------------  ^\n")
         else:
             print(" ^    No Files Found\n")
     def confirm_fits_file(self, fits_path):
@@ -442,6 +457,7 @@ class Processor:
     
         if self.save_to_fits and frame is not None:
             self.save_frame_to_fits_file(fits_path, frame)
+            
         return frame
     
 
@@ -637,9 +653,9 @@ class Processor:
             else:
                 self.in_name = in_name
             wave, t_rec, center, int_time, self.found_limb_radius = self.get_fits_info(hdul)
-            frame = self.open_fits_hdul(hdul)
-            # hdul.close()
-        return frame, wave, t_rec, center, int_time
+            frame, header = self.open_fits_hdul(hdul)
+            img_type = header['IMG_TYPE']
+        return frame, wave, t_rec, center, int_time, img_type
     
     def set_hdul_in_name(self, fits_path=None, hdul=None, field=None):
         """Determine the right in_name given any kind of input"""
@@ -752,10 +768,10 @@ class Processor:
             if self.absolute_min is None or force:
                 if lc: vprint(" *    Loading Radial Curves...", end='')
                 try:
-                    
                     self.unpack_save_ins()
                     # if verb: self.super_flush("Success!\n")
-                    if lc: vprint("Success!\n", flush=True)
+                    if lc: vprint("Success!", flush=True)
+                    if False: print('', flush=True)
                     self.load_print_latch = False
                 except ValueError as e:
                     print("Failed to load Radial Curves: {}".format(e))
@@ -848,7 +864,7 @@ class Processor:
                 t_rec = first_data_hdul.header['T_OBS']
                 center = [first_data_hdul.header['X0_MP'], first_data_hdul.header['Y0_MP']]
                 int_time = first_data_hdul.header['EXPTIME']
-                found_limb_radius = first_data_hdul.header['R_SUN'] #TODO make this more real
+                found_limb_radius = first_data_hdul.header['R_SUN']
                 while found_limb_radius > first_data_hdul.header['NAXIS1']:
                     found_limb_radius /= 4.0
                 break
@@ -872,9 +888,10 @@ class Processor:
         data = None
         try:
             data = field_hdu.data
+            header = hdul[1].header
         except TypeError:
             vprint("Processor: 705 !Failed to Load Frame!")
-        return data
+        return data, header
     
     def determine_penultimate_frame_name(self, hdul=None):
         if not self.hdu_name_list:
