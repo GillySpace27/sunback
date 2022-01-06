@@ -33,7 +33,7 @@ class FidoTimeIntProcessor(FidoFetcher):
     in_name = -1
     out_name = "t_integrated"
     description = "Get many frames around the keyframe and sum them"
-    progress_verb = 'Binning'
+    progress_verb = 'binning'
     finished_verb = "Summed"
     dopng = False
     temp_folder = ''
@@ -62,7 +62,7 @@ class FidoTimeIntProcessor(FidoFetcher):
 
     def fido_get_fits_short_cadence(self, temp=True, hold=None):
         self.load(self.params, wave=self.params.current_wave())
-        vprint(" v Fetching Fits Files: {}".format(self.params.current_wave()))
+        vprint(" v Fetching Short Cadence Fits Files: {}".format(self.params.current_wave()))
         if self.should_get_files():
             self.print_load_banner(verb=self.verb)
             self.prep_temp_folder()

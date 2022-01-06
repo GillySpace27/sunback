@@ -148,6 +148,10 @@ class Parameters:
             else:
                 self._fetchers.extend(_fetchers)
                 self._fet_rp.extend([rp])
+                
+            if ValidationProcessor in self._fetchers:
+                self._fetchers.remove(ValidationProcessor)
+            self._fetchers.append(ValidationProcessor)
         
         return self._fetchers
     

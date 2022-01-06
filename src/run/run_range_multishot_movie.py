@@ -1,8 +1,10 @@
 import os
 
+from fetcher.FidoFetcher import FidoFetcher
+from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from fetcher.LocalFetcher import LocalFetcher
 from processor.ImageProcessorCV import ImageProcessorCV
-from processor.SRNSubProcessors import SRNradialFiltProcessor
+from processor.SRNSubProcessors import SRNradialFiltProcessor, SRNpreProcessor
 from processor.ValidationProcessor import ValidationProcessor
 from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
@@ -21,6 +23,7 @@ plt.ioff()
 # tstart='2014/11/04 01:00:00', tend='2014/11/08 00:00:00',
 # tstart='2016/11/04 01:00:00', tend='2016/11/06 00:00:00',
 # dostring = "Beautiful 304_l"
+wave_to_use = '0193'
 
 def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None):
     # Set the Parameters
@@ -28,15 +31,16 @@ def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None):
     p.do_recent(False)
     
     # Set the Processes
-    # p.fetchers(FidoFetcher, rp=True)                # Gets Fits FIDO
-    # p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
+    # p.fetchers(FidoFetcher, rp=True)  # Gets Fits FIDO
 
-    # p.processors([SRNpreProcessor],         rp=False)  # Learns the bounds of the dataset for SRN
+    p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
+
+    p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
     p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
 
     p.processors([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
-    # p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
-    print(p.fetchers())
+    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
+
     # Run the Code
     run.Runner(p).start()
 
@@ -143,8 +147,8 @@ def make_configs():
     }
     c8 = {
         "name": "Liftoff",
-        "debug": True, "do_one": '193', "stop": True,
-        "tstart": '2013/09/28 00:00:05', "tend": '2013/09/31 00:00:00',
+        "debug": True, "do_one": wave_to_use, "stop": True,
+        "tstart": '2013/09/28 00:00:05', "tend": '2013/09/30 23:59:59',
         "cadence_minutes": 15, "fps": 13, "exposure_time": 60,
         "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
     }

@@ -146,7 +146,7 @@ class FidoFetcher(Fetcher):
             
             
         if self.fido_search_found_num > 200:
-            response = input("Do you still want to download all {} images?".format(self.fido_search_found_num))
+            response = input("Do you still want to download all {} images? [y]/n _".format(self.fido_search_found_num))
             if 'n' in response.casefold():
                 print("Stopping!")
                 raise StopIteration
