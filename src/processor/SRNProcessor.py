@@ -442,11 +442,11 @@ class SRNProcessor(Processor):
                 file_name_1 = 'keyframe_{}.png'.format(fstring)
                 file_name_2 = 'zoom_{}.png'.format(fstring)
             
-            save_path_1 = join(bs, folder_name, 'radial_hist', file_name_1)
-            save_path_2 = join(bs, folder_name, 'radial_hist', 'zoom', file_name_2)
+            save_path_1 = join(bs, folder_name, 'radial_hist_pre', file_name_1)
+            save_path_2 = join(bs, folder_name, 'radial_hist_pre', 'zoom', file_name_2)
             
             makedirs(dirname(save_path_1), exist_ok=True)
-            # makedirs(dirname(save_path_2), exist_ok=True)
+            makedirs(dirname(save_path_2), exist_ok=True)
             fig.set_size_inches((20, 10))
             plt.tight_layout()
             

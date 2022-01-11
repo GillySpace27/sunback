@@ -168,7 +168,8 @@ class ImageProcessorCV(ImageProcessor):
     
     def make_intermediate_videos(self):
         try:
-            radial_hist_path = "analysis\\radial_hist_full"
+            print("Writing Video...", end='')
+            radial_hist_path = "analysis\\radial_hist_post"
             hist_path_0 = os.path.join(self.params.base_directory(), radial_hist_path)
             hist_path_1 = hist_path_0[:-5]
             
@@ -181,7 +182,7 @@ class ImageProcessorCV(ImageProcessor):
                 self.write_video_in_directory(directory=hist_path_1, fps=15, destroy=False)
             if self.params.do_cat:
                 self.write_video_in_directory(directory=self.params.cat_directory, file_name="concatinated.avi", fps=15, destroy=False)
-                
+            print("Success!")
         except (FileNotFoundError, AttributeError) as e:
             print("ImageProcessorCV")
             raise(e)

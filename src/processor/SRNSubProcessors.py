@@ -84,7 +84,6 @@ class SRNpreProcessor(SRNProcessor):
         if self.should_run():
             self.image_learn()
             self.plot_norm_curves(save=True)
-            # self.plot_full_normalization(do=True, show=False, save=True)
         return None
     
     def cleanup(self):
@@ -94,27 +93,30 @@ class SRNpreProcessor(SRNProcessor):
             self.save_curves(banner=False)
             self.make_smoothed_curves(banner=False)  # Build smooth curves based on the statistics
             self.save_curves()
-        self.render_inner_outer_video()
+        self.render_pre_hist_video()
         # print("Curves Saved!")
         
         
-    def render_inner_outer_video(self):
+    def render_pre_hist_video(self):
         fps = 8
         os.makedirs(self.params.base_directory(), exist_ok=True)
+        print("Rendering pre-processor video...", end='')
+        path1 = os.path.join(self.params.base_directory(),"analysis\\radial_hist_pre\\pre-hist.avi")
+        self.write_video_in_directory(fullpath=path1, fps=fps, key_string="inner", destroy=False, pop=2)
         
-        path1 = os.path.join(self.params.base_directory(),"analysis\\radial_hist\\{}_inner_outer_{}.avi".format(self.params.current_wave(), time()))
-        # path2 = os.path.join(self.params.base_directory(), "analysis\\radial_hist\\zoom\\{}_zoom_{}.avi".format(self.params.current_wave(), time()))
+        # path1 = os.path.join(self.params.base_directory(),"analysis\\radial_hist_pre\\{}_inner_outer_{}.avi".format(self.params.current_wave(), time()))
+        # path2 = os.path.join(self.params.base_directory(), "analysis\\radial_hist_pre\\zoom\\{}_zoom_{}.avi".format(self.params.current_wave(), time()))
         
         # directory1 = os.path.dirname(path1)
         # name1 = os.path.basename(path1)
         # directory2 = os.path.dirname(path2)
         # name2 = os.path.basename(path2)
         
-        self.write_video_in_directory(fullpath=path1, fps=fps, key_string="inner", destroy=False)
         # self.write_video_in_directory(fullpath=path2, fps=fps, key_string="zoom" , destroy=False)
         
         # self.delete_temp_folder_items(os.path.dirname(path1))
         # self.delete_temp_folder_items(os.path.dirname(path1))
+        print("Success!")
     
     def should_run(self):
         """Decide of the processor should run on this file"""
@@ -125,6 +127,8 @@ class SRNpreProcessor(SRNProcessor):
         not_made_yet = not os.path.exists(self.params.curve_path()) or self.outer_min is None
         frame_is_not_loaded = self.params.original_image is None
         self.go_ahead = not_weak & not_dark and (set_to_make or not_made_yet or frame_is_not_loaded)
+        if self.go_ahead: print("GO AHEAD")
+        else: print("NOT TODAY")
         return self.go_ahead
 
 
@@ -182,7 +186,28 @@ class SRNradialFiltProcessor(SRNProcessor):
     
     def cleanup(self):
         """Runs after all the images have been modified with do_work"""
+        self.render_post_hist_video()
         print(" ^ Filter Applied Successfully", flush=True)
-        pass
-        # folder_name = os.path.abspath(os.path.join(self.params.base_directory(), "analysis\\radial_hist_full"))
-        # self.write_video_in_directory(fullpath=folder_name, file_name="full_hist.avi", fps=5, destroy=False)
+
+
+    def render_post_hist_video(self):
+        print("Rendering post-processor video...", end='')
+        fps = 8
+        os.makedirs(self.params.base_directory(), exist_ok=True)
+        path1 = os.path.join(self.params.base_directory(), "analysis\\radial_hist_post\\post-hist.avi")
+        self.write_video_in_directory(fullpath=path1, fps=fps, destroy=False, pop=2)
+        
+        
+        # path1 = os.path.join(self.params.base_directory(),"analysis\\radial_hist_pre\\{}_inner_outer_{}.avi".format(self.params.current_wave(), time()))
+        # path2 = os.path.join(self.params.base_directory(), "analysis\\radial_hist_pre\\zoom\\{}_zoom_{}.avi".format(self.params.current_wave(), time()))
+        
+        # directory1 = os.path.dirname(path1)
+        # name1 = os.path.basename(path1)
+        # directory2 = os.path.dirname(path2)
+        # name2 = os.path.basename(path2)
+        
+        # self.write_video_in_directory(fullpath=path2, fps=fps, key_string="zoom" , destroy=False)
+        
+        # self.delete_temp_folder_items(os.path.dirname(path1))
+        # self.delete_temp_folder_items(os.path.dirname(path1))
+        print("Success!")

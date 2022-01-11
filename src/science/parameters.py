@@ -585,7 +585,7 @@ class Parameters:
         file_name = file_basename[:-5]
 
         bs = self.analysis_directory
-        folder_name = "radial_hist_full"
+        folder_name = "radial_hist_post"
         file_name_1 = 'full_{}.png'.format(file_name)
         save_path_1 = join(bs, folder_name, file_name_1)
         

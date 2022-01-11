@@ -23,19 +23,19 @@ plt.ioff()
 # tstart='2014/11/04 01:00:00', tend='2014/11/08 00:00:00',
 # tstart='2016/11/04 01:00:00', tend='2016/11/06 00:00:00',
 # dostring = "Beautiful 304_l"
-#         self.all_wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
-wave_to_use = '0131'
+all_wavelengths = ['0193','0171',  '0211', '0304', '0131', '0335', '0094']
+do_wavelengths = all_wavelengths #  ['0211']
+# wave_to_use = '0211'
 
-def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None):
+def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None, wave_to_use=None):
     # Set the Parameters
-    p = make_params(batch_name, wave, config)
+    p = make_params(batch_name, wave, config, wave_to_use)
     p.do_recent(False)
     p.skip_validation = True
     
     # Set the Processes
-    p.fetchers(FidoFetcher, rp=True)  # Gets Fits FIDO
-
-    p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
+    p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
+    p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
     #
     p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
     p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
@@ -44,17 +44,18 @@ def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None):
     p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
 
     # Run the Code
+    print(p.do_one())
     run.Runner(p).start()
 
 
-def make_params(batch_name=None, wave=None, config=None):
+def make_params(batch_name=None, wave=None, config=None, wave_to_use=None):
     
     if wave:
         batch_name = batch_name + ' ' + wave
     
     # Set the Parameters
     if not config:
-        ConfigDict = make_configs()
+        ConfigDict = make_configs(wave_to_use)
         config = ConfigDict[batch_name]
         
     p = Parameters()
@@ -85,12 +86,12 @@ def make_params(batch_name=None, wave=None, config=None):
     return p
 
 
-def make_configs():
+def make_configs(wave_to_use):
     c8 = {
         "name": "Liftoff",
         "debug": True, "do_one": wave_to_use, "stop": True, #"tend": '2013/09/30 23:59:59',
-        "tstart": '2013/09/28 00:00:05', "tend": '2013/09/28 01:00:05',
-        "cadence_minutes": 15, "fps": 13, "exposure_time": 60,
+        "tstart": '2013/09/28 00:00:10', "tend": '2013/09/28 06:00:10',
+        "cadence_minutes": 20, "fps": 9, "exposure_time": 120,
         "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
     }
     c0 = {
@@ -211,7 +212,8 @@ def make_configs():
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run_range_multishot_movie()
+    for wave_to_use in do_wavelengths:
+        run_range_multishot_movie(wave_to_use=wave_to_use)
     # run_range_multishot_movie(dostring)
 
 

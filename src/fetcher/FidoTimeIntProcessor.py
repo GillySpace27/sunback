@@ -29,7 +29,7 @@ def vprint(in_string, verb=None, *args, **kwargs):
         print(in_string, *args, **kwargs)
 
 class FidoTimeIntProcessor(FidoFetcher):
-    name = filt_name = "Time Integration {} Seconds"
+    name = filt_name = "Time Integration"
     in_name = -1
     out_name = "t_integrated"
     description = "Get many frames around the keyframe and sum them"
@@ -39,11 +39,10 @@ class FidoTimeIntProcessor(FidoFetcher):
     exposure_paths = []
     
     ## Structure ###
-    
     def __init__(self, params=None, quick=False, rp=False):
         # Initialize class variables
         super().__init__(params, quick, rp)
-        self. progress_verb = 'Time Integrating: {} Seconds'.format(self.params.exposure_time_seconds)
+        self.progress_verb = 'Time Integrating: {} Seconds'.format(self.params.exposure_time_seconds())
         self.name = self.name.format(self.params.exposure_time_seconds)
         self.do_delete = True
         self.orig_t_int = None
@@ -51,8 +50,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.main_time_period = None
         self.subname = 'default'
         self.hold = False
-        self.verb=False
-        # self.fetch()
+        self.verb = False
 
     def should_get_files(self):
         return self.params.download_files() or self.reprocess_mode() or not self.verb

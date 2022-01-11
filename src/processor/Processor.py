@@ -199,11 +199,11 @@ class Processor:
     def print_load_banner(self, verb=False):
         if self.n_fits + self.n_imgs > 0 and verb:
             print('\r v {}...  ------------------------------------------------  v'.format(self.filt_name), flush=True)
-            if self.progress_verb.casefold() in ["binning"]:
+            if self.finished_verb.casefold() in ["summed"]:
                 exp = self.params.exposure_time_seconds()
                 print(" *    Exposure Time is {} seconds, which is {} frames".format(exp, exp / 12))
-            print(" +    {}: {}, Redo = {}".format(self.progress_verb, self.params.current_wave(), self.reprocess_mode()))
-            vprint(" +    Using {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()))
+            print("\r +    {}: {}, Redo = {}".format(self.progress_verb, self.params.current_wave(), self.reprocess_mode()))
+            vprint("\r +    Using {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()))
     
     def load_fits_paths(self, absolute=True, ext=".fits"):
         """ Creates a List of the existant fits files in the fits_directory"""
@@ -345,8 +345,7 @@ class Processor:
         self.long_list = copy(self.all_file_paths)
         self.n_all_frames = len(self.long_list)
         n_paths = len(self.long_list)
-        # self.short_list = []
-        if self.n_all_frames < 10:
+        if self.n_all_frames < 100:
             use_all = True
             
         if use_all:
@@ -361,6 +360,16 @@ class Processor:
             skip = max(n_paths // self.params.fixed_number_keyframes(), 1)
             self.short_list = self.long_list[::skip]
         self.n_do_frames = len(self.short_list)
+        
+        # percent_too_low = self.n_do_frames / self.n_all_frames < 0.25
+        # number_of_frames_too_low = self.n_do_frames < 5
+        # if number_of_frames_too_low:
+        #     if percent_too_low:
+        #         pass
+        #     else:
+        #         pass
+        #
+        
         return self.short_list
     
     def print_keyframes(self):
@@ -1108,7 +1117,7 @@ class Processor:
         
         
     @staticmethod
-    def write_video_in_directory(directory=None, file_name=None, fps=10,
+    def write_video_in_directory(directory=None, file_name=None, fps=10, pop=None,
                                  folder_name=None, desc=None, key_string='keyframe', fullpath=None, destroy=False, shortcut=False):
         """Make a video out of whatever directory it's pointed at"""
         video_avi = None
@@ -1127,6 +1136,23 @@ class Processor:
                 if desc is None:
                     desc = " *    Writing Video {}".format(basename(directory))
                 
+            if pop:
+                filename = os.path.basename(video_path)
+                directory = os.path.dirname(video_path)
+                up_dir_1 = os.path.dirname(directory)
+                up_dir_2 = os.path.dirname(up_dir_1)
+                up_dir_3 = os.path.dirname(up_dir_2)
+                
+                if pop is True:
+                    up_dir = up_dir_1
+                if pop == 2:
+                    up_dir = up_dir_2
+                if pop == 3:
+                    up_dir = up_dir_3
+                    
+                
+                video_path = os.path.join(up_dir,"video", filename)
+                
             
             # Initialize the Machine
             if len(good_paths):
@@ -1142,6 +1168,7 @@ class Processor:
                     # for img_path in good_paths:
             else:
                 print('VideoProcessor:: There are no images yet. Make them first.')
+                1+1
                 
         finally:
             # Shut it all down
