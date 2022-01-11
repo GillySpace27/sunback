@@ -1,3 +1,4 @@
+import copy
 import os
 import shutil
 
@@ -36,17 +37,19 @@ class FidoFetcher(Fetcher):
     description = "Get Fits Files from the Internet using Fido"
     verb = True
     filt_name = "Fido Fetcher"
+    num_files_needed = None
+    batch_id = 0
+    needed_files = None
+    results = None
+    temp_folder = None
+    int_tm_tot = 0
+    fits_path=None
     
     def __init__(self, params=None, quick=False, rp=None):
         # Initialize class variables
         super().__init__(params, quick, rp)
-        self.num_files_needed = None
-        self.batch_id = 0
-        self.needed_files = None
-        self.results = None
-        self.temp_folder = None
+
         self.reprocess_mode(rp)
-        self.int_tm_tot = 0
         self.params.load_preset_time_settings()
         # self.fetch()
     
@@ -57,25 +60,27 @@ class FidoFetcher(Fetcher):
         """ Find the Most Recent Images """
         self.__init__(params, quick, rp)
         # self.verb = True
-        self.fido_get_fits(self.params.current_wave())
+        self.fido_get_fits(self.params.current_wave(), temp=self.params.do_temp)
     
     def cleanup(self):
-        self.fido_download_fits_ensured(hold=False, temp=True)
+        # self.fido_download_fits_ensured(hold=False, temp=True)
         # self.delete_temp_folder_items(delete_folder_too=True)
+        pass
     
     def enumerate(self):
         # for fits_path in self.params.local_fits_paths():
         #     print(fits_path)
         pass
     
-    def fido_get_fits(self, current_wave):
+    def fido_get_fits(self, current_wave, temp=False):
         self.load(self.params, wave=current_wave)
-        vprint(" v Fetching Fits Files: {}".format(self.params.current_wave()), self.verb)
+        vprint("\r          ")
+        vprint("v Fetching Fits Files: {}".format(self.params.current_wave()), self.verb)
         if self.params.download_files() or self.reprocess_mode() or not self.verb:
             self.print_load_banner(verb=self.verb)
-            self.download_fits_series(temp=False)
-            self.validate_download()
-            self.enumerate()
+            self.download_fits_series(temp=temp)
+            # self.validate_download()
+            # self.enumerate()
         else:
             vprint(" ^ Using {} Cached Fits Files\n".format(self.params.n_fits), self.verb)
     
@@ -90,9 +95,9 @@ class FidoFetcher(Fetcher):
         else:
             print("\n     No Images Found\n")
     
-    def fido_check_for_fits(self):
+    def fido_check_for_fits(self, verb=None):
         """Find the science images"""
-        self.verb = True
+        self.verb = self.verb or verb
         vprint("\n *   Looking for Images of {} from {} to {}...".format(
                 self.params.current_wave(), self.start_time_string, self.end_time_string), flush=True, end='', verb=self.verb)
         jsoc_email = "chris.gilly@colorado.edu"
@@ -144,7 +149,6 @@ class FidoFetcher(Fetcher):
         while len(self.name) < 4:
             self.name = '0' + self.name
             
-            
         if self.fido_search_found_num > 200:
             response = input("Do you still want to download all {} images? [y]/n _".format(self.fido_search_found_num))
             if 'n' in response.casefold():
@@ -166,17 +170,22 @@ class FidoFetcher(Fetcher):
         SubDownloader = Downloader(progress=True, file_progress=False, max_conn=20,
                                    overwrite=False)
         
-        self.out_path = self.temp_folder if temp else self.fits_folder
+        self.out_path = self.params.temp_directory() if temp else self.params.fits_directory()
         
         self.store_requests()
         
+        main_stdout = sys.stdout
+        
         if not hold:
-            self.results = Fido.fetch(self.needed_files, path=self.out_path, downloader=SubDownloader)
-            self.n_fits = len(self.results)
-            if ensured:
-                self.results = self.fido_multi_download()
-            
-            self.multi_banner()
+            with open('log.txt', mode="w+") as sys.stdout:
+                self.verb = False
+                results = Fido.fetch(self.needed_files, path=self.out_path, downloader=SubDownloader)
+                self.n_fits = len(results)+0
+                # if ensured:
+                #     results = self.fido_multi_download()
+                self.multi_banner()
+                self.results = copy.copy(results)
+            sys.stdout = main_stdout
             return self.results
     
     def fido_multi_download(self):

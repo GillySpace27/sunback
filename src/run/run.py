@@ -2,7 +2,7 @@ import os
 import sys
 
 # # Main Command Structure
-from time import sleep, time
+from time import sleep, time, asctime, localtime
 
 import numpy as np
 
@@ -73,6 +73,7 @@ class Runner:
     
             if len(self.params.fetchers()) > 0:
                 sys.stdout.flush()
+                print("\r                                         ")
                 print("\n>>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
                 # print(" Redownload Mode: {}\n".format(self.params.download_files()))
                 for fet, rp in zip(self.params.fetchers(), self.params._fet_rp):
@@ -80,7 +81,8 @@ class Runner:
     
             if len(self.params.processors()) > 0:
                 sys.stdout.flush()
-                print(">>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
+                print("\r                                          ")
+                print("\n>>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
                 # print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
                 sys.stdout.flush()
                 for proc, rp in zip(self.params.processors(), self.params._proc_rp):
@@ -111,7 +113,7 @@ class Runner:
         print("     Run Name: {}".format(self.params.batch_name()))
         print("     Run Type: {}\n".format(self.params.run_type()))
         if end:
-            print("        Summery of Job:")
+            print("   Summery of Job:")
         else:
             print("   Here's the Plan:")
         if len(self.params.fetchers()) > 0:
@@ -132,13 +134,13 @@ class Runner:
     def print_end_banner(self):
         mode_string = "" if self.params.stop_after_one() else ", Restarting Loop"
         print("\n" + self.wall_2)
-        print("Started at {}".format(self.start_timestamp))
+        print("Started at {}".format(asctime(localtime(self.start_timestamp))))
         self.elapsed = time() - self.start_timestamp
         self.start_timestamp = time()
-        print("Ended at {}".format(self.start_timestamp))
+        print("Ended  at  {}".format(asctime(localtime(self.start_timestamp))))
         minutes = int(np.floor(self.elapsed / 60))
         seconds = int(self.elapsed - minutes * 60)
-        print("Program Complete in {} minutes and {} seconds. {}".format(minutes, seconds, mode_string))
+        print("  Program Complete in {} minutes and {} seconds. {}".format(minutes, seconds, mode_string))
         self.print_plan(end=True)
         print(self.wall_2 + "\n")
         

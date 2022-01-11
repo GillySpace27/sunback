@@ -22,6 +22,6 @@ class Fetcher(Processor):
     def fetch(self, params=None):
         raise NotImplementedError()
     
-    def process(self, params=None):
-        self.fetch(params)
+    # def process(self, params=None):
+    #     self.fetch(params)
  

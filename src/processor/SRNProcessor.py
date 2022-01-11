@@ -542,7 +542,7 @@ class SRNProcessor(Processor):
         self.frame_abs_min[n_index] = self.binAbsMin[idx]
     
     def find_limb_radius(self):
-        self.load_curves()
+        # self.load_curves()
         self.found_limb_radius = self.params.found_limb_radius or 1600
         self.lCut = int(self.found_limb_radius - 0.01 * self.params.rez)
         self.hCut = int(self.found_limb_radius + 0.01 * self.params.rez)
@@ -568,7 +568,7 @@ class SRNProcessor(Processor):
                                  inner_mid_min_maxInd, outer_mid_min_maxInd]
             self.fit_limb_radius = int(np.round(np.mean(self.peak_indList), 0))
         except TypeError as e:
-            print("find_limb_radius: ", e)
+            # print("\r        find_limb_radius failed: ", e)
             self.fit_limb_radius = self.found_limb_radius
         
         self.lCut = int(self.fit_limb_radius - 0.01 * self.params.rez)
@@ -578,17 +578,17 @@ class SRNProcessor(Processor):
     ## Smoothed Normalization Curve Stuff ##
     ###################################
     
-    def make_smoothed_curves(self):  ## SNARFLAT Work Here damnit
+    def make_smoothed_curves(self, banner=True):  ## SNARFLAT Work Here damnit
         """Build the normalization arrays, treating the domain in 3 seperate regions"""
-        if self.make_curves_latch:
-            print("\r *        Smoothing Curves...", end='')
+        if self.make_curves_latch and self.abs_max is not None:
+            if banner: print("\r *        Smoothing Curves...", end='')
             self.despike_curves()
             self.triFilter_curves()
             self.monoFilter_curves()
             self.render_smooth_curves()
-            print("Success!")
+            if banner: print("Success!")
             
-            self.save_curves(banner=True)
+            self.save_curves(banner=False)
             
             self.select_curves_TUNE()
             self.make_curves_latch = False

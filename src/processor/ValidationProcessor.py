@@ -73,7 +73,8 @@ class ValidationProcessor(Processor):
 #
     def validate_fits(self):
         import numpy as np
-        
+        if self.params.skip_validation:
+            return []
         all_fits_paths = self.params.local_fits_paths()
         n_fits = len(all_fits_paths)
         destroyed = 0
@@ -125,8 +126,9 @@ class ValidationProcessor(Processor):
         return to_destroy
        
     def destroy_files(self, to_destroy=[]):
-        for path in to_destroy:
-            self.remove_files(path)
+        if to_destroy:
+            for path in to_destroy:
+                self.remove_files(path)
         
     def remove_files(self, local_fits_path):
         # if local_fits_path in self.params.local_fits_paths():

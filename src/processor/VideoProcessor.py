@@ -18,6 +18,7 @@ class VideoProcessor(Processor):
     wave = None
     progress_stem = " *    {}"
     progress_verb = 'Writing Movie'
+    # progress_verb = "Writing"
     progress_string = progress_stem.format(progress_verb)
     finished_verb = "Wrote Movie"
     progress_unit = "imgs"

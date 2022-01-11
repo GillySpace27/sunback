@@ -1,1 +1,5 @@
-asdf
+Export request pending. [id="JSOC_20220111_967", status=2]
+Waiting for 0 seconds...
+4 URLs found for download. Full request totalling 33MB
+ ^     Successfully Downloaded all 4 Files
+

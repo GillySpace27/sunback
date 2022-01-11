@@ -71,28 +71,31 @@ class Processor:
     this_file_name = os.path.basename(__file__)
     paper_out = []
     
+    load_print_latch = True
+    found_limb_radius = None
+    int_tm_tot = None
+    fits_folder = None
+    absolute_min = None
+    curve_out_array = None
+    ensured = False
+    hdu_name_list = None
+    file_basename = None
+    image_data = None
+    changed_flat = None
+    can_use_keyframes = False
+    use_keyframes = None
+    skipped = 0
+    all_file_paths = None
+    n_all_frames = None
+    n_do_frames = None
+    long_list = []
+    fits_path = None
+    first_hIndex = 0
+    short_list = []
+    out_dtype = "float32"
+    
     def __init__(self, params=None, quick=False, rp=None):
-        self.load_print_latch = True
-        self.found_limb_radius = None
-        self.int_tm_tot = None
-        self.fits_folder = None
-        self.absolute_min = None
-        self.curve_out_array = None
-        self.ensured = False
-        self.hdu_name_list = None
-        self.file_basename = None
-        self.image_data = None
-        # self.changed_flat = None
-        self.can_use_keyframes = False
-        self.use_keyframes = None
-        self.skipped = 0
-        self.all_file_paths = None
-        self.n_all_frames = None
-        self.n_do_frames = None
-        self.long_list = []
-        self.fits_path = None
-        self.first_hIndex = 0
-        self.short_list = []
+
         self.reprocess_mode(rp)
         self.load(params, quick=quick)
         if self.params:
@@ -200,7 +203,7 @@ class Processor:
                 exp = self.params.exposure_time_seconds()
                 print(" *    Exposure Time is {} seconds, which is {} frames".format(exp, exp / 12))
             print(" +    {}: {}, Redo = {}".format(self.progress_verb, self.params.current_wave(), self.reprocess_mode()))
-            vprint(" +    Using {} fits and {} imgs from {}".format(self.n_fits, self.n_imgs, self.params.base_directory()))
+            vprint(" +    Using {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()))
     
     def load_fits_paths(self, absolute=True, ext=".fits"):
         """ Creates a List of the existant fits files in the fits_directory"""
@@ -343,6 +346,9 @@ class Processor:
         self.n_all_frames = len(self.long_list)
         n_paths = len(self.long_list)
         # self.short_list = []
+        if self.n_all_frames < 10:
+            use_all = True
+            
         if use_all:
             self.short_list = self.long_list
         
@@ -359,9 +365,9 @@ class Processor:
     
     def print_keyframes(self):
         if self.params.fixed_cadence_keyframes():
-            print(" *    >> KeyFrames: Fixed Cadence of one out of every {} frames".format(self.params.fixed_cadence_keyframes()))
+            print("\r *    >> KeyFrames: Fixed Cadence of one out of every {} frames".format(self.params.fixed_cadence_keyframes()))
         elif self.params.fixed_number_keyframes():
-            print(" *    >> KeyFrames: Fixed Number of Keyframes: {}".format(self.params.fixed_number_keyframes()))
+            print("\r *    >> KeyFrames: Fixed Number of Keyframes: {}".format(self.params.fixed_number_keyframes()))
         
         print(" *    >> Selected {} keyframes out of {} total frames".format(self.n_do_frames, self.n_all_frames))
         # print(" *    >>Selected {} keyframes out of {} total frames".format(len(self.short_list), len(self.long_list)))
@@ -456,8 +462,9 @@ class Processor:
             frame = output
     
         if self.save_to_fits and frame is not None:
-            self.save_frame_to_fits_file(fits_path, frame)
-            
+            self.save_frame_to_fits_file(fits_path, frame, dtype=self.out_dtype)
+            # def save_frame_to_fits_file(fits_path, frame, out_name=None, dtype="float32"):
+
         return frame
     
 
@@ -541,7 +548,7 @@ class Processor:
     ## M4: Save Frame to Fits ##
     ############################
     
-    def save_frame_to_fits_file(self, fits_path, frame, out_name=None):
+    def save_frame_to_fits_file(self, fits_path, frame, out_name=None, dtype="float32"):
         """Save a fits file to disk"""
         # print("Saving Frame to Fits File")
         if out_name is None:
@@ -552,7 +559,7 @@ class Processor:
         
         if good_frame:
             
-            frame2 = frame.astype("float32")
+            frame2 = frame.astype(dtype)
             
             with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True) as hdul:
                 hdul.verify('silentfix+ignore')  # Then Verify
@@ -734,9 +741,9 @@ class Processor:
         self.super_flush()
         if banner:
             if extra_line:
-                vprint(" *\n *    Saving Radial Curves...", end='')
+                vprint("\r *\n *    Saving Radial Curves...", end='')
             else:
-                vprint(" *        Saving Radial Curves...", end='')
+                vprint("\r *        Saving Radial Curves...", end='')
             
         if self.prep_save_outs():
             curve_path = self.params.curve_path()
@@ -749,7 +756,7 @@ class Processor:
                     # len_desc = str(len(desc))
                     fp.write(str(desc) + " : len=" + len_item)
             np.savetxt(curve_path, self.curve_out_array)
-            vprint("Success!")
+            if banner: vprint("Success!")
         else:
             vprint("Skipping Save Curves!")
     
@@ -766,7 +773,7 @@ class Processor:
         lc = self.load_print_latch
         if os.path.exists(self.params.curve_path()):
             if self.absolute_min is None or force:
-                if lc: vprint(" *    Loading Radial Curves...", end='')
+                if lc: vprint("\r *    Loading Radial Curves...", end='')
                 try:
                     self.unpack_save_ins()
                     # if verb: self.super_flush("Success!\n")

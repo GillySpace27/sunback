@@ -41,6 +41,8 @@ class Parameters:
         self.selection = None
         self.paper_out = []
         self.png_frame_name = None
+        self.skip_validation=False
+        self.do_temp = False
         
         self.tend = ''
         self.tstart = ''

@@ -29,11 +29,10 @@ def vprint(in_string, verb=None, *args, **kwargs):
         print(in_string, *args, **kwargs)
 
 class FidoTimeIntProcessor(FidoFetcher):
-    name = filt_name = "Time Integration"
+    name = filt_name = "Time Integration {} Seconds"
     in_name = -1
     out_name = "t_integrated"
     description = "Get many frames around the keyframe and sum them"
-    progress_verb = 'binning'
     finished_verb = "Summed"
     dopng = False
     temp_folder = ''
@@ -44,6 +43,8 @@ class FidoTimeIntProcessor(FidoFetcher):
     def __init__(self, params=None, quick=False, rp=False):
         # Initialize class variables
         super().__init__(params, quick, rp)
+        self. progress_verb = 'Time Integrating: {} Seconds'.format(self.params.exposure_time_seconds)
+        self.name = self.name.format(self.params.exposure_time_seconds)
         self.do_delete = True
         self.orig_t_int = None
         self.keyframe_fits_path = None
@@ -53,31 +54,13 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.verb=False
         # self.fetch()
 
-    # Main Call
-    def fetch(self, params=None, quick=False, rp=None, verb=None):
-        """ Get the fits files from Fido """
-        if verb is not None:
-            self.verb = verb
-        self.fido_get_fits_short_cadence()
-
-    def fido_get_fits_short_cadence(self, temp=True, hold=None):
-        self.load(self.params, wave=self.params.current_wave())
-        vprint(" v Fetching Short Cadence Fits Files: {}".format(self.params.current_wave()))
-        if self.should_get_files():
-            self.print_load_banner(verb=self.verb)
-            self.prep_temp_folder()
-            self.download_fits_series(temp=True, hold=hold)
-            self.validate_download()
-        else:
-            vprint(" ^ Using {} Cached Fits Files\n".format(self.params.n_fits), self.verb)
-
-    
     def should_get_files(self):
         return self.params.download_files() or self.reprocess_mode() or not self.verb
 
     def setup(self):
         os.makedirs(self.params.temp_directory(), exist_ok=True)
-    
+        self.params.do_temp = True
+
     def download_fits_series(self, temp=True, hold=None):
         if hold is None:
             hold = False # TODO Fix this
@@ -96,7 +79,7 @@ class FidoTimeIntProcessor(FidoFetcher):
             self.fido_download_fits_ensured(temp=True)
             self.sum_subframes()
         
-        # self.delete_temp() # TEMPCHANGE
+        self.delete_temp()  # TEMPCHANGE
 
     def do_fits_function(self, fits_path, in_name=None):
         """This is the thing that will be executed on every file
@@ -114,6 +97,8 @@ class FidoTimeIntProcessor(FidoFetcher):
             # Sum them
             if not self.hold:
                 self.sum_subframes()
+                if self.do_delete:
+                    self.delete_temp_folder_items()
             return self.params.modified_image
         
         return None
@@ -134,7 +119,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.init_integration_period(fits_path)
         
         # Search fido for those frames + Download the Files
-        self.fetch(self.params, True, verb=False)
+        self.fetch(self.params, quick=True, verb=False)
         
     def init_integration_period(self, fits_path):
         
@@ -153,6 +138,8 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.set_time_range_duration(t_start=t_rec, duration_seconds=self.params.exposure_time_seconds())
         self.params.do_recent(False)
         self.params.cadence_minutes(10. / 60.)
+        self.out_dtype = np.float32
+        
         
     def reset_params(self):
         # Reset the main time period
@@ -161,6 +148,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.define_range()
         
     def get_exposure_paths(self):
+        self.prep_temp_folder()
         exposure_files = os.listdir(self.temp_folder)
         self.exposure_paths = [join(self.temp_folder, path) for path in exposure_files]
         self.exposure_paths.append(self.fits_path)
@@ -178,6 +166,7 @@ class FidoTimeIntProcessor(FidoFetcher):
             try:
                 if not os.path.isdir(path):
                     frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, -1)
+                    self.orig_t_int = self.orig_t_int or int_time
                     self.params.modified_image += (frame / int_time)
                     self.int_tm_tot += int_time
                     self.n_exposures += 1
@@ -188,19 +177,14 @@ class FidoTimeIntProcessor(FidoFetcher):
             #     print("Sum Subframes:: ", e)
                 
         self.params.modified_image /= self.n_exposures
-        self.params.modified_image *= self.orig_t_int
-        self.params.modified_image = np.asarray(self.params.modified_image, dtype=np.float32)
-        if not self.hold and self.do_delete:
-            self.delete_temp_folder()
-        
-        
+        self.params.modified_image *= self.orig_t_int #TODO remove this line to make the curves be per second
+        self.params.modified_image = np.asarray(self.params.modified_image, dtype=self.out_dtype)
 
-        
     ## TEMP FOLDER IO ##
     def prep_temp_folder(self):
         self.params.download_files(True)
-        # self.temp_folder = self.params.temp_directory()
-        self.temp_folder = join(self.params.temp_directory(), self.subname)
+        self.temp_folder = self.params.temp_directory()
+        # self.temp_folder = join(self.params.temp_directory(), self.subname)
         os.makedirs(self.temp_folder, exist_ok=True)
         # self.delete_temp_folder_items()
         

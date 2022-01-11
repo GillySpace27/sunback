@@ -10,12 +10,12 @@ from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
 import run
 
-import matplotlib as mpl
+# import matplotlib as mpl
 
-try:
-    mpl.use("qt5agg")
-except ImportError as e:
-    print(e)
+# try:
+#     mpl.use('qt5agg')
+# except ImportError as e:
+#     print(e)
 import matplotlib.pyplot as plt
 plt.ioff()
 
@@ -23,18 +23,20 @@ plt.ioff()
 # tstart='2014/11/04 01:00:00', tend='2014/11/08 00:00:00',
 # tstart='2016/11/04 01:00:00', tend='2016/11/06 00:00:00',
 # dostring = "Beautiful 304_l"
-wave_to_use = '0193'
+#         self.all_wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
+wave_to_use = '0131'
 
 def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None):
     # Set the Parameters
     p = make_params(batch_name, wave, config)
     p.do_recent(False)
+    p.skip_validation = True
     
     # Set the Processes
-    # p.fetchers(FidoFetcher, rp=True)  # Gets Fits FIDO
+    p.fetchers(FidoFetcher, rp=True)  # Gets Fits FIDO
 
     p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
-
+    #
     p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
     p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
 
@@ -54,8 +56,6 @@ def make_params(batch_name=None, wave=None, config=None):
     if not config:
         ConfigDict = make_configs()
         config = ConfigDict[batch_name]
-    
-
         
     p = Parameters()
     p.config = config
@@ -86,6 +86,13 @@ def make_params(batch_name=None, wave=None, config=None):
 
 
 def make_configs():
+    c8 = {
+        "name": "Liftoff",
+        "debug": True, "do_one": wave_to_use, "stop": True, #"tend": '2013/09/30 23:59:59',
+        "tstart": '2013/09/28 00:00:05', "tend": '2013/09/28 01:00:05',
+        "cadence_minutes": 15, "fps": 13, "exposure_time": 60,
+        "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
+    }
     c0 = {
         "name": "Test",
         "debug": True, "do_one": '0304', "stop": True,
@@ -145,13 +152,7 @@ def make_configs():
         "cadence_minutes": 10, "fps": 16, "exposure_time": 60,
         "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
     }
-    c8 = {
-        "name": "Liftoff",
-        "debug": True, "do_one": wave_to_use, "stop": True,
-        "tstart": '2013/09/28 00:00:05', "tend": '2013/09/30 23:59:59',
-        "cadence_minutes": 15, "fps": 13, "exposure_time": 60,
-        "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
-    }
+
     c9 = {
         "name": "Liftoff 0193",
         "debug": True, "do_one": '0193', "stop": True,
