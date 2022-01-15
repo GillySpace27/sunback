@@ -90,9 +90,7 @@ class SRNpreProcessor(SRNProcessor):
         """Runs after all the images have been modified with do_work"""
         if self.should_run():
             self.skipped -= 1
-            self.save_curves(banner=False)
-            self.make_smoothed_curves(banner=False)  # Build smooth curves based on the statistics
-            self.save_curves()
+            self.make_save_smoothed_curves(banner=False)  # Build smooth curves based on the statistics
         self.render_pre_hist_video()
         # print("Curves Saved!")
         
@@ -101,7 +99,7 @@ class SRNpreProcessor(SRNProcessor):
         fps = 8
         os.makedirs(self.params.base_directory(), exist_ok=True)
         print("Rendering pre-processor video...", end='')
-        path1 = os.path.join(self.params.base_directory(),"analysis\\radial_hist_pre\\pre-hist.avi")
+        path1 = os.path.join(self.params.base_directory(),"analysis\\radial_hist_pre\\a-pre-hist.avi")
         self.write_video_in_directory(fullpath=path1, fps=fps, key_string="inner", destroy=False, pop=2)
         
         # path1 = os.path.join(self.params.base_directory(),"analysis\\radial_hist_pre\\{}_inner_outer_{}.avi".format(self.params.current_wave(), time()))
@@ -127,8 +125,6 @@ class SRNpreProcessor(SRNProcessor):
         not_made_yet = not os.path.exists(self.params.curve_path()) or self.outer_min is None
         frame_is_not_loaded = self.params.original_image is None
         self.go_ahead = not_weak & not_dark and (set_to_make or not_made_yet or frame_is_not_loaded)
-        if self.go_ahead: print("GO AHEAD")
-        else: print("NOT TODAY")
         return self.go_ahead
 
 
@@ -180,8 +176,9 @@ class SRNradialFiltProcessor(SRNProcessor):
     def do_work(self):
         self.image_modify()
         # self.peek_norm()
-        
+        self.show_norm=False
         self.plot_full_normalization(True, show=self.show_norm, save=True)
+        self.percentilize()
         return self.params.modified_image
     
     def cleanup(self):
@@ -194,7 +191,7 @@ class SRNradialFiltProcessor(SRNProcessor):
         print("Rendering post-processor video...", end='')
         fps = 8
         os.makedirs(self.params.base_directory(), exist_ok=True)
-        path1 = os.path.join(self.params.base_directory(), "analysis\\radial_hist_post\\post-hist.avi")
+        path1 = os.path.join(self.params.base_directory(), "analysis\\radial_hist_post\\b-post-hist.avi")
         self.write_video_in_directory(fullpath=path1, fps=fps, destroy=False, pop=2)
         
         

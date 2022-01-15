@@ -23,8 +23,9 @@ plt.ioff()
 # tstart='2014/11/04 01:00:00', tend='2014/11/08 00:00:00',
 # tstart='2016/11/04 01:00:00', tend='2016/11/06 00:00:00',
 # dostring = "Beautiful 304_l"
-all_wavelengths = ['0193','0171',  '0211', '0304', '0131', '0335', '0094']
-do_wavelengths = all_wavelengths #  ['0211']
+all_wavelengths = ['0193','0171', '0211', '0304', '0131', '0335', '0094']
+do_wavelengths = all_wavelengths  # ['0211']
+do_wavelengths = ['0304']
 # wave_to_use = '0211'
 
 def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None, wave_to_use=None):
@@ -34,64 +35,25 @@ def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None, wav
     p.skip_validation = True
     
     # Set the Processes
-    p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
-    p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
+    # p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
+    # p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
     #
-    p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
+    # p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
     p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
 
     p.processors([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
+    # p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
 
     # Run the Code
-    print(p.do_one())
+    # print(p.do_one())
     run.Runner(p).start()
-
-
-def make_params(batch_name=None, wave=None, config=None, wave_to_use=None):
-    
-    if wave:
-        batch_name = batch_name + ' ' + wave
-    
-    # Set the Parameters
-    if not config:
-        ConfigDict = make_configs(wave_to_use)
-        config = ConfigDict[batch_name]
-        
-    p = Parameters()
-    p.config = config
-    p.destroy = False
-    # tstart, tend = self.params.set_time_range_duration(tstart, duration_seconds=60):
-    time_string = config["tstart"].replace('/', '_').replace(' ', '_').replace(':', '')
-    rng = os.path.normpath("MultiRange\\{}_{}_{}".format(config['name'], config["time_preset"], time_string))
-    p.batch_name(rng)
-    p.run_type("Make Movie of Given Time Range, With Time Integration")
-    p.do_one(config["do_one"], config["stop"])
-    p.is_debug(config["debug"])
-    p.do_cat = True
-    p.png_frame_name = 'SRN'
-    p.do_recent(True)
-    p.currently_local = True
-    
-    # Set the Times
-    # if not p.load_preset_time_settings(config["time_preset"]):
-    p.cadence_minutes(config["cadence_minutes"])
-    p.exposure_time_seconds(config["exposure_time"])
-    p.frames_per_second(config["fps"])
-    p.fixed_cadence_keyframes(config["key_fixed_cadence"])
-    p.fixed_number_keyframes(config["key_fixed_number"])
-    p.time_period(period=[config["tstart"], config["tend"]])
-    # p.compare_fits_frames()
-    
-    return p
-
 
 def make_configs(wave_to_use):
     c8 = {
         "name": "Liftoff",
         "debug": True, "do_one": wave_to_use, "stop": True, #"tend": '2013/09/30 23:59:59',
         "tstart": '2013/09/28 00:00:10', "tend": '2013/09/28 06:00:10',
-        "cadence_minutes": 20, "fps": 9, "exposure_time": 120,
+        "cadence_minutes": 10, "fps": 9, "exposure_time": 20,
         "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
     }
     c0 = {
@@ -103,11 +65,11 @@ def make_configs(wave_to_use):
     }
     
     c1 = {
-        "name": "Beautiful 304",
-        "debug": True, "do_one": '0304', "stop": True,
-        "tstart": '2014/11/04 00:00:02', "tend": '2014/11/05 00:00:00',
-        "cadence_minutes": None, "fps": None, "exposure_time": None,
-        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
+        "name": "Decadal",
+        "debug": True, "do_one": wave_to_use, "stop": True,
+        "tstart": '2011/01/01 00:00:00', "tend": '2012/01/01 00:00:00',
+        "cadence_minutes": 60*24/4, "fps": 24, "exposure_time": 12*6,
+        "key_fixed_cadence": 8, "key_fixed_number": None, "time_preset": None
     }
     
     c2 = {
@@ -209,6 +171,42 @@ def make_configs(wave_to_use):
                   }
     return ConfigDict
 
+def make_params(batch_name=None, wave=None, config=None, wave_to_use=None):
+    
+    if wave:
+        batch_name = batch_name + ' ' + wave
+    
+    # Set the Parameters
+    if not config:
+        ConfigDict = make_configs(wave_to_use)
+        config = ConfigDict[batch_name]
+        
+    p = Parameters()
+    p.config = config
+    p.destroy = False
+    # tstart, tend = self.params.set_time_range_duration(tstart, duration_seconds=60):
+    time_string = config["tstart"].replace('/', '_').replace(' ', '_').replace(':', '')
+    rng = os.path.normpath("MultiRange\\{}_{}_{}".format(config['name'], config["time_preset"], time_string))
+    p.batch_name(rng)
+    p.run_type("Make Movie of Given Time Range, With Time Integration")
+    p.do_one(config["do_one"], config["stop"])
+    p.is_debug(config["debug"])
+    p.do_cat = True
+    p.png_frame_name = 'SRN'
+    p.do_recent(True)
+    p.currently_local = True
+    
+    # Set the Times
+    # if not p.load_preset_time_settings(config["time_preset"]):
+    p.cadence_minutes(config["cadence_minutes"])
+    p.exposure_time_seconds(config["exposure_time"])
+    p.frames_per_second(config["fps"])
+    p.fixed_cadence_keyframes(config["key_fixed_cadence"])
+    p.fixed_number_keyframes(config["key_fixed_number"])
+    p.time_period(period=[config["tstart"], config["tend"]])
+    # p.compare_fits_frames()
+    
+    return p
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own

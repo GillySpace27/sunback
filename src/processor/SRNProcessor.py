@@ -73,7 +73,8 @@ class SRNProcessor(Processor):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
         # Parse Inputs
-
+        
+        self.this_index = 0
         self.norm_curve_max_top_name = None
         self.norm_curve_min_top_name = None
         self.make_curves_latch = True  # This Recomputes the curves once
@@ -108,8 +109,8 @@ class SRNProcessor(Processor):
         self.firstIndex = 0
         self.lastIndex = 0
         
-        self.absolute_max = None
-        self.absolute_min = None
+        self.abs_max_scalar = None
+        self.abs_min_scalar = None
         self.curve_out_array = None
         self.do_save = None
         self.scalar_in_curve = None
@@ -163,10 +164,9 @@ class SRNProcessor(Processor):
         self.norm_avg_max = None
         self.norm_avg_min = None
     
-    ###################
-    ## Structure ##
-    ###################
     
+    
+    # Not Implemented
     def setup(self):
         """Do prep work once before the main algorithm"""
         raise NotImplementedError
@@ -178,6 +178,10 @@ class SRNProcessor(Processor):
     def cleanup(self):
         """Runs once after all the images have been modified with do_work"""
         raise NotImplementedError
+    
+    ###################
+    ##   Main Calls  ##
+    ###################
     
     def do_fits_function(self, fits_path=None, in_name=None, image=True):
         """Calls the do_work function on a single fits path if indicated"""
@@ -194,27 +198,19 @@ class SRNProcessor(Processor):
     ## Top-Level ##
     ###################
     
-    def skip_bad_frame(self):
-        # TODO Implement Skip logic here
-        return False
-    
     def image_learn(self):
         """Analyze the input image to help make normalization curves"""
         if not self.skip_bad_frame():
             self.init_for_learn()
-            self.bin_radially()  # Create a cloud of intesity values for each radial bin
-            self.radial_statistics()  # Find mean and percentiles vs height
+            self.coronaLearn()
             self.add_to_keyframes()  # Update the running curves
-            self.make_smoothed_curves()
     
     def image_modify(self):
         """Perform the actual normalization on the input array"""
-        vprint("\n *    Applying Normalization...", end="")
-        self.init_for_modify()
-        self.coronaNorm()  # Use curves to rescale the in_object
-        self.prep_output()
-        self.vignette()  # Truncate the in_object above given radius
-        vprint("Success!")
+        if not self.skip_bad_frame():
+            self.init_for_modify()
+            self.coronaNorm()  # Use curves to rescale the in_object
+            self.prep_output()
     
     ###################
     ## Keyframes ##
@@ -227,6 +223,12 @@ class SRNProcessor(Processor):
             self.init_running_curves()
         else:
             self.update_running_curves()
+        self.make_save_smoothed_curves()
+    
+    def coronaLearn(self):
+        """Perform the actual analysis"""
+        self.bin_radially()  # Create a cloud of intesity values for each radial bin
+        self.radial_statistics()  # Find mean and percentiles vs height
     
     def update_keyframe_counters(self, n=1):
         """Keep track of how many items have been added to keyframes"""
@@ -238,6 +240,9 @@ class SRNProcessor(Processor):
     ######################################
     ## Initializing and Converting ##
     ######################################
+    def skip_bad_frame(self):
+        # TODO Implement Skip logic here
+        return False
     
     def init_for_learn(self):
         self.init_radius_array()
@@ -308,54 +313,182 @@ class SRNProcessor(Processor):
     
     def init_running_curves(self):
         """Initialize the curves"""
-        need_to_run = (self.frame_minimum is not None)
-        need_to_run = need_to_run and np.sum(np.isfinite(self.frame_minimum)) > 0
+        need_to_run = (self.frame_minimum is not None and np.sum(np.isfinite(self.frame_minimum)) > 0)
         if need_to_run or self.params.Force_init:
             dprint("init_running_curves")
-            self.outer_min = self.frame_minimum + 0
-            self.avg_min = self.frame_minimum + 0
-            self.inner_min = self.frame_minimum + 0
-            self.inner_max = self.frame_maximum + 0
-            self.avg_max = self.frame_maximum + 0
+            
+            # The four running extrema
             self.outer_max = self.frame_maximum + 0
+            self.inner_max = self.frame_maximum + 0
+            self.inner_min = self.frame_minimum + 0
+            self.outer_min = self.frame_minimum + 0
+            
+            # The absolute extrema curves
             self.abs_max = self.frame_abs_max + 0
             self.abs_min = self.frame_abs_min + 0
             
-            self.absolute_min = max(np.nanmin(self.outer_min), -10)
-            self.absolute_max = np.nanmax(self.outer_max)
+            # Average Curves
+            self.avg_min = self.frame_minimum + 0
+            self.avg_max = self.frame_maximum + 0
+            
+            # Scalars
+            self.abs_min_scalar = max(np.nanmin(self.outer_min), -10)
+            self.abs_max_scalar = np.nanmax(self.outer_max)
+            
             self.outputs_initialized = True and self.can_initialize
-        
         return True
     
     def update_running_curves(self):
         """Update the Curves"""
-        dprint("update_running_curves")
+        # # print("\rupdated_running_curves")
+        # plt.plot(self.frame_abss, self.abs_max, c='r', label="abs_max", ls=":",)
+        # plt.plot(self.frame_abss, self.abs_min, c='k', label="abs_min", ls=":",)
         
-        self.outer_min = np.fmin(self.outer_min, self.frame_minimum)
-        self.inner_min = np.fmax(self.inner_min, self.frame_minimum)
-        self.inner_max = np.fmin(self.inner_max, self.frame_maximum)
+        
+        # The four running extrema
         self.outer_max = np.fmax(self.outer_max, self.frame_maximum)
-        self.abs_max = np.fmax(self.abs_max, self.frame_abs_max)
-        self.abs_min = np.fmin(self.abs_min, self.frame_abs_min)
+        self.inner_max = np.fmin(self.inner_max, self.frame_maximum)
         
-        self.absolute_max = np.fmax(self.absolute_max, np.max(self.outer_max))
-        self.absolute_min = np.fmin(self.absolute_min, np.max(self.outer_min))
+        self.inner_min = np.fmax(self.inner_min, self.frame_minimum)
+        self.outer_min = np.fmin(self.outer_min, self.frame_minimum)
         
-        self.avg_min = self.avg_min + self.frame_minimum
+        # The absolute extrema curves
+        self.abs_max   = np.fmax(self.abs_max,   self.frame_abs_max)
+        self.abs_min   = np.fmin(self.abs_min,   self.frame_abs_min)
+        
+        # Average Curves
         self.avg_max = self.avg_max + self.frame_maximum
-        self.norm_avg_min = self.avg_min / self.n_keyframes
+        self.avg_min = self.avg_min + self.frame_minimum
         self.norm_avg_max = self.avg_max / self.n_keyframes
+        self.norm_avg_min = self.avg_min / self.n_keyframes
+        
+        # Scalars
+        self.abs_max_scalar = np.fmax(self.abs_max_scalar, np.max(self.outer_max))
+        self.abs_min_scalar = np.fmin(self.abs_min_scalar, np.min(self.outer_min))
+        
+        # plt.plot(self.frame_abss, self.abs_max, c='r')
+        # plt.plot(self.frame_abss, self.abs_min, c='k')
+        # plt.yscale('symlog')
+        # plt.legend()
+        # plt.show(block=True)
+    # TODO Make this sample better, linear isn't really appropriate because its a circle
+    # 1+1
+    
+    def percentilize(self):
+        """Another way of looking at the data"""
+        self.do_percentile_norm()
+        # self.do_percentile_plot()
+        
+    def do_percentile_norm(self):
+        # Make Percentile Image
+        from scipy import stats
+        plt.show()
+        plt.figure()
+        image_shape = self.params.original_image2.shape
+        flat_original = self.params.original_image2.flatten() + 0
+        
+        
+        # top_half =
+        # bot_half =
+        # percentile_image_flat = stats.rankdata(flat_original, "average")/len(flat_original)
+        percentile_image_flat = stats.rankdata(flat_original, "average")/len(flat_original)
+        self.params.percentile_image = percentile_image_flat.reshape(image_shape)
+        
+        
+        # original = flat_original.reshape(image_shape)
+        # plt.imshow(self.orig_smasher(original), vmin=0, vmax=1)
+        # plt.imshow(self.params.modified_image,origin='lower', vmin=0, vmax=1)
+        # plt.show(block=True)
+    
+    
+    def do_percentile_plot(self):
+        fig, axArray = plt.subplots(2,3, sharex='row', sharey="row")
+        ((axA, axB, axC), (ax1, ax2, ax3)) = (top_axes, bot_axes) = axArray
+        self.plot_percentilize_points(bot_axes)
+        self.plot_percentilize_images(top_axes)
+        plt.show(block=True)
+        
+    def plot_percentilize_points(self, axes):
+        axA, axB, axC = axes
+        ## Row 2, Distribution of points
+        self.skip_points = 10 if self.params.rez < 3000 else 300
+        
+        # Gather Points to Display
+        flat_original = self.params.original_image2.flatten() + 0
+        flat_sunback  = self.params.modified_image.flatten()  + 0
+        flat_percentilize = self.params.percentile_image.flatten() + 0
+        
+        # Take a short subset of the points
+        absiss = self.n2r(self.rad_flat[::self.skip_points])
+        
+        original_short_points = self.orig_smasher(flat_original[::self.skip_points])
+        sunback_short_points = flat_sunback[::self.skip_points]
+        percentile_short_points = flat_percentilize[::self.skip_points]
+        
+        # Plot Scatter Plots
+        blk_alpha = 0.4
+        axA.set_title("log10(Original)/2")
+        axA.scatter(absiss, original_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
+        
+        axB.set_title("Sunback (but actually -> but bright)")
+        axB.scatter(absiss, sunback_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
+        
+        axC.set_title("Percentileize")
+        axC.scatter(absiss, percentile_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
+        
+        # ## Plot Formatting
+        
+        # Horizontal Lines
+        axA.axhline(0)
+        axB.axhline(0)
+        axC.axhline(0)
+        
+        axA.axhline(1)
+        axB.axhline(1)
+        axC.axhline(1)
+        
+        # Plot Limits
+        # axA.set_ylim((-2, 300))
+        axA.set_ylim((-0.25, 1.25))
+        axB.set_ylim((-0.25, 1.25))
+        axC.set_ylim((-0.25, 1.25))
+        
+        axA.set_xlim((-0.05, 1.75))
+        axB.set_xlim((-0.05, 1.75))
+        axC.set_xlim((-0.05, 1.75))
+        
+        # Plot Scales
+        # axA.set_yscale('symlog')
+        
+        # Plot Labels
+        axA.set_ylabel("Intensity")
+        axA.set_xlabel("Distance from Sun Center")
+        axB.set_xlabel("Distance from Sun Center")
+        axC.set_xlabel("Distance from Sun Center")
+    
+    def orig_smasher(self, orig):
+        return np.log10(orig)/2
+    
+    def plot_percentilize_images(self, axes):
+        ## Plot Images
+        ax1, ax2, ax3 = axes
+        
+        ax1.imshow(self.orig_smasher(self.params.original_image2),   origin='lower', cmap='gray', vmin=0, vmax=1)
+        ax2.imshow(self.params.modified_image,              origin='lower', cmap='gray', vmin=0, vmax=1)
+        ax2.imshow(self.params.percentile_image,            origin='lower', cmap='gray', vmin=0, vmax=0.55)
+        ax3.imshow(self.params.percentile_image,            origin='lower', cmap='gray', vmin=0.55, vmax=1)
+    
     
     def plot_norm_curves(self, show=False, save=True, fig=None, ax=None,
                          extra=False, raw=False, smooth=True):
         """Look at the results of the algorithm"""
+        
         if ax is None or fig is None:
             fig, ax = plt.subplots(num="Doing Statistics on Intensity vs Height")
             do_save = True
         else:
             do_save = False
         
-        #         plt.ioff()
         ax.set_title("Intensity as a function of radial distance: AIA_{}".format(self.params.current_wave()))
         ## Plotting ##
         do_all = True
@@ -407,9 +540,11 @@ class SRNProcessor(Processor):
             # ax.plot(rrarr, self.savgol_filtered_frame_abs_min, zorder=1, lw=1, label="Smo. Abs", c='grey', alpha=1)
         
         # Plot Scatter Points
-        self.skip_points = 10 if self.params.rez < 3000 else 500  # TODO Make this sample better, linear isn't appropriate because its a circle
+        self.skip_points = 10 if self.params.rez < 3000 else 50  # TODO Make this sample better, linear isn't appropriate because its a circle
         scat = self.params.original_image2.flatten()
-        ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat[::self.skip_points], c='k', s=2)
+        blk_alpha = 0.4
+        ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat[::self.skip_points], c='k', s=4, alpha=blk_alpha, edgecolors='none', label="2. SRN")
+        
         # self.touchup_TUNE(self.params.original_image+0)
         
         ## Plot Formatting
@@ -417,6 +552,7 @@ class SRNProcessor(Processor):
         ax.set_xlabel("Distrance from Sun Center")
         ax.set_yscale("symlog")
         ax.set_ylim((-10 ** 1, 10 ** 4))
+        ax.set_xlim((0,1.75))
         ax.legend(loc='lower left')
         # plt.show()
         # Plot Saving
@@ -426,6 +562,8 @@ class SRNProcessor(Processor):
             self.force_save_inner_outer(save, fig, ax, show)
         if show:
             plt.show(block=True)
+        
+        # print('Plot_curves')
     
     def force_save_inner_outer(self, save, fig, ax0, show):
         # Save Path Stuff
@@ -453,6 +591,7 @@ class SRNProcessor(Processor):
             while True:
                 try:
                     plt.savefig(save_path_1, dpi=150)
+                    self.this_index += 1
                     break
                 except OSError as e:
                     print("  !!!!!!! Close the Dang Plot!", end='')
@@ -516,12 +655,15 @@ class SRNProcessor(Processor):
         """Do statistics on a given bin"""
         bin_array = self.get_bin_items(bin_list)
         if len(bin_array) > 0:
-            a, b, c, d = np.percentile(bin_array, [99, 90, 3, 0.5])
+            a, b, c, d = np.percentile(bin_array, [98.5, 90, 3, 0.5])
             
             self.binAbsMax[ii] = a  # np.percentile(bin_array, 99.999)
             self.binMax[ii] = b  # np.percentile(bin_array, 96)
             self.binMin[ii] = c  # np.percentile(bin_array, 2)
             self.binAbsMin[ii] = d  # np.percentile(bin_array, 0.001)
+    
+    
+    
     
     @staticmethod
     def get_bin_items(bin_list):
@@ -578,9 +720,10 @@ class SRNProcessor(Processor):
     ## Smoothed Normalization Curve Stuff ##
     ###################################
     
-    def make_smoothed_curves(self, banner=True):  ## SNARFLAT Work Here damnit
+    def make_save_smoothed_curves(self, banner=False):  ## SNARFLAT Work Here damnit
         """Build the normalization arrays, treating the domain in 3 seperate regions"""
-        if self.make_curves_latch and self.abs_max is not None:
+        if self.abs_max is not None:
+            # self.save_curves(banner=False)    # TODO This might need to be on
             if banner: print("\r *        Smoothing Curves...", end='')
             self.despike_curves()
             self.triFilter_curves()
@@ -588,10 +731,22 @@ class SRNProcessor(Processor):
             self.render_smooth_curves()
             if banner: print("Success!")
             
-            self.save_curves(banner=False)
+            self.save_curves(banner=banner)
             
             self.select_curves_TUNE()
-            self.make_curves_latch = False
+            # print("Smoothed Curves")
+    
+    def despike_curves(self):
+        # if self.make_curves_latch:
+        #     self.abs_max = self.despike(self.abs_max)
+        # self.make_curves_latch = False
+        
+        pass
+    
+    def triFilter_curves(self):
+        self.split_into_three_regions()
+        self.filter_three_regions_TUNE()
+        self.concatinate_filtered_regions()
     
     def init_smooth_curves(self):
         self.smooth_absol_maximum = self.savgol_filtered_absol_maximum + 0
@@ -601,13 +756,9 @@ class SRNProcessor(Processor):
         self.smooth_outer_minimum = self.savgol_filtered_outer_minimum + 0
         self.smooth_absol_minimum = self.savgol_filtered_absol_minimum + 0
     
-    def despike_curves(self):
-        self.abs_max = self.despike(self.abs_max)
     
-    def triFilter_curves(self):
-        self.split_into_three_regions()
-        self.filter_three_regions_TUNE()
-        self.concatinate_filtered_regions()
+    
+    
     
     def monoFilter_curves(self):
         self.init_smooth_curves()
@@ -679,14 +830,12 @@ class SRNProcessor(Processor):
         # Concatinate filtered curves
         smidge = self.smidge
         self.output_abscissa = np.hstack((self.inner_low_abs[:self.lCut], self.inner_mid_abs[smidge:-smidge], self.inner_high_abs[smidge:]))
-        self.savgol_filtered_absol_maximum = np.hstack(
-                (self.absolute_low_max[:self.lCut], self.absolute_mid_max[smidge:-smidge], self.absolute_high_max[smidge:]))
+        self.savgol_filtered_absol_maximum = np.hstack((self.absolute_low_max[:self.lCut], self.absolute_mid_max[smidge:-smidge], self.absolute_high_max[smidge:]))
         self.savgol_filtered_outer_maximum = np.hstack((self.outer_low_max[:self.lCut], self.outer_mid_max[smidge:-smidge], self.outer_high_max[smidge:]))
         self.savgol_filtered_inner_maximum = np.hstack((self.inner_low_max[:self.lCut], self.inner_mid_max[smidge:-smidge], self.inner_high_max[smidge:]))
         self.savgol_filtered_inner_minimum = np.hstack((self.inner_low_min[:self.lCut], self.inner_mid_min[smidge:-smidge], self.inner_high_min[smidge:]))
         self.savgol_filtered_outer_minimum = np.hstack((self.outer_low_min[:self.lCut], self.outer_mid_min[smidge:-smidge], self.outer_high_min[smidge:]))
-        self.savgol_filtered_absol_minimum = np.hstack(
-                (self.absolute_low_min[:self.lCut], self.absolute_mid_min[smidge:-smidge], self.absolute_high_min[smidge:]))
+        self.savgol_filtered_absol_minimum = np.hstack((self.absolute_low_min[:self.lCut], self.absolute_mid_min[smidge:-smidge], self.absolute_high_min[smidge:]))
     
     def flatten_smooth_curves(self, flatten_down_ind=None, flatten_up_ind=None):
         # Flatten out the low edge
@@ -699,7 +848,7 @@ class SRNProcessor(Processor):
         self.smooth_absol_minimum[0:flatten_inner_ind] = self.savgol_filtered_absol_minimum[flatten_inner_ind]
         
         # Flatten out the high edge
-        flatten_outer_ind = flatten_up_ind or int(self.r2n(1.6))
+        flatten_outer_ind = flatten_up_ind or int(self.r2n(1.7))
         self.smooth_absol_maximum[flatten_outer_ind:] = self.savgol_filtered_absol_maximum[flatten_outer_ind]
         self.smooth_outer_maximum[flatten_outer_ind:] = self.savgol_filtered_outer_maximum[flatten_outer_ind]
         self.smooth_inner_maximum[flatten_outer_ind:] = self.savgol_filtered_inner_maximum[flatten_outer_ind]
@@ -763,11 +912,11 @@ class SRNProcessor(Processor):
         #             print("\n filter:three:regions::")
         #             print(e)
         #
-
+    
     ###################################
     ##   Places to TUNE the model    ##
     ###################################
-
+    
     def filter_three_regions_TUNE(self):
         ### Filter the regions separately
         mode = 'nearest'
@@ -810,7 +959,7 @@ class SRNProcessor(Processor):
             except np.linalg.LinAlgError as e:
                 print("\n filter:three:regions::")
                 print(e)
-
+        
         # Filter High
         for i in range(hn):
             try:
@@ -888,9 +1037,9 @@ class SRNProcessor(Processor):
         np.power(img, 1 / 3, out=img)
         img /= 3.5
         # img += 0.1
-
+        
         # img[img > 1.] = np.power(img[img > 1.], 1/2)
-
+        
         # img *= 1.5
         # img -= 0.75
         
@@ -933,7 +1082,7 @@ class SRNProcessor(Processor):
         ## Some Final Normalization ##      TODO: I think this might be breaking things!
         # self.changed_flat = self.normalize(self.changed_flat, high=99.99, low=1)
         pass
-
+    
     #######################################
     ## Image Reduction Helper Algorithms ##
     #######################################
@@ -944,7 +1093,7 @@ class SRNProcessor(Processor):
         strides = data.strides + (data.strides[-1],)
         return np.lib.stride_tricks.as_strided(data, shape=shape, strides=strides)
     
-    def despike(self, arr, n1=2.5, n2=20, block=50):
+    def despike(self, arr, n1=2.5, n2=40, block=25):
         # Condition the Input
         data = arr.copy()
         data[data == -1] = np.NaN
@@ -978,13 +1127,17 @@ class SRNProcessor(Processor):
     def coronaNorm(self):
         """Normalize the in_object using the radial percentile curves"""
         # Make Curves
-        self.make_smoothed_curves()
+        self.make_save_smoothed_curves()
         
         # Normalize Them
         self.execute_norm()
         
         # Deal with some outliers
         self.coronagraph_touchup_TUNE()
+        
+        # Vignette
+        self.vignette()  # Truncate the in_object above given radius
+    
     
     def execute_norm(self):
         """Apply the Normalization to the Image Array"""
@@ -1125,133 +1278,134 @@ class SRNProcessor(Processor):
     ## Plotting Stuff ##
     ########################
     
-    # def peek_norm(self, do=False, show=False, save=True):
-    #     """This plot is in radius and has a scatter plot
-    #         overlaid with the norm curves as determined elsewhere"""
-    #     vprint(" *    Plotting Analysis...     ", end='')
-    #     the_alpha = 0.05
-    #
-    #     # Init the Figure
-    #     fig, (ax0) = plt.subplots(1, 1, sharex="all", num="Radial Statistics")
-    #
-    #     skip = 1000
-    #     self.skip_points = 100 if self.params.rez < 3000 else skip
-    #
-    #     ########################
-    #     ##  Plot 0: Absolute  ##
-    #     ########################
-    #     self.plot_norm_curves(fig=fig, ax=ax0, save=False, smooth=True, extra=False, raw=False)
-    #
-    #     # Plot Scattered Points from the original image in midnightblue
-    #     orig_abs = self.params.original_image.flatten()
-    #     ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
-    #                 alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
-    #
-    #     # Vertical Lines
-    #     # ax0.axvline(1, lw=3)
-    #     if self.lCut is not None:
-    #         ax0.axvline(self.n2r(self.lCut), ls=":")
-    #         ax0.axvline(self.n2r(self.hCut), ls=":")
-    #
-    #     # for line in self.peak_indList:
-    #     #     ax0.axvline(self.n2r(line), c='orange')
-    #
-    #     ########################
-    #     ## Plot 1: Normalized ##
-    #     ########################
-    #
-    #     # # Plot Scattered Points from the original image in midnightblue
-    #     # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-    #     #             alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
-    #     #
-    #     # # Plot Scattered Points from the original image but rooted, in red
-    #     # self.touchup_TUNE(self.params.original_image)
-    #     # scat2 = self.params.original_image.flatten()
-    #     # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
-    #     #             alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
-    #     #
-    #     # # Plot Scattered Points from the final modified image, in black
-    #     # self.touchup_TUNE(self.params.modified_image)
-    #     # points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
-    #     # ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
-    #     #
-    #     # # Extra Lines
-    #     # ax1.axhline(2, c='lightgrey', ls=':', zorder=-1)
-    #     # ax1.axhline(1, c='k', ls=':', zorder=-1)
-    #     # ax1.axhline(0, c='k', ls=':', zorder=-1)
-    #
-    #     ## Plot 0 Formatting
-    #     ax0.set_title("Various Norm Curves in Absolute Scale")
-    #
-    #     full = True
-    #     if full:
-    #         ax0.set_ylim((-10 ** 1, 10 ** 4))
-    #         ax0.set_xlim((0, 1.85))
-    #     else:
-    #         ax0.set_ylim((0, 1000))
-    #         ax0.set_xlim((0.85, 1.15))
-    #
-    #     ax0.axvline(self.vrad, ls=':', c='lightgrey', label='Vignette')
-    #
-    #     if self.flatten_up:
-    #         ax0.axvline(self.flatten_up, ls=':', c='grey', label='Flattening')
-    #         ax0.axvline(self.flatten_down, ls=':', c='grey')
-    #
-    #     ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
-    #                  xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-    #     ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.025, 0.2),
-    #                  xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-    #
-    #     ax0.annotate("Top Curve R:\n{}".format(self.norm_curve_max_top_name), (0.725, 0.7),
-    #                  xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-    #     ax0.annotate("Bot Curve R:\n{}".format(self.norm_curve_min_top_name), (0.725, 0.6),
-    #                  xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-    #
-    #     # ax0.legend()
-    #     # import matplotlib as mpl
-    #
-    #     ax0.set_yscale('symlog')
-    #     ax0.set_ylabel(r"Absolute Intensity (Counts)")
-    #
-    #     # ## Plot 1 Formatting
-    #     # ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
-    #     # ax1.set_ylabel(r"Normalized Intensity")
-    #     # ax1.set_title("")
-    #     # ax1.set_yscale("symlog")
-    #     # ax1.set_ylim((-0.5, 20))
-    #     # ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
-    #     #
-    #     # import matplotlib as mpl
-    #     # ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x >= 1 else x))
-    #     # fig.set_size_inches(7, 11)
-    #     #         fig.set_size_inches(7, 14)
-    #
-    #     plt.tight_layout()
-    #     plt.show(block=True)
-    #     # 1/0
-    #     # return True
-    #     # self.force_save_radial_figures(save, fig, ax0, show)
-    #
-    #     vprint("Success!")
-    #     if not do:
-    #         return
-    #     if self.first:
-    #         self.first = False
-    #         return
-    #     # import pdb; pdb.set_trace()
-    #     # self.output_abscissa
-    #     # dprint("plot_full_normalization")
-    #
-    #     # locs = np.arange(self.rez)[::int(self.rez/5)]
-    #     # ax1.set_xticks(locs)
-    #     # ax1.set_xticklabels(self.n2r(locs))
-    #     # ax.axvline(self.tRadius, c='r')
-    #     # original_touch = self.params.original_image+0
-    #     # self.touchup_TUNE(original_touch)
-    #
+    def peek_norm(self, do=False, show=False, save=True):
+        """This plot is in radius and has a scatter plot
+            overlaid with the norm curves as determined elsewhere"""
+        vprint(" *    Plotting Analysis...     ", end='')
+        the_alpha = 0.05
+        
+        # Init the Figure
+        fig, (ax0) = plt.subplots(1, 1, sharex="all", num="Radial Statistics")
+        
+        skip = 1000
+        self.skip_points = 100 if self.params.rez < 3000 else skip
+        
+        ########################
+        ##  Plot 0: Absolute  ##
+        ########################
+        self.plot_norm_curves(fig=fig, ax=ax0, save=False, smooth=True, extra=False, raw=False)
+        
+        # Plot Scattered Points from the original image in midnightblue
+        orig_abs = self.params.original_image.flatten()
+        ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
+                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
+        
+        # Vertical Lines
+        # ax0.axvline(1, lw=3)
+        if self.lCut is not None:
+            ax0.axvline(self.n2r(self.lCut), ls=":")
+            ax0.axvline(self.n2r(self.hCut), ls=":")
+        
+        # for line in self.peak_indList:
+        #     ax0.axvline(self.n2r(line), c='orange')
+        
+        ########################
+        ## Plot 1: Normalized ##
+        ########################
+        
+        # # Plot Scattered Points from the original image in midnightblue
+        # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
+        #             alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
+        #
+        # # Plot Scattered Points from the original image but rooted, in red
+        # self.touchup_TUNE(self.params.original_image)
+        # scat2 = self.params.original_image.flatten()
+        # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
+        #             alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
+        #
+        # # Plot Scattered Points from the final modified image, in black
+        # self.touchup_TUNE(self.params.modified_image)
+        # points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
+        # ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
+        #
+        # # Extra Lines
+        # ax1.axhline(2, c='lightgrey', ls=':', zorder=-1)
+        # ax1.axhline(1, c='k', ls=':', zorder=-1)
+        # ax1.axhline(0, c='k', ls=':', zorder=-1)
+        
+        ## Plot 0 Formatting
+        ax0.set_title("Various Norm Curves in Absolute Scale")
+        
+        full = True
+        if full:
+            ax0.set_ylim((-10 ** 1, 10 ** 4))
+            ax0.set_xlim((0, 1.85))
+        else:
+            ax0.set_ylim((0, 1000))
+            ax0.set_xlim((0.85, 1.15))
+        
+        ax0.axvline(self.vrad, ls=':', c='lightgrey', label='Vignette')
+        
+        if self.flatten_up:
+            ax0.axvline(self.flatten_up, ls=':', c='grey', label='Flattening')
+            ax0.axvline(self.flatten_down, ls=':', c='grey')
+        
+        ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
+                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.025, 0.2),
+                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        
+        ax0.annotate("Top Curve R:\n{}".format(self.norm_curve_max_top_name), (0.725, 0.7),
+                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        ax0.annotate("Bot Curve R:\n{}".format(self.norm_curve_min_top_name), (0.725, 0.6),
+                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        
+        # ax0.legend()
+        # import matplotlib as mpl
+        
+        ax0.set_yscale('symlog')
+        ax0.set_ylabel(r"Absolute Intensity (Counts)")
+        
+        # ## Plot 1 Formatting
+        # ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
+        # ax1.set_ylabel(r"Normalized Intensity")
+        # ax1.set_title("")
+        # ax1.set_yscale("symlog")
+        # ax1.set_ylim((-0.5, 20))
+        # ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
+        #
+        # import matplotlib as mpl
+        # ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x >= 1 else x))
+        # fig.set_size_inches(7, 11)
+        #         fig.set_size_inches(7, 14)
+        
+        plt.tight_layout()
+        plt.show(block=True)
+        # 1/0
+        # return True
+        # self.force_save_radial_figures(save, fig, ax0, show)
+        
+        vprint("Success!")
+        if not do:
+            return
+        if self.first:
+            self.first = False
+            return
+        # import pdb; pdb.set_trace()
+        # self.output_abscissa
+        # dprint("plot_full_normalization")
+        
+        # locs = np.arange(self.rez)[::int(self.rez/5)]
+        # ax1.set_xticks(locs)
+        # ax1.set_xticklabels(self.n2r(locs))
+        # ax.axvline(self.tRadius, c='r')
+        # original_touch = self.params.original_image+0
+        # self.touchup_TUNE(original_touch)
+    
     def plot_full_normalization(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
             overlaid with the norm curves as determined elsewhere"""
+        
         vprint(" *    Plotting Analysis...     ", end='')
         blu_alpha = 0.15
         red_alpha = 0.15
@@ -1320,7 +1474,7 @@ class SRNProcessor(Processor):
                      xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
         ax0.annotate("Bot Curve R:\n{}".format(self.norm_curve_min_top_name), (0.65, 0.8),
                      xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-
+        
         # ax0.legend()
         # import matplotlib as mpl
         
@@ -1386,14 +1540,14 @@ class SRNProcessor(Processor):
             
             if show:
                 plt.show(block=True)
-    
+            
             ax.set_xlim((0.9, 1.1))
             plt.savefig(save_path_2)
         
         if not show:
             plt.close(fig)
-
-            
+    
+    
     
     def get_points(self, index):
         ## Scatter Plot

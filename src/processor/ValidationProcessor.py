@@ -331,9 +331,9 @@ class ValidationProcessor(Processor):
 #         self.scalar_out_curve = np.zeros(len(self.outer_min))
 #         if self.found_limb_radius:
 #             self.scalar_out_curve[0] = self.found_limb_radius
-#         if self.absolute_min:
-#             self.scalar_out_curve[1] = self.absolute_min
-#             self.scalar_out_curve[2] = self.absolute_max
+#         if self.abs_min_scalar:
+#             self.scalar_out_curve[1] = self.abs_min_scalar
+#             self.scalar_out_curve[2] = self.abs_max_scalar
 #
 #         out_list = [self.outer_min, self.inner_min, self.inner_max, self.outer_max, self.scalar_out_curve]
 #         none_check = [item is not None for item in out_list]
@@ -348,8 +348,8 @@ class ValidationProcessor(Processor):
 #         self.outer_max, self.scalar_in_curve = np.loadtxt(self.params.curve_path())
 #
 #         self.found_limb_radius = self.scalar_in_curve[0]
-#         self.absolute_min = self.scalar_in_curve[1]
-#         self.absolute_max = self.scalar_in_curve[2]
+#         self.abs_min_scalar = self.scalar_in_curve[1]
+#         self.abs_max_scalar = self.scalar_in_curve[2]
 #
 #         # self.plot_norm_curves(show=True, save=False)
 #

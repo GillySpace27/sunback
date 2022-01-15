@@ -6,6 +6,8 @@ from os import remove
 from os.path import join, basename
 from time import strptime, mktime
 import sys
+
+from drms import DrmsExportError
 from parfive import Downloader
 from sunpy.net import Fido, attrs
 import numpy as np
@@ -74,7 +76,7 @@ class FidoFetcher(Fetcher):
     
     def fido_get_fits(self, current_wave, temp=False):
         self.load(self.params, wave=current_wave)
-        vprint("\r          ")
+        # vprint("\r          ")
         vprint("v Fetching Fits Files: {}".format(self.params.current_wave()), self.verb)
         if self.params.download_files() or self.reprocess_mode() or not self.verb:
             self.print_load_banner(verb=self.verb)
@@ -150,11 +152,11 @@ class FidoFetcher(Fetcher):
             self.name = '0' + self.name
             
         if self.fido_search_found_num > 200:
-            response = input("Do you still want to download all {} images? [y]/n _".format(self.fido_search_found_num))
+            response = input("Do you still want to download all {} images? [y]/n > ".format(self.fido_search_found_num))
             if 'n' in response.casefold():
                 print("Stopping!")
                 raise StopIteration
-            print("Continuing...")
+            print("Continuing. ", end='')
             
     def store_requests(self):
         try:
@@ -177,14 +179,21 @@ class FidoFetcher(Fetcher):
         main_stdout = sys.stdout
         
         if not hold:
-            with open('log.txt', mode="w+") as sys.stdout:
-                self.verb = False
+            loc = os.path.join(self.params.temp_directory(), 'log.txt')
+            # with open(loc, mode="w+") as sys.stdout:
+            self.verb = False
+            print("Fido Fetching...")
+            try:
                 results = Fido.fetch(self.needed_files, path=self.out_path, downloader=SubDownloader)
-                self.n_fits = len(results)+0
-                # if ensured:
-                #     results = self.fido_multi_download()
-                self.multi_banner()
-                self.results = copy.copy(results)
+            except DrmsExportError as e:
+                print(e)
+                results = []
+                
+            self.n_fits = len(results)+0
+            # if ensured:
+            #     results = self.fido_multi_download()
+            self.multi_banner()
+            self.results = copy.copy(results)
             sys.stdout = main_stdout
             return self.results
     

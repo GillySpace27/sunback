@@ -38,11 +38,11 @@ class Processor:
     batch_name = name = 'default_name'
     description = "Use an Unnamed Processor"
     run_type = "General Base Processor Class"
-    progress_stem = " *    {} Files"
+    progress_stem = " *    {} {}"
     progress_verb = "Processing"
-    progress_string = progress_stem.format(progress_verb)
-    finished_verb = "Processed"
     progress_unit = "files"
+    progress_string = progress_stem.format(progress_verb, progress_unit)
+    finished_verb = "Processed"
     run_type_string = "Default Actions"
     out_path = None
     
@@ -75,7 +75,7 @@ class Processor:
     found_limb_radius = None
     int_tm_tot = None
     fits_folder = None
-    absolute_min = None
+    abs_min_scalar = None
     curve_out_array = None
     ensured = False
     hdu_name_list = None
@@ -145,7 +145,7 @@ class Processor:
         self.set_base_directories(fits_directory, imgs_directory, absolute)
         
         self.set_names(in_name, out_name, batch_name, quietly)
-        self.progress_string = self.progress_stem.format(self.progress_verb)
+        self.progress_string = self.progress_stem.format(self.progress_verb, self.progress_unit)
         
         if self.params is not None:
             #  Refresh Params and Load Paths
@@ -707,9 +707,9 @@ class Processor:
         self.scalar_out_curve = np.zeros(len(self.outer_min))
         if self.found_limb_radius:
             self.scalar_out_curve[0] = self.fit_limb_radius
-        if self.absolute_min:
-            self.scalar_out_curve[1] = self.absolute_min
-            self.scalar_out_curve[2] = self.absolute_max
+        if self.abs_min_scalar:
+            self.scalar_out_curve[1] = self.abs_min_scalar
+            self.scalar_out_curve[2] = self.abs_max_scalar
         if self.savgol_filtered_inner_maximum is None:
             self.savgol_filtered_outer_maximum = np.empty_like(self.outer_min)
             self.savgol_filtered_inner_minimum = np.empty_like(self.outer_min)
@@ -742,8 +742,8 @@ class Processor:
         self.abs_max, self.abs_min, = np.loadtxt(self.params.curve_path())
         
         self.fit_limb_radius = self.scalar_in_curve[0]
-        self.absolute_min = self.scalar_in_curve[1]
-        self.absolute_max = self.scalar_in_curve[2]
+        self.abs_min_scalar = self.scalar_in_curve[1]
+        self.abs_max_scalar = self.scalar_in_curve[2]
     
     def save_curves(self, banner=True, extra_line=False):  #
         """Save the curves so they don't have to be recalculated"""
@@ -781,7 +781,7 @@ class Processor:
         """Load the curves so they don't have to be recalculated"""
         lc = self.load_print_latch
         if os.path.exists(self.params.curve_path()):
-            if self.absolute_min is None or force:
+            if self.abs_min_scalar is None or force:
                 if lc: vprint("\r *    Loading Radial Curves...", end='')
                 try:
                     self.unpack_save_ins()

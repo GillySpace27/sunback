@@ -131,7 +131,8 @@ class ImageProcessorCV(ImageProcessor):
             
     def label_plot(self):
         """Annotate with Text"""
-        img = self.img_frame
+        # img = self.img_frame
+        img = self.params.rbg_image
         full_name, fits_path, time_string_raw, shape = self.image_data
         time_string = self.clean_time_string(time_string_raw)
         time_list = time_string.split()

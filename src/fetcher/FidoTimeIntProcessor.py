@@ -59,16 +59,16 @@ class FidoTimeIntProcessor(FidoFetcher):
         os.makedirs(self.params.temp_directory(), exist_ok=True)
         self.params.do_temp = True
 
-    def download_fits_series(self, temp=True, hold=None):
-        if hold is None:
-            hold = False # TODO Fix this
-        self.define_range()
-        self.fido_check_for_fits()
-        if self.fido_search_found_num:
-            self.fido_parse_result()
-            self.fido_download_fits_ensured(temp=temp, hold=hold)
-        else:
-            print("\n     No Images Found\n")
+    # def download_fits_series(self, temp=True, hold=None):
+    #     if hold is None:
+    #         hold = False # TODO Fix this
+    #     self.define_range()
+    #     self.fido_check_for_fits()
+    #     if self.fido_search_found_num:
+    #         self.fido_parse_result()
+    #         self.fido_download_fits_ensured(temp=temp, hold=hold)
+    #     else:
+    #         print("\n     No Images Found\n")
     
     def cleanup(self):
         self.reset_params()
@@ -158,14 +158,16 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.get_exposure_paths()
         self.int_tm_tot = 0
         self.n_exposures = 0
+        
         self.params.modified_image = np.zeros_like(self.params.modified_image, dtype=np.float32)
+        
         for ii, path in enumerate(self.exposure_paths):
             # vprint(path, self.verb)
             try:
                 if not os.path.isdir(path):
                     frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, -1)
                     self.orig_t_int = self.orig_t_int or int_time
-                    self.params.modified_image += (frame / int_time)
+                    self.params.modified_image += frame
                     self.int_tm_tot += int_time
                     self.n_exposures += 1
                 # self.force_delete(path, do=self.do_delete)
@@ -174,8 +176,8 @@ class FidoTimeIntProcessor(FidoFetcher):
             # except TypeError as e:
             #     print("Sum Subframes:: ", e)
                 
-        self.params.modified_image /= self.n_exposures
-        self.params.modified_image *= self.orig_t_int #TODO remove this line to make the curves be per second
+        self.params.modified_image /= self.int_tm_tot # DN / sec
+        # self.params.modified_image *= self.orig_t_int #TODO remove this line to make the curves be per second
         self.params.modified_image = np.asarray(self.params.modified_image, dtype=self.out_dtype)
 
     ## TEMP FOLDER IO ##
