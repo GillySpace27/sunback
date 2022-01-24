@@ -793,7 +793,9 @@ class Processor:
                     print("Failed to load Radial Curves: {}".format(e))
                     raise e
         else:
-            print("No Curves to Load")
+            print("No Curves to Load!")
+            print("Please place the curves file at:")
+            print(self.params.curve_path())
                 
                 
                 # self.image_learn()
