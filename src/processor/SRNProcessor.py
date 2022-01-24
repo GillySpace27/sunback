@@ -663,7 +663,7 @@ class SRNProcessor(Processor):
             self.binAbsMin[ii] = d  # np.percentile(bin_array, 0.001)
     
     
-    
+            ## TODO make this be percentilized
     
     @staticmethod
     def get_bin_items(bin_list):
