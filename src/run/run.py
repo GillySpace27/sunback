@@ -13,10 +13,11 @@ class Runner:
         self.wall_1 = "*****************************************************************"
         self.wall_2 = "_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_"
     
-    def start(self):
+    def start(self, verb=True):
         """Select whether to run or to debug"""
-        self.print_header()
-        
+        self.start_timestamp = time()
+        if verb: self.print_header()
+        self.verb=verb
         if self.params.is_debug():
             self.__debug_mode()
         else:
@@ -75,7 +76,9 @@ class Runner:
                 print("\n>>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
                 # print(" Redownload Mode: {}\n".format(self.params.download_files()))
                 for fet, rp in zip(self.params.fetchers(), self.params._fet_rp):
-                    fet(params=self.params, rp=rp).fetch()
+                    fet_instance = fet(params=self.params, rp=rp)
+                    fet_instance.fetch()
+                    self.params.old_fetchers.append(fet_instance)
             
             if len(self.params.processors()) > 0:
                 sys.stdout.flush()
@@ -100,7 +103,7 @@ class Runner:
         print("\n\n", self.wall_1)
         print("\nSunback SDO Image Manipulator \nWritten by C.R. Gilly")
         print("Check out my website: http://gilly.space\n")
-        self.start_timestamp = time()
+        
         if self.params.is_debug(): print("DEBUG MODE\n")
         self.print_plan()
         print("\n", self.wall_1, "\n\n")
@@ -136,7 +139,7 @@ class Runner:
         print(self.wall_2 + "\n")
         
         # for ii in range(4):
-        if self.params.stop_after_one():
+        if self.verb and self.params.stop_after_one():
             print(r"""           '
                           .      '      .
                     .      .     :     .      .
@@ -204,6 +207,7 @@ class SingleRunner(Runner):
     
     def do_process(self):
         """Call each of the processors in order"""
+
         for proc in self.processor_list:
             # proc.process(image=self.params.use_image_path())
             print(">>-->>  {}: {}  <<--<<".format(proc.filt_name, proc.description))

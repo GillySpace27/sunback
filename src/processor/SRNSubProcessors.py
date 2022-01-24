@@ -2,7 +2,9 @@ import shutil
 from time import time
 
 from processor.SRNProcessor import SRNProcessor
+from fetcher.LocalFetcher import LocalCdfFetcher
 import os
+import matplotlib.pyplot as plt
 
 ##########################
 ##########################
@@ -29,6 +31,8 @@ class SRNSingleShotProcessor(SRNProcessor):
         self.params.Force_init = True
         self.can_use_keyframes = False
         self.can_initialize = False
+        self.frame_list = []
+
     
     def setup(self):
         # self.load(self.params, quietly=True, wave=self.params.current_wave('rainbow'))
@@ -43,13 +47,73 @@ class SRNSingleShotProcessor(SRNProcessor):
         verb =True
         if verb:
             print(" v ", self.progress_verb, "Image...")
+        
+        if self.params.use_cdf:
+            return self.run_cdf()
+        else:
+            return self.run_single()
+            
+    def run_single(self):
+        """Run the program on a single loaded frame"""
         self.image_learn()  # Analyze the input to help make normalization curves
-#         self.plot_norm_curves(save=False, show=True, extra=True)
         self.image_modify()  # Actually Normalize This Image
+        self.image_plot()
         self.first=False
-        self.plot_full_normalization(save=False, show=True, do=True)
         print(" ^ Success!\n")
-        return self.params.modified_image
+        return self.params.modified_image   
+
+         
+    def run_cdf(self, do_plot=False):
+        """Run the program on a single loaded frame"""
+
+        for index in range(self.params.n_frames):
+#             print("Frame {}".format(index))
+            self.params.cdf_fetcher.select_frame(get_ind=index)
+            self.image_learn()  # Analyze the input to help make normalization curves
+            self.image_modify()  # Actually Normalize This Image
+            self.image_store_cdf()
+            if do_plot:
+                self.params.cdf_fetcher.peek_selection()
+                self.image_plot()
+            self.first=False
+        self.image_save_cdf()
+        print(" ^ Success!\n")
+
+#             return self.params.modified_image   
+#         import pdb; pdb.set_trace()
+#         self.params.old_fetchers
+
+#         the_fetcher = [x for x in self.params.old_fetchers if type(x) is LocalCdfFetcher][0]
+
+#         for frame in the_fetcher.select_frame(gen=True):
+#             print(frame)
+        
+#         pass
+    
+    def image_store_cdf(self, do_plot=False):
+        
+        wave = self.params.image_data[0]+0
+        frame = self.touchup(self.params.modified_image)+0
+        
+        self.frame_list.append((frame, wave))
+        
+#         print("           Storing Frame {}...".format(wave), end='')
+        if do_plot:
+            plt.imshow(frame, origin='lower')
+            plt.title(wave)
+            plt.show()
+        
+        
+        
+#         print("Not Yet Implemented")
+
+    def image_save_cdf(self):
+        self.params.cdf_fetcher.save_cdf(self.params.new_img_path, self.frame_list, self.params.confirm_save)
+
+    
+    def image_plot(self, save=False, show=True, do=True):    
+        # self.plot_norm_curves(save=False, show=True, extra=True)
+        self.plot_full_normalization(save=save, show=show, do=do)        
     
     def cleanup(self):
         """Runs after all the images have been modified with do_work"""

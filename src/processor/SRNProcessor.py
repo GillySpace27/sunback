@@ -228,8 +228,8 @@ class SRNProcessor(Processor):
     
     def init_for_learn(self):
         # self.init_images()
-        self.init_frame_curves()
         self.init_radius_array()
+        self.init_frame_curves()
         self.init_statistics()
     
     def init_for_modify(self):
@@ -449,9 +449,9 @@ class SRNProcessor(Processor):
     
     
         # Plot Scatter Points
-        # self.skip_points = 10 if self.params.rez < 3000 else 500  # TODO Make this sample better, linear isn't appropriate because its a circle
-        # scat = self.params.original_image.flatten()
-        # ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat[::self.skip_points], c='k', s=2)
+        self.skip_points = 10 if self.params.rez < 3000 else 500  # TODO Make this sample better, linear isn't appropriate because its a circle
+        scat = self.params.original_image.flatten()
+        ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat[::self.skip_points], c='k', s=2, alpha=0.4)
         # self.touchup(self.params.original_image+0)
     
         ## Plot Formatting
@@ -460,6 +460,7 @@ class SRNProcessor(Processor):
         ax.set_yscale("symlog")
         ax.set_ylim((-10 ** 1, 10 ** 4))
         ax.legend(loc='lower left')
+        fig.set_size_inches(10,10)
         # plt.show()
         # Plot Saving
         if do_save:
@@ -576,6 +577,7 @@ class SRNProcessor(Processor):
         """Clean up the radial statistics to be used"""
         idx = np.isfinite(self.binMax) & np.isfinite(self.binMin)
         n_index = self.binAbss[idx]
+#         import pdb; pdb.set_trace()
         self.frame_abss[n_index] = n_index
         self.frame_maximum[n_index] = self.binMax[idx]
         self.frame_minimum[n_index] = self.binMin[idx]
@@ -596,7 +598,8 @@ class SRNProcessor(Processor):
         
     def find_limb_radius(self):
         self.load_curves()
-        self.found_limb_radius = self.params.found_limb_radius or 1600
+        
+        self.found_limb_radius = 400 # self.params.found_limb_radius or 1600
         self.lCut = int(self.found_limb_radius - 0.01 * self.params.rez)
         self.hCut = int(self.found_limb_radius + 0.01 * self.params.rez)
         
@@ -618,6 +621,9 @@ class SRNProcessor(Processor):
         
         self.fit_limb_radius = (inner_mid_max_maxInd + inner_mid_min_maxInd) // 2
 
+#         print("Found and fit Radii:")
+#         print(self.found_limb_radius, self.fit_limb_radius)
+#         print(self.lCut, self.hCut)
         # print(inner_mid_max_maxInd, inner_mid_min_maxInd, fit_limb_radius)
         
         
@@ -872,7 +878,7 @@ class SRNProcessor(Processor):
         img[img<0.]=0.
         img[~np.isfinite(img)]=0.
         
-        pass
+        return img
 
     def coronagraph_touchup(self):
         """Deal with pixel outliers. Lots of adjustable parameters in here"""
@@ -1043,19 +1049,19 @@ class SRNProcessor(Processor):
     def plot_full_normalization(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
             overlaid with the norm curves as determined elsewhere"""
-        the_alpha = 0.05
-
+        the_alpha = 0.5
         # Init the Figure
-        fig, (ax0, ax1) = plt.subplots(2, 1, sharex="all", num="Radial Statistics")
-    
-        skip = 100
-        self.skip_points = 10 if self.params.rez < 3000 else skip
-
-        ########################
-        ##  Plot 0: Absolute  ##
-        ########################
-        self.plot_norm_curves(fig=fig, ax=ax0, save=False)
+        fig, (ax0, ax1) = plt.subplots(1,2, sharex="all", num="Radial Statistics")
+        fig0 = fig1 = fig
         
+#         skip = 100
+#         self.skip_points = 10 if self.params.rez < 3000 else skip
+        skip = self.skip_points = 1
+#         ########################
+#         ##  Plot 0: Absolute  ##
+#         ########################
+#         self.plot_norm_curves(fig=fig1, ax=ax0, save=False)
+
         # Vertical Lines
         ax0.axvline(1)
         if self.lCut is not None:
@@ -1063,38 +1069,47 @@ class SRNProcessor(Processor):
             ax0.axvline(self.n2r(self.hCut), ls=":")
         
         # Plot Scattered Points from the original image in midnightblue
-        orig_abs = self.params.original_image.flatten()
-        ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
+        flat_original = self.params.original_image.flatten()
+        ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_original[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
 
         ########################
         ## Plot 1: Normalized ##
         ########################
 
+    
         # Plot Scattered Points from the original image in midnightblue
-        ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
+#         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_original[::self.skip_points], zorder=-1,
+#                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
         
         # Plot Scattered Points from the original image but rooted, in red
-        self.touchup(self.params.original_image)
-        scat2 = self.params.original_image.flatten()
-        ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
-                    alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
-        
+        flat_original = self.params.original_image.flatten()
+        touched_original = self.touchup(self.params.original_image+0)
+#         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), touched_original[::self.skip_points],
+#                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
+       
         # Plot Scattered Points from the final modified image, in black
         self.touchup(self.params.modified_image)
-        points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
-        ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
+        flat_modified_image = np.array(self.params.modified_image.flatten(), dtype=np.float32)
+        ax1.scatter(self.n2r(self.rad_flat[::skip]), flat_modified_image[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
+#         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
+#         ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="")         
         
         
+    
+    
+    
+    
+    
         # Extra Lines
         ax1.axhline(2, c='lightgrey', ls=':', zorder=-1)
         ax1.axhline(1, c='k', ls=':', zorder=-1)
         ax1.axhline(0, c='k', ls=':', zorder=-1)
-    
+#         ax1.axvline(0.5)
+
         ## Plot 0 Formatting
         ax0.set_title("Various Norm Curves in Absolute Scale")
-        ax0.set_ylim((-10 ** 1, 10 ** 4))
+        ax0.set_ylim((-10 ** 0, 10 ** 2.2))
         ax0.set_xlim((0, 1.85))
 
         ax0.axvline(self.vrad, ls=':', c='lightgrey')
@@ -1106,24 +1121,42 @@ class SRNProcessor(Processor):
         import matplotlib as mpl
         
         
-        
         ax0.set_yscale('symlog')
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
-    
+
         ## Plot 1 Formatting
         ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
         ax1.set_ylabel(r"Normalized Intensity")
         ax1.set_title("")
         ax1.set_yscale("symlog")
-        ax1.set_ylim((-0.5, 20))
+        ax1.set_ylim((-0.5, 1.5))
         ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
-    
-        ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x>=1 else x ))
-        fig.set_size_inches(7, 11)
+        ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x>=2 else "{:0.1f}".format(x) ))
+        fig0.set_size_inches(10, 5)
 #         fig.set_size_inches(7, 14)
         
         plt.tight_layout()
         plt.show()
+        
+#         fig, ax = plt.subplots()
+#         fig.set_size_inches(10,10)
+
+#         ax.imshow(self.params.modified_image, origin="lower")
+#         plt.show()
+        
+#         print("")
+#         fig, (ax,ax1) = plt.subplots(1,2)
+#         fig.suptitle("Plotting Selected Frame")
+
+#         to_plot = self.touchup(self.params.modified_image)
+#         to_plot1 = self.touchup(self.params.original_image)
+#         ax.imshow(to_plot, origin="lower")
+#         ax1.imshow(to_plot1, origin="lower")
+# #         ax.set_title(self.current_wave)
+#         fig.set_size_inches(5,10)
+#         plt.show()        
+#         import pdb; pdb.set_trace()
+        
         return True
 #         self.force_save_radial_figures(save, fig, ax0, show)
         #         if not do:
@@ -1141,7 +1174,7 @@ class SRNProcessor(Processor):
         # ax.axvline(self.tRadius, c='r')
     # original_touch = self.params.original_image+0
     # self.touchup(original_touch)
-    
+        print("G")     
 
     
     def force_save_radial_figures(self, save, fig, ax0, show):

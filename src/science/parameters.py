@@ -32,6 +32,7 @@ class Parameters:
         self.selection = None
         self.paper_out = []
         self.png_frame_name = None
+        self.confirm_save=False
         
         self.tend = ''
         self.tstart = ''
@@ -50,6 +51,7 @@ class Parameters:
         self._delay_seconds = 30
         self._fixed_number_keyframes = None
         self._fixed_cadence_keyframes = 2
+        self.found_limb_radius = 800
         self.time_multiplier_for_long_display = None
         self.local_directory = None
         self.all_wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
@@ -74,6 +76,8 @@ class Parameters:
         self._do_HMI = True
         self._mode = 'all'
         self._do_mirror = False
+        self.use_cdf = False
+        self.old_fetchers = []
         
         # Movie Defaults
         self._download_files = False
