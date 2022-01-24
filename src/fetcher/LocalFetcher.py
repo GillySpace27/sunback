@@ -193,7 +193,7 @@ class LocalCdfFetcher(Fetcher):
                 
             ax.imshow(to_plot,cmap=cmap, origin="lower")
 
-        fig.set_size_inches((10,10))
+        fig.set_size_inches((8,8))
         plt.tight_layout()
         plt.show(block=True)        
         

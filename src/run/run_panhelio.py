@@ -6,6 +6,7 @@ import os
 # %matplotlib notebook
 import xarray as xr
 changed=False
+from tqdm import tqdm
 
 ## Helper Functions  ------------------------------------------------
 def where():
@@ -66,6 +67,28 @@ def run(img_path, verb=False, confirm=True):
             SingleRunner(p).start(verb=verb)
         print("Done!")
 
+def run_batch(batch_directory, verb=False, confirm=False):
+    items = os.listdir(batch_directory)
+    all_cdf=[x for x in items if '.nc' in x]
+    raw_cdf=[x for x in all_cdf if "filtered" not in x]
+    abs_cdf=[os.path.join(batch_directory, x) for x in raw_cdf]
+    abs_cdf.sort()
+    print("Looking in \n  {}".format(batch_directory))
+    print("    Found {} images".format(len(raw_cdf)), flush=True)
+    if verb:
+        print("   ", raw_cdf, flush=True)
+        
+    # Run the code on the images:
+    if not verb:
+        std = os.sys.stdout
+        os.sys.stdout = open("log.txt", "w+")
+        
+    for im_path in tqdm(abs_cdf):
+        run(im_path, verb=verb, confirm=confirm)
+        
+    if not verb:
+        os.sys.stdout = std
+    
 if __name__ == "__main__":
     # Do something if this file is invoked on its own   
     

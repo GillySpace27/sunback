@@ -740,7 +740,6 @@ class Processor:
             if self.absolute_min is None or force:
                 if verb: print(" *    Loading Radial Curves...", end='')
                 try:
-                    
                     self.unpack_save_ins()
                     if verb: self.super_flush("Success!\n")
                 
@@ -748,7 +747,9 @@ class Processor:
                     print("Failed: {}".format(e))
                     raise e
         else:
-            print("No Curves to Load")
+            print("No Curves to Load!")
+            print("Please place the curves file at:")
+            print(self.params.curve_path())
                 
                 
                 # self.image_learn()
