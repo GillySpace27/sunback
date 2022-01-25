@@ -1,8 +1,11 @@
 import os
+from copy import copy
 from os import makedirs
 from os.path import join, dirname, basename
 import numpy as np
 from scipy.signal import savgol_filter
+from scipy.stats import stats
+
 from processor.Processor import Processor
 
 import warnings
@@ -147,6 +150,8 @@ class SRNProcessor(Processor):
         self.binInds = None
         self.bin_rez = None
         self.radBins = None
+        self.radBins_xy = None
+        self.radBins_ind = None
         self.binMax = None
         self.binMin = None
         self.binAbsMax = None
@@ -269,9 +274,13 @@ class SRNProcessor(Processor):
             xx, yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
             xc, yc = xx - self.params.center[0], yy - self.params.center[1]
             
+            # self.xxyy =
             self.radius = np.sqrt(xc * xc + yc * yc)
             self.rad_flat = self.radius.flatten()
             self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
+            self.binXX = xx.flatten()
+            self.binYY = yy.flatten()
+            self.binII = np.arange(len(self.rad_flat))
             self.vcut = int(vignette_radius * self.params.rez // 2)
             self.vrad = self.n2r(self.vcut)
             self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
@@ -300,6 +309,9 @@ class SRNProcessor(Processor):
         
         self.bin_rez = np.max(self.binInds) + 10
         self.radBins = [[] for x in np.arange(self.bin_rez)]
+        self.radBins_xy = [[] for x in np.arange(self.bin_rez)]
+        self.radBins_ind = [[] for x in np.arange(self.bin_rez)]
+        
         
         self.binMax = np.empty(self.bin_rez)
         self.binMin = np.empty(self.bin_rez)
@@ -383,17 +395,23 @@ class SRNProcessor(Processor):
     def do_percentile_norm(self):
         # Make Percentile Image
         from scipy import stats
-        plt.show()
-        plt.figure()
-        image_shape = self.params.original_image2.shape
-        flat_original = self.params.original_image2.flatten() + 0
+        # plt.show()
+        # plt.figure()
+        
+        # image_shape = self.params.original_image2.shape
+        # flat_original = self.params.original_image2.flatten() + 0
         
         
         # top_half =
         # bot_half =
         # percentile_image_flat = stats.rankdata(flat_original, "average")/len(flat_original)
-        percentile_image_flat = stats.rankdata(flat_original, "average")/len(flat_original)
-        self.params.percentile_image = percentile_image_flat.reshape(image_shape)
+        # plt.imshow(self.params.quantile_image, origin="lower")
+        # plt.show()
+        
+        # percentile_image_flat = stats.rankdata(flat_original, "average")/len(flat_original)
+        # self.params.percentile_image = percentile_image_flat.reshape(image_shape)
+        
+        self.params.percentile_image = self.params.quantile_image
         
         
         # original = flat_original.reshape(image_shape)
@@ -431,10 +449,10 @@ class SRNProcessor(Processor):
         axA.set_title("log10(Original)/2")
         axA.scatter(absiss, original_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
         
-        axB.set_title("Sunback (but actually -> but bright)")
+        axB.set_title("Sunback")
         axB.scatter(absiss, sunback_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
         
-        axC.set_title("Percentileize")
+        axC.set_title("Quantilize")
         axC.scatter(absiss, percentile_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
         
         # ## Plot Formatting
@@ -474,10 +492,9 @@ class SRNProcessor(Processor):
         ## Plot Images
         ax1, ax2, ax3 = axes
         
-        ax1.imshow(self.orig_smasher(self.params.original_image2),   origin='lower', cmap='gray', vmin=0, vmax=1)
-        ax2.imshow(self.params.modified_image,              origin='lower', cmap='gray', vmin=0, vmax=1)
-        ax2.imshow(self.params.percentile_image,            origin='lower', cmap='gray', vmin=0, vmax=0.55)
-        ax3.imshow(self.params.percentile_image,            origin='lower', cmap='gray', vmin=0.55, vmax=1)
+        ax1.imshow(self.orig_smasher(self.params.original_image2),      origin='lower', cmap='gray', vmin=0, vmax=1)
+        ax2.imshow(self.params.modified_image,                          origin='lower', cmap='gray', vmin=0, vmax=1)
+        ax3.imshow(self.params.percentile_image,                        origin='lower', cmap='gray', vmin=0, vmax=1)
     
     
     def plot_norm_curves(self, show=False, save=True, fig=None, ax=None,
@@ -633,10 +650,15 @@ class SRNProcessor(Processor):
         else:
             self.do_bin()
     
-    def do_bin(self, skip=30):  # Bin the intensities by radius
+    def do_bin(self, skip=1):  # Bin the intensities by radius
         self.cut_pixels = skip
-        for binI, dat in zip(self.binInds[::self.cut_pixels], self.params.modified_image.flatten()[::self.cut_pixels]):
+        for binI, dat, xx, yy, ind in zip(self.binInds[::self.cut_pixels],
+                                    self.params.modified_image.flatten()[::self.cut_pixels],
+                                    self.binXX[::self.cut_pixels], self.binYY[::self.cut_pixels], self.binII[::self.cut_pixels]):
             self.radBins[binI].append(dat)
+            self.radBins_xy[binI].append((xx,yy))
+            self.radBins_ind[binI].append(ind)
+            
     
     def save_cached_data(self, radBins=None):
         if radBins is not None:
@@ -650,31 +672,41 @@ class SRNProcessor(Processor):
     
     def radial_statistics(self):  # TODO Make this much faster
         """ Find the statistics in each radial bin"""
+        self.params.quantile_image = copy(self.params.original_image.flatten())
         for ii, bin_list in enumerate(self.radBins):
-            self.store_bin_array(ii, bin_list)
+            self.store_bin_array(ii)
         self.finalize_radial_statistics()
     
-    def store_bin_array(self, ii, bin_list):
+    def store_bin_array(self, ii):
         """Do statistics on a given bin"""
-        bin_array = self.get_bin_items(bin_list)
+        
+        bin_list = self.radBins[ii]
+        keep, bin_array = self.get_bin_items(bin_list)
+        coord = self.radBins_ind[ii]
+        good_coord = [coord[x] for x in keep]
+
         if len(bin_array) > 0:
-            a, b, c, d = np.percentile(bin_array, [98.5, 90, 3, 0.5])
+            quantileized = stats.rankdata(bin_array, "average")/len(bin_array)
+            self.params.quantile_image[good_coord] = quantileized
             
+            a, b, c, d = np.percentile(bin_array, [98.5, 90, 3, 0.5])
             self.binAbsMax[ii] = a  # np.percentile(bin_array, 99.999)
             self.binMax[ii] = b  # np.percentile(bin_array, 96)
             self.binMin[ii] = c  # np.percentile(bin_array, 2)
             self.binAbsMin[ii] = d  # np.percentile(bin_array, 0.001)
     
-    
+            
             ## TODO make this be percentilized
     
     @staticmethod
     def get_bin_items(bin_list):
         """Retrieve finite values from a bin_list"""
         bin_array = np.asarray(bin_list)
-        finite = bin_array[np.isfinite(bin_array)]
-        subItems = finite[np.nonzero(finite)]
-        return subItems
+        finite = np.isfinite(bin_array)
+        filled = bin_array != 0
+        keep = list(np.nonzero(finite & filled)[0])
+        finite_out = bin_array[keep]
+        return keep, finite_out
     
     def finalize_radial_statistics(self):
         """Clean up the radial statistics to be used"""
@@ -686,6 +718,10 @@ class SRNProcessor(Processor):
         self.frame_minimum[n_index] = self.binMin[idx]
         self.frame_abs_max[n_index] = self.binAbsMax[idx]
         self.frame_abs_min[n_index] = self.binAbsMin[idx]
+
+        self.params.quantile_image = self.params.quantile_image.reshape(self.params.modified_image.shape)
+        self.vignette()
+    
     
     def find_limb_radius(self):
         self.load_curves()
@@ -1168,6 +1204,8 @@ class SRNProcessor(Processor):
             try:
                 # Standard Normalization Formula
                 self.params.modified_image = self.norm_formula(self.params.modified_image, self.norm_curve_min, self.norm_curve_max)
+                # self.params.modified_image = self.params.quantile_image
+                
             except RuntimeWarning as e:
                 print(e)
         return
@@ -1294,6 +1332,7 @@ class SRNProcessor(Processor):
     def vignette(self):
         """Truncate the in_object above a certain radis"""
         self.params.modified_image[self.vignette_mask] = np.nan
+        self.params.quantile_image[self.vignette_mask] = np.nan
         self.params.original_image[self.vignette_mask] = np.nan
     
     ########################

@@ -149,7 +149,8 @@ class SRNpreProcessor(SRNProcessor):
         if self.should_run():
             self.image_learn()
             self.plot_norm_curves(save=True)
-        return None
+        self.out_name = "quantile"
+        return self.params.quantile_image
     
     def cleanup(self):
         """Runs after all the images have been modified with do_work"""

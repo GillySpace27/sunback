@@ -26,6 +26,7 @@ plt.ioff()
 all_wavelengths = ['0193','0171', '0211', '0304', '0131', '0335', '0094']
 do_wavelengths = all_wavelengths  # ['0211']
 do_wavelengths = ['0304']
+PNG_FRAME_NAME = 'Quantile'
 # wave_to_use = '0211'
 
 def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None, wave_to_use=None):
@@ -38,11 +39,11 @@ def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None, wav
     # p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
     #
-    # p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
-    p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
+    p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
+    # p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
 
     p.processors([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
-    # p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
+    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
 
     # Run the Code
     # print(p.do_one())
@@ -192,7 +193,7 @@ def make_params(batch_name=None, wave=None, config=None, wave_to_use=None):
     p.do_one(config["do_one"], config["stop"])
     p.is_debug(config["debug"])
     p.do_cat = True
-    p.png_frame_name = 'SRN'
+    p.png_frame_name = PNG_FRAME_NAME
     p.do_recent(True)
     p.currently_local = True
     

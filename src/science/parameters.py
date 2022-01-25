@@ -81,6 +81,7 @@ class Parameters:
         self.list_of_default_hdus = ['t_integrated', 'original', 0, 1]
         self.original_image=None
         self.modified_image=None
+        self.quantile_image=None
         self.hdu_name = None
         self.start_time = time()
         self.is_first_run = True
