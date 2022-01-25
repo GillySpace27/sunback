@@ -1,78 +1,20 @@
 _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-Starting Job: Single
+Starting Batch: Single
 _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_ 
 
->>-->>  Local Single CDF Fetcher: Load the image from Disk  <<--<<
+Wavelength = True
+                                         
+
+>>>>>>>>>> Fetching Images <<<<<<<<<<
+
  v Loading Local File...
    Looking in: 
      /srv/data/shared/notebooks/cgilly/sunback/src/sunback_images/Single
      for AIA20210923_172100-Copy1.nc  at  20210923_172100-Copy1
+                                          
 
->>-->>  SRN Single Shot Processor: Create and Apply the Radial SRN Curves  <<--<<
+>>>>>>>>>> Processing Images <<<<<<<<<<
  v  Processing Image...
-   New CDF saved to 
-    /srv/data/shared/notebooks/cgilly/sunback/src/sunback_images/Single/AIA20210923_172100-Copy1_filtered.nc
- ^ Success!
-
-
->>-->>  NullPutter: Print the Name of the Image Folder  <<--<<
- /srv/data/shared/notebooks/cgilly/sunback/src/sunback_images/Single/sunback_images/Single
-
-
-
-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-Program Complete in 0 minutes and 2 seconds. 
-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-
-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-Starting Job: Single
-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_ 
-
->>-->>  Local Single CDF Fetcher: Load the image from Disk  <<--<<
- v Loading Local File...
-   Looking in: 
-     /srv/data/shared/notebooks/cgilly/sunback/src/sunback_images/Single
-     for AIA20210923_172100-Copy2.nc  at  20210923_172100-Copy2
-
->>-->>  SRN Single Shot Processor: Create and Apply the Radial SRN Curves  <<--<<
- v  Processing Image...
-   New CDF saved to 
-    /srv/data/shared/notebooks/cgilly/sunback/src/sunback_images/Single/AIA20210923_172100-Copy2_filtered.nc
- ^ Success!
-
-
->>-->>  NullPutter: Print the Name of the Image Folder  <<--<<
- /srv/data/shared/notebooks/cgilly/sunback/src/sunback_images/Single/sunback_images/Single
-
-
-
-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-Program Complete in 0 minutes and 2 seconds. 
-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-
-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-Starting Job: Single
-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_ 
-
->>-->>  Local Single CDF Fetcher: Load the image from Disk  <<--<<
- v Loading Local File...
-   Looking in: 
-     /srv/data/shared/notebooks/cgilly/sunback/src/sunback_images/Single
-     for AIA20210923_172100.nc  at  20210923_172100
-
->>-->>  SRN Single Shot Processor: Create and Apply the Radial SRN Curves  <<--<<
- v  Processing Image...
-   New CDF saved to 
-    /srv/data/shared/notebooks/cgilly/sunback/src/sunback_images/Single/AIA20210923_172100_filtered.nc
- ^ Success!
-
-
->>-->>  NullPutter: Print the Name of the Image Folder  <<--<<
- /srv/data/shared/notebooks/cgilly/sunback/src/sunback_images/Single/sunback_images/Single
-
-
-
-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-Program Complete in 0 minutes and 2 seconds. 
-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-
+No Curves to Load!
+Please place the curves file at:
+/srv/data/shared/notebooks/cgilly/sunback/src/sunback_images/Single/D:/sunback_images/Single/analysis/True_curves.txt
