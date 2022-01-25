@@ -1029,7 +1029,7 @@ class SRNProcessor(Processor):
 
         # Select Top Norms
         self.norm_curve_max_top_name = "norm_curve_inner_max"
-        self.norm_curve_min_top_name = "norm_smoothed_abs_min"
+        self.norm_curve_min_top_name = "norm_curve_absol_min"
         norm_curve_max_top = getattr(self, self.norm_curve_max_top_name)
         norm_curve_min_top = getattr(self, self.norm_curve_min_top_name)
 
@@ -1037,16 +1037,6 @@ class SRNProcessor(Processor):
         low = self.fit_limb_radius
         self.norm_curve_max[low:] =  norm_curve_max_top[low:]
         self.norm_curve_min[low:] =  norm_curve_min_top[low:]
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings('error')
-            try:
-                # Standard Normalization Formula
-                self.params.modified_image = self.norm_formula(self.params.modified_image, self.norm_curve_min, self.norm_curve_max)
-                
-            except RuntimeWarning as e:
-                print(e)  
-        return  
 
     @staticmethod
     def norm_formula(image, the_min, the_max):
@@ -1434,137 +1424,223 @@ class SRNProcessor(Processor):
         # self.touchup_TUNE(original_touch)
         
         
-def plot_full_normalization(self, do=False, show=False, save=True):
-       """This plot is in radius and has a scatter plot
-           overlaid with the norm curves as determined elsewhere"""
-       
-       vprint(" *    Plotting Analysis...     ", end='')
-       blu_alpha = 0.15
-       red_alpha = 0.15
-       blk_alpha = 0.4
-       # Init the Figure
-       fig, (ax0, ax1) = plt.subplots(2, 1, sharex="all", num="Radial Statistics")
-       
-       skip = 1000
-       self.skip_points = 100 if self.params.rez < 3000 else skip
-       blk_skip = 100
-       
-       ########################
-       ##  Plot 0: Absolute  ##
-       ########################
-       self.plot_norm_curves(fig=fig, ax=ax0, save=False)
-       
-       # Vertical Lines
-       ax0.axvline(1)
-       if self.lCut is not None:
-           ax0.axvline(self.n2r(self.lCut), ls=":")
-           ax0.axvline(self.n2r(self.hCut), ls=":")
-       
-       # Plot Scattered Points from the original image in midnightblue
-       
-       orig_abs = self.params.original_image.flatten()
-       # ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
-       #             alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3)
-       
-       ########################
-       ## Plot 1: Normalized ##
-       ########################
-       
-       # Plot Scattered Points from the original image in midnightblue
-       do_original_scatter = False
-       if do_original_scatter:
-           ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-                       alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
-       
-       # Plot Scattered Points from the original image but rooted, in red
-       do_red_points = False
-       if do_red_points:
-           scat2 = self.params.original_image.flatten()
-           ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
-                       alpha=red_alpha, edgecolors='none', c='r', s=3, zorder=0, label="1. INT+ROOT")
-       
-       # Plot Scattered Points from the final modified image, in black
-       points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
-       ax1.scatter(self.n2r(self.rad_flat[::blk_skip]), points[::blk_skip], c='k', s=3, alpha=blk_alpha, edgecolors='none', label="2. SRN")
-       
-       # Extra Lines
-       ax1.axhline(2, c='lightgrey', ls=':', zorder=-1)
-       ax1.axhline(1, c='k', ls=':', zorder=-1)
-       ax1.axhline(0, c='k', ls=':', zorder=-1)
-       
-       ## Plot 0 Formatting
-       ax0.set_title("Various Norm Curves in Absolute Scale")
-       ax0.set_ylim((-10 ** 1, 10 ** 4))
-       ax0.set_xlim((0, 1.85))
-       
-       ax0.axvline(self.vrad, ls=':', c='lightgrey')
-       ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
-                    xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-       ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.025, 0.2),
-                    xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-       ax0.annotate("Top Curve R:\n{}".format(self.norm_curve_max_top_name), (0.65, 0.9),
-                    xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-       ax0.annotate("Bot Curve R:\n{}".format(self.norm_curve_min_top_name), (0.65, 0.8),
-                    xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-       
-       # ax0.legend()
-       # import matplotlib as mpl
-       
-       ax0.set_yscale('symlog')
-       ax0.set_ylabel(r"Absolute Intensity (Counts)")
-       
-       ## Plot 1 Formatting
-       ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
-       ax1.set_ylabel(r"Normalized Intensity")
-       ax1.set_title("")
-       ax1.set_yscale("symlog")
-       ax1.set_ylim((-0.5, 2))
-       ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
-       
-       import matplotlib as mpl
-       ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x >= 1 else x))
-       fig.set_size_inches(11, 9)
-       #         fig.set_size_inches(7, 14)
-       
-       plt.tight_layout()
-       # plt.show(block=True)
-       # 1/0
-       # return True
-       self.force_save_radial_figures(save, fig, ax0, show)
-       
-       vprint("Success!")
-       if not do:
-           return
-       if self.first:
-           self.first = False
-           return
-       # import pdb; pdb.set_trace()
-       # self.output_abscissa
-       # dprint("plot_full_normalization")
-       
-       # locs = np.arange(self.rez)[::int(self.rez/5)]
-       # ax1.set_xticks(locs)
-       # ax1.set_xticklabels(self.n2r(locs))
-       # ax.axvline(self.tRadius, c='r')
-       # original_touch = self.params.original_image+0
-       # self.touchup_TUNE(original_touch)
-
-def plot_full_normalization_server(self, do=False, show=False, save=True):
+    def plot_full_normalization(self, do=False, show=False, save=True):
+           """This plot is in radius and has a scatter plot
+               overlaid with the norm curves as determined elsewhere"""
+           
+           vprint(" *    Plotting Analysis...     ", end='')
+           blu_alpha = 0.15
+           red_alpha = 0.15
+           blk_alpha = 0.4
+           # Init the Figure
+           fig, (ax0, ax1) = plt.subplots(2, 1, sharex="all", num="Radial Statistics")
+           
+           skip = 1000
+           self.skip_points = 100 if self.params.rez < 3000 else skip
+           blk_skip = 100
+           
+           ########################
+           ##  Plot 0: Absolute  ##
+           ########################
+           self.plot_norm_curves(fig=fig, ax=ax0, save=False)
+           
+           # Vertical Lines
+           ax0.axvline(1)
+           if self.lCut is not None:
+               ax0.axvline(self.n2r(self.lCut), ls=":")
+               ax0.axvline(self.n2r(self.hCut), ls=":")
+           
+           # Plot Scattered Points from the original image in midnightblue
+           
+           orig_abs = self.params.original_image.flatten()
+           # ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
+           #             alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3)
+           
+           ########################
+           ## Plot 1: Normalized ##
+           ########################
+           
+           # Plot Scattered Points from the original image in midnightblue
+           do_original_scatter = False
+           if do_original_scatter:
+               ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
+                           alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
+           
+           # Plot Scattered Points from the original image but rooted, in red
+           do_red_points = False
+           if do_red_points:
+               scat2 = self.params.original_image.flatten()
+               ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
+                           alpha=red_alpha, edgecolors='none', c='r', s=3, zorder=0, label="1. INT+ROOT")
+           
+           # Plot Scattered Points from the final modified image, in black
+           points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
+           ax1.scatter(self.n2r(self.rad_flat[::blk_skip]), points[::blk_skip], c='k', s=3, alpha=blk_alpha, edgecolors='none', label="2. SRN")
+           
+           # Extra Lines
+           ax1.axhline(2, c='lightgrey', ls=':', zorder=-1)
+           ax1.axhline(1, c='k', ls=':', zorder=-1)
+           ax1.axhline(0, c='k', ls=':', zorder=-1)
+           
+           ## Plot 0 Formatting
+           ax0.set_title("Various Norm Curves in Absolute Scale")
+           ax0.set_ylim((-10 ** 1, 10 ** 4))
+           ax0.set_xlim((0, 1.85))
+           
+           ax0.axvline(self.vrad, ls=':', c='lightgrey')
+           ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
+                        xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+           ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.025, 0.2),
+                        xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+           ax0.annotate("Top Curve R:\n{}".format(self.norm_curve_max_top_name), (0.65, 0.9),
+                        xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+           ax0.annotate("Bot Curve R:\n{}".format(self.norm_curve_min_top_name), (0.65, 0.8),
+                        xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+           
+           # ax0.legend()
+           # import matplotlib as mpl
+           
+           ax0.set_yscale('symlog')
+           ax0.set_ylabel(r"Absolute Intensity (Counts)")
+           
+           ## Plot 1 Formatting
+           ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
+           ax1.set_ylabel(r"Normalized Intensity")
+           ax1.set_title("")
+           ax1.set_yscale("symlog")
+           ax1.set_ylim((-0.5, 2))
+           ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
+           
+           import matplotlib as mpl
+           ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x >= 1 else x))
+           fig.set_size_inches(11, 9)
+           #         fig.set_size_inches(7, 14)
+           
+           plt.tight_layout()
+           # plt.show(block=True)
+           # 1/0
+           # return True
+           self.force_save_radial_figures(save, fig, ax0, show)
+           
+           vprint("Success!")
+           if not do:
+               return
+           if self.first:
+               self.first = False
+               return
+           # import pdb; pdb.set_trace()
+           # self.output_abscissa
+           # dprint("plot_full_normalization")
+           
+           # locs = np.arange(self.rez)[::int(self.rez/5)]
+           # ax1.set_xticks(locs)
+           # ax1.set_xticklabels(self.n2r(locs))
+           # ax.axvline(self.tRadius, c='r')
+           # original_touch = self.params.original_image+0
+           # self.touchup_TUNE(original_touch)
+    
+    def plot_full_normalization_server(self, do=False, show=False, save=True):
+            """This plot is in radius and has a scatter plot
+                overlaid with the norm curves as determined elsewhere"""
+            the_alpha = 0.5
+            # Init the Figure
+            fig, (ax0, ax1) = plt.subplots(1,2, sharex="all", num="Radial Statistics")
+            fig0 = fig1 = fig
+            
+    #         skip = 100
+    #         self.skip_points = 10 if self.params.rez < 3000 else skip
+            skip = self.skip_points = 1
+    #         ########################
+    #         ##  Plot 0: Absolute  ##
+    #         ########################
+    #         self.plot_norm_curves(fig=fig1, ax=ax0, save=False)
+    
+            # Vertical Lines
+            ax0.axvline(1)
+            if self.lCut is not None:
+                ax0.axvline(self.n2r(self.lCut), ls=":")
+                ax0.axvline(self.n2r(self.hCut), ls=":")
+            
+            # Plot Scattered Points from the original image in midnightblue
+            flat_original = self.params.original_image.flatten()
+            ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_original[::self.skip_points],
+                        alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
+    
+            ########################
+            ## Plot 1: Normalized ##
+            ########################
+    
+        
+            # Plot Scattered Points from the original image in midnightblue
+    #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_original[::self.skip_points], zorder=-1,
+    #                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
+            
+            # Plot Scattered Points from the original image but rooted, in red
+            flat_original = self.params.original_image.flatten()
+            touched_original = self.touchup(self.params.original_image+0)
+    #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), touched_original[::self.skip_points],
+    #                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
+           
+            # Plot Scattered Points from the final modified image, in black
+            self.touchup(self.params.modified_image)
+            flat_modified_image = np.array(self.params.modified_image.flatten(), dtype=np.float32)
+            ax1.scatter(self.n2r(self.rad_flat[::skip]), flat_modified_image[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
+    #         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
+    #         ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="")
+        
+            # Extra Lines
+            ax1.axhline(2, c='lightgrey', ls=':', zorder=-1)
+            ax1.axhline(1, c='k', ls=':', zorder=-1)
+            ax1.axhline(0, c='k', ls=':', zorder=-1)
+    #         ax1.axvline(0.5)
+    
+            ## Plot 0 Formatting
+            ax0.set_title("Various Norm Curves in Absolute Scale")
+            ax0.set_ylim((-10 ** 0, 10 ** 2.2))
+            ax0.set_xlim((0, 1.85))
+    
+            ax0.axvline(self.vrad, ls=':', c='lightgrey')
+            ax0.annotate("Top Curve:\n{}".format(self.norm_curve_max_name), (0.025, 0.3),
+                         xycoords='axes fraction', fontsize='medium', color='k')#, horizontalalignment='center')
+            ax0.annotate("Bot Curve:\n{}".format(self.norm_curve_min_name), (0.025, 0.2),
+                         xycoords='axes fraction', fontsize='medium', color='k')#, horizontalalignment='center')
+            # ax0.legend()
+            import matplotlib as mpl
+            
+            
+            ax0.set_yscale('symlog')
+            ax0.set_ylabel(r"Absolute Intensity (Counts)")
+    
+            ## Plot 1 Formatting
+            ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
+            ax1.set_ylabel(r"Normalized Intensity")
+            ax1.set_title("")
+            ax1.set_yscale("symlog")
+            ax1.set_ylim((-0.5, 1.5))
+            ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
+            ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x>=2 else "{:0.1f}".format(x) ))
+            fig0.set_size_inches(10, 5)
+            plt.tight_layout()
+            plt.show()
+            
+            return True
+    
+    def plot_full_normalization_orig(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
             overlaid with the norm curves as determined elsewhere"""
-        the_alpha = 0.5
+        the_alpha = 0.05
+    
         # Init the Figure
-        fig, (ax0, ax1) = plt.subplots(1,2, sharex="all", num="Radial Statistics")
-        fig0 = fig1 = fig
+        fig, (ax0, ax1) = plt.subplots(2, 1, sharex="all", num="Radial Statistics")
+    
+        skip = 100
+        self.skip_points = 10 if self.params.rez < 3000 else skip
+    
+        ########################
+        ##  Plot 0: Absolute  ##
+        ########################
+        self.plot_norm_curves(fig=fig, ax=ax0, save=False)
         
-#         skip = 100
-#         self.skip_points = 10 if self.params.rez < 3000 else skip
-        skip = self.skip_points = 1
-#         ########################
-#         ##  Plot 0: Absolute  ##
-#         ########################
-#         self.plot_norm_curves(fig=fig1, ax=ax0, save=False)
-
         # Vertical Lines
         ax0.axvline(1)
         if self.lCut is not None:
@@ -1572,284 +1648,198 @@ def plot_full_normalization_server(self, do=False, show=False, save=True):
             ax0.axvline(self.n2r(self.hCut), ls=":")
         
         # Plot Scattered Points from the original image in midnightblue
-        flat_original = self.params.original_image.flatten()
-        ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_original[::self.skip_points],
+        orig_abs = self.params.original_image.flatten()
+        ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
-
+    
         ########################
         ## Plot 1: Normalized ##
         ########################
-
     
         # Plot Scattered Points from the original image in midnightblue
-#         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_original[::self.skip_points], zorder=-1,
-#                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
+        ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
+                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
         
         # Plot Scattered Points from the original image but rooted, in red
-        flat_original = self.params.original_image.flatten()
-        touched_original = self.touchup(self.params.original_image+0)
-#         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), touched_original[::self.skip_points],
-#                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
-       
+        self.touchup(self.params.original_image)
+        scat2 = self.params.original_image.flatten()
+        ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
+                    alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
+        
         # Plot Scattered Points from the final modified image, in black
         self.touchup(self.params.modified_image)
-        flat_modified_image = np.array(self.params.modified_image.flatten(), dtype=np.float32)
-        ax1.scatter(self.n2r(self.rad_flat[::skip]), flat_modified_image[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
-#         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
-#         ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="")
+        points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
+        ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
+        
+        
+    
+    
+    
+    
     
         # Extra Lines
         ax1.axhline(2, c='lightgrey', ls=':', zorder=-1)
         ax1.axhline(1, c='k', ls=':', zorder=-1)
         ax1.axhline(0, c='k', ls=':', zorder=-1)
-#         ax1.axvline(0.5)
-
+    
         ## Plot 0 Formatting
         ax0.set_title("Various Norm Curves in Absolute Scale")
         ax0.set_ylim((-10 ** 0, 10 ** 2.2))
         ax0.set_xlim((0, 1.85))
-
+        
         ax0.axvline(self.vrad, ls=':', c='lightgrey')
-        ax0.annotate("Top Curve:\n{}".format(self.norm_curve_max_name), (0.025, 0.3),
-                     xycoords='axes fraction', fontsize='medium', color='k')#, horizontalalignment='center')
-        ax0.annotate("Bot Curve:\n{}".format(self.norm_curve_min_name), (0.025, 0.2),
-                     xycoords='axes fraction', fontsize='medium', color='k')#, horizontalalignment='center')
+        ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
+                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.025, 0.2),
+                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        ax0.annotate("Top Curve R:\n{}".format(self.norm_curve_max_top_name), (0.65, 0.9),
+                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        ax0.annotate("Bot Curve R:\n{}".format(self.norm_curve_min_top_name), (0.65, 0.8),
+                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        
         # ax0.legend()
         import matplotlib as mpl
         
         
+        
         ax0.set_yscale('symlog')
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
-
+    
         ## Plot 1 Formatting
         ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
         ax1.set_ylabel(r"Normalized Intensity")
         ax1.set_title("")
         ax1.set_yscale("symlog")
-        ax1.set_ylim((-0.5, 1.5))
+        ax1.set_ylim((-0.5, 20))
         ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
-        ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x>=2 else "{:0.1f}".format(x) ))
-        fig0.set_size_inches(10, 5)
+    
+        ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x>=1 else x ))
+        fig.set_size_inches(7, 11)
+    #         fig.set_size_inches(7, 14)
+        
         plt.tight_layout()
         plt.show()
-        
         return True
-
-def plot_full_normalization_orig(self, do=False, show=False, save=True):
-    """This plot is in radius and has a scatter plot
-        overlaid with the norm curves as determined elsewhere"""
-    the_alpha = 0.05
-
-    # Init the Figure
-    fig, (ax0, ax1) = plt.subplots(2, 1, sharex="all", num="Radial Statistics")
-
-    skip = 100
-    self.skip_points = 10 if self.params.rez < 3000 else skip
-
-    ########################
-    ##  Plot 0: Absolute  ##
-    ########################
-    self.plot_norm_curves(fig=fig, ax=ax0, save=False)
+    #         self.force_save_radial_figures(save, fig, ax0, show)
+        #         if not do:
+        #             return
+        #         if self.first:
+        #             self.first = False
+        #             return
+        #         import pdb; pdb.set_trace()
+                # self.output_abscissa
+        #         dprint("plot_full_normalization")
     
-    # Vertical Lines
-    ax0.axvline(1)
-    if self.lCut is not None:
-        ax0.axvline(self.n2r(self.lCut), ls=":")
-        ax0.axvline(self.n2r(self.hCut), ls=":")
-    
-    # Plot Scattered Points from the original image in midnightblue
-    orig_abs = self.params.original_image.flatten()
-    ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
-                alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
-
-    ########################
-    ## Plot 1: Normalized ##
-    ########################
-
-    # Plot Scattered Points from the original image in midnightblue
-    ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-                alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
-    
-    # Plot Scattered Points from the original image but rooted, in red
-    self.touchup(self.params.original_image)
-    scat2 = self.params.original_image.flatten()
-    ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
-                alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
-    
-    # Plot Scattered Points from the final modified image, in black
-    self.touchup(self.params.modified_image)
-    points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
-    ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
-    
-    
-
-
-
-
-
-    # Extra Lines
-    ax1.axhline(2, c='lightgrey', ls=':', zorder=-1)
-    ax1.axhline(1, c='k', ls=':', zorder=-1)
-    ax1.axhline(0, c='k', ls=':', zorder=-1)
-
-    ## Plot 0 Formatting
-    ax0.set_title("Various Norm Curves in Absolute Scale")
-    ax0.set_ylim((-10 ** 0, 10 ** 2.2))
-    ax0.set_xlim((0, 1.85))
-    
-    ax0.axvline(self.vrad, ls=':', c='lightgrey')
-    ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
-                 xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-    ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.025, 0.2),
-                 xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-    ax0.annotate("Top Curve R:\n{}".format(self.norm_curve_max_top_name), (0.65, 0.9),
-                 xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-    ax0.annotate("Bot Curve R:\n{}".format(self.norm_curve_min_top_name), (0.65, 0.8),
-                 xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-    
-    # ax0.legend()
-    import matplotlib as mpl
+        # locs = np.arange(self.rez)[::int(self.rez/5)]
+        # ax1.set_xticks(locs)
+        # ax1.set_xticklabels(self.n2r(locs))
+        # ax.axvline(self.tRadius, c='r')
+    # original_touch = self.params.original_image+0
+    # self.touchup(original_touch)
     
     
     
-    ax0.set_yscale('symlog')
-    ax0.set_ylabel(r"Absolute Intensity (Counts)")
-
-    ## Plot 1 Formatting
-    ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
-    ax1.set_ylabel(r"Normalized Intensity")
-    ax1.set_title("")
-    ax1.set_yscale("symlog")
-    ax1.set_ylim((-0.5, 20))
-    ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
-
-    ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x>=1 else x ))
-    fig.set_size_inches(7, 11)
-#         fig.set_size_inches(7, 14)
+    def force_save_radial_figures(self, save, fig, ax0, show):
+        first = True
+        while True:
+            try:
+                self.save_radial_figures(save, fig, ax0, show)
+                # if not first: print("  Thanks, good job.\n")
+                break
+            except OSError as e:
+                if first:
+                    print("\n\n", e)
+                    print("  !!!!!!! Close the Dang Plot!", end='')
+                    first = False
+                print('.', end='')
     
-    plt.tight_layout()
-    plt.show()
-    return True
-#         self.force_save_radial_figures(save, fig, ax0, show)
-    #         if not do:
-    #             return
-    #         if self.first:
-    #             self.first = False
-    #             return
-    #         import pdb; pdb.set_trace()
-            # self.output_abscissa
-    #         dprint("plot_full_normalization")
-
-    # locs = np.arange(self.rez)[::int(self.rez/5)]
-    # ax1.set_xticks(locs)
-    # ax1.set_xticklabels(self.n2r(locs))
-    # ax.axvline(self.tRadius, c='r')
-# original_touch = self.params.original_image+0
-# self.touchup(original_touch)
-
-
-
-def force_save_radial_figures(self, save, fig, ax0, show):
-    first = True
-    while True:
-        try:
-            self.save_radial_figures(save, fig, ax0, show)
-            # if not first: print("  Thanks, good job.\n")
-            break
-        except OSError as e:
-            if first:
-                print("\n\n", e)
-                print("  !!!!!!! Close the Dang Plot!", end='')
-                first = False
-            print('.', end='')
-
-def save_radial_figures(self, do=False, fig=None, ax=None, show=False):
-    
-    if do:
-        save_path_1, save_path_2 = self.params.get_pre_radial_fig_paths()
+    def save_radial_figures(self, do=False, fig=None, ax=None, show=False):
         
-        plt.savefig(save_path_1)
+        if do:
+            save_path_1, save_path_2 = self.params.get_pre_radial_fig_paths()
+            
+            plt.savefig(save_path_1)
+            
+            if show:
+                plt.show(block=True)
+            
+            ax.set_xlim((0.9, 1.1))
+            plt.savefig(save_path_2)
         
-        if show:
-            plt.show(block=True)
+        if not show:
+            plt.close(fig)
+    
+    
+    
+    def get_points(self, index):
+        ## Scatter Plot
+        skip = 100
+        return None
+        plotY = self.radBins_all[index]
         
-        ax.set_xlim((0.9, 1.1))
-        plt.savefig(save_path_2)
+        xBox = []
+        yBox = []
+        for ii, bin in enumerate(plotY):
+            for item in bin:
+                xBox.append(self.n2r(ii))
+                yBox.append(item)
+        
+        out = np.array((xBox, yBox))
+        return out
     
-    if not show:
-        plt.close(fig)
-
-
-
-def get_points(self, index):
-    ## Scatter Plot
-    skip = 100
-    return None
-    plotY = self.radBins_all[index]
+    ########################
+    ## Utilities ##
+    ########################
+    ## Static Methods ##
+    def n2r(self, n):
+        """Convert index to solar radius"""
+        if not self.fit_limb_radius:
+            self.find_limb_radius()
+        if n is None:
+            n = 0
+        r = n / self.fit_limb_radius
+        return r
     
-    xBox = []
-    yBox = []
-    for ii, bin in enumerate(plotY):
-        for item in bin:
-            xBox.append(self.n2r(ii))
-            yBox.append(item)
+    def r2n(self, r):
+        """Convert index to solar radius"""
+        if not self.fit_limb_radius:
+            self.find_limb_radius()
+        n = r * self.fit_limb_radius
+        return n
     
-    out = np.array((xBox, yBox))
-    return out
-
-########################
-## Utilities ##
-########################
-## Static Methods ##
-def n2r(self, n):
-    """Convert index to solar radius"""
-    if not self.fit_limb_radius:
-        self.find_limb_radius()
-    if n is None:
-        n = 0
-    r = n / self.fit_limb_radius
-    return r
-
-def r2n(self, r):
-    """Convert index to solar radius"""
-    if not self.fit_limb_radius:
-        self.find_limb_radius()
-    n = r * self.fit_limb_radius
-    return n
-
-@staticmethod
-def normalize(image, high=98, low=15):
-    """Normalize the Array"""
-    if low is None:
-        lowP = 0
-    else:
-        lowP = np.nanpercentile(image, low)
-    highP = np.nanpercentile(image, high)
-    import warnings
-    with warnings.catch_warnings():
-        warnings.filterwarnings('error')
-        try:
-            out = (image - lowP) / (highP - lowP)
-        except RuntimeWarning as e:
-            out = image
-    return out
-
-@staticmethod
-def fill_end(use):
-    iii = -1
-    val = use[iii]
-    while np.isnan(val):
-        iii -= 1
+    @staticmethod
+    def normalize(image, high=98, low=15):
+        """Normalize the Array"""
+        if low is None:
+            lowP = 0
+        else:
+            lowP = np.nanpercentile(image, low)
+        highP = np.nanpercentile(image, high)
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error')
+            try:
+                out = (image - lowP) / (highP - lowP)
+            except RuntimeWarning as e:
+                out = image
+        return out
+    
+    @staticmethod
+    def fill_end(use):
+        iii = -1
         val = use[iii]
-    use[iii:] = val
-    return use
-
-@staticmethod
-def fill_start(use):
-    iii = 0
-    val = use[iii]
-    while np.isnan(val):
-        iii += 1
+        while np.isnan(val):
+            iii -= 1
+            val = use[iii]
+        use[iii:] = val
+        return use
+    
+    @staticmethod
+    def fill_start(use):
+        iii = 0
         val = use[iii]
-    use[:iii] = val
-    return use
+        while np.isnan(val):
+            iii += 1
+            val = use[iii]
+        use[:iii] = val
+        return use
