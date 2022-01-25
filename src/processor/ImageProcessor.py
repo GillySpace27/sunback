@@ -79,7 +79,13 @@ class ImageProcessor(Processor):
         self.figure_box = []
         self.path_box = []
         self.name, self.wave = self.clean_name_string(self.image_data[0])
-        self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
+        use_cmap=False
+        if use_cmap:
+            self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
+
+        else:
+            from matplotlib import cm
+            self.params.cmap = cm.gray
 
     def init_image_frame(self):
         """Load the fits file from disk and get a field or two"""

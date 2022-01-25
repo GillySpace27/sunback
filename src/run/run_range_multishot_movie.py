@@ -26,7 +26,7 @@ plt.ioff()
 all_wavelengths = ['0193','0171', '0211', '0304', '0131', '0335', '0094']
 do_wavelengths = all_wavelengths  # ['0211']
 do_wavelengths = ['0304']
-PNG_FRAME_NAME = 'Quantile'
+PNG_FRAME_NAME = 'Quantile' #'SRN'
 # wave_to_use = '0211'
 
 def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None, wave_to_use=None):
@@ -39,7 +39,7 @@ def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None, wav
     # p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
     #
-    p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
+    # p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
     # p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
 
     p.processors([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits

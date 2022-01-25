@@ -76,7 +76,8 @@ class SRNProcessor(Processor):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
         # Parse Inputs
-        
+
+        self.binfactor = 1
         self.this_index = 0
         self.norm_curve_max_top_name = None
         self.norm_curve_min_top_name = None
@@ -277,7 +278,10 @@ class SRNProcessor(Processor):
             # self.xxyy =
             self.radius = np.sqrt(xc * xc + yc * yc)
             self.rad_flat = self.radius.flatten()
-            self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
+            
+            self.binfactor = binfactor = 2
+            self.binInds = np.asarray(binfactor*np.floor(self.rad_flat//binfactor), dtype=np.int32)
+            
             self.binXX = xx.flatten()
             self.binYY = yy.flatten()
             self.binII = np.arange(len(self.rad_flat))
