@@ -97,10 +97,18 @@ class ImageProcessorCV(ImageProcessor):
         # Get the Frame and Path
         self.frame = np.flipud(self.params.modified_image)
         self.out_path = self.get_changed_path()
-        os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
+        out_dir = os.path.dirname(self.out_path)
+        os.makedirs(out_dir, exist_ok=True)
         
         self.prep_save()
-        self.img_save(self.out_path)
+
+        if self.params.alpha is not None and self.params.alpha != 0.35:
+            self.out_path = os.path.join(out_dir, "b_{:03}.png".format(int(self.params.alpha*100)))
+            self.img_save(self.out_path)
+            self.out_path = os.path.join(out_dir, "c_{:03}.png".format(100-int(self.params.alpha*100)))
+            self.img_save(self.out_path)
+        else:
+            self.img_save(self.out_path)
         
     
     def prep_save(self):
@@ -137,6 +145,8 @@ class ImageProcessorCV(ImageProcessor):
         time_string = self.clean_time_string(time_string_raw)
         time_list = time_string.split()
         
+
+        
         inst = 'AIA'
         _, wave = self.clean_name_string(full_name)
         clock = time_list[1].lower()
@@ -156,6 +166,9 @@ class ImageProcessorCV(ImageProcessor):
             h1=40
             h2=80
             h3=120
+
+        if self.params.alpha is not None:
+            cv2.putText(img, "a={:0.3f}".format(self.params.alpha), (int(x0*0.95), h3), 0,   scale, (255, 255, 255), 3)
         
         cv2.putText(img, inst, (x0, h1), 0,   scale, (255, 255, 255), 3)
         cv2.putText(img, wave, (x1, h2), 0,   scale, (255, 255, 255), 3)

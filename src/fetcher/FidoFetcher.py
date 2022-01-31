@@ -151,7 +151,7 @@ class FidoFetcher(Fetcher):
         while len(self.name) < 4:
             self.name = '0' + self.name
             
-        if self.fido_search_found_num > 200:
+        if self.fido_search_found_num > 200 and False:
             response = input("Do you still want to download all {} images? [y]/n > ".format(self.fido_search_found_num))
             if 'n' in response.casefold():
                 print("Stopping!")
@@ -166,7 +166,7 @@ class FidoFetcher(Fetcher):
         self.needed_files = response
         self.num_files_needed = len(self.needed_files)
     
-    def fido_download_fits_ensured(self, ensured=False, temp=False, hold=False):
+    def fido_download_fits_ensured(self, temp=False, hold=False):
         """Download the files from fido_search_result"""
         
         SubDownloader = Downloader(progress=True, file_progress=False, max_conn=20,

@@ -7,6 +7,8 @@ from processor.ImageProcessorCV import ImageProcessorCV
 from processor.SRNSubProcessors import SRNradialFiltProcessor, SRNpreProcessor
 from processor.ValidationProcessor import ValidationProcessor
 from processor.VideoProcessor import VideoProcessor
+from processor.Processor import Processor
+wv = Processor.write_video_in_directory
 from science.parameters import Parameters
 import run
 
@@ -19,31 +21,33 @@ import run
 import matplotlib.pyplot as plt
 plt.ioff()
 
+# wv(r"D:\sunback_images\MultiRange\Liftoff_l_2013_09_28_000020\0304\imgs\png\orig", file_name="0304.avi", orig=True)
 
 # tstart='2014/11/04 01:00:00', tend='2014/11/08 00:00:00',
 # tstart='2016/11/04 01:00:00', tend='2016/11/06 00:00:00',
 # dostring = "Beautiful 304_l"
-all_wavelengths = ['0193','0171', '0211', '0304', '0131', '0335', '0094']
+all_wavelengths = [ '0193', '0211', '0131', '0335', '0094']#,'0304','0171']
 do_wavelengths = all_wavelengths  # ['0211']
 do_wavelengths = ['0304']
 PNG_FRAME_NAME = 'Quantile' #'SRN'
 # wave_to_use = '0211'
 
-def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None, wave_to_use=None):
+def run_range_multishot_movie(batch_name= "Liftoff", wave=None, config=None, wave_to_use=None, alpha=0.35):
     # Set the Parameters
     p = make_params(batch_name, wave, config, wave_to_use)
     p.do_recent(False)
     p.skip_validation = True
+    p.alpha=alpha
     
     # Set the Processes
-    # p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
+    # p.fetchers(FidoFetcher, rp=True)  # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
     #
     # p.processors([SRNpreProcessor],         rp=True)  # Learns the bounds of the dataset for SRN
     # p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
 
     p.processors([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
+    # p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
 
     # Run the Code
     # print(p.do_one())
@@ -53,9 +57,9 @@ def make_configs(wave_to_use):
     c8 = {
         "name": "Liftoff",
         "debug": True, "do_one": wave_to_use, "stop": True, #"tend": '2013/09/30 23:59:59',
-        "tstart": '2013/09/28 00:00:10', "tend": '2013/09/28 06:00:10',
-        "cadence_minutes": 10, "fps": 9, "exposure_time": 20,
-        "key_fixed_cadence": 10, "key_fixed_number": None, "time_preset": "l"
+        "tstart": '2013/09/28 00:00:20', "tend": '2013/10/01 00:00:20',
+        "cadence_minutes": 10, "fps": 10, "exposure_time": 60,
+        "key_fixed_cadence": 1, "key_fixed_number": None, "time_preset": "l"
     }
     c0 = {
         "name": "Test",
@@ -211,9 +215,13 @@ def make_params(batch_name=None, wave=None, config=None, wave_to_use=None):
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
+    import numpy as np
+    
     for wave_to_use in do_wavelengths:
+    #     for alpha in np.linspace(0.25,0.5,20):
+    #         run_range_multishot_movie(wave_to_use=wave_to_use, alpha=alpha)
+    #         # break
         run_range_multishot_movie(wave_to_use=wave_to_use)
-    # run_range_multishot_movie(dostring)
 
 
 

@@ -92,7 +92,7 @@ class Processor:
     fits_path = None
     first_hIndex = 0
     short_list = []
-    out_dtype = "float32"
+    out_dtype = np.float32
     
     def __init__(self, params=None, quick=False, rp=None):
 
@@ -568,7 +568,8 @@ class Processor:
         
         if good_frame:
             
-            frame2 = frame.astype(dtype)
+            frame2 = frame
+            # frame2 = frame.astype(np.ushort)
             
             with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True) as hdul:
                 hdul.verify('silentfix+ignore')  # Then Verify
@@ -582,8 +583,10 @@ class Processor:
                     
                 hdul = self.delete_further_hdus(hdul, field)
                 hdul[0].header['total_int_time'] = self.int_tm_tot
-                hdul.close(output_verify='fix')
-    
+                try:
+                    hdul.close(output_verify='fix')
+                except PermissionError as e:
+                    print("Failed to delete a file: \n {}".format(fits_path))
             
     def make_shortcut(self, file_in_path=None, shortcut_out_path=None, doAppend=True):
         path = self.params.shortcut_directory(shortcut_out_path)
@@ -908,7 +911,7 @@ class Processor:
             data = field_hdu.data
             header = hdul[1].header
         except TypeError:
-            vprint("Processor: 705 !Failed to Load Frame!")
+            vprint("Processor: 911 !Failed to Load Frame!")
         return data, header
     
     def determine_penultimate_frame_name(self, hdul=None):
@@ -1120,7 +1123,7 @@ class Processor:
         
     @staticmethod
     def write_video_in_directory(directory=None, file_name=None, fps=10, pop=None,
-                                 folder_name=None, desc=None, key_string='keyframe', fullpath=None, destroy=False, shortcut=False):
+                                 folder_name=None, desc=None, key_string='keyframe', fullpath=None, destroy=False, shortcut=False, orig=False):
         """Make a video out of whatever directory it's pointed at"""
         video_avi = None
         file_name = file_name or 'default_videoname.avi'
@@ -1134,6 +1137,9 @@ class Processor:
                 # makedirs(radial_directory, exist_ok=True)
                 video_path = radial_directory + "\\" + file_name
                 good_paths = [radial_directory + "\\" + f for f in listdir(radial_directory) if 'png' in f]
+                
+            if orig:
+                video_path = os.path.normpath(os.path.join(directory, "..\..\..\\video\\orig_{}".format(file_name)))
                 
                 if desc is None:
                     desc = " *    Writing Video {}".format(basename(directory))

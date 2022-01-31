@@ -79,7 +79,7 @@ class ImageProcessor(Processor):
         self.figure_box = []
         self.path_box = []
         self.name, self.wave = self.clean_name_string(self.image_data[0])
-        use_cmap=False
+        use_cmap=True
         if use_cmap:
             self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
 

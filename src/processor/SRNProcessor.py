@@ -1,4 +1,5 @@
 import os
+import shutil
 from copy import copy
 from os import makedirs
 from os.path import join, dirname, basename
@@ -72,11 +73,12 @@ class SRNProcessor(Processor):
     rendered_max_box = []
     radBins_all = []
     
-    def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
+    def __init__(self, fits_path=None, in_name="T_INTEGRATED", orig=False, show=False, verb=False, quick=False, rp=None, params=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
         # Parse Inputs
 
+        self.RN = None
         self.binfactor = 1
         self.this_index = 0
         self.norm_curve_max_top_name = None
@@ -191,7 +193,7 @@ class SRNProcessor(Processor):
     
     def do_fits_function(self, fits_path=None, in_name=None, image=True):
         """Calls the do_work function on a single fits path if indicated"""
-        if self.load_fits_image(fits_path):
+        if self.load_fits_image(fits_path, in_name=in_name):
             if (not self.use_keyframes) or (self.fits_path in self.keyframes):
                 return self.do_work()  # Do the work on the fits files
         return None
@@ -229,7 +231,7 @@ class SRNProcessor(Processor):
             self.init_running_curves()
         else:
             self.update_running_curves()
-        self.make_save_smoothed_curves()
+        # self.make_save_smoothed_curves()
     
     def coronaLearn(self):
         """Perform the actual analysis"""
@@ -281,6 +283,11 @@ class SRNProcessor(Processor):
             
             self.binfactor = binfactor = 2
             self.binInds = np.asarray(binfactor*np.floor(self.rad_flat//binfactor), dtype=np.int32)
+            # self.make_annular_rings()
+            # self.binInds = np.digitize(self.rad_flat, self.RN)
+            
+            
+            
             
             self.binXX = xx.flatten()
             self.binYY = yy.flatten()
@@ -656,13 +663,78 @@ class SRNProcessor(Processor):
     
     def do_bin(self, skip=1):  # Bin the intensities by radius
         self.cut_pixels = skip
+        
         for binI, dat, xx, yy, ind in zip(self.binInds[::self.cut_pixels],
                                     self.params.modified_image.flatten()[::self.cut_pixels],
                                     self.binXX[::self.cut_pixels], self.binYY[::self.cut_pixels], self.binII[::self.cut_pixels]):
+            
+            # for each dat,
+            
             self.radBins[binI].append(dat)
             self.radBins_xy[binI].append((xx,yy))
             self.radBins_ind[binI].append(ind)
+           
+    def make_annular_rings(self, R1=32):
+    
+        RLast = self.params.rez
+        num_bins = np.min((int(np.round((RLast/R1)**2)), RLast*2))
+        self.RN = np.zeros(num_bins)
+        for N in np.arange(num_bins):
+            self.RN[N] = np.sqrt(N) * R1
+
+
+        self.plot_annular_rings()
+        
+    def plot_annular_rings(self):
+        ## Make this do the annular rings thing.
+        xy = (self.params.rez//2,self.params.rez//2)
+        angle = np.linspace( 0 , 2 * np.pi , 150 )
+        cos, sin = np.cos(angle), np.sin(angle)
+        plt.style.use('dark_background')
+        fig, ax= plt.subplots()
+        for N, rr in enumerate(self.RN):
+    
+            xx = rr * cos + xy[0]
+            yy = rr * sin + xy[1]
             
+            cut = 50
+            if (not N % cut) or N==1:
+                # print(N, rr)
+                ax.plot(xx,yy, lw=2)
+            elif N < cut*2:
+                if not N % 5:
+                    ax.plot(xx,yy, c='lightgrey', lw=1)
+                    pass
+                
+        rr = self.found_limb_radius
+        xx = rr * cos + xy[0]
+        yy = rr * sin + xy[1]
+        ax.plot(xx,yy, c='k', lw='3', ls=":")
+
+        rr = self.params.rez//2
+        xx = rr * cos + xy[0]
+        yy = rr * sin + xy[1]
+        ax.plot(xx,yy, c='w', lw='2', ls="--", zorder=100000)
+        
+        
+        to_plot = np.sqrt(self.params.modified_image)
+        
+        # to_plot[~np.isfinite(to_plot)]=np.min(to_plot)
+        
+        ax.imshow(to_plot, zorder=10000, alpha=0.7)
+        
+        
+        ax.set_aspect(1)
+        ax.set_xlim([-100,4196])
+        ax.set_ylim([-100,4196])
+        ax.axhline(0)
+        ax.axhline(4096)
+        ax.axvline(0)
+        ax.axvline(4096)
+        fig.set_size_inches((8,8))
+        plt.title("Annular Rings of constant area")
+        plt.tight_layout()
+        plt.show(block=True)
     
     def save_cached_data(self, radBins=None):
         if radBins is not None:
@@ -693,11 +765,11 @@ class SRNProcessor(Processor):
             quantileized = stats.rankdata(bin_array, "average")/len(bin_array)
             self.params.quantile_image[good_coord] = quantileized
             
-            a, b, c, d = np.percentile(bin_array, [98.5, 90, 3, 0.5])
-            self.binAbsMax[ii] = a  # np.percentile(bin_array, 99.999)
-            self.binMax[ii] = b  # np.percentile(bin_array, 96)
-            self.binMin[ii] = c  # np.percentile(bin_array, 2)
-            self.binAbsMin[ii] = d  # np.percentile(bin_array, 0.001)
+            # a, b, c, d = np.percentile(bin_array, [98.5, 90, 3, 0.5])
+            # self.binAbsMax[ii] = a  # np.percentile(bin_array, 99.999)
+            # self.binMax[ii] = b  # np.percentile(bin_array, 96)
+            # self.binMin[ii] = c  # np.percentile(bin_array, 2)
+            # self.binAbsMin[ii] = d  # np.percentile(bin_array, 0.001)
     
             
             ## TODO make this be percentilized
@@ -724,6 +796,10 @@ class SRNProcessor(Processor):
         self.frame_abs_min[n_index] = self.binAbsMin[idx]
 
         self.params.quantile_image = self.params.quantile_image.reshape(self.params.modified_image.shape)
+        
+        from utils.stretch_intensity_module import norm_stretch
+        self.params.quantile_image = norm_stretch(self.params.quantile_image, alpha=self.params.alpha)
+        
         self.vignette()
     
     

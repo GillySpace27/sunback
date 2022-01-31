@@ -51,6 +51,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.subname = 'default'
         self.hold = False
         self.verb = False
+        self.params.do_temp=True
 
     def should_get_files(self):
         return self.params.download_files() or self.reprocess_mode() or not self.verb
@@ -58,7 +59,17 @@ class FidoTimeIntProcessor(FidoFetcher):
     def setup(self):
         os.makedirs(self.params.temp_directory(), exist_ok=True)
         self.params.do_temp = True
-
+        
+    # def fetch(self, params=None, quick=False, rp=None, verb=True):
+    #     if verb is not None:
+    #         self.verb = verb
+    #     """ Find the Most Recent Images """
+    #     self.__init__(params, quick, rp)
+    #     # self.verb = True
+    #     self.params.do_temp=True
+    #     self.fido_get_fits(self.params.current_wave(), temp=self.params.do_temp)
+        
+        
     # def download_fits_series(self, temp=True, hold=None):
     #     if hold is None:
     #         hold = False # TODO Fix this
@@ -90,6 +101,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.in_name = self.set_hdul_in_name(fits_path)
         
         if self.should_do_exposure(fits_path):
+            # self.params.do_temp = True
             # Get the Images
             self.gather_subframes(fits_path)
             # Sum them
@@ -115,7 +127,6 @@ class FidoTimeIntProcessor(FidoFetcher):
     def gather_subframes(self, fits_path):
         # Parse the Keyframe Time
         self.init_integration_period(fits_path)
-        
         # Search fido for those frames + Download the Files
         self.fetch(self.params, quick=True, verb=False)
         
@@ -124,6 +135,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         # in_name = self.in_name
         self.subname = fits_path.split('\\')[-1][:-5]
         # self.subname = basename(fits_path.split('.')[0])
+        self.params.do_temp=True
         self.set_hdul_in_name(fits_path)
         
         keyframe, wave, t_rec, center, t_int = self.load_a_fits_field(fits_path, self.in_name)
@@ -136,7 +148,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.set_time_range_duration(t_start=t_rec, duration_seconds=self.params.exposure_time_seconds())
         self.params.do_recent(False)
         self.params.cadence_minutes(10. / 60.)
-        self.out_dtype = np.float32
+        # self.out_dtype = np.float32
         
         
     def reset_params(self):
