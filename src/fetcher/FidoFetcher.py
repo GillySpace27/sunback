@@ -256,7 +256,7 @@ class FidoFetcher(Fetcher):
             print(" ^     Downloaded {} Files out of {}\n".format(self.n_fits, self.fido_search_found_num), flush=True)
         else:
             print(" ^     Unable to Download...Try again Later.")
-            raise (FileNotFoundError(" Unable to Download...Try again Later."))
+            raise (ConnectionRefusedError(" Unable to Download...Try again Later."))
     
     # Validation
     def validate_download(self):

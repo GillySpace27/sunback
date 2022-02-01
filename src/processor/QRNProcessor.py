@@ -57,6 +57,7 @@ class QRNProcessor(Processor):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
         
+        self.radius = None
         # Ingest
         self.in_name = in_name
         self.fits_path = fits_path
@@ -67,7 +68,7 @@ class QRNProcessor(Processor):
         # Parameters
         self.make_curves_latch = True  # This Recomputes the curves once
         self.floor = 0.01
-        self.out_name = "SRN"
+        self.out_name = "Quantile"
         self.s_radius = 400
         self.can_use_keyframes = False
 
@@ -90,7 +91,6 @@ class QRNProcessor(Processor):
         self.outer_max = None
         self.avg_min = None
         self.avg_max = None
-        self.radius = None
         self.rad_flat = None
         self.bin_rez = None
         self.found_limb_radius = None  # 1600
@@ -311,6 +311,11 @@ class QRNProcessor(Processor):
         
         self.output_abscissa = np.arange(self.params.rez)
         self.find_limb_radius()
+        
+        try:
+            self.radius
+        except AttributeError:
+            self.radius = None
         
         if self.radius is None or force or self.params.modified_image.shape[0] != self.params.rez:
             dprint("init_radius_array")
@@ -829,7 +834,7 @@ class QRNProcessor(Processor):
         self.vignette()
     
     def find_limb_radius(self):
-        self.load_curves()
+        # self.load_curves()
         
         # self.found_limb_radius = 400 # self.params.found_limb_radius or 1600
         self.found_limb_radius = self.params.found_limb_radius or 1600

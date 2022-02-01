@@ -95,7 +95,7 @@ class Processor:
     out_dtype = np.float32
     
     def __init__(self, params=None, quick=False, rp=None):
-
+        
         self.reprocess_mode(rp)
         self.load(params, quick=quick)
         if self.params:
@@ -109,10 +109,10 @@ class Processor:
         if 'null' not in self.proc_name.casefold():
             proc_name = self.proc_name + "\t : \t" + self.description
             print('      ' + proc_name)
-            
+    
     def put(self, params=None):
         self.process(params)
-
+    
     def fetch(self, params=None):
         self.process(params)
     
@@ -156,7 +156,7 @@ class Processor:
             # self.params.create_subdirectories()  #Gender
             fits_paths, imgs_paths = self.load_paths(verb)
             return fits_paths, imgs_paths
- 
+    
     # def clean_directory(self):
     #     to_rep = "D:/"
     #     if not self.params.base_directory()[0] == to_rep[0]:
@@ -186,7 +186,7 @@ class Processor:
             self.base_imgs_dir = imgs_directory
         elif self.base_imgs_dir is None:
             self.base_imgs_dir = self.params.mods_directory()
-            
+        
         if absolute is not None:
             self.base_absolute = absolute
     
@@ -247,8 +247,8 @@ class Processor:
             
             self.params.cmap = aia_color_table(int(wave) * u.angstrom)
             
-#             self.original_flat = self.original_image.flatten()
-#             self.changed_flat = self.modified_image.flatten()
+            #             self.original_flat = self.original_image.flatten()
+            #             self.changed_flat = self.modified_image.flatten()
             
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
             self.file_basename = basename(self.fits_path)
@@ -276,7 +276,7 @@ class Processor:
     
     def plot_two(self, name="Algorithm Result", bounds=None):
         fig, (ax0, ax1) = plt.subplots(1,2, sharex=True, sharey=True, num=name)
-
+        
         org = self.prep_one(self.params.original_image)
         mod = self.prep_one(self.params.modified_image)
         
@@ -298,7 +298,7 @@ class Processor:
         plt.tight_layout()
         
         plt.show()
-
+    
     def prep_one(self, img):
         minmin = np.nanmin(img)
         return img - minmin
@@ -328,9 +328,8 @@ class Processor:
         """
         # if self.dont_ignore:
         self.use_keyframes = (self.params.fixed_cadence_keyframes() or self.params.fixed_number_keyframes()) and self.can_use_keyframes
-        if self.use_keyframes:
+        if self.use_keyframes and self.use_keyframes != 1:
             self.keyframes = self.pick_keyframes()
-            pass
         else:
             self.keyframes = self.pick_keyframes(use_all=True)
         pass
@@ -347,7 +346,7 @@ class Processor:
         n_paths = len(self.long_list)
         if self.n_all_frames < 100:
             use_all = True
-            
+        
         if use_all:
             self.short_list = self.long_list
         
@@ -373,15 +372,24 @@ class Processor:
         return self.short_list
     
     def print_keyframes(self):
-        if self.params.fixed_cadence_keyframes():
-            print("\r *    >> KeyFrames: Fixed Cadence of one out of every {} frames".format(self.params.fixed_cadence_keyframes()))
-        elif self.params.fixed_number_keyframes():
-            print("\r *    >> KeyFrames: Fixed Number of Keyframes: {}".format(self.params.fixed_number_keyframes()))
-        
-        print(" *    >> Selected {} keyframes out of {} total frames".format(self.n_do_frames, self.n_all_frames))
-        # print(" *    >>Selected {} keyframes out of {} total frames".format(len(self.short_list), len(self.long_list)))
+        if self.can_use_keyframes:
+            if self.params.fixed_cadence_keyframes():
+                print("\r *    >> KeyFrames: Fixed Cadence of one out of every {} frames".format(self.params.fixed_cadence_keyframes()))
+            elif self.params.fixed_number_keyframes():
+                print("\r *    >> KeyFrames: Fixed Number of Keyframes: {}".format(self.params.fixed_number_keyframes()))
+            else:
+                print("Something is wrong here in the Processor.py file")
+            print(" *    >> Selected {} keyframes out of {} total frames".format(self.n_do_frames, self.n_all_frames))
+        else:
+            print("\r *    >> KeyFrames: Using Every Image ")
         
         self.super_flush(many=10)
+    
+    # print(" *    >>Selected {} keyframes out of {} total frames".format(len(self.short_list), len(self.long_list)))
+    
+    
+    
+    
     
     ########################################
     ## M2: For Every File in Path, do Func##
@@ -417,13 +425,13 @@ class Processor:
                 self.process_img_series()
             else:
                 self.process_fits_series()
-                
+    
     def process_image(self):
         """Apply the function to a single image"""
         self.setup()
         self.modify_one_image()
         self.cleanup()
-        
+    
     ##  Run on Fits Files
     def process_fits_series(self):
         """Apply the function to all necessary fits files"""
@@ -437,7 +445,7 @@ class Processor:
                     unit=self.progress_unit,
                     desc=self.progress_string,
                     # probesize='50M',
-                    )):
+            )):
                 
                 # print("NUM = ", self.ii)
                 out = self.modify_one_fits(fits_path)
@@ -459,7 +467,7 @@ class Processor:
             return True
         else:
             raise FileNotFoundError
-        
+    
     def modify_one_fits(self, fits_path):
         """Apply the given funtion to the given fits path"""
         self.confirm_fits_file(fits_path)
@@ -469,15 +477,15 @@ class Processor:
         except AttributeError as e:
             # print(e)
             frame = output
-    
+        
         if self.save_to_fits and frame is not None:
             self.save_frame_to_fits_file(fits_path, frame, dtype=self.out_dtype)
             # def save_frame_to_fits_file(fits_path, frame, out_name=None, dtype="float32"):
-
+        
         return frame
     
-
-
+    
+    
     ##  Img Files
     
     def modify_one_image(self,):
@@ -487,7 +495,7 @@ class Processor:
             self.params.modified_image = self.do_img_function()
         except NotImplementedError as e:
             self.params.modified_image = self.do_fits_function(self.params.use_image_path())
-
+        
         # try:
         #     frame = output.get()
         # except AttributeError as e:
@@ -497,8 +505,8 @@ class Processor:
         # # if self.save_to_fits and frame is not None:
         # #     self.save_frame_to_fits_file(fits_path, frame)
         # return frame
-
-
+    
+    
     
     def process_img_series(self):
         """Apply the function to all necessary img files"""
@@ -580,14 +588,14 @@ class Processor:
                     hdul.append(fit_frame)  # Write
                 else:
                     hdul[field] = fit_frame  # Write
-                    
+                
                 hdul = self.delete_further_hdus(hdul, field)
                 hdul[0].header['total_int_time'] = self.int_tm_tot
                 try:
                     hdul.close(output_verify='fix')
                 except PermissionError as e:
                     print("Failed to delete a file: \n {}".format(fits_path))
-            
+    
     def make_shortcut(self, file_in_path=None, shortcut_out_path=None, doAppend=True):
         path = self.params.shortcut_directory(shortcut_out_path)
         # import os, winshell, win32com.client, Pythoncom
@@ -615,7 +623,7 @@ class Processor:
         except ValueError as e:
             # print(e)
             return hdul
-        
+    
     def load_last_fits_field(self, fits_path):
         """Load a fits file from disk"""
         return self.load_a_fits_field(fits_path, -1)
@@ -635,7 +643,7 @@ class Processor:
             # self.in_name = self.find_correct_in_name(hdul)
             frame = self.load_single_frame(hdul, field)
             wave, t_rec, center, int_time, self.found_limb_radius = self.get_fits_info(hdul)
-            
+        
         return frame, wave, t_rec, center, int_time
     
     def load_single_frame(self, hdul, field=None):
@@ -726,10 +734,10 @@ class Processor:
                          ])
         # out_list.append([self.savgol_filtered_absol_maximum, self.savgol_filtered_absol_minimum])
         self.curve_descriptions = ["outer_min", "inner_min", "inner_max", "outer_max",
-                     ["scalar_out_curve", "fit_limb_radius", "abs_min", "abs_max"], "output_abscissa",
-                     "savgol_filtered_outer_maximum", "savgol_filtered_inner_maximum",
-                     "savgol_filtered_inner_minimum", "savgol_filtered_outer_minimum", 'smooth_abs_max','smooth_abs_min']
-
+                                   ["scalar_out_curve", "fit_limb_radius", "abs_min", "abs_max"], "output_abscissa",
+                                   "savgol_filtered_outer_maximum", "savgol_filtered_inner_maximum",
+                                   "savgol_filtered_inner_minimum", "savgol_filtered_outer_minimum", 'smooth_abs_max','smooth_abs_min']
+        
         
         none_check = [item is not None for item in out_list]
         self.do_save = np.all(none_check)
@@ -756,7 +764,7 @@ class Processor:
                 vprint("\r *\n *    Saving Radial Curves...", end='')
             else:
                 vprint("\r *        Saving Radial Curves...", end='')
-            
+        
         if self.prep_save_outs():
             curve_path = self.params.curve_path()
             descr_path = curve_path.replace("curve.txt", "curve_names.txt")
@@ -799,10 +807,10 @@ class Processor:
             print("No Curves to Load!")
             print("Please place the curves file at:")
             print(self.params.curve_path())
-                
-                
-                # self.image_learn()
-                # self.save_curves()
+            
+            
+            # self.image_learn()
+            # self.save_curves()
             
             # if hdul['primary'].data is None:
             #     hdul['primary'].data = hdul['original'].data + 0
@@ -898,15 +906,21 @@ class Processor:
     def open_fits_hdul(self, hdul):
         """Load a fits file from disk"""
         
-        # Load the called for out_array
-        if 'str' in str(type(self.in_name)):
-            field_hdu = hdul[self.in_name]
-        elif self.in_name is None:
+        if isinstance(self.in_name, type("")):
+            if self.in_name.casefold() in self.hdu_name_list:
+                field_hdu = hdul[self.in_name]
+            else:
+                print("\r *       {} not found, proceeding with {} instead".format(self.in_name, self.hdu_name_list[-1].upper()))
+                self.in_name = -1
+        
+        if self.in_name is None:
             return None
-        else:
+        
+        if isinstance(self.in_name, type(int(1))):
             field_hdu = hdul[self.hdu_name_list[self.in_name]]
         
         data = None
+        header = None
         try:
             data = field_hdu.data
             header = hdul[1].header
@@ -938,18 +952,18 @@ class Processor:
         # if self.ensured:
         #     return self.in_name
         # self.ensured = True
-    
-    
+        
+        
         if in_name is not None:
             self.in_name = in_name
         if self.in_name is None:
             self.in_name = -1
-    
-    
+        
+        
         reprocess_mode = self.params.reprocess_mode(self.reprocess_mode())
-    
+        
         self.hdu_name_list = self.list_hdus(hdul)
-    
+        
         input_frame_name = self.determine_in_frame_name()
         first_frame_name = self.hdu_name_list[0]
         second_frame_name = self.hdu_name_list[1]
@@ -960,15 +974,15 @@ class Processor:
             previous_frame_name = self.hdu_name_list[self.hdu_name_list.index(output_frame_name)-1]
         except ValueError:
             previous_frame_name = penultimate_frame_name
-    
-    
+        
+        
         filter_already_applied = filter_applied_last = False
         if output_frame_name.casefold() in [x.casefold() for x in self.hdu_name_list if type(x) is str]:
             filter_already_applied = True
         if input_frame_name.casefold() == output_frame_name.casefold():
             filter_applied_last = True
             # If you're about to redo a filter
-    
+        
         if filter_already_applied or filter_applied_last:
             if reprocess_mode == 'skip' or reprocess_mode is False:
                 # Skip it
@@ -1048,7 +1062,7 @@ class Processor:
         for ii in range(many):
             sys.stdout.flush()
             sys.stderr.flush()
-            
+    
     
     def list_hdus(self, hdul):
         self.hdu_name_list = [frame.name.casefold() for frame in hdul]
@@ -1119,8 +1133,8 @@ class Processor:
         print("\n\n")
         
         return found_list
-        
-        
+    
+    
     @staticmethod
     def write_video_in_directory(directory=None, file_name=None, fps=10, pop=None,
                                  folder_name=None, desc=None, key_string='keyframe', fullpath=None, destroy=False, shortcut=False, orig=False):
@@ -1137,13 +1151,13 @@ class Processor:
                 # makedirs(radial_directory, exist_ok=True)
                 video_path = radial_directory + "\\" + file_name
                 good_paths = [radial_directory + "\\" + f for f in listdir(radial_directory) if 'png' in f]
-                
+            
             if orig:
                 video_path = os.path.normpath(os.path.join(directory, "..\..\..\\video\\orig_{}".format(file_name)))
                 
                 if desc is None:
                     desc = " *    Writing Video {}".format(basename(directory))
-                
+            
             if pop:
                 filename = os.path.basename(video_path)
                 directory = os.path.dirname(video_path)
@@ -1157,17 +1171,17 @@ class Processor:
                     up_dir = up_dir_2
                 if pop == 3:
                     up_dir = up_dir_3
-                    
+                
                 
                 video_path = os.path.join(up_dir,"video", filename)
-                
+            
             
             # Initialize the Machine
             if len(good_paths):
                 first_path = good_paths[0]
                 height, width, _ = cv2.imread(first_path).shape
                 video_avi = cv2.VideoWriter(video_path, 0, fps, (width, height))
-        
+                
                 # Write the Frames
                 for img_path in tqdm(good_paths, desc=desc, unit="frames"):
                     video_avi.write(cv2.imread(img_path))
@@ -1177,7 +1191,8 @@ class Processor:
             else:
                 print('VideoProcessor:: There are no images yet. Make them first.')
                 1+1
-                
+        except FileNotFoundError as e:
+            print("Processor.py:", e)
         finally:
             # Shut it all down
             cv2.destroyAllWindows()
@@ -1187,18 +1202,18 @@ class Processor:
             #     import winshell
             #     self.params.basename()
         # print(" ^    Successfully {} from {} images! ({} skipped)".format(self.finished_verb, ii, self.skipped))
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         # fail_count = 0
         # img_paths = self.params.local_imgs_paths()
