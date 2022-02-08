@@ -1,10 +1,11 @@
 import os
 import sys
 from copy import copy, deepcopy
+from datetime import datetime
 from os import listdir, getcwd, makedirs
 from os.path import join, dirname, abspath, isdir, basename
 import astropy.units as u
-from time import sleep
+from time import sleep, strptime, mktime
 
 import cv2
 import numpy as np
@@ -96,6 +97,7 @@ class Processor:
     
     def __init__(self, params=None, quick=False, rp=None):
         
+        self.header = None
         self.reprocess_mode(rp)
         self.load(params, quick=quick)
         if self.params:
@@ -151,7 +153,8 @@ class Processor:
             #  Refresh Params and Load Paths
             self.name = self.params.batch_name(batch_name)
             self.super_flush()
-            self.params.set_current_wave(wave)
+            if wave:
+                self.params.set_current_wave(wave)
             self.select_keyframe_subset()
             # self.params.create_subdirectories()  #Gender
             fits_paths, imgs_paths = self.load_paths(verb)
@@ -277,8 +280,8 @@ class Processor:
     def plot_two(self, name="Algorithm Result", bounds=None):
         fig, (ax0, ax1) = plt.subplots(1,2, sharex=True, sharey=True, num=name)
         
-        org = self.prep_one(self.params.original_image)
-        mod = self.prep_one(self.params.modified_image)
+        org = self.params.original_image
+        mod = self.params.modified_image
         
         # self.view_original(fig, ax0)
         ax0.imshow(org, cmap = self.params.cmap)
@@ -427,7 +430,7 @@ class Processor:
                 self.process_fits_series()
     
     def process_image(self):
-        """Apply the function to a single image"""
+        """Apply the function to a single image_path"""
         self.setup()
         self.modify_one_image()
         self.cleanup()
@@ -541,12 +544,13 @@ class Processor:
     def process_one_wavelength(self, wave):
         raise NotImplementedError()
     
+
     
     ########################################
     ## M3: Identify Directory of Interest ##
     ########################################
     
-    def discover_best_root_directory(self, subdirectory_name="sunback_images"):
+    def discover_best_root_directory(self, subdirectory_name="sunback_images", drive=None):
         """Determine where to store the images"""
         if __file__ in globals():
             ddd = dirname(abspath(__file__))
@@ -557,6 +561,11 @@ class Processor:
             ddd = abspath(join(ddd, ".."))
         
         directory = join(ddd, subdirectory_name)
+        
+        if drive:
+            directory[0] = drive
+        
+        
         if not isdir(directory):
             makedirs(directory)
         return directory
@@ -681,7 +690,7 @@ class Processor:
                 self.in_name = in_name
             wave, t_rec, center, int_time, self.found_limb_radius = self.get_fits_info(hdul)
             frame, header = self.open_fits_hdul(hdul)
-            img_type = header['IMG_TYPE']
+            img_type = self.header['IMG_TYPE']
         return frame, wave, t_rec, center, int_time, img_type
     
     def set_hdul_in_name(self, fits_path=None, hdul=None, field=None):
@@ -804,9 +813,10 @@ class Processor:
                     print("Failed to load Radial Curves: {}".format(e))
                     raise e
         else:
-            print("No Curves to Load!")
-            print("Please place the curves file at:")
-            print(self.params.curve_path())
+            if False:
+                print("No Curves to Load!")
+                print("Please place the curves file at:")
+                print(self.params.curve_path())
             
             
             # self.image_learn()
@@ -888,6 +898,7 @@ class Processor:
         for ii in range(len(hdul)):
             try:
                 first_data_hdul = hdul[ii]
+                first_data_hdul.header["DRMS_ID"]
                 self.header = first_data_hdul.header
                 wave = first_data_hdul.header['WAVELNTH']
                 t_rec = first_data_hdul.header['T_OBS']

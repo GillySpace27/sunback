@@ -31,9 +31,8 @@ all_wavelengths = ['0193', '0211', '0131', '0335', '0094','0304','0171', ]
 do_wavelengths = all_wavelengths  # ['0211']
 # do_wavelengths = ['0171']
 PNG_FRAME_NAME = 'Quantile' #'SRN'
-# wave_to_use = '0211'
 
-def run_range_multishot_movie(batch_name= "Gonzalez", wave=None, config=None, wave_to_use=None, alpha=0.35):
+def run_one_multishot_image(batch_name= "Gonzalez", wave=None, config=None, wave_to_use=None, alpha=0.35):
     # Set the Parameters
     p = make_params(batch_name, wave, config, wave_to_use)
     p.do_recent(False)
@@ -41,13 +40,10 @@ def run_range_multishot_movie(batch_name= "Gonzalez", wave=None, config=None, wa
     p.alpha=alpha
     
     # Set the Processes
-    p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
+    p.fetchers(FidoFetcher,              rp=False)  # Gets Fits FIDO
     p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
-
     p.processors([QRNProcessor],         rp=False)  # Applies the QRN Processor
-
     p.processors([ImageProcessorCV],           rp=False)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor],             rp=False)  # Makes the PNGs into a Movie
 
     # Run the Code
     # print(p.do_one())
@@ -57,8 +53,8 @@ def make_configs(wave_to_use):
     c8 = {
         "name": "Liftoff",
         "debug": True, "do_one": wave_to_use, "stop": True, #"tend": '2013/09/30 23:59:59',
-        "tstart": '2013/09/28 00:00:10', "tend": '2013/10/01 00:00:20',
-        "cadence_minutes": 10, "fps": 10, "exposure_time": 60,
+        "tstart": '2013/09/28 00:00:10', "tend": None,
+        "cadence_minutes": 1000000000000000, "fps": None, "exposure_time": 60,
         "key_fixed_cadence": 1, "key_fixed_number": None, "time_preset": "l"
     }
     c0 = {

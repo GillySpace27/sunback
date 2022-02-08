@@ -28,11 +28,10 @@ class ImageProcessorCV(ImageProcessor):
         """ Main Call on the Fits Path """
 
         self.init_image_frame()
-        self.plot_two()
-        
-        self.plot_two("Less Zoomed", True)
-        
-        # self.display_all()
+        if False:
+            self.plot_two()
+            self.plot_two("Less Zoomed", True)
+            # self.display_all()
         return self
     
     def display_all(self):
@@ -56,7 +55,7 @@ class ImageProcessorCV(ImageProcessor):
         plt.show(block=True)
         
     def render_all(self):
-        """Render one image"""
+        """Render one image_path"""
         self.plot_aia_original()
         self.plot_aia_changed()
         # self.save_concatinated()

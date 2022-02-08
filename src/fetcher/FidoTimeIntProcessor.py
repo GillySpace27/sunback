@@ -57,6 +57,14 @@ class FidoTimeIntProcessor(FidoFetcher):
         return self.params.download_files() or self.reprocess_mode() or not self.verb
 
     def setup(self):
+        if self.params.do_single:
+            img_path= self.params.local_fits_paths()[0]
+            self.params.use_image_path(img_path)
+            temp_top_dir = os.path.dirname(self.params.temp_directory())
+            this_name = os.path.basename(img_path)[:-5]
+            self.params.temp_directory(os.path.join(temp_top_dir, this_name))
+        # print(self.params.use_image_path())
+        # print(self.params.temp_directory())
         os.makedirs(self.params.temp_directory(), exist_ok=True)
         self.params.do_temp = True
         
@@ -88,7 +96,8 @@ class FidoTimeIntProcessor(FidoFetcher):
             self.fido_download_fits_ensured(temp=True)
             self.sum_subframes()
         
-        self.delete_temp()  # TEMPCHANGE
+        if self.params.destroy:
+            self.delete_temp()  # TEMPCHANGE
 
     def do_fits_function(self, fits_path, in_name=None):
         """This is the thing that will be executed on every file
@@ -107,7 +116,7 @@ class FidoTimeIntProcessor(FidoFetcher):
             # Sum them
             if not self.hold:
                 self.sum_subframes()
-                if self.do_delete:
+                if self.params.destroy:
                     self.delete_temp_folder_items()
             return self.params.modified_image
         
@@ -145,7 +154,7 @@ class FidoTimeIntProcessor(FidoFetcher):
 
         # Define new exposure time window
         self.main_time_period = self.params.time_period([self.params.tstart, self.params.tend])
-        self.set_time_range_duration(t_start=t_rec, duration_seconds=self.params.exposure_time_seconds())
+        self.params.set_time_range_duration(t_start=t_rec, duration_seconds=self.params.exposure_time_seconds())
         self.params.do_recent(False)
         self.params.cadence_minutes(10. / 60.)
         # self.out_dtype = np.float32
@@ -155,7 +164,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         # Reset the main time period
         self.params.time_period(self.main_time_period)
         self.params.load_preset_time_settings()
-        self.define_range()
+        self.params.define_range()
         
     def get_exposure_paths(self):
         self.prep_temp_folder()
@@ -225,28 +234,7 @@ class FidoTimeIntProcessor(FidoFetcher):
                 shutil.rmtree(file)
         
         
-    ## Time Range ##
-    def set_time_range_duration(self, t_start, duration_seconds=60):
-        
-        # Get a start_timestamp datetime
-        t_start_struct = strptime(t_start[:-4], "%Y-%m-%dT%H:%M:%S")
-        t_start_dt = datetime.datetime.fromtimestamp(mktime(t_start_struct))
-        
-        # Do math
-        delta = max(duration_seconds - 21, 1)
-        duration = datetime.timedelta(seconds=delta)
-        shift = datetime.timedelta(seconds=delta/1.5)
-        t_end_dt   = t_start_dt + shift + duration
-        t_start_dt = t_start_dt + shift
-        
-        # Get the formatted outputs
-        t_start_out = t_start_dt.strftime('%Y/%m/%d %H:%M:%S')
-        t_end_out = t_end_dt.strftime('%Y/%m/%d %H:%M:%S')
-        
-        # Set to parameters object
-        self.params.time_period(period=[t_start_out, t_end_out])
-        self.define_range()
-        return [t_start_out, t_end_out]
+
         # self.params.do_multishot()
 
     

@@ -89,7 +89,7 @@ class FidoFetcher(Fetcher):
     def download_fits_series(self, temp=True, hold=None):
         if hold is None:
             hold = False  # TODO Fix this
-        self.define_range()
+        self.params.define_range()
         self.fido_check_for_fits()
         if self.fido_search_found_num:
             self.fido_parse_result()
@@ -101,11 +101,11 @@ class FidoFetcher(Fetcher):
         """Find the science images"""
         self.verb = self.verb or verb
         vprint("\n *   Looking for Images of {} from {} to {}...".format(
-                self.params.current_wave(), self.start_time_string, self.end_time_string), flush=True, end='', verb=self.verb)
+                self.params.current_wave(), self.params.start_time_string, self.params.end_time_string), flush=True, end='', verb=self.verb)
         jsoc_email = "chris.gilly@colorado.edu"
         
         # Make the base required attributes
-        time_attr = attrs.Time(self.start_time, self.end_time)
+        time_attr = attrs.Time(self.params.start_time, self.params.end_time)
         wave_attr = attrs.Wavelength(int(self.params.current_wave()) * u.angstrom)
         sample_attr = attrs.Sample(self.params.cadence_minutes())
         base_attrs = time_attr & wave_attr & sample_attr
@@ -114,7 +114,7 @@ class FidoFetcher(Fetcher):
         # from sunpy.net.jsoc.attrs import Keys
         # Search for records from the internet
         
-        attrs.jsoc.Keys
+        # attrs.jsoc.Keys
         
         if self.params.do_recent():
             inst_attr = attrs.Instrument.aia
@@ -143,7 +143,7 @@ class FidoFetcher(Fetcher):
             vprint("\n *      Search Found  {: 3} Image  at  {}...".format(
                     1, begin_time), flush=True, verb=self.verb)
             vprint(" *                             End = {}...".format(
-                    self.end_time_string), flush=True, verb=self.verb)
+                    self.params.end_time_string), flush=True, verb=self.verb)
         else:
             vprint("\n *      Search Found Nothing")
             raise FileNotFoundError
@@ -182,7 +182,7 @@ class FidoFetcher(Fetcher):
             loc = os.path.join(self.params.temp_directory(), 'log.txt')
             # with open(loc, mode="w+") as sys.stdout:
             self.verb = False
-            print("Fido Fetching...")
+            print(" **       Fido Fetching...")
             try:
                 results = Fido.fetch(self.needed_files, path=self.out_path, downloader=SubDownloader)
             except DrmsExportError as e:
@@ -235,17 +235,7 @@ class FidoFetcher(Fetcher):
         
         return time_start, time_end
     
-    def define_range(self):
-        """Defines the time range of imagery desired"""
-        if self.params.do_recent():
-            self.unpack_time_strings(*define_recent_range(self.params.range()))
-        else:
-            self.unpack_time_strings(*define_time_range(*self.params.time_period()))
-    
-    def unpack_time_strings(self, start, end):
-        """Unpacks the time lists"""
-        self.start_time, self.start_time_long, self.start_time_string = start
-        self.end_time, self.end_time_long, self.end_time_string = end
+
     
     # Printing #####################################################
     
@@ -257,6 +247,7 @@ class FidoFetcher(Fetcher):
         else:
             print(" ^     Unable to Download...Try again Later.")
             raise (ConnectionRefusedError(" Unable to Download...Try again Later."))
+        self.super_flush()
     
     # Validation
     def validate_download(self):

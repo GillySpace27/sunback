@@ -99,14 +99,14 @@ archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Defau
 #     field_hdul = hdul[field1] if hdul[field1] else found_hdul
 #
 #     field_exists = hasattr(field_hdul, "data") and field_hdul.data is not None
-#     image = field_hdul.data if field_exists else found_hdul.data
+#     image_path = field_hdul.data if field_exists else found_hdul.data
 #
 #     wave = found_hdul.header['WAVELNTH']
 #     t_rec = found_hdul.header['T_OBS']
 #     center = [found_hdul.header['X0_MP'], found_hdul.header['Y0_MP']]
 #
 #
-#     return image, wave, t_rec, center
+#     return image_path, wave, t_rec, center
 #
 #
 # def determine_hIndex(hdul):

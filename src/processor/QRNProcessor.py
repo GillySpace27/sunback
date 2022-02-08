@@ -189,7 +189,8 @@ class QRNProcessor(Processor):
         if self.should_run():
             self.skipped -= 1
             self.make_save_smoothed_curves(banner=False)  # Build smooth curves based on the statistics
-        self.render_pre_hist_video()
+        if not self.params.do_single:
+            self.render_pre_hist_video()
         # print("Curves Saved!")
     
     def render_pre_hist_video(self):
@@ -203,6 +204,9 @@ class QRNProcessor(Processor):
     
     def should_run(self):
         """Decide of the processor should run on this file"""
+        if not self.header:
+            print("No header Loaded")
+            return False
         self.can_use_keyframes = True
         not_dark = self.header["IMG_TYPE"] == "LIGHT"
         not_weak = self.header["EXPTIME"] > 1.0
@@ -240,16 +244,17 @@ class QRNProcessor(Processor):
                 return self.do_work()  # Do the work on the fits files
         return None
     
-    def do_img_function(self):
-        """Calls the do_work function on a single fits path if indicated"""
-        return self.do_work()  # Do the work on the fits files
+    # def do_img_function(self):
+    #     """Calls the do_work function on a single fits path if indicated"""
+    #     raise NotImplementedError
+    #     # return self.do_work()  # Do the work on the fits files
     
     ###################
     ## Top-Level ##
     ###################
     
     def image_learn(self):
-        """Analyze the input image to help make normalization curves"""
+        """Analyze the input image_path to help make normalization curves"""
         if not self.skip_bad_frame():
             self.init_for_learn()
             self.coronaLearn()
@@ -1461,7 +1466,7 @@ class QRNProcessor(Processor):
         ########################
         self.plot_norm_curves(fig=fig, ax=ax0, save=False, smooth=True, extra=False, raw=False)
         
-        # Plot Scattered Points from the original image in midnightblue
+        # Plot Scattered Points from the original image_path in midnightblue
         orig_abs = self.params.original_image.flatten()
         ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
@@ -1479,17 +1484,17 @@ class QRNProcessor(Processor):
         ## Plot 1: Normalized ##
         ########################
         
-        # # Plot Scattered Points from the original image in midnightblue
+        # # Plot Scattered Points from the original image_path in midnightblue
         # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
         #             alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
         #
-        # # Plot Scattered Points from the original image but rooted, in red
+        # # Plot Scattered Points from the original image_path but rooted, in red
         # self.touchup_TUNE(self.params.original_image)
         # scat2 = self.params.original_image.flatten()
         # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
         #             alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
         #
-        # # Plot Scattered Points from the final modified image, in black
+        # # Plot Scattered Points from the final modified image_path, in black
         # self.touchup_TUNE(self.params.modified_image)
         # points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
         # ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
@@ -1594,7 +1599,7 @@ class QRNProcessor(Processor):
             ax0.axvline(self.n2r(self.lCut), ls=":")
             ax0.axvline(self.n2r(self.hCut), ls=":")
         
-        # Plot Scattered Points from the original image in midnightblue
+        # Plot Scattered Points from the original image_path in midnightblue
         
         orig_abs = self.params.original_image.flatten()
         # ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
@@ -1604,20 +1609,20 @@ class QRNProcessor(Processor):
         ## Plot 1: Normalized ##
         ########################
         
-        # Plot Scattered Points from the original image in midnightblue
+        # Plot Scattered Points from the original image_path in midnightblue
         do_original_scatter = False
         if do_original_scatter:
             ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
                         alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
         
-        # Plot Scattered Points from the original image but rooted, in red
+        # Plot Scattered Points from the original image_path but rooted, in red
         do_red_points = False
         if do_red_points:
             scat2 = self.params.original_image.flatten()
             ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
                         alpha=red_alpha, edgecolors='none', c='r', s=3, zorder=0, label="1. INT+ROOT")
         
-        # Plot Scattered Points from the final modified image, in black
+        # Plot Scattered Points from the final modified image_path, in black
         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
         ax1.scatter(self.n2r(self.rad_flat[::blk_skip]), points[::blk_skip], c='k', s=3, alpha=blk_alpha, edgecolors='none', label="2. SRN")
         
@@ -1705,7 +1710,7 @@ class QRNProcessor(Processor):
             ax0.axvline(self.n2r(self.lCut), ls=":")
             ax0.axvline(self.n2r(self.hCut), ls=":")
         
-        # Plot Scattered Points from the original image in midnightblue
+        # Plot Scattered Points from the original image_path in midnightblue
         flat_original = self.params.original_image.flatten()
         ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_original[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
@@ -1714,17 +1719,17 @@ class QRNProcessor(Processor):
         ## Plot 1: Normalized ##
         ########################
         
-        # Plot Scattered Points from the original image in midnightblue
+        # Plot Scattered Points from the original image_path in midnightblue
         #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_original[::self.skip_points], zorder=-1,
         #                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
         
-        # Plot Scattered Points from the original image but rooted, in red
+        # Plot Scattered Points from the original image_path but rooted, in red
         flat_original = self.params.original_image.flatten()
         touched_original = self.touchup(self.params.original_image + 0)
         #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), touched_original[::self.skip_points],
         #                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
         
-        # Plot Scattered Points from the final modified image, in black
+        # Plot Scattered Points from the final modified image_path, in black
         self.touchup(self.params.modified_image)
         flat_modified_image = np.array(self.params.modified_image.flatten(), dtype=np.float32)
         ax1.scatter(self.n2r(self.rad_flat[::skip]), flat_modified_image[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
@@ -1789,7 +1794,7 @@ class QRNProcessor(Processor):
             ax0.axvline(self.n2r(self.lCut), ls=":")
             ax0.axvline(self.n2r(self.hCut), ls=":")
         
-        # Plot Scattered Points from the original image in midnightblue
+        # Plot Scattered Points from the original image_path in midnightblue
         orig_abs = self.params.original_image.flatten()
         ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
@@ -1798,17 +1803,17 @@ class QRNProcessor(Processor):
         ## Plot 1: Normalized ##
         ########################
         
-        # Plot Scattered Points from the original image in midnightblue
+        # Plot Scattered Points from the original image_path in midnightblue
         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
         
-        # Plot Scattered Points from the original image but rooted, in red
+        # Plot Scattered Points from the original image_path but rooted, in red
         self.touchup(self.params.original_image)
         scat2 = self.params.original_image.flatten()
         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
         
-        # Plot Scattered Points from the final modified image, in black
+        # Plot Scattered Points from the final modified image_path, in black
         self.touchup(self.params.modified_image)
         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
         ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")

@@ -181,11 +181,11 @@ class SingleRunner(Runner):
         self.processor_list = None
     
     def set_image(self, path=None, image=None):
-        """Set up the target image"""
+        """Set up the target image_path"""
         pass
     
     def process_single(self):
-        """Run all of the processors on a single image"""
+        """Run all of the processors on a single image_path"""
         self.print_start_banner()
         self.assemble_processors()
         self.do_process()
@@ -218,7 +218,7 @@ class SingleRunner(Runner):
         """Call each of the processors in order"""
 
         for proc in self.processor_list:
-            # proc.process(image=self.params.use_image_path())
+            # proc.process(image_path=self.params.use_image_path())
             print("\n>>-->>  {}: {}  <<--<<".format(proc.filt_name, proc.description))
             proc.process(params=self.params)
             print('')
@@ -226,5 +226,5 @@ class SingleRunner(Runner):
     # def image_generator(self):
     #     waves = self.params.set_waves_to_do()
     #     yield None, None
-    #     for (image, wave) in self.image_generator():
+    #     for (image_path, wave) in self.image_generator():
     #         self.params.current_wave(wave)

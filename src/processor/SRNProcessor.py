@@ -180,7 +180,7 @@ class SRNProcessor(Processor):
         raise NotImplementedError
     
     def do_work(self):
-        """Do whatever you want to each image in the directory"""
+        """Do whatever you want to each image_path in the directory"""
         raise NotImplementedError
     
     def cleanup(self):
@@ -207,7 +207,7 @@ class SRNProcessor(Processor):
     ###################
     
     def image_learn(self):
-        """Analyze the input image to help make normalization curves"""
+        """Analyze the input image_path to help make normalization curves"""
         if not self.skip_bad_frame():
             self.init_for_learn()
             self.coronaLearn()
@@ -1436,7 +1436,7 @@ class SRNProcessor(Processor):
         ########################
         self.plot_norm_curves(fig=fig, ax=ax0, save=False, smooth=True, extra=False, raw=False)
         
-        # Plot Scattered Points from the original image in midnightblue
+        # Plot Scattered Points from the original image_path in midnightblue
         orig_abs = self.params.original_image.flatten()
         ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
@@ -1454,17 +1454,17 @@ class SRNProcessor(Processor):
         ## Plot 1: Normalized ##
         ########################
         
-        # # Plot Scattered Points from the original image in midnightblue
+        # # Plot Scattered Points from the original image_path in midnightblue
         # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
         #             alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
         #
-        # # Plot Scattered Points from the original image but rooted, in red
+        # # Plot Scattered Points from the original image_path but rooted, in red
         # self.touchup_TUNE(self.params.original_image)
         # scat2 = self.params.original_image.flatten()
         # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
         #             alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
         #
-        # # Plot Scattered Points from the final modified image, in black
+        # # Plot Scattered Points from the final modified image_path, in black
         # self.touchup_TUNE(self.params.modified_image)
         # points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
         # ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
@@ -1570,7 +1570,7 @@ class SRNProcessor(Processor):
                ax0.axvline(self.n2r(self.lCut), ls=":")
                ax0.axvline(self.n2r(self.hCut), ls=":")
            
-           # Plot Scattered Points from the original image in midnightblue
+           # Plot Scattered Points from the original image_path in midnightblue
            
            orig_abs = self.params.original_image.flatten()
            # ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
@@ -1580,20 +1580,20 @@ class SRNProcessor(Processor):
            ## Plot 1: Normalized ##
            ########################
            
-           # Plot Scattered Points from the original image in midnightblue
+           # Plot Scattered Points from the original image_path in midnightblue
            do_original_scatter = False
            if do_original_scatter:
                ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
                            alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
            
-           # Plot Scattered Points from the original image but rooted, in red
+           # Plot Scattered Points from the original image_path but rooted, in red
            do_red_points = False
            if do_red_points:
                scat2 = self.params.original_image.flatten()
                ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
                            alpha=red_alpha, edgecolors='none', c='r', s=3, zorder=0, label="1. INT+ROOT")
            
-           # Plot Scattered Points from the final modified image, in black
+           # Plot Scattered Points from the final modified image_path, in black
            points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
            ax1.scatter(self.n2r(self.rad_flat[::blk_skip]), points[::blk_skip], c='k', s=3, alpha=blk_alpha, edgecolors='none', label="2. SRN")
            
@@ -1681,7 +1681,7 @@ class SRNProcessor(Processor):
                 ax0.axvline(self.n2r(self.lCut), ls=":")
                 ax0.axvline(self.n2r(self.hCut), ls=":")
             
-            # Plot Scattered Points from the original image in midnightblue
+            # Plot Scattered Points from the original image_path in midnightblue
             flat_original = self.params.original_image.flatten()
             ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_original[::self.skip_points],
                         alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
@@ -1691,17 +1691,17 @@ class SRNProcessor(Processor):
             ########################
     
         
-            # Plot Scattered Points from the original image in midnightblue
+            # Plot Scattered Points from the original image_path in midnightblue
     #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_original[::self.skip_points], zorder=-1,
     #                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
             
-            # Plot Scattered Points from the original image but rooted, in red
+            # Plot Scattered Points from the original image_path but rooted, in red
             flat_original = self.params.original_image.flatten()
             touched_original = self.touchup(self.params.original_image+0)
     #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), touched_original[::self.skip_points],
     #                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
            
-            # Plot Scattered Points from the final modified image, in black
+            # Plot Scattered Points from the final modified image_path, in black
             self.touchup(self.params.modified_image)
             flat_modified_image = np.array(self.params.modified_image.flatten(), dtype=np.float32)
             ax1.scatter(self.n2r(self.rad_flat[::skip]), flat_modified_image[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
@@ -1767,7 +1767,7 @@ class SRNProcessor(Processor):
             ax0.axvline(self.n2r(self.lCut), ls=":")
             ax0.axvline(self.n2r(self.hCut), ls=":")
         
-        # Plot Scattered Points from the original image in midnightblue
+        # Plot Scattered Points from the original image_path in midnightblue
         orig_abs = self.params.original_image.flatten()
         ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
@@ -1776,17 +1776,17 @@ class SRNProcessor(Processor):
         ## Plot 1: Normalized ##
         ########################
     
-        # Plot Scattered Points from the original image in midnightblue
+        # Plot Scattered Points from the original image_path in midnightblue
         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
         
-        # Plot Scattered Points from the original image but rooted, in red
+        # Plot Scattered Points from the original image_path but rooted, in red
         self.touchup(self.params.original_image)
         scat2 = self.params.original_image.flatten()
         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
         
-        # Plot Scattered Points from the final modified image, in black
+        # Plot Scattered Points from the final modified image_path, in black
         self.touchup(self.params.modified_image)
         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
         ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")

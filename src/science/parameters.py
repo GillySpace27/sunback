@@ -1,7 +1,8 @@
 import os
+import datetime
 from os import makedirs, getcwd
 from os.path import join, normpath, dirname, abspath, isdir
-from time import time, sleep, strftime, asctime
+from time import time, sleep, strftime, asctime, strptime, mktime
 
 import numpy as np
 from astropy import units as u
@@ -11,6 +12,8 @@ from processor.ValidationProcessor import ValidationProcessor
 from putter.NullPutter import NullPutter
 # from utils.file_util import find_root_directory
 import matplotlib.pyplot as plt
+
+from utils.time_util import define_time_range, define_recent_range
 
 
 class Parameters:
@@ -26,6 +29,7 @@ class Parameters:
         """Sets all the attributes to None"""
         # Initialize Variables
 
+        self.use_drive = "D"
         self.file_basename = None
         self.orig_path = None
         self.cat_path  = None
@@ -492,40 +496,45 @@ class Parameters:
 
     def get_wave_directory(self):
         """Define the root folder"""
-        last = ''
-        if type(self.current_wave()) is str:
-            last = self.current_wave()
-        base_directory = join(self.find_root_directory(), self.batch_name(), last)
+        if self.do_single:
+            base_directory = join(self.find_root_directory(), self.batch_name())
+        else:
+            last = ''
+            if type(self.current_wave()) is str:
+                last = self.current_wave()
+            base_directory = join(self.find_root_directory(), self.batch_name(), last)
+            
         return self.base_directory(base_directory)
     
     def find_root_directory(self, root_directory_name = "sunback_images"):
         """Determine where to store the images"""
         
+        drive = self.use_drive
         # self.currently_local = False
         if self.currently_local: # True when run locally, False when run in panHelio
-            self.root_directory = abspath(join("D://", root_directory_name))
+            self.root_directory = abspath(join(drive + "://", root_directory_name))
         else:
             self.root_directory = abspath(root_directory_name)
 
         makedirs(self.root_directory, exist_ok=True)
         return self.root_directory
         
-        #  Get the current path
-        if __file__ in globals():
-            this_file_path = dirname(abspath(__file__))
-        else:
-            this_file_path = abspath(getcwd())
-        
-        #  Escape Dropbox
-        while "dropbox".casefold() in this_file_path.casefold():
-            this_file_path = abspath(join(this_file_path, ".."))
-        
-        #  Name and create the root directory
-        root_directory = join(this_file_path, root_directory_name)
-        if not isdir(root_directory):
-            makedirs(root_directory)
-        self.root_directory = root_directory
-        return self.root_directory
+        # #  Get the current path
+        # if __file__ in globals():
+        #     this_file_path = dirname(abspath(__file__))
+        # else:
+        #     this_file_path = abspath(getcwd())
+        #
+        # #  Escape Dropbox
+        # while "dropbox".casefold() in this_file_path.casefold():
+        #     this_file_path = abspath(join(this_file_path, ".."))
+        #
+        # #  Name and create the root directory
+        # root_directory = join(this_file_path, root_directory_name)
+        # if not isdir(root_directory):
+        #     makedirs(root_directory)
+        # self.root_directory = root_directory
+        # return self.root_directory
     
     def set_current_wave_paths(self):
         """Make the paths for current_wave"""
@@ -544,7 +553,9 @@ class Parameters:
 
         # Fits Folders
         self.fits_directory(        abspath(join(self.imgs_top_directory(), 'fits')))
-        self.temp_directory(        abspath(join(self.fits_directory(), "temp")))
+        
+        if not self.temp_directory():
+            self.temp_directory(        abspath(join(self.fits_directory(), "temp")))
         
         # Png Folders
         self.mods_directory(        abspath(join(self.imgs_top_directory(), 'png', 'mod')))
@@ -556,10 +567,52 @@ class Parameters:
         norm_curves_name =      self.norm_curves_name or '{}_curves.txt'.format(self.current_wave())
         self.curve_path(        abspath(join(self.analysis_directory, norm_curves_name)))
         
-        param_file_name =       '{}_params.txt'.format(self.current_wave())
+        
+        wave = "Rainbow" if self.do_single else self.current_wave()
+        param_file_name =       '{}_params.txt'.format(wave)
         self.params_path(       abspath(join(self.analysis_directory, param_file_name)))
         
         
+    ## Time Range ##
+    def set_time_range_duration(self, t_start, duration_seconds=13):
+        
+        # Get a start_timestamp datetime
+        try:
+            t_start_struct = strptime(t_start[:-4], "%Y-%m-%dT%H:%M:%S")
+        except ValueError:
+            t_start_struct = strptime(t_start, "%Y-%m-%dT%H:%M:%S")
+        
+        t_start_dt = datetime.datetime.fromtimestamp(mktime(t_start_struct))
+        
+        # Do math
+        delta = max(duration_seconds - 21, 1)
+        duration = datetime.timedelta(seconds=delta)
+        shift = datetime.timedelta(seconds=delta/1.5)
+        t_end_dt   = t_start_dt + shift + duration
+        t_start_dt = t_start_dt + shift
+        
+        # Get the formatted outputs
+        t_start_out = t_start_dt.strftime('%Y/%m/%d %H:%M:%S')
+        t_end_out = t_end_dt.strftime('%Y/%m/%d %H:%M:%S')
+        
+        # Set to parameters object
+        self.time_period(period=[t_start_out, t_end_out])
+        self.define_range()
+        return [t_start_out, t_end_out]
+
+    def define_range(self):
+        """Defines the time range of imagery desired"""
+        if self.do_recent():
+            self.unpack_time_strings(*define_recent_range(self.range()))
+        else:
+            self.unpack_time_strings(*define_time_range(*self.time_period()))
+    
+    def unpack_time_strings(self, start, end):
+        """Unpacks the time lists"""
+        self.start_time, self.start_time_long, self.start_time_string = start
+        self.end_time, self.end_time_long, self.end_time_string = end
+
+
         
         # self.radial_hist_path = abspath(join(self.analysis_directory, param_file_name))
         
@@ -572,6 +625,7 @@ class Parameters:
         makedirs(self.mods_directory(),     exist_ok=True)
         makedirs(self.movs_directory(),     exist_ok=True)
         makedirs(self.cat_directory,        exist_ok=True)
+        
         # Save Parameters
         self.save_to_txt()
         

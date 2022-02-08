@@ -52,7 +52,7 @@ class ValidationProcessor(Processor):
 #         raise NotImplementedError
 #
     def fetch(self):
-        """Do whatever you want to each image in the directory"""
+        """Do whatever you want to each image_path in the directory"""
         to_destroy = self.validate_fits()
         self.destroy_files(to_destroy)
 #                self.remove_files(local_fits_path)
@@ -615,20 +615,20 @@ class ValidationProcessor(Processor):
 #         return n / self.found_limb_radius
 #
 #     @staticmethod
-#     def normalize(image, high=98, low=15):
+#     def normalize(image_path, high=98, low=15):
 #         """Normalize the Array"""
 #         if low is None:
 #             lowP = 0
 #         else:
-#             lowP = np.nanpercentile(image, low)
-#         highP = np.nanpercentile(image, high)
+#             lowP = np.nanpercentile(image_path, low)
+#         highP = np.nanpercentile(image_path, high)
 #         import warnings
 #         with warnings.catch_warnings():
 #             warnings.filterwarnings('error')
 #             try:
-#                 out = (image - lowP) / (highP - lowP)
+#                 out = (image_path - lowP) / (highP - lowP)
 #             except RuntimeWarning as e:
-#                 out = image
+#                 out = image_path
 #         return out
 #
 #     @staticmethod

@@ -46,7 +46,7 @@ def run_server(delay=10, debug=True, do_one='rainbow', stop=True):
     
     
     # Set the Parameters
-    # p = make_params(batch_name, wave, config)
+    # p = default_run_single_params(batch_name, wave, config)
     
     # Set the Processes
     # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N

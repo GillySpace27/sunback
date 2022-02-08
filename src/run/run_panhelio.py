@@ -92,7 +92,7 @@ def run_batch(batch_directory, verb=False, confirm=False):
 if __name__ == "__main__":
     # Do something if this file is invoked on its own   
     
-    # Go to the directory with the single image
+    # Go to the directory with the single image_path
     use_directory = r"/srv/data/shared/notebooks/cgilly/sunback/src/sunback_images/Single/"
     use_image_name = r"AIA20210923_172100.nc"
     img_path = os.path.join(use_directory, use_image_name)

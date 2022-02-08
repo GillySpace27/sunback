@@ -45,7 +45,7 @@ class LocalFetcher(Fetcher):
             sys.exit(1)
 
 class LocalSingleFetcher(Fetcher):
-    description = "Load the image from Disk"
+    description = "Load the image_path from Disk"
     filt_name = "Local Single Fetcher"
     
     def fetch(self, params=None):
@@ -69,7 +69,7 @@ class LocalSingleFetcher(Fetcher):
     
 
 class LocalCdfFetcher(Fetcher):
-    description = "Load the image from Disk"
+    description = "Load the image_path from Disk"
     filt_name = "Local Single CDF Fetcher"
 
     def fetch(self, params=None):
@@ -156,7 +156,7 @@ class LocalCdfFetcher(Fetcher):
        
         for index, (frame, wave) in enumerate(frame_list):
             if do_plot:
-                # Display a before and after image
+                # Display a before and after image_path
                 fig, (ax1,ax2) = plt.subplots(1,2)
                 ax1.imshow(self.quick_filter(dss.value[index]), origin="lower")
                 ax2.imshow(frame, origin="lower")
@@ -202,7 +202,7 @@ class LocalCdfFetcher(Fetcher):
         return power(np.abs(image), pow)
         
     def peek_selection(self):
-        """ Plot the loaded image"""
+        """ Plot the loaded image_path"""
         
         print("")
         fig, (ax1, ax) = plt.subplots(1,2)
