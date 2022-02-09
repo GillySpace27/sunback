@@ -14,6 +14,7 @@ import numpy as np
 from astropy.io import fits
 from os import stat
 from fetcher.Fetcher import Fetcher
+
 from utils.time_util import parse_time_string_to_local
 import astropy.units as u
 
@@ -76,15 +77,25 @@ class FidoFetcher(Fetcher):
     
     def fido_get_fits(self, current_wave, temp=False):
         self.load(self.params, wave=current_wave)
+        have_file = self.determine_image_path() is not False
         # vprint("\r          ")
-        vprint("v Fetching Fits Files: {}".format(self.params.current_wave()), self.verb)
-        if self.params.download_files() or self.reprocess_mode() or not self.verb:
+        time_integrator = type(self) is not FidoFetcher
+        
+        vprint(" v Fetching Fits Files: {}".format(self.params.current_wave()), self.verb)
+        
+        need_file = (self.params.download_files() and not have_file)
+        want_to_redo = (self.reprocess_mode() and have_file)
+        if need_file or want_to_redo or time_integrator:
             self.print_load_banner(verb=self.verb)
             self.download_fits_series(temp=temp)
             # self.validate_download()
             # self.enumerate()
         else:
-            vprint(" ^ Using {} Cached Fits Files\n".format(self.params.n_fits), self.verb)
+            if self.params.do_single:
+                prnt = "\b"
+            else:
+                prnt = self.params.n_fits
+            vprint(" *\n ^ Using {} Cached Fits Files".format(prnt), self.verb)
     
     def download_fits_series(self, temp=True, hold=None):
         if hold is None:
@@ -194,6 +205,10 @@ class FidoFetcher(Fetcher):
             #     results = self.fido_multi_download()
             self.multi_banner()
             self.results = copy.copy(results)
+            
+            # self.params.params_path()
+            # self.params.save_to_txt()
+            
             sys.stdout = main_stdout
             return self.results
     
@@ -204,7 +219,8 @@ class FidoFetcher(Fetcher):
             self.results = Fido.fetch(self.results, path=self.out_path)
             self.n_fits = len(self.results)
         self.n_fits = len(self.results)
-        
+        if self.params.do_single:
+            self.n_fits = 1
         return self.results
     
     # Time Related Things #########################################

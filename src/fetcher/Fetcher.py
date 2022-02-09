@@ -2,7 +2,7 @@ import os
 print(os.getcwd())
 
 from processor.Processor import Processor
-
+import numpy as np
 
 class Fetcher(Processor):
     """Gets some data"""
@@ -27,4 +27,41 @@ class Fetcher(Processor):
     
     # def process(self, params=None):
     #     self.fetch(params)
- 
+
+
+    def determine_image_path(self):
+        if self.params.use_image_path():
+            return self.params.use_image_path()
+        else:
+            
+            # Parse File Paths
+            all_paths = os.listdir(self.params.fits_directory())
+            fits_files = [x for x in all_paths if not os.path.isdir(os.path.join(self.params.fits_directory(), x))]
+            fits_dates = [x.split(".")[2] for x in fits_files]
+            fits_dates_cleaned = [x.replace('-','/').replace("T", " ").replace("Z","") for x in fits_dates]
+            times = [x.replace(":", "") for x in self.params.time_period()]
+    
+            # Test for Match
+            correct = [times[0] <= x <= times[1] for x in fits_dates_cleaned]
+            locs = np.where(correct)[0]
+
+            if len(locs):
+                # Do Stuff
+                possible = [fits_files[x] for x in locs]
+                wave = self.params.current_wave()
+                if wave[0] == "0":
+                    wave=wave[1:]
+                right_wave = [wave in x for x in possible]
+                loc2 = np.where(right_wave)[0]
+                if len(loc2):
+                    use_index = int(locs[loc2])
+                else:
+                    return False
+            else:
+                return False
+                # raise FileNotFoundError(fits_dates_cleaned)
+            
+            use_file = fits_files[use_index]
+            use_path = os.path.join(self.params.fits_directory(), use_file)
+        return self.params.use_image_path(use_path)
+

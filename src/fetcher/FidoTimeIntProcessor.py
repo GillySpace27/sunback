@@ -58,36 +58,13 @@ class FidoTimeIntProcessor(FidoFetcher):
 
     def setup(self):
         if self.params.do_single:
-            img_path= self.params.local_fits_paths()[0]
-            self.params.use_image_path(img_path)
+            img_path = self.determine_image_path()
             temp_top_dir = os.path.dirname(self.params.temp_directory())
             this_name = os.path.basename(img_path)[:-5]
             self.params.temp_directory(os.path.join(temp_top_dir, this_name))
-        # print(self.params.use_image_path())
-        # print(self.params.temp_directory())
         os.makedirs(self.params.temp_directory(), exist_ok=True)
         self.params.do_temp = True
-        
-    # def fetch(self, params=None, quick=False, rp=None, verb=True):
-    #     if verb is not None:
-    #         self.verb = verb
-    #     """ Find the Most Recent Images """
-    #     self.__init__(params, quick, rp)
-    #     # self.verb = True
-    #     self.params.do_temp=True
-    #     self.fido_get_fits(self.params.current_wave(), temp=self.params.do_temp)
-        
-        
-    # def download_fits_series(self, temp=True, hold=None):
-    #     if hold is None:
-    #         hold = False # TODO Fix this
-    #     self.define_range()
-    #     self.fido_check_for_fits()
-    #     if self.fido_search_found_num:
-    #         self.fido_parse_result()
-    #         self.fido_download_fits_ensured(temp=temp, hold=hold)
-    #     else:
-    #         print("\n     No Images Found\n")
+
     
     def cleanup(self):
         self.reset_params()
@@ -125,10 +102,23 @@ class FidoTimeIntProcessor(FidoFetcher):
     def should_do_exposure(self, fits_path):
         """Do we need to do time integration here?"""
         self.keyframe_fits_path = fits_path
-        in_name = "original_image" # self.set_hdul_in_name(fits_path)
+        # in_name = "original_image" # self.set_hdul_in_name(fits_path)
         need_exposure = self.params.exposure_time_seconds() > 0
-        have_input = in_name is not None
+        have_input = True #self.in_name is not None
         already_made = self.out_name in self.hdu_name_list
+        
+        if already_made:
+            orig, wave, t_rec, center, int_time = self.load_a_fits_field(fits_path,"original")
+            tint, wave, t_rec, center, int_time = self.load_a_fits_field(fits_path,"t_integrated")
+            if tint is not None:
+                tint *= int_time
+                match = np.sum(tint.astype(int) == orig.astype(int))/len(tint)**2
+                if match > 0.9:
+                    already_made = False
+            else:
+                already_made = False
+        
+        
         reprocess = self.reprocess_mode()
         do_exposure = need_exposure and have_input and (not already_made or reprocess)
         return do_exposure
@@ -159,7 +149,6 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.params.cadence_minutes(10. / 60.)
         # self.out_dtype = np.float32
         
-        
     def reset_params(self):
         # Reset the main time period
         self.params.time_period(self.main_time_period)
@@ -180,13 +169,13 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.int_tm_tot = 0
         self.n_exposures = 0
         
-        self.params.modified_image = np.zeros_like(self.params.modified_image, dtype=np.float32)
+        self.params.modified_image = np.zeros_like(self.params.original_image, dtype=np.float32)
         
         for ii, path in enumerate(self.exposure_paths):
             # vprint(path, self.verb)
             try:
                 if not os.path.isdir(path):
-                    frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, -1)
+                    frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, "original")
                     self.orig_t_int = self.orig_t_int or int_time
                     self.params.modified_image += frame
                     self.int_tm_tot += int_time

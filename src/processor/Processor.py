@@ -159,6 +159,7 @@ class Processor:
             # self.params.create_subdirectories()  #Gender
             fits_paths, imgs_paths = self.load_paths(verb)
             return fits_paths, imgs_paths
+        self.super_flush()
     
     # def clean_directory(self):
     #     to_rep = "D:/"
@@ -204,9 +205,9 @@ class Processor:
             print('\r v {}...  ------------------------------------------------  v'.format(self.filt_name), flush=True)
             if self.finished_verb.casefold() in ["summed"]:
                 exp = self.params.exposure_time_seconds()
-                print(" *    Exposure Time is {} seconds, which is {} frames".format(exp, exp / 12))
+                print(" *    Exposure Time is {} seconds, which is {:0.3f} frames".format(exp, exp / 12))
             print("\r +    {}: {}, Redo = {}".format(self.progress_verb, self.params.current_wave(), self.reprocess_mode()))
-            vprint("\r +    Using {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()))
+            # vprint("\r +    Using {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()))
     
     def load_fits_paths(self, absolute=True, ext=".fits"):
         """ Creates a List of the existant fits files in the fits_directory"""
@@ -383,8 +384,8 @@ class Processor:
             else:
                 print("Something is wrong here in the Processor.py file")
             print(" *    >> Selected {} keyframes out of {} total frames".format(self.n_do_frames, self.n_all_frames))
-        else:
-            print("\r *    >> KeyFrames: Using Every Image ")
+        # else:
+        #     print("\r *    >> KeyFrames: Using Every Image ")
         
         self.super_flush(many=10)
     
@@ -418,23 +419,22 @@ class Processor:
     
     def process(self, params=None):
         """Load the parameters and run the algorithm"""
-        self.load(params, quietly=False)
-        self.super_flush()
         
         if self.params is not None:
             if self.params.do_single:
-                self.process_image()
+                self.setup()
+                self.load(params, quietly=False)
+                mod = self.modify_one_image()
+                if mod is None:
+                    print(" ^     Skipped - Already Done!\n")
+                self.cleanup()
             elif self.do_png:
+                self.load(params, quietly=False)
                 self.process_img_series()
             else:
+                self.load(params, quietly=False)
                 self.process_fits_series()
-    
-    def process_image(self):
-        """Apply the function to a single image_path"""
-        self.setup()
-        self.modify_one_image()
-        self.cleanup()
-    
+        
     ##  Run on Fits Files
     def process_fits_series(self):
         """Apply the function to all necessary fits files"""
@@ -465,9 +465,11 @@ class Processor:
                 print(" ^ ------------------------------------------------------------------------  ^\n")
         else:
             print(" ^    No Files Found\n")
+            
     def confirm_fits_file(self, fits_path):
-        if os.path.exists(fits_path):
-            return True
+        if fits_path is not None:
+            if os.path.exists(fits_path):
+                return True
         else:
             raise FileNotFoundError
     
@@ -487,29 +489,16 @@ class Processor:
         
         return frame
     
-    
-    
-    ##  Img Files
-    
     def modify_one_image(self,):
         """Apply the given funtion to the given fits path"""
         
         try:
             self.params.modified_image = self.do_img_function()
         except NotImplementedError as e:
-            self.params.modified_image = self.do_fits_function(self.params.use_image_path())
-        
-        # try:
-        #     frame = output.get()
-        # except AttributeError as e:
-        #     # print(e)
-        #     frame = output
-        #
-        # # if self.save_to_fits and frame is not None:
-        # #     self.save_frame_to_fits_file(fits_path, frame)
-        # return frame
-    
-    
+            img_path = self.params.use_image_path() or self.params.first_fits_path()
+            self.params.modified_image = self.modify_one_fits(img_path)
+            
+        return self.params.modified_image
     
     def process_img_series(self):
         """Apply the function to all necessary img files"""
@@ -602,8 +591,9 @@ class Processor:
                 hdul[0].header['total_int_time'] = self.int_tm_tot
                 try:
                     hdul.close(output_verify='fix')
+                    print(" ** Saved Frame {}\n".format(field))
                 except PermissionError as e:
-                    print("Failed to delete a file: \n {}".format(fits_path))
+                    print("Failed to save a file: \n {}".format(fits_path))
     
     def make_shortcut(self, file_in_path=None, shortcut_out_path=None, doAppend=True):
         path = self.params.shortcut_directory(shortcut_out_path)

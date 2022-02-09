@@ -29,6 +29,7 @@ class Parameters:
         """Sets all the attributes to None"""
         # Initialize Variables
 
+        self.fits_save_path = None
         self.use_drive = "D"
         self.file_basename = None
         self.orig_path = None
@@ -490,8 +491,11 @@ class Parameters:
         else:
             self.current_wave(wave)
             
-        self.set_current_wave_paths()
-        self.make_directories()
+        if self.do_single and self.do_temp:
+            self.set_single_wave_paths()
+        else:
+            self.set_current_wave_paths()
+        # self.make_directories()
         
 
     def get_wave_directory(self):
@@ -543,7 +547,8 @@ class Parameters:
         
         ## \\>Batch<\\>Wavelength<\\
         self.base_directory(abspath(self.get_wave_directory()))
-        
+
+            
         # Top Folders
         self.shortcut_directory(    abspath(join(self.base_directory(), '..', 'MOVS')))
         self.time_path(             abspath(join(self.base_directory(), "image_times.txt")))
@@ -558,9 +563,9 @@ class Parameters:
             self.temp_directory(        abspath(join(self.fits_directory(), "temp")))
         
         # Png Folders
-        self.mods_directory(        abspath(join(self.imgs_top_directory(), 'png', 'mod')))
-        self.orig_directory =       abspath(join(self.imgs_top_directory(), 'png', "orig"))
-        self.cat_directory =        abspath(join(self.imgs_top_directory(), 'png', "cat"))
+        self.mods_directory(        abspath(join(self.imgs_top_directory(), 'mod')))
+        self.orig_directory =       abspath(join(self.imgs_top_directory(), "orig"))
+        self.cat_directory =        abspath(join(self.imgs_top_directory(), "cat"))
         
         # Analysis Folders
         
@@ -571,10 +576,39 @@ class Parameters:
         wave = "Rainbow" if self.do_single else self.current_wave()
         param_file_name =       '{}_params.txt'.format(wave)
         self.params_path(       abspath(join(self.analysis_directory, param_file_name)))
+        self.save_to_txt()
         
+    def first_fits_path(self):
+        img_path = self.local_fits_paths()[0]
+        # self.fits_save_path = None
+        self.use_image_path(img_path)
+        return img_path
+        
+    def set_single_wave_paths(self):
+        """Make the paths for current_wave"""
+        # Define and Set Directories
+        # print("Target: {}".format(self.current_wave))
+        
+        ## \\>Batch<\\>Wavelength<\\
+        new_root = self.temp_directory()
+
+        # Top Folders
+        self.analysis_directory =   abspath(join(new_root, "analysis"))
+
+        # Fits Folders
+        
+        # Png Folders
+        self.mods_directory(        abspath(join(self.imgs_top_directory())))
+        self.orig_directory =       abspath(join(self.imgs_top_directory()))
+        self.cat_directory =        abspath(join(self.imgs_top_directory()))
+        
+        # Analysis Folders
+        param_file_name =       '{}_params.txt'.format("Rainbow")
+        self.params_path(       abspath(join(self.analysis_directory, param_file_name)))
+        self.save_to_txt()
         
     ## Time Range ##
-    def set_time_range_duration(self, t_start, duration_seconds=13):
+    def set_time_range_duration(self, t_start, duration_seconds=12):
         
         # Get a start_timestamp datetime
         try:
@@ -585,11 +619,13 @@ class Parameters:
         t_start_dt = datetime.datetime.fromtimestamp(mktime(t_start_struct))
         
         # Do math
-        delta = max(duration_seconds - 21, 1)
+        # delta = max(duration_seconds - 21, 1)
+        delta = duration_seconds
         duration = datetime.timedelta(seconds=delta)
-        shift = datetime.timedelta(seconds=delta/1.5)
-        t_end_dt   = t_start_dt + shift + duration
+        shift = datetime.timedelta(seconds= 0 ) #delta/1.5)
+        
         t_start_dt = t_start_dt + shift
+        t_end_dt   = t_start_dt + shift + duration
         
         # Get the formatted outputs
         t_start_out = t_start_dt.strftime('%Y/%m/%d %H:%M:%S')
@@ -625,7 +661,6 @@ class Parameters:
         makedirs(self.mods_directory(),     exist_ok=True)
         makedirs(self.movs_directory(),     exist_ok=True)
         makedirs(self.cat_directory,        exist_ok=True)
-        
         # Save Parameters
         self.save_to_txt()
         
@@ -678,7 +713,7 @@ class Parameters:
             # pass
             # Save contents of environment to text file
             # name = self.current_wave(current_wave)
-            
+            os.makedirs(os.path.dirname(self.params_path()), exist_ok=True)
             infoEnv = self
             with open(self.params_path(), 'w') as output:
                 output.write(asctime() + '\n\n')
@@ -689,8 +724,8 @@ class Parameters:
                             string = str(ii) + " : " + str(pile[ii]) + '\n'
                             output.write(string)
                     output.write('\n\n')
-        except:
-            print("Failed to print")
+        except Exception as e:
+            print("Failed to print to text: {}".format(e))
     
     
     def load_preset_time_settings(self, selection=None):

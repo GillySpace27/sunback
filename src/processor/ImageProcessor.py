@@ -68,6 +68,7 @@ class ImageProcessor(Processor):
         """Load the fits file from disk and get a field or two"""
         # self.load_curves()
         self.fits_path = fits_path or self.fits_path
+        self.params.fits_path = self.fits_path
         if True: #self.params.original_image is None:
             frame0, _, _, _, _ = self.load_first_fits_field(fits_path)
             frame1, self.wave1, self.t_rec1, center1, int_time = self.load_a_fits_field(fits_path, in_name)
@@ -188,14 +189,16 @@ class ImageProcessor(Processor):
             return None, None, None
                 
     def get_original_path(self):
-        return self.params.orig_path
+        if self.params.do_single:
+            return self.params.orig_path.replace("orig\\","").replace("image_lev1", "orig")
+        else:
+            return self.params.orig_path
     
     def get_changed_path(self):
-        # nam = self.params.png_frame_name
-        # name = nam if type(nam) is str else self.hdu_name_list[nam]
-        # out = self.params.png_save_stem.format('').replace("aia", name + "_" + "aia")
-        # return out
-        return self.params.mod_path
+        if self.params.do_single:
+            return self.params.mod_path.replace("mod\\","").replace("image_lev1", "mod")
+        else:
+            return self.params.mod_path
 
         
     @staticmethod

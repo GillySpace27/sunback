@@ -69,7 +69,7 @@ class Runner:
         self.params.set_waves_to_do()
         
         for wave in self.params.waves_to_do:
-            print("Wavelength = {}".format(self.params.current_wave()))
+            print("Wavelength = {}".format(self.params.current_wave()), end="")
             self.params.current_wave(wave)
     
             if len(self.params.fetchers()) > 0:

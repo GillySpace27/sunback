@@ -26,13 +26,13 @@ class ImageProcessorCV(ImageProcessor):
     
     def do_img_function(self):
         """ Main Call on the Fits Path """
-
-        self.init_image_frame()
         if False:
             self.plot_two()
             self.plot_two("Less Zoomed", True)
             # self.display_all()
-        return self
+    
+        # self.init_image_frame()
+        raise NotImplementedError
     
     def display_all(self):
         self.display_original()
@@ -100,14 +100,7 @@ class ImageProcessorCV(ImageProcessor):
         os.makedirs(out_dir, exist_ok=True)
         
         self.prep_save()
-
-        if self.params.alpha is not None and self.params.alpha != 0.35:
-            self.out_path = os.path.join(out_dir, "b_{:03}.png".format(int(self.params.alpha*100)))
-            self.img_save(self.out_path)
-            self.out_path = os.path.join(out_dir, "c_{:03}.png".format(100-int(self.params.alpha*100)))
-            self.img_save(self.out_path)
-        else:
-            self.img_save(self.out_path)
+        self.img_save(self.out_path)
         
     
     def prep_save(self):
@@ -117,11 +110,12 @@ class ImageProcessorCV(ImageProcessor):
     
     def make_image(self):
         out = self.frame + 0
-        maxmax = np.nanpercentile(out, 99)
+        maxmax = np.nanpercentile(out, 95)
         minmin = np.nanpercentile(out, 1)
-        if maxmax > 100:
+        themax = np.nanmax(out)
+        if themax > 100 or themax < 0.8:
             out = (self.frame-minmin)/(maxmax-minmin)
-            # print("\nRenormalizing", maxmax, minmin, np.max(out), np.min(out))
+            print("\nRenormalizing", maxmax, minmin, np.max(out), np.min(out))
             
         self.img_frame = (self.params.cmap(out)[:, :, :3] * 255).astype(np.uint8)
         b, g, r = cv2.split(self.img_frame)  # get b,g,r
@@ -133,8 +127,9 @@ class ImageProcessorCV(ImageProcessor):
         if save:
             cv2.imwrite(path, self.params.rbg_image)
         else:
-            cv2.imshow(self.params.rbg_image)
-            
+            # cv2.imshow(mat=self.params.rbg_image)
+            plt.imshow(self.params.rbg_image)
+            plt.show()
             
     def label_plot(self):
         """Annotate with Text"""

@@ -10,58 +10,58 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_single(tstart="2022-01-01T00:00:00", duration_seconds=60):
-    
+def run_single(wave="0304", tstart="2013-09-29T13:30:00", duration_seconds=100, frames=None):
+    """Download a single image and time-integrate it, then apply QRN
+        :type wave: strings
+        :type tstart: string
+        :type duration_seconds: int or float
+        :type frames: int
+    """
     # Set the Parameters
-    p = default_run_single_params()
-    p.set_time_range_duration(tstart)
-    p.exposure_time_seconds(duration_seconds)
-    
+    p = default_run_single_params(wave, tstart, duration_seconds, frames)
     
     # Set the Processes
-    p.fetchers(FidoFetcher,                rp=True)  # Gets the desired file
-    p.processors([FidoTimeIntProcessor],  rp=True)   # Integrate several frames for S/N
+    p.fetchers(FidoFetcher,                rp=False)  # Gets the desired file
+    p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
     p.processors([QRNProcessor],           rp=True)  # Applies the SRN Filter
-    p.putters(ImageProcessorCV,           rp=True)  # Makes the PNGs from Fits
+    p.putters(ImageProcessorCV,            rp=True)  # Makes the PNGs from Fits
     
     # Run the Code
-    aa = SingleRunner(p)
-    aa.start()
+    runner = SingleRunner(p)
+    runner.start()
 
-def default_run_single_params():
+
+def default_run_single_params(wave, tstart, duration_seconds=60, frames=None):
+    """ Create the default parameters and parse and set the inputs"""
     p = Parameters()
+    
+    # Parse Inputs
+    p.do_one(wave, True)
+    p.set_time_range_duration(tstart)
+    if frames is not None:
+        duration_seconds = frames*12
+    p.exposure_time_seconds(duration_seconds)
+    
+    # Set Metadata
+    p.batch_name("Single")
+    p.png_frame_name = 'Quantile'
+    p.run_type("Process a Single Image Start to Finish")
+    
+    # Set Flags
     p.do_single = True
     p.config = None
     p.destroy = False
-    p.batch_name("Single")
-    p.png_frame_name = 'QRN'
-    p.run_type("Process a Single Image Start to Finish")
-    p.do_one("0304", True)
     p.is_debug(True)
     p.do_cat = True
     p.do_recent(False)
     p.currently_local = True
+    p.download_files(True)
     p.use_drive = "G"
-    
-    
-    
-    # p.fetchers(LocalSingleFetcher,                rp=True)  # Gets the desired file
-    
-    # # Set the Times
-    # # if not p.load_preset_time_settings(config["time_preset"]):
-    # p.cadence_minutes(config["cadence_minutes"])
-    # p.frames_per_second(config["fps"])
-    # p.fixed_cadence_keyframes(config["key_fixed_cadence"])
-    # p.fixed_number_keyframes(config["key_fixed_number"])
-    
-    
     
     return p
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    # test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-09-29T120009Z.304.image_lev1.fits"
-    # test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-10-02T162012Z.171.image_lev1.fits"
     run_single()
 
 

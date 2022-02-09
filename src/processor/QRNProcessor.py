@@ -801,14 +801,7 @@ class QRNProcessor(Processor):
         if len(bin_array) > 0:
             quantileized = stats.rankdata(bin_array, "average") / len(bin_array)
             self.params.quantile_image[good_coord] = quantileized
-            
-            # a, b, c, d = np.percentile(bin_array, [98.5, 90, 3, 0.5])
-            # self.binAbsMax[ii] = a  # np.percentile(bin_array, 99.999)
-            # self.binMax[ii] = b  # np.percentile(bin_array, 96)
-            # self.binMin[ii] = c  # np.percentile(bin_array, 2)
-            # self.binAbsMin[ii] = d  # np.percentile(bin_array, 0.001)
-            
-            ## TODO make this be percentilized
+
     
     @staticmethod
     def get_bin_items(bin_list):
