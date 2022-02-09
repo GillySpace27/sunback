@@ -9,6 +9,7 @@ from parfive import Downloader
 from sunpy.net import Fido, attrs
 import numpy as np
 import astropy.units as u
+from tqdm import tqdm
 
 from fetcher.FidoFetcher import FidoFetcher
 jsoc_email = "chris.gilly@colorado.edu"
@@ -57,8 +58,8 @@ class FidoTimeIntProcessor(FidoFetcher):
         return self.params.download_files() or self.reprocess_mode() or not self.verb
 
     def setup(self):
-        if self.params.do_single:
-            img_path = self.determine_image_path()
+        img_path = self.determine_image_path()
+        if self.params.do_single and img_path:
             temp_top_dir = os.path.dirname(self.params.temp_directory())
             this_name = os.path.basename(img_path)[:-5]
             self.params.temp_directory(os.path.join(temp_top_dir, this_name))
@@ -170,9 +171,8 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.n_exposures = 0
         
         self.params.modified_image = np.zeros_like(self.params.original_image, dtype=np.float32)
-        
-        for ii, path in enumerate(self.exposure_paths):
-            # vprint(path, self.verb)
+        exp_paths = [x for x in self.exposure_paths if not os.path.isdir(x)]
+        for ii, path in enumerate(tqdm(exp_paths, desc="Summing Frames")):
             try:
                 if not os.path.isdir(path):
                     frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, "original")

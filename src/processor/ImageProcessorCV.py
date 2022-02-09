@@ -14,6 +14,7 @@ class ImageProcessorCV(ImageProcessor):
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
+        self.frame_name = None
         self.img_frame = None
         self.out_path = None
         
@@ -83,7 +84,10 @@ class ImageProcessorCV(ImageProcessor):
     def plot_aia_original(self):
         """Plot the original_image data from AIA"""
         # Get the Frame and Path
-        self.frame = np.flipud(self.params.original_image)
+        self.frame_name = "t_integrated"
+        frame, wave, t_rec, center, int_time = self.load_a_fits_field(self.fits_path, self.frame_name)
+        self.frame = np.flipud(frame)
+        # self.frame = np.flipud(self.params.original_image)
         self.out_path = self.get_original_path()
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
         
@@ -94,11 +98,12 @@ class ImageProcessorCV(ImageProcessor):
     def plot_aia_changed(self):
         """Plot the modified_image data from AIA"""
         # Get the Frame and Path
+        self.frame_name = self.hdu_name_list[-1]
         self.frame = np.flipud(self.params.modified_image)
         self.out_path = self.get_changed_path()
         out_dir = os.path.dirname(self.out_path)
         os.makedirs(out_dir, exist_ok=True)
-        
+        print("Saving to {}".format(self.out_path))
         self.prep_save()
         self.img_save(self.out_path)
         
@@ -141,6 +146,7 @@ class ImageProcessorCV(ImageProcessor):
         
 
         
+        
         inst = 'AIA'
         _, wave = self.clean_name_string(full_name)
         clock = time_list[1].lower()
@@ -161,8 +167,12 @@ class ImageProcessorCV(ImageProcessor):
             h2=80
             h3=120
 
-        if self.params.alpha is not None:
-            cv2.putText(img, "a={:0.3f}".format(self.params.alpha), (int(x0*0.95), h3), 0,   scale, (255, 255, 255), 3)
+        # if self.params.alpha is not None:
+        #     cv2.putText(img, "a={:0.3f}".format(self.params.alpha), (int(x0*0.95), h3), 0,   scale, (255, 255, 255), 3)
+
+        frame_name = self.frame_name
+        cv2.putText(img, frame_name, (int(x0*0.95), h3), 0,   scale, (255, 255, 255), 3)
+
         
         cv2.putText(img, inst, (x0, h1), 0,   scale, (255, 255, 255), 3)
         cv2.putText(img, wave, (x1, h2), 0,   scale, (255, 255, 255), 3)

@@ -195,8 +195,8 @@ class QRNProcessor(Processor):
     
     def render_pre_hist_video(self):
         fps = 8
-        os.makedirs(self.params.base_directory(), exist_ok=True)
         print("Rendering pre-processor video...", end='')
+        os.makedirs(self.params.base_directory(), exist_ok=True)
         path1 = os.path.join(self.params.base_directory(), "analysis\\radial_hist_pre\\a-pre-hist.avi")
         self.write_video_in_directory(fullpath=path1, fps=fps, key_string="inner", destroy=False, pop=2)
         
@@ -309,6 +309,8 @@ class QRNProcessor(Processor):
     
     def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
+        if self.params.modified_image is None:
+            self.params.modified_image = self.params.original_image + 0
         if self.params.rez is None:
             self.params.rez = self.params.modified_image.shape[0]
         if self.params.center is None:

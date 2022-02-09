@@ -557,8 +557,11 @@ class Parameters:
         self.analysis_directory =   abspath(join(self.base_directory(), "analysis"))
 
         # Fits Folders
-        self.fits_directory(        abspath(join(self.imgs_top_directory(), 'fits')))
-        
+        if not self.do_single:
+            self.fits_directory(        abspath(join(self.imgs_top_directory(), 'fits')))
+        else:
+            self.fits_directory(        abspath(join(self.imgs_top_directory())))
+            
         if not self.temp_directory():
             self.temp_directory(        abspath(join(self.fits_directory(), "temp")))
         
@@ -576,7 +579,8 @@ class Parameters:
         wave = "Rainbow" if self.do_single else self.current_wave()
         param_file_name =       '{}_params.txt'.format(wave)
         self.params_path(       abspath(join(self.analysis_directory, param_file_name)))
-        self.save_to_txt()
+        if not self.do_single:
+            self.save_to_txt()
         
     def first_fits_path(self):
         img_path = self.local_fits_paths()[0]
@@ -596,6 +600,7 @@ class Parameters:
         self.analysis_directory =   abspath(join(new_root, "analysis"))
 
         # Fits Folders
+        self.fits_directory(        abspath(join(self.imgs_top_directory())))
         
         # Png Folders
         self.mods_directory(        abspath(join(self.imgs_top_directory())))
@@ -608,7 +613,7 @@ class Parameters:
         self.save_to_txt()
         
     ## Time Range ##
-    def set_time_range_duration(self, t_start, duration_seconds=12):
+    def set_time_range_duration(self, t_start, duration_seconds=14):
         
         # Get a start_timestamp datetime
         try:
@@ -620,9 +625,12 @@ class Parameters:
         
         # Do math
         # delta = max(duration_seconds - 21, 1)
+        # slide = 21
+        # delta = max(duration_seconds - slide, 1)
         delta = duration_seconds
         duration = datetime.timedelta(seconds=delta)
-        shift = datetime.timedelta(seconds= 0 ) #delta/1.5)
+        shift = datetime.timedelta(seconds=-1)# -slide//2 ) #delta/1.5)
+        # Pokemon this is where I am working 2-9-22
         
         t_start_dt = t_start_dt + shift
         t_end_dt   = t_start_dt + shift + duration
@@ -662,7 +670,7 @@ class Parameters:
         makedirs(self.movs_directory(),     exist_ok=True)
         makedirs(self.cat_directory,        exist_ok=True)
         # Save Parameters
-        self.save_to_txt()
+        # self.save_to_txt()
         
     def make_file_paths(self, image_data):
         _, self.fits_save_path, _, _ = image_data

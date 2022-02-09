@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_single(wave="0304", tstart="2013-09-29T13:30:00", duration_seconds=100, frames=None):
+def run_single(wave="0304", tstart="2013-09-29T13:30:00", duration_seconds=30, frames=3):
     """Download a single image and time-integrate it, then apply QRN
         :type wave: strings
         :type tstart: string
@@ -21,7 +21,7 @@ def run_single(wave="0304", tstart="2013-09-29T13:30:00", duration_seconds=100, 
     p = default_run_single_params(wave, tstart, duration_seconds, frames)
     
     # Set the Processes
-    p.fetchers(FidoFetcher,                rp=False)  # Gets the desired file
+    p.fetchers(FidoFetcher,                rp=True)  # Gets the desired file
     p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
     p.processors([QRNProcessor],           rp=True)  # Applies the SRN Filter
     p.putters(ImageProcessorCV,            rp=True)  # Makes the PNGs from Fits
@@ -31,7 +31,7 @@ def run_single(wave="0304", tstart="2013-09-29T13:30:00", duration_seconds=100, 
     runner.start()
 
 
-def default_run_single_params(wave, tstart, duration_seconds=60, frames=None):
+def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, name="Single"):
     """ Create the default parameters and parse and set the inputs"""
     p = Parameters()
     
@@ -43,7 +43,7 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None):
     p.exposure_time_seconds(duration_seconds)
     
     # Set Metadata
-    p.batch_name("Single")
+    p.batch_name(name)
     p.png_frame_name = 'Quantile'
     p.run_type("Process a Single Image Start to Finish")
     
@@ -62,9 +62,12 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None):
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run_single()
-
-
+    
+    # all_wavelengths = ['0193', '0211', '0131', '0335', '0094','0304','0171', ]
+    do_wavelengths = ["0304", "0171"] #,  "0304"]
+    
+    for wave_to_use in do_wavelengths:
+        run_single(wave=wave_to_use)
 
 
 

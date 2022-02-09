@@ -229,7 +229,9 @@ class Processor:
     @staticmethod
     def __find_ext_files_in_directory(directory, ext='.fits'):
         """Returns the paths to matching ext files in given directory"""
-        makedirs(directory, exist_ok=True)
+        if not os.path.exists(directory):
+            return [], []
+            # makedirs(directory, exist_ok=True)
         ext_paths = [path for path in listdir(directory) if ext in path]
         abs_ext_paths = [join(directory, path) for path in ext_paths]
         return ext_paths, abs_ext_paths
@@ -247,7 +249,7 @@ class Processor:
         if frame is not None and img_type.casefold() != 'dark':
             self.params.original_image = np.asarray(frame, dtype=np.float32)
             self.params.original_image2 = np.asarray(frame, dtype=np.float32)
-            self.params.modified_image = copy(self.params.original_image)
+            # self.params.modified_image = copy(self.params.original_image)
             
             self.params.cmap = aia_color_table(int(wave) * u.angstrom)
             

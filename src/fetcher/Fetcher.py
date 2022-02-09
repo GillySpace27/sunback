@@ -33,10 +33,12 @@ class Fetcher(Processor):
         if self.params.use_image_path():
             return self.params.use_image_path()
         else:
-            
+            if not os.path.exists(self.params.fits_directory()):
+                return False
             # Parse File Paths
             all_paths = os.listdir(self.params.fits_directory())
-            fits_files = [x for x in all_paths if not os.path.isdir(os.path.join(self.params.fits_directory(), x))]
+            files = [x for x in all_paths if not os.path.isdir(os.path.join(self.params.fits_directory(), x))]
+            fits_files = [x for x in files if "fits" in x]
             fits_dates = [x.split(".")[2] for x in fits_files]
             fits_dates_cleaned = [x.replace('-','/').replace("T", " ").replace("Z","") for x in fits_dates]
             times = [x.replace(":", "") for x in self.params.time_period()]
@@ -63,5 +65,6 @@ class Fetcher(Processor):
             
             use_file = fits_files[use_index]
             use_path = os.path.join(self.params.fits_directory(), use_file)
+            print("Img Use Path:{}".format(use_path))
         return self.params.use_image_path(use_path)
 
