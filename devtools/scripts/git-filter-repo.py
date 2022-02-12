@@ -135,7 +135,7 @@ def glob_to_regex(glob_bytestr):
 
   # FIXME: This is an ugly hack...
   # fnmatch.translate tries to do multi-line matching and wants the glob to
-  # match up to the end of the input, which isn't relevant for us, so we
+  # match up to the pointing_end of the input, which isn't relevant for us, so we
   # have to modify the regex.  fnmatch.translate has used different regex
   # constructs to achieve this with different python versions, so we have
   # to check for each of them and then fix it up.  It would be much better
@@ -1014,7 +1014,7 @@ class FastExportParser(object):
         if not m:
           raise SystemExit(_("Couldn't parse rename source"))
         orig = PathQuoting.dequote(m.group(0))
-        new = rest[m.end()+1:]
+        new = rest[m.pointing_end() + 1:]
       else:
         orig, new = rest.split(b' ', 1)
       if new.startswith(b'"'):
@@ -1780,7 +1780,7 @@ EXAMPLES
         help=_("A file with expressions that, if found, will be replaced. "
                "By default, each expression is treated as literal text, "
                "but 'regex:' and 'glob:' prefixes are supported.  You can "
-               "end the line with '==>' and some replacement text to "
+               "pointing_end the line with '==>' and some replacement text to "
                "choose a replacement choice other than the default of "
                "'***REMOVED***'. "))
     contents.add_argument('--strip-blobs-bigger-than', metavar='SIZE',
@@ -2279,13 +2279,13 @@ class RepoAnalyze(object):
 
       # We expect a blank line next; if we get a non-blank line then
       # this commit modified no files and we need to move on to the next.
-      # If there is no line, we've reached end-of-input.
+      # If there is no line, we've reached pointing_end-of-input.
       line = f.readline()
       if not line:
         cont = False
       line = line.rstrip()
 
-      # If we haven't reached end of input, and we got a blank line meaning
+      # If we haven't reached pointing_end of input, and we got a blank line meaning
       # a commit that has modified files, then get the file changes associated
       # with this commit.
       file_changes = []
@@ -3001,7 +3001,7 @@ class RepoFilter(object):
       return parents_copy, parents[0]
 
     # Flatten unnecessary merges.  (If one side of history is entirely
-    # empty commits that were pruned, we may end up attempting to
+    # empty commits that were pruned, we may pointing_end up attempting to
     # merge a commit with its ancestor.  Remove parents that are an
     # ancestor of another parent.)
     num_parents = len(parents)

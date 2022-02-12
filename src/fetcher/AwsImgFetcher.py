@@ -52,7 +52,7 @@ class AwsImgFetcher(Fetcher):
         
         # Identify File
         path, filename = os.path.split(obj.key)
-        # print(filename, end=', ')
+        # print(filename, pointing_end=', ')
         loc = join(self.params.imgs_top_directory(), "dl_" + filename)
         
         # Download File
