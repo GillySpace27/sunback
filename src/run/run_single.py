@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_single(wave="0304", tstart="2013-09-29T13:30:00", duration_seconds=60, frames=None):
+def run_single(wave="0171", tstart="2013-09-29T13:30:00", duration_seconds=60*4, frames=None):
     """Download a single image and time-integrate it, then apply QRN
         :type wave: strings
         :type tstart: string
@@ -21,7 +21,6 @@ def run_single(wave="0304", tstart="2013-09-29T13:30:00", duration_seconds=60, f
     # Set the Parameters
     name = "Single_Test"
     p = default_run_single_params(wave, tstart, duration_seconds, frames, name)
-    p.do_prep = False # Won't do AIA prep upon download of each frame
     
     # Set the Processes
     p.fetchers(FidoFetcher,                rp=True)  # Gets the desired file
@@ -61,6 +60,7 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
     p.do_recent(False)
     p.currently_local = True
     p.download_files(True)
+    p.do_prep = False # Won't do AIA prep upon download of each frame
     p.use_drive = "G"
     
     return p

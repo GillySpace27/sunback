@@ -95,6 +95,7 @@ class Processor:
     out_dtype = np.float32
     
     def __init__(self, params=None, quick=False, rp=None, in_name="LEV1"):
+        self.vignette_mask = None
         self.in_name = in_name
         self.header = None
         self.reprocess_mode(rp)
@@ -571,7 +572,7 @@ class Processor:
         self.lCut = int(self.fit_limb_radius - 0.01 * self.params.rez)
         self.hCut = int(self.fit_limb_radius + 0.00 * self.params.rez)
     
-    def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
+    def init_radius_array(self, vignette_radius=1.21, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
         if self.params.modified_image is None:
             self.params.modified_image = self.params.raw_image + 0
@@ -581,7 +582,7 @@ class Processor:
             self.params.center = [self.params.rez / 2, self.params.rez / 2]
         
         self.output_abscissa = np.arange(self.params.rez)
-        self.find_limb_radius()
+        # self.find_limb_radius()
         
         try:
             self.radius
@@ -1384,10 +1385,15 @@ class Processor:
 
     def vignette(self):
         """Truncate the in_object above a certain radis"""
-        self.params.modified_image[self.vignette_mask] = np.nan
-        self.params.quantile_image[self.vignette_mask] = np.nan
-        self.params.raw_image[self.vignette_mask] = np.nan
+        if self.vignette_mask is None:
+            self.init_radius_array()
     
+        self.params.modified_image[self.vignette_mask] = np.nan
+        self.params.raw_image[self.vignette_mask] = np.nan
+        if self.params.quantile_image is not None:
+            self.params.quantile_image[self.vignette_mask] = np.nan
+        if self.params.rbg_image is not None:
+            self.params.rbg_image[self.vignette_mask] = 1
 
     ## Static Methods ##
     def n2r(self, n):

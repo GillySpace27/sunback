@@ -89,14 +89,45 @@ class ImageProcessorCV(ImageProcessor):
         self.frame_name = ["LEV1p5_T", "LEV1p5_L", "T_Integrated", "LEV1"]
         
         frame, wave, t_rec, center, int_time = self.load_a_fits_field(self.fits_path, self.frame_name)
+        frame = np.log10(frame)
+        frame = frame / np.nanpercentile(frame, 50)/2
         self.frame = np.flipud(frame)
         # self.frame = np.flipud(self.params.raw_image)
         self.out_path = self.get_raw_path()
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
-        
+        self.vignette()
         self.prep_save()
         self.img_save(self.out_path)
         
+    def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
+        """Build an r-coordinate array of shape(in_object)"""
+        if self.params.modified_image is None:
+            self.params.modified_image = np.zeros_like(self.params.raw_image)
+        
+        self.params.center = [self.header["X0_MP"], self.header["Y0_MP"]]
+        self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]
+        self.params.rez = self.header["NAXIS1"]
+        
+        self.output_abscissa = np.arange(self.params.rez)
+        
+        xx, yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
+        xc, yc = xx - self.params.center[0], yy - self.params.center[1]
+        self.radius = np.sqrt(xc * xc + yc * yc)
+        self.rad_flat = self.radius.flatten()
+        
+        self.binfactor = binfactor = 2
+        self.binInds = np.asarray(binfactor * np.floor(self.rad_flat // binfactor), dtype=np.int32)
+        # self.make_annular_rings()
+        # self.binInds = np.digitize(self.rad_flat, self.RN)
+        
+        self.binXX = xx.flatten()
+        self.binYY = yy.flatten()
+        self.binII = np.arange(len(self.rad_flat))
+        self.vcut = int(vignette_radius * self.params.rez // 2)
+        self.vrad = self.n2r(self.vcut)
+        self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
+        self.s_radius = s_radius
+        self.tRadius = self.s_radius * t_factor
     
     def plot_aia_changed(self):
         """Plot the modified_image data from AIA"""
@@ -107,6 +138,8 @@ class ImageProcessorCV(ImageProcessor):
         out_dir = os.path.dirname(self.out_path)
         os.makedirs(out_dir, exist_ok=True)
         print("Saving to {}".format(self.out_path))
+        self.vignette()
+        
         self.prep_save()
         self.img_save(self.out_path)
         
@@ -130,7 +163,7 @@ class ImageProcessorCV(ImageProcessor):
         b, g, r = cv2.split(self.img_frame)  # get b,g,r
         rgb_img = cv2.merge([r, g, b])  # switch it to rgb
         self.params.rbg_image = rgb_img
-        
+        self.vignette()
     
     def img_save(self, path, save=True):
         if save:
@@ -181,7 +214,7 @@ class ImageProcessorCV(ImageProcessor):
             frame_name = self.frame_name
             
         
-        cv2.putText(img, frame_name, (int(x0*0.94), h3), 0,   scale, (255, 255, 255), 3)
+        cv2.putText(img, frame_name.casefold(), (int(x0*0.92), h1), 0,   scale, (255, 255, 255), 3)
         
         reticle = False
         if reticle:
@@ -190,8 +223,8 @@ class ImageProcessorCV(ImageProcessor):
             cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
                    int(10), (255,0,0), 10)
             
-        cv2.putText(img, inst, (x0, h1), 0,   scale, (255, 255, 255), 3)
-        cv2.putText(img, wave, (x1, h2), 0,   scale, (255, 255, 255), 3)
+        cv2.putText(img, inst, (x0, h2), 0,   scale, (255, 255, 255), 3)
+        cv2.putText(img, wave, (x1, h3), 0,   scale, (255, 255, 255), 3)
         cv2.putText(img, clock,   (0, h1), 0, scale, (255, 255, 255), 3)
         cv2.putText(img, day,     (0, h2), 0, scale, (255, 255, 255), 3)
         cv2.putText(img, year,    (0, h3), 0, scale, (255, 255, 255), 3)

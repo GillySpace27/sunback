@@ -126,6 +126,7 @@ class AIA_PREP_Processor(SunPyProcessor):
     
     def select_maps(self):
         self.out_name = self.out_name_stem.format(self.in_name[0])
+        self.params.reprocess_mode()
         while self.out_name.casefold() in self.hdu_name_list:
             self.in_name = self.in_name_possibles.pop(0)
             self.out_name = self.out_name_stem.format(self.in_name[0])
