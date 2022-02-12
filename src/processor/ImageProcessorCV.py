@@ -101,7 +101,7 @@ class ImageProcessorCV(ImageProcessor):
     def plot_aia_changed(self):
         """Plot the modified_image data from AIA"""
         # Get the Frame and Path
-        self.frame_name = self.hdu_name_list[-1]
+        self.frame_name = self.params.png_frame_name #.hdu_name_list[-1]
         self.frame = np.flipud(self.params.modified_image)
         self.out_path = self.get_changed_path()
         out_dir = os.path.dirname(self.out_path)
@@ -174,10 +174,22 @@ class ImageProcessorCV(ImageProcessor):
         # if self.params.alpha is not None:
         #     cv2.putText(img, "a={:0.3f}".format(self.params.alpha), (int(x0*0.95), h3), 0,   scale, (255, 255, 255), 3)
 
-        frame_name = self.frame_name
-        cv2.putText(img, frame_name, (int(x0*0.95), h3), 0,   scale, (255, 255, 255), 3)
-
         
+        if type(self.frame_name) is list:
+            frame_name = [x for x in self.frame_name if x.casefold() in self.hdu_name_list][0]
+        else:
+            frame_name = self.frame_name
+            
+        
+        cv2.putText(img, frame_name, (int(x0*0.94), h3), 0,   scale, (255, 255, 255), 3)
+        
+        reticle = False
+        if reticle:
+            cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
+                   int(self.params.header["R_SUN"]), (255,255,255), 3)
+            cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
+                   int(10), (255,0,0), 10)
+            
         cv2.putText(img, inst, (x0, h1), 0,   scale, (255, 255, 255), 3)
         cv2.putText(img, wave, (x1, h2), 0,   scale, (255, 255, 255), 3)
         cv2.putText(img, clock,   (0, h1), 0, scale, (255, 255, 255), 3)

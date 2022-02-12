@@ -109,21 +109,26 @@ class AIA_PREP_Processor(SunPyProcessor):
         self.pointing_table = None
         self.pointing_end = None
         self.pointing_start = None
-        self.in_name = ["T_Integrated", "LEV1"]
-        self.out_name = "LEV1p5_{}"
+        self.in_name = ["Quantile", "T_Integrated", "LEV1"]
+        self.out_name_stem = "LEV1p5_{}"
+        self.params.modified_image = None
     
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
             self.select_maps()
             self.get_aia_prep_data()
+            self.out_name = self.out_name_stem.format(self.in_name[0])
             self.do_AIA_PREP()
+            self.save_out()
+            
         return self.params.modified_image
     
     def select_maps(self):
         self.params.header["LVL_NUM"] = 1.5
+        # self.params.header["exposure_time"] = self.params.int_tm_tot
         self.level_1_maps = [sunpy.map.Map((self.params.raw_image, self.params.header))]
-        self.level_1_maps.append(sunpy.map.Map((self.params.raw_image, self.params.header)))
+        # self.level_1_maps.append(sunpy.map.Map((self.params.raw_image, self.params.header)))
 
     def get_aia_prep_data(self):
         if self.correction_table is None:
@@ -135,6 +140,15 @@ class AIA_PREP_Processor(SunPyProcessor):
             # The same applies for the correction table.
             self.correction_table = get_correction_table()
 
+    # def do_AIA_PREP(self):
+    #     self.level_15_maps = []
+    #     for a_map in self.level_1_maps:
+    #         map_updated_pointing = update_pointing(a_map, pointing_table=self.pointing_table)
+    #         map_registered = register(map_updated_pointing)
+    #         map_degradation = correct_degradation(map_registered, correction_table=self.correction_table)
+    #         map_normalized = normalize_exposure(map_degradation)
+    #         self.level_15_maps.append(map_normalized)
+    
     def do_AIA_PREP(self):
         self.level_15_maps = []
         for a_map in self.level_1_maps:
@@ -142,18 +156,40 @@ class AIA_PREP_Processor(SunPyProcessor):
             map_registered = register(map_updated_pointing)
             map_degradation = correct_degradation(map_registered, correction_table=self.correction_table)
             map_normalized = normalize_exposure(map_degradation)
-            self.level_15_maps.append(map_normalized)
+            map_double_normed = map_normalized / np.nanmax(map_normalized.data)
+            
+            # seconds = map_degradation.exposure_time.to(u.s).value
+            # print("Degrade Seconds = {:0.4f}".format(seconds))
+            # print("Params Seconds = {:0.4f}".format(self.params.int_tm_tot))
+            # seconds = map_normalized.exposure_time.to(u.s).value
+            # print("Norm Seconds = {:0.4f}".format(seconds))
+            
+            out = map_double_normed if 'q' in self.out_name.casefold() else map_normalized
+            self.level_15_maps.append(out)
+            pass
+            
+    def save_out(self):
+        # Plot
+        # self.plot_lev1p5(plot_result=True)
         
-        self.plot_lev1p5(plot_result=False)
+        # Get the Data
+        done_map = self.level_15_maps[0]
+        self.params.modified_image = done_map.data
         
-        self.params.modified_image = self.level_15_maps[-1].data
-        self.out_name = self.out_name.format(self.in_name[0])
+        # Get the Header
+        self.header = self.params.header = sunpy.io.fits.header_to_fits(done_map.meta)
+
+        
     
     def plot_lev1p5(self, plot_result=True):
+        two_maps = [self.level_15_maps[0]]
         if plot_result:
-            self.level_15_maps.append(self.level_1_maps)
-            sequence = sunpy.map.Map(self.level_15_maps, sequence=True)
-            sequence.peek()
+            lev1 = np.sqrt(self.level_1_maps[0].data)
+            lev1_map = sunpy.map.Map((lev1, self.params.header))
+            two_maps.append(lev1_map)
+            
+            sequence = sunpy.map.Map(two_maps, sequence=True)
+            sequence.peek(resample=0.25, annotate=True)
             plt.show(block=True)
     
     #     if not self.header:

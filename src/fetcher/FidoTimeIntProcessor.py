@@ -167,7 +167,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         # self.verb=False
         # vprint("Summing Arrays", False)
         self.get_exposure_paths()
-        self.int_tm_tot = 0
+        # self.params.int_tm_tot = 0
         self.n_exposures = 0
         
         self.params.modified_image = np.zeros_like(self.params.raw_image, dtype=np.float32)
@@ -178,7 +178,7 @@ class FidoTimeIntProcessor(FidoFetcher):
                     frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, "LEV1", quiet=True)
                     self.orig_t_int = self.orig_t_int or int_time
                     self.params.modified_image += frame
-                    self.int_tm_tot += int_time
+                    self.params.int_tm_tot += int_time
                     self.n_exposures += 1
                 # self.force_delete(path, do=self.do_delete)
             except (PermissionError, TypeError, ValueError) as e:
@@ -186,8 +186,8 @@ class FidoTimeIntProcessor(FidoFetcher):
             # except TypeError as e:
             #     print("Sum Subframes:: ", e)
                 
-        self.params.modified_image /= self.int_tm_tot # DN / sec
-        # self.params.modified_image *= self.orig_t_int #TODO remove this line to make the curves be per second
+        self.params.modified_image /= self.params.int_tm_tot # DN / sec
+        self.params.modified_image *= self.orig_t_int #TODO remove this line to make the curves be per second
         self.params.modified_image = np.asarray(self.params.modified_image, dtype=self.out_dtype)
 
     ## TEMP FOLDER IO ##

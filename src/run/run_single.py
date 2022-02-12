@@ -24,10 +24,11 @@ def run_single(wave="0304", tstart="2013-09-29T13:30:00", duration_seconds=60, f
     p.do_prep = False # Won't do AIA prep upon download of each frame
     
     # Set the Processes
-    # p.fetchers(FidoFetcher,                rp=True)  # Gets the desired file
-    # p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
+    p.fetchers(FidoFetcher,                rp=True)  # Gets the desired file
+    p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
     # p.processors([AIA_PREP_Processor],         rp=True)   # Do Sunpy Things
-    # p.processors([QRNProcessor],           rp=True)  # Applies the SRN Filter
+    p.processors([QRNProcessor],           rp=True)  # Applies the SRN Filter
+    p.processors([AIA_PREP_Processor],         rp=True)   # Do Sunpy Things
     p.putters(ImageProcessorCV,            rp=True)  # Makes the PNGs from Fits
     
     # Run the Code
@@ -48,7 +49,7 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
     
     # Set Metadata
     p.batch_name(name)
-    p.png_frame_name = 'Quantile'
+    p.png_frame_name = ['LEV1P5_Q', 'Quantile']
     p.run_type("Process a Single Image Start to Finish")
     
     # Set Flags

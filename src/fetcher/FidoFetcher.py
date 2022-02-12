@@ -49,7 +49,7 @@ class FidoFetcher(Fetcher):
     needed_files = None
     results = None
     temp_folder = None
-    int_tm_tot = 0
+    # int_tm_tot = 0
     fits_path=None
     
     def __init__(self, params=None, quick=False, rp=None):

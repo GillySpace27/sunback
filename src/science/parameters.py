@@ -46,6 +46,7 @@ class Parameters:
         self.selection = None
         self.paper_out = []
         self.png_frame_name = None
+        self.int_tm_tot = 0
         self.do_temp = False
         self.do_prep = False
         self.confirm_save=False

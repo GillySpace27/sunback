@@ -74,7 +74,6 @@ class Processor:
     
     load_print_latch = True
     found_limb_radius = None
-    int_tm_tot = None
     fits_folder = None
     abs_min_scalar = None
     curve_out_array = None
@@ -655,6 +654,10 @@ class Processor:
             with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True) as hdul:
                 hdul.verify('silentfix+ignore')  # Then Verify
                 self.remove_blank_frames(hdul) # THis might not work
+                
+                # if self.params.int_tm_tot is not None and self.header['EXPTIME'] != 1:
+                #     self.header['EXPTIME'] = self.params.int_tm_tot
+                
                 fit_frame = fits.ImageHDU(frame2, name=field, header=self.header)
                 # fit_frame = fit_frame
                 if field not in hdul:
@@ -663,7 +666,8 @@ class Processor:
                     hdul[field] = fit_frame  # Write
                 
                 hdul = self.delete_further_hdus(hdul, field)
-                hdul[0].header['total_int_time'] = self.int_tm_tot
+
+                
                 try:
                     hdul.close(output_verify='fix')
                     if self.params.speak_save:
@@ -725,8 +729,7 @@ class Processor:
             self.in_name = field
 
         data, header = self.open_fits_hdul(hdul, quiet)
-        if data is None:
-            a=1+1
+
         return data + 0
         # try:
         #     frame = None
@@ -967,15 +970,20 @@ class Processor:
         ii = 0
         for ii in range(len(hdul)):
             try:
-                first_data_hdul = hdul[ii]
-                first_data_hdul.header["DRMS_ID"]
-                self.header = first_data_hdul.header
-                wave = first_data_hdul.header['WAVELNTH']
-                t_rec = first_data_hdul.header['T_OBS']
-                center = [first_data_hdul.header['X0_MP'], first_data_hdul.header['Y0_MP']]
-                int_time = first_data_hdul.header['EXPTIME']
-                found_limb_radius = first_data_hdul.header['R_SUN']
-                while found_limb_radius > first_data_hdul.header['NAXIS1']:
+                try:
+                    name = [x for x in self.hdu_name_list if "lev" in x][-1]
+                except Exception as e:
+                    name = ii
+                    raise e
+                last_hdul_frame = hdul[name]
+                last_hdul_frame.header["DRMS_ID"]
+                self.header = last_hdul_frame.header
+                wave = last_hdul_frame.header['WAVELNTH']
+                t_rec = last_hdul_frame.header['T_OBS']
+                center = [last_hdul_frame.header['X0_MP'], last_hdul_frame.header['Y0_MP']]
+                int_time = last_hdul_frame.header['EXPTIME']
+                found_limb_radius = last_hdul_frame.header['R_SUN']
+                while found_limb_radius > last_hdul_frame.header['NAXIS1']:
                     found_limb_radius /= 4.0
                 break
             except KeyError as e:
@@ -987,6 +995,7 @@ class Processor:
     
     def open_fits_hdul(self, hdul, quiet=False):
         """Load a fits file from disk"""
+        self.list_hdus(hdul)
         
         if self.in_name is None:
             return None
@@ -1009,13 +1018,16 @@ class Processor:
                         print(" +    Using frame {}".format(use_name))
                     break
             if not use_name:
+                last_frame = self.hdu_name_list[-1].casefold()
                 print("\r *       {} not found, proceeding with {} instead".format(
-                        in_list, self.hdu_name_list[-1].upper()))
-                self.in_name = -1
+                        in_list, last_frame))
+                use_name = last_frame
             self.in_name = use_name
             self.frame_name=use_name
-            field_hdu = hdul[self.in_name]
-            
+            try:
+                field_hdu = hdul[self.in_name]
+            except KeyError as e:
+                print("Oh No!")
         data = None
         header = None
         try:
@@ -1023,9 +1035,6 @@ class Processor:
             header = hdul[1].header
         except TypeError:
             vprint("Processor: 911 !Failed to Load Frame!")
-            
-        if data is None:
-            a=1+1
             
         return data, header
     

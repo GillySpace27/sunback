@@ -1,4 +1,5 @@
 import os
+import shutil
 from copy import copy
 from os import makedirs
 from os.path import join, dirname, basename
@@ -59,7 +60,8 @@ class QRNProcessor(Processor):
         
         self.radius = None
         # Ingest
-        self.in_name = ["LEV1p5_T","LEV1p5_L", "T_Integrated", "LEV1"]
+        # self.in_name = ["LEV1p5_T", "LEV1p5_L", "T_Integrated", "LEV1"]
+        self.in_name = ["T_Integrated", "LEV1"]
         self.fits_path = fits_path
         self.show = show
         self.verb = verb
@@ -180,7 +182,6 @@ class QRNProcessor(Processor):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
             self.image_learn()
-            # self.plot_norm_curves(save=True)
         self.out_name = "quantile"
         return self.params.quantile_image
     
@@ -188,20 +189,7 @@ class QRNProcessor(Processor):
         """Runs after all the images have been modified with do_work"""
         if self.should_run():
             self.skipped -= 1
-            self.make_save_smoothed_curves(banner=False)  # Build smooth curves based on the statistics
-        if not self.params.do_single:
-            self.render_pre_hist_video()
-        # print("Curves Saved!")
-    
-    def render_pre_hist_video(self):
-        fps = 8
-        print("Rendering pre-processor video...", end='')
-        os.makedirs(self.params.base_directory(), exist_ok=True)
-        path1 = os.path.join(self.params.base_directory(), "analysis\\radial_hist_pre\\a-pre-hist.avi")
-        self.write_video_in_directory(fullpath=path1, fps=fps, key_string="inner", destroy=False, pop=2)
-        
-        print("Success!")
-    
+   
     def should_run(self):
         """Decide of the processor should run on this file"""
         if not self.header:
@@ -209,7 +197,7 @@ class QRNProcessor(Processor):
             return False
         self.can_use_keyframes = True
         not_dark = self.header["IMG_TYPE"] == "LIGHT"
-        not_weak = self.header["EXPTIME"] > 1.0
+        not_weak = self.header["EXPTIME"] >= 1.0
         set_to_make = self.params.remake_norm_curves() or self.reprocess_mode()
         not_made_yet = not os.path.exists(self.params.curve_path()) or self.outer_min is None
         frame_is_not_loaded = self.params.raw_image is None
@@ -260,12 +248,6 @@ class QRNProcessor(Processor):
             self.coronaLearn()
             self.add_to_keyframes()  # Update the running curves
     
-    def image_modify(self):
-        """Perform the actual normalization on the input array"""
-        if not self.skip_bad_frame():
-            self.init_for_modify()
-            self.coronaNorm()  # Use curves to rescale the in_object
-            self.prep_output()
     
     ###################
     ## Keyframes ##
@@ -274,11 +256,7 @@ class QRNProcessor(Processor):
     def add_to_keyframes(self):
         """Records the current analysis as one of the radial samples"""
         self.update_keyframe_counters()
-        if not self.outputs_initialized or self.params.Force_init:
-            self.init_running_curves()
-        else:
-            self.update_running_curves()
-        # self.make_save_smoothed_curves()
+
     
     def coronaLearn(self):
         """Perform the actual analysis"""
@@ -301,69 +279,39 @@ class QRNProcessor(Processor):
     
     def init_for_learn(self):
         self.init_radius_array()
-        self.init_frame_curves()
+        # self.init_frame_curves()
         self.init_statistics()
-    
-    def init_for_modify(self):
-        self.init_radius_array()
     
     def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
         if self.params.modified_image is None:
-            self.params.modified_image = self.params.raw_image + 0
-        if self.params.rez is None:
-            self.params.rez = self.params.modified_image.shape[0]
-        if self.params.center is None:
-            self.params.center = [self.params.rez / 2, self.params.rez / 2]
+            self.params.modified_image = np.zeros_like(self.params.raw_image)
+        
+        self.params.center = [self.header["X0_MP"], self.header["Y0_MP"]]
+        self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]
+        self.params.rez = self.header["NAXIS1"]
         
         self.output_abscissa = np.arange(self.params.rez)
-        self.find_limb_radius()
         
-        try:
-            self.radius
-        except AttributeError:
-            self.radius = None
+        xx, yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
+        xc, yc = xx - self.params.center[0], yy - self.params.center[1]
+        self.radius = np.sqrt(xc * xc + yc * yc)
+        self.rad_flat = self.radius.flatten()
         
-        if self.radius is None or force or self.params.modified_image.shape[0] != self.params.rez:
-            dprint("init_radius_array")
-            
-            xx, yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
-            xc, yc = xx - self.params.center[0], yy - self.params.center[1]
-            
-            # self.xxyy =
-            self.radius = np.sqrt(xc * xc + yc * yc)
-            self.rad_flat = self.radius.flatten()
-            
-            self.binfactor = binfactor = 2
-            self.binInds = np.asarray(binfactor * np.floor(self.rad_flat // binfactor), dtype=np.int32)
-            # self.make_annular_rings()
-            # self.binInds = np.digitize(self.rad_flat, self.RN)
-            
-            self.binXX = xx.flatten()
-            self.binYY = yy.flatten()
-            self.binII = np.arange(len(self.rad_flat))
-            self.vcut = int(vignette_radius * self.params.rez // 2)
-            self.vrad = self.n2r(self.vcut)
-            self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
-            self.s_radius = s_radius
-            self.tRadius = self.s_radius * t_factor
-            del self.radius
-    
-    def init_frame_curves(self):
-        """These are the main frame_level curves"""
-        dprint("init_frame_curves")
-        self.frame_maximum = np.empty(self.params.rez)
-        self.frame_minimum = np.empty(self.params.rez)
-        self.frame_abs_max = np.empty(self.params.rez)
-        self.frame_abs_min = np.empty(self.params.rez)
-        self.frame_abss = np.empty(self.params.rez)
+        self.binfactor = binfactor = 2
+        self.binInds = np.asarray(binfactor * np.floor(self.rad_flat // binfactor), dtype=np.int32)
+        # self.make_annular_rings()
+        # self.binInds = np.digitize(self.rad_flat, self.RN)
         
-        self.frame_maximum.fill(np.nan)
-        self.frame_minimum.fill(np.nan)
-        self.frame_abs_max.fill(np.nan)
-        self.frame_abs_min.fill(np.nan)
-        self.frame_abss.fill(np.nan)
-    
+        self.binXX = xx.flatten()
+        self.binYY = yy.flatten()
+        self.binII = np.arange(len(self.rad_flat))
+        self.vcut = int(vignette_radius * self.params.rez // 2)
+        self.vrad = self.n2r(self.vcut)
+        self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
+        self.s_radius = s_radius
+        self.tRadius = self.s_radius * t_factor
+ 
     def init_statistics(self):
         """Initialize the statistical arrays"""
         dprint("init_statistics")
@@ -372,110 +320,6 @@ class QRNProcessor(Processor):
         self.radBins = [[] for x in np.arange(self.bin_rez)]
         self.radBins_xy = [[] for x in np.arange(self.bin_rez)]
         self.radBins_ind = [[] for x in np.arange(self.bin_rez)]
-        
-        self.binMax = np.empty(self.bin_rez)
-        self.binMin = np.empty(self.bin_rez)
-        self.binAbsMax = np.empty(self.bin_rez)
-        self.binAbsMin = np.empty(self.bin_rez)
-        self.binAbss = np.arange(self.bin_rez)
-        
-        self.binMax.fill(np.nan)
-        self.binMin.fill(np.nan)
-        self.binAbsMax.fill(np.nan)
-        self.binAbsMin.fill(np.nan)
-    
-    def init_running_curves(self):
-        """Initialize the curves"""
-        need_to_run = (self.frame_minimum is not None and np.sum(np.isfinite(self.frame_minimum)) > 0)
-        if need_to_run or self.params.Force_init:
-            dprint("init_running_curves")
-            
-            # The four running extrema
-            self.outer_max = self.frame_maximum + 0
-            self.inner_max = self.frame_maximum + 0
-            self.inner_min = self.frame_minimum + 0
-            self.outer_min = self.frame_minimum + 0
-            
-            # The absolute extrema curves
-            self.abs_max = self.frame_abs_max + 0
-            self.abs_min = self.frame_abs_min + 0
-            
-            # Average Curves
-            self.avg_min = self.frame_minimum + 0
-            self.avg_max = self.frame_maximum + 0
-            
-            # Scalars
-            self.abs_min_scalar = max(np.nanmin(self.outer_min), -10)
-            self.abs_max_scalar = np.nanmax(self.outer_max)
-            
-            self.outputs_initialized = True and self.can_initialize
-        return True
-    
-    def update_running_curves(self):
-        """Update the Curves"""
-        # # print("\rupdated_running_curves")
-        # plt.plot(self.frame_abss, self.abs_max, c='r', label="abs_max", ls=":",)
-        # plt.plot(self.frame_abss, self.abs_min, c='k', label="abs_min", ls=":",)
-        
-        # The four running extrema
-        self.outer_max = np.fmax(self.outer_max, self.frame_maximum)
-        self.inner_max = np.fmin(self.inner_max, self.frame_maximum)
-        
-        self.inner_min = np.fmax(self.inner_min, self.frame_minimum)
-        self.outer_min = np.fmin(self.outer_min, self.frame_minimum)
-        
-        # The absolute extrema curves
-        self.abs_max = np.fmax(self.abs_max, self.frame_abs_max)
-        self.abs_min = np.fmin(self.abs_min, self.frame_abs_min)
-        
-        # Average Curves
-        self.avg_max = self.avg_max + self.frame_maximum
-        self.avg_min = self.avg_min + self.frame_minimum
-        self.norm_avg_max = self.avg_max / self.n_keyframes
-        self.norm_avg_min = self.avg_min / self.n_keyframes
-        
-        # Scalars
-        self.abs_max_scalar = np.fmax(self.abs_max_scalar, np.max(self.outer_max))
-        self.abs_min_scalar = np.fmin(self.abs_min_scalar, np.min(self.outer_min))
-        
-        # plt.plot(self.frame_abss, self.abs_max, c='r')
-        # plt.plot(self.frame_abss, self.abs_min, c='k')
-        # plt.yscale('symlog')
-        # plt.legend()
-        # plt.show(block=True)
-    
-    # TODO Make this sample better, linear isn't really appropriate because its a circle
-    # 1+1
-    
-    def percentilize(self):
-        """Another way of looking at the data"""
-        self.do_percentile_norm()
-        # self.do_percentile_plot()
-    
-    def do_percentile_norm(self):
-        # Make Percentile Image
-        from scipy import stats
-        # plt.show()
-        # plt.figure()
-        
-        # image_shape = self.params.raw_image2.shape
-        # flat_raw = self.params.raw_image2.flatten() + 0
-        
-        # top_half =
-        # bot_half =
-        # percentile_image_flat = stats.rankdata(flat_raw, "average")/len(flat_raw)
-        # plt.imshow(self.params.quantile_image, origin="lower")
-        # plt.show()
-        
-        # percentile_image_flat = stats.rankdata(flat_raw, "average")/len(flat_raw)
-        # self.params.percentile_image = percentile_image_flat.reshape(image_shape)
-        
-        self.params.percentile_image = self.params.quantile_image
-        
-        # raw = flat_raw.reshape(image_shape)
-        # plt.imshow(self.orig_smasher(raw), vmin=0, vmax=1)
-        # plt.imshow(self.params.modified_image,origin='lower', vmin=0, vmax=1)
-        # plt.show(block=True)
     
     def do_percentile_plot(self):
         fig, axArray = plt.subplots(2, 3, sharex='row', sharey="row")
@@ -552,141 +396,7 @@ class QRNProcessor(Processor):
         ax1.imshow(self.orig_smasher(self.params.raw_image2), origin='lower', cmap='gray', vmin=0, vmax=1)
         ax2.imshow(self.params.modified_image, origin='lower', cmap='gray', vmin=0, vmax=1)
         ax3.imshow(self.params.percentile_image, origin='lower', cmap='gray', vmin=0, vmax=1)
-    
-    def plot_norm_curves(self, show=False, save=True, fig=None, ax=None,
-                         extra=False, raw=False, smooth=True):
-        """Look at the results of the algorithm"""
-        
-        if ax is None or fig is None:
-            fig, ax = plt.subplots(num="Doing Statistics on Intensity vs Height")
-            do_save = True
-        else:
-            do_save = False
-        
-        ax.set_title("Intensity as a function of radial distance: AIA_{}".format(self.params.current_wave()))
-        ## Plotting ##
-        do_all = True
-        raw_alpha = 0.85
-        grey_alpha = 0.90
-        
-        rrarr = self.n2r(np.arange(len(self.outer_max)))
-        # Plot Raw Curves
-        if do_all and self.outer_max is not None:
-            if raw: ax.plot(rrarr, self.outer_max, zorder=4, lw=1, label="Top/Bot", alpha=raw_alpha, c='orange')
-            if extra: ax.plot(rrarr, self.inner_max, zorder=5, lw=1, label="In Max", alpha=raw_alpha, c='cornflowerblue')
-            if extra: ax.plot(rrarr, self.inner_min, zorder=6, lw=1, label="In Min", alpha=raw_alpha, c='cornflowerblue')
-            if raw: ax.plot(rrarr, self.outer_min, zorder=3, lw=1, alpha=raw_alpha, c='orange')
-        
-        # # Plot Final Curves
-        # if do_all and self.norm_curve_max is not None:
-        #     if True: ax.plot(rrarr, self.norm_curve_max, zorder=4, lw=4, label="Top/Bot", alpha=raw_alpha, c='orange')
-        #     if True: ax.plot(rrarr, self.norm_curve_min, zorder=4, lw=4, alpha=raw_alpha, c='orange')
-        
-        # Plot Current Frame Curves
-        if do_all and self.frame_maximum is not None and extra:
-            if raw: ax.plot(rrarr, self.frame_maximum, zorder=8, lw=1, c='darkgrey', alpha=grey_alpha)
-            if raw: ax.plot(rrarr, self.frame_minimum, zorder=7, lw=1, label="Frame", c='darkgrey', alpha=grey_alpha)
-            if smooth: ax.plot(rrarr, self.savgol_filtered_frame_maximum, zorder=10, lw=1, c='darkslategrey', alpha=1)
-            if smooth: ax.plot(rrarr, self.savgol_filtered_frame_minimum, zorder=9, lw=1, label="Smooth Frame", c='darkslategrey', alpha=1)
-        
-        # Plot Absolute Curves
-        if do_all and self.abs_max is not None:
-            if raw: ax.plot(rrarr, self.abs_max, zorder=1, lw=1, label="Hat/Shoe", c='darkgrey', alpha=grey_alpha)
-            if raw: ax.plot(rrarr, self.abs_min, zorder=1, lw=1, c='darkgrey', alpha=grey_alpha)
-            if smooth: ax.plot(rrarr, self.smooth_absol_maximum, zorder=200, lw=3, c='cornflowerblue', alpha=1)
-            if smooth: ax.plot(rrarr, self.smooth_absol_minimum, zorder=200, lw=3, label="Abs Max/Min", c='cornflowerblue', alpha=1)
-        
-        RRarr = self.n2r(self.output_abscissa)
-        # Plot Filtered Curves
-        if self.savgol_filtered_inner_maximum is not None and extra:
-            ax.plot(RRarr, self.savgol_filtered_outer_maximum, zorder=103, lw=1, c="m", label="Fltr. Out")
-            ax.plot(RRarr, self.savgol_filtered_inner_maximum, zorder=102, lw=1, c='c', label="Fltr. Inn")
-            ax.plot(RRarr, self.savgol_filtered_inner_minimum, zorder=102, lw=1, c="c", ls='--')
-            ax.plot(RRarr, self.savgol_filtered_outer_minimum, zorder=103, lw=1, c='m', ls='--', )
-        
-        # Plot Smoothed Curves
-        if self.smooth_inner_maximum is not None:
-            if smooth: ax.plot(RRarr, self.smooth_outer_maximum, zorder=105, lw=3, c="g", label="Outer Max/Min")
-            if smooth: ax.plot(RRarr, self.smooth_inner_maximum, zorder=104, lw=3, c='r', label="Inner Max/Min")
-            if smooth: ax.plot(RRarr, self.smooth_inner_minimum, zorder=104, lw=3, c="r")
-            if smooth: ax.plot(RRarr, self.smooth_outer_minimum, zorder=105, lw=3, c='g')
-            # ax.plot(rrarr, self.savgol_filtered_frame_abs_max, zorder=1, lw=1,                   c='grey', alpha=1)
-            # ax.plot(rrarr, self.savgol_filtered_frame_abs_min, zorder=1, lw=1, label="Smo. Abs", c='grey', alpha=1)
-        
-        # Plot Scatter Points
-        self.skip_points = 10 if self.params.rez < 3000 else 50  # TODO Make this sample better, linear isn't appropriate because its a circle
-        scat = self.params.raw_image2.flatten()
-        blk_alpha = 0.4
-        ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat[::self.skip_points], c='k', s=4, alpha=blk_alpha, edgecolors='none', label="2. SRN")
-        
-        # self.touchup_TUNE(self.params.raw_image+0)
-        
-        ## Plot Formatting
-        ax.set_ylabel("Intensity")
-        ax.set_xlabel("Distrance from Sun Center")
-        ax.set_yscale("symlog")
-        ax.set_ylim((-10 ** 1, 10 ** 4))
-        ax.set_xlim((0, 1.75))
-        ax.legend(loc='lower left')
-        fig.set_size_inches(10, 10)
-        # plt.show()
-        # Plot Saving
-        
-        if do_save:
-            self.force_save_inner_outer(save, fig, ax, show)
-        if show:
-            plt.show(block=True)
-        
-        # print('Plot_curves')
-    
-    def force_save_inner_outer(self, save, fig, ax0, show):
-        # Save Path Stuff
-        
-        if save:
-            bs = self.params.base_directory()
-            if save == "single":
-                folder_name = "norm_curves"
-                file_name_1 = '{}_keyframe.png'.format(self.params.current_wave())
-                file_name_2 = None
-            else:
-                folder_name = "analysis"
-                fstring = self.file_basename[:-5]
-                file_name_1 = 'keyframe_{}.png'.format(fstring)
-                file_name_2 = 'zoom_{}.png'.format(fstring)
-            
-            save_path_1 = join(bs, folder_name, 'radial_hist_pre', file_name_1)
-            save_path_2 = join(bs, folder_name, 'radial_hist_pre', 'zoom', file_name_2)
-            
-            makedirs(dirname(save_path_1), exist_ok=True)
-            makedirs(dirname(save_path_2), exist_ok=True)
-            fig.set_size_inches((20, 10))
-            plt.tight_layout()
-            
-            while True:
-                try:
-                    plt.savefig(save_path_1, dpi=150)
-                    self.this_index += 1
-                    break
-                except OSError as e:
-                    print("  !!!!!!! Close the Dang Plot!", end='')
-                print('.', end='')
-            
-            plt.xlim((0.9, 1.1))
-            plt.ylim((10 ** 1.5, 10 ** 3.5))
-            while False:
-                try:
-                    plt.savefig(save_path_2, dpi=150)
-                    break
-                except OSError as e:
-                    print("  !!!!!!! Close the Dang Plot!", end='')
-                print('.', end='')
-        
-        # Show or not
-        if not show:
-            plt.close(fig)
-        else:
-            plt.show(block=True)
-    
+
     ###################################
     ## Raw Normalization Curve Stuff ##
     ###################################
@@ -817,15 +527,6 @@ class QRNProcessor(Processor):
     
     def finalize_radial_statistics(self):
         """Clean up the radial statistics to be used"""
-        idx = np.isfinite(self.binMax) & np.isfinite(self.binMin)
-        n_index = self.binAbss[idx]
-        #         import pdb; pdb.set_trace()
-        self.frame_abss[n_index] = n_index
-        self.frame_maximum[n_index] = self.binMax[idx]
-        self.frame_minimum[n_index] = self.binMin[idx]
-        self.frame_abs_max[n_index] = self.binAbsMax[idx]
-        self.frame_abs_min[n_index] = self.binAbsMin[idx]
-        
         self.params.quantile_image = self.params.quantile_image.reshape(self.params.modified_image.shape)
         
         from utils.stretch_intensity_module import norm_stretch
@@ -833,573 +534,6 @@ class QRNProcessor(Processor):
         
         self.vignette()
     
-
-    
-    ###################################
-    ## Smoothed Normalization Curve Stuff ##
-    ###################################
-    
-    def make_save_smoothed_curves(self, banner=False):  ## SNARFLAT Work Here damnit
-        """Build the normalization arrays, treating the domain in 3 seperate regions"""
-        if self.abs_max is not None:
-            # self.save_curves(banner=False)    # TODO This might need to be on
-            if banner: print("\r *        Smoothing Curves...", end='')
-            self.despike_curves()
-            self.triFilter_curves()
-            self.monoFilter_curves()
-            self.render_smooth_curves()
-            if banner: print("Success!")
-            
-            self.save_curves(banner=banner)
-            
-            self.select_curves_TUNE()
-            # print("Smoothed Curves")
-    
-    def despike_curves(self):
-        # if self.make_curves_latch:
-        #     self.abs_max = self.despike(self.abs_max)
-        # self.make_curves_latch = False
-        
-        pass
-    
-    def triFilter_curves(self):
-        self.split_into_three_regions()
-        self.filter_three_regions_TUNE()
-        self.concatinate_filtered_regions()
-    
-    def init_smooth_curves(self):
-        self.smooth_absol_maximum = self.savgol_filtered_absol_maximum + 0
-        self.smooth_outer_maximum = self.savgol_filtered_outer_maximum + 0
-        self.smooth_inner_maximum = self.savgol_filtered_inner_maximum + 0
-        self.smooth_inner_minimum = self.savgol_filtered_inner_minimum + 0
-        self.smooth_outer_minimum = self.savgol_filtered_outer_minimum + 0
-        self.smooth_absol_minimum = self.savgol_filtered_absol_minimum + 0
-    
-    def monoFilter_curves(self):
-        self.init_smooth_curves()
-        self.filter_all_regions_TUNE()
-        self.curve_fit_smooth_curves_TUNE()
-        self.flatten_smooth_curves()
-    
-    def split_into_three_regions(self):
-        # Split the domain into three regions
-        self.find_limb_radius()
-        
-        if self.frame_abss is None:
-            self.frame_abss = np.arange(self.params.rez)
-        
-        self.smidge = smidge = 2
-        
-        # Split outer curves into three regions
-        abss = self.frame_abss
-        use_max = self.outer_max + 0
-        use_min = self.outer_min + 0
-        #
-        self.outer_low_abs = abss[:self.lCut + smidge]
-        self.outer_low_max = use_max[:self.lCut + smidge]
-        self.outer_low_min = use_min[:self.lCut + smidge]
-        #
-        self.outer_mid_abs = abss[self.lCut - smidge:self.hCut + smidge]
-        self.outer_mid_max = use_max[self.lCut - smidge:self.hCut + smidge]
-        self.outer_mid_min = use_min[self.lCut - smidge:self.hCut + smidge]
-        #
-        self.outer_high_abs = abss[self.hCut - smidge:]
-        self.outer_high_max = use_max[self.hCut - smidge:]
-        self.outer_high_min = use_min[self.hCut - smidge:]
-        
-        # Split inner curves into three regions
-        abss = self.frame_abss
-        use_max = self.inner_max + 0
-        use_min = self.inner_min + 0
-        #
-        self.inner_low_abs = abss[:self.lCut + smidge]
-        self.inner_low_max = use_max[:self.lCut + smidge]
-        self.inner_low_min = use_min[:self.lCut + smidge]
-        #
-        self.inner_mid_abs = abss[self.lCut - smidge:self.hCut + smidge]
-        self.inner_mid_max = use_max[self.lCut - smidge:self.hCut + smidge]
-        self.inner_mid_min = use_min[self.lCut - smidge:self.hCut + smidge]
-        #
-        self.inner_high_abs = abss[self.hCut - smidge:]
-        self.inner_high_max = use_max[self.hCut - smidge:]
-        self.inner_high_min = use_min[self.hCut - smidge:]
-        
-        # Split absolute curves into three regions
-        abss = self.frame_abss
-        use_max = self.abs_max + 0
-        use_min = self.abs_min + 0
-        #
-        self.absolute_low_abs = abss[:self.lCut + smidge]
-        self.absolute_low_max = use_max[:self.lCut + smidge]
-        self.absolute_low_min = use_min[:self.lCut + smidge]
-        #
-        self.absolute_mid_abs = abss[self.lCut - smidge:self.hCut + smidge]
-        self.absolute_mid_max = use_max[self.lCut - smidge:self.hCut + smidge]
-        self.absolute_mid_min = use_min[self.lCut - smidge:self.hCut + smidge]
-        #
-        self.absolute_high_abs = abss[self.hCut - smidge:]
-        self.absolute_high_max = use_max[self.hCut - smidge:]
-        self.absolute_high_min = use_min[self.hCut - smidge:]
-    
-    def concatinate_filtered_regions(self):
-        # Concatinate filtered curves
-        smidge = self.smidge
-        self.output_abscissa = np.hstack((self.inner_low_abs[:self.lCut], self.inner_mid_abs[smidge:-smidge], self.inner_high_abs[smidge:]))
-        self.savgol_filtered_absol_maximum = np.hstack(
-                (self.absolute_low_max[:self.lCut], self.absolute_mid_max[smidge:-smidge], self.absolute_high_max[smidge:]))
-        self.savgol_filtered_outer_maximum = np.hstack((self.outer_low_max[:self.lCut], self.outer_mid_max[smidge:-smidge], self.outer_high_max[smidge:]))
-        self.savgol_filtered_inner_maximum = np.hstack((self.inner_low_max[:self.lCut], self.inner_mid_max[smidge:-smidge], self.inner_high_max[smidge:]))
-        self.savgol_filtered_inner_minimum = np.hstack((self.inner_low_min[:self.lCut], self.inner_mid_min[smidge:-smidge], self.inner_high_min[smidge:]))
-        self.savgol_filtered_outer_minimum = np.hstack((self.outer_low_min[:self.lCut], self.outer_mid_min[smidge:-smidge], self.outer_high_min[smidge:]))
-        self.savgol_filtered_absol_minimum = np.hstack(
-                (self.absolute_low_min[:self.lCut], self.absolute_mid_min[smidge:-smidge], self.absolute_high_min[smidge:]))
-    
-    def flatten_smooth_curves(self, flatten_down_ind=None, flatten_up_ind=None):
-        # Flatten out the low edge
-        flatten_inner_ind = flatten_down_ind or 200
-        self.smooth_absol_maximum[0:flatten_inner_ind] = self.savgol_filtered_absol_maximum[flatten_inner_ind]
-        self.smooth_outer_maximum[0:flatten_inner_ind] = self.savgol_filtered_outer_maximum[flatten_inner_ind]
-        self.smooth_inner_maximum[0:flatten_inner_ind] = self.savgol_filtered_inner_maximum[flatten_inner_ind]
-        self.smooth_inner_minimum[0:flatten_inner_ind] = self.savgol_filtered_inner_minimum[flatten_inner_ind]
-        self.smooth_outer_minimum[0:flatten_inner_ind] = self.savgol_filtered_outer_minimum[flatten_inner_ind]
-        self.smooth_absol_minimum[0:flatten_inner_ind] = self.savgol_filtered_absol_minimum[flatten_inner_ind]
-        
-        # Flatten out the high edge
-        flatten_outer_ind = flatten_up_ind or int(self.r2n(1.7))
-        self.smooth_absol_maximum[flatten_outer_ind:] = self.savgol_filtered_absol_maximum[flatten_outer_ind]
-        self.smooth_outer_maximum[flatten_outer_ind:] = self.savgol_filtered_outer_maximum[flatten_outer_ind]
-        self.smooth_inner_maximum[flatten_outer_ind:] = self.savgol_filtered_inner_maximum[flatten_outer_ind]
-        self.smooth_inner_minimum[flatten_outer_ind:] = self.savgol_filtered_inner_minimum[flatten_outer_ind]
-        self.smooth_outer_minimum[flatten_outer_ind:] = self.savgol_filtered_outer_minimum[flatten_outer_ind]
-        self.smooth_absol_minimum[flatten_outer_ind:] = self.savgol_filtered_absol_minimum[flatten_outer_ind]
-        
-        self.flatten_up = self.n2r(flatten_outer_ind)
-        self.flatten_down = self.n2r(flatten_inner_ind)
-    
-    def render_smooth_curves(self):
-        self.norm_curve_absol_max = np.squeeze(self.smooth_absol_maximum[self.binInds])
-        self.norm_curve_outer_max = np.squeeze(self.smooth_outer_maximum[self.binInds])
-        self.norm_curve_inner_max = np.squeeze(self.smooth_inner_maximum[self.binInds])
-        self.norm_curve_inner_min = np.squeeze(self.smooth_inner_minimum[self.binInds])
-        self.norm_curve_outer_min = np.squeeze(self.smooth_outer_minimum[self.binInds])
-        self.norm_curve_absol_min = np.squeeze(self.smooth_absol_minimum[self.binInds])
-        
-        # plt.plot(self.savgol_filtered_absol_maximum)
-        # plt.show()
-        # self.prep_save_outs()
-        # Filter
-        # flatten_inner_ind=200
-        
-        # if self.abs_max is not None:
-        #     self.savgol_filtered_absol_maximum = self.abs_max + 0
-        #     self.savgol_filtered_absol_minimum = self.abs_min + 0
-        #
-        # for i in range(an):
-        #     try:
-        #         self.savgol_filtered_absol_maximum = savgol_filter(self.savgol_filtered_absol_maximum, aWindow, rank, mode=mode)
-        #         self.savgol_filtered_absol_minimum = savgol_filter(self.savgol_filtered_absol_minimum, aWindow, rank, mode=mode)
-        #     except np.linalg.LinAlgError as e:
-        #         print("\n filter:three:regions::")
-        #         print(e)
-        
-        #
-        # if self.abs_max is not None:
-        #     filtered_abs_max = savgol_filter(self.abs_max, 21, 3, mode='nearest')
-        #     filtered_abs_min = savgol_filter(self.abs_min, 21, 3, mode='nearest')
-        #     self.savgol_filtered_absol_maximum = filtered_abs_max
-        #     self.savgol_filtered_absol_minimum = filtered_abs_min
-        #
-        #
-        # if self.frame_minimum is not None:
-        #     self.savgol_filtered_frame_minimum = self.frame_minimum + 0
-        #     self.savgol_filtered_frame_maximum = self.frame_maximum + 0
-        #
-        #     self.savgol_filtered_frame_abs_max = self.frame_abs_max + 0
-        #     self.savgol_filtered_frame_abs_min = self.frame_abs_min + 0
-        #
-        #     for i in range(maxn):
-        #         try:
-        #             # Bonus Extrema Filtering!
-        #             if self.frame_minimum is not None:
-        #                 self.savgol_filtered_frame_minimum = savgol_filter(self.savgol_filtered_frame_minimum, maxWindow, rank, mode=mode)
-        #                 self.savgol_filtered_frame_maximum = savgol_filter(self.savgol_filtered_frame_maximum, maxWindow, rank, mode=mode)
-        #                 self.savgol_filtered_frame_abs_max = savgol_filter(self.savgol_filtered_frame_abs_max, maxWindow, rank, mode=mode)
-        #                 self.savgol_filtered_frame_abs_min = savgol_filter(self.savgol_filtered_frame_abs_min, maxWindow, rank, mode=mode)
-        #         except np.linalg.LinAlgError as e:
-        #             print("\n filter:three:regions::")
-        #             print(e)
-        #
-    
-    ###################################
-    ##   Places to TUNE the model    ##
-    ###################################
-    
-    def filter_three_regions_TUNE(self):
-        ### Filter the regions separately
-        mode = 'nearest'
-        
-        # Savgol windows
-        lWindow = 201  # 4 * self.extra_rez + 1
-        ln = 1  # 6
-        mWindow = 11  # 4 * self.extra_rez + 1
-        mn = 3  # 3
-        hWindow = 51  # 30 * self.extra_rez + 1
-        hn = 3  # 2
-        
-        rank = 2
-        
-        # Filter Low
-        for i in range(ln):
-            
-            try:
-                self.absolute_low_max = savgol_filter(self.absolute_low_max, lWindow, rank, mode=mode)
-                self.outer_low_max = savgol_filter(self.outer_low_max, lWindow, rank, mode=mode)
-                self.inner_low_max = savgol_filter(self.inner_low_max, lWindow, rank, mode=mode)
-                self.inner_low_min = savgol_filter(self.inner_low_min, lWindow, rank, mode=mode)
-                self.outer_low_min = savgol_filter(self.outer_low_min, lWindow, rank, mode=mode)
-                self.absolute_low_min = savgol_filter(self.absolute_low_min, lWindow, rank, mode=mode)
-            
-            except np.linalg.LinAlgError as e:
-                print("\n filter:three:regions::")
-                print(e)
-        
-        # Filter Mid
-        for i in range(mn):
-            try:
-                self.absolute_mid_max = savgol_filter(self.absolute_mid_max, mWindow, rank, mode=mode)
-                self.outer_mid_max = savgol_filter(self.outer_mid_max, mWindow, rank, mode=mode)
-                self.inner_mid_max = savgol_filter(self.inner_mid_max, mWindow, rank, mode=mode)
-                self.inner_mid_min = savgol_filter(self.inner_mid_min, mWindow, rank, mode=mode)
-                self.outer_mid_min = savgol_filter(self.outer_mid_min, mWindow, rank, mode=mode)
-                self.absolute_mid_min = savgol_filter(self.absolute_mid_min, mWindow, rank, mode=mode)
-            
-            except np.linalg.LinAlgError as e:
-                print("\n filter:three:regions::")
-                print(e)
-        
-        # Filter High
-        for i in range(hn):
-            try:
-                self.absolute_high_max = savgol_filter(self.absolute_high_max, hWindow, rank, mode=mode)
-                self.outer_high_max = savgol_filter(self.outer_high_max, hWindow, rank, mode=mode)
-                self.inner_high_max = savgol_filter(self.inner_high_max, hWindow, rank, mode=mode)
-                self.inner_high_min = savgol_filter(self.inner_high_min, hWindow, rank, mode=mode)
-                self.outer_high_min = savgol_filter(self.outer_high_min, hWindow, rank, mode=mode)
-                self.absolute_high_min = savgol_filter(self.absolute_high_min, hWindow, rank, mode=mode)
-            
-            except np.linalg.LinAlgError as e:
-                print("\n filter:three:regions::")
-                print(e)
-    
-    def filter_all_regions_TUNE(self):
-        mode = 'nearest'
-        aWindow = 21  # 30 * self.extra_rez + 1
-        an = 1
-        rank = 2
-        
-        # Filter All
-        for i in range(an):
-            try:
-                self.smooth_absol_maximum = savgol_filter(self.smooth_absol_maximum, aWindow, rank, mode=mode)
-                self.smooth_outer_maximum = savgol_filter(self.smooth_outer_maximum, aWindow, rank, mode=mode)
-                self.smooth_inner_maximum = savgol_filter(self.smooth_inner_maximum, aWindow, rank, mode=mode)
-                self.smooth_inner_minimum = savgol_filter(self.smooth_inner_minimum, aWindow, rank, mode=mode)
-                self.smooth_outer_minimum = savgol_filter(self.smooth_outer_minimum, aWindow, rank, mode=mode)
-                self.smooth_absol_minimum = savgol_filter(self.smooth_absol_minimum, aWindow, rank, mode=mode)
-            except np.linalg.LinAlgError as e:
-                print("\n filter:all:regions::")
-                print(e)
-    
-    def curve_fit_smooth_curves_TUNE(self):
-        # Fit the lowest region with a polynomial to make it much smoother
-        # degree = 5
-        # p = np.polyfit(self.low_abs, self.low_max_filt, degree)
-        # self.low_max_fit = np.polyval(p, self.low_abs)  # * 1.1
-        # p = np.polyfit(self.low_abs, self.low_min_filt, degree)
-        # self.low_min_fit = np.polyval(p, self.low_abs)
-        pass
-    
-    def select_curves_TUNE(self):
-        ## These are the options
-        
-        # self.norm_curve_absol_max
-        # self.norm_curve_outer_max
-        # self.norm_curve_inner_max
-        # self.norm_curve_inner_min
-        # self.norm_curve_outer_min
-        # self.norm_curve_absol_min
-        
-        # Select Bottom Norms
-        
-        self.show_norm = False
-        
-        self.norm_curve_max_bottom_name = "norm_curve_outer_max"
-        self.norm_curve_min_bottom_name = "norm_curve_absol_min"
-        self.norm_curve_max = getattr(self, self.norm_curve_max_bottom_name)
-        self.norm_curve_min = getattr(self, self.norm_curve_min_bottom_name)
-        
-        # Select Top Norms
-        self.norm_curve_max_top_name = "norm_curve_inner_max"
-        self.norm_curve_min_top_name = "norm_curve_absol_min"
-        norm_curve_max_top = getattr(self, self.norm_curve_max_top_name)
-        norm_curve_min_top = getattr(self, self.norm_curve_min_top_name)
-        
-        # Merge the two
-        low = self.fit_limb_radius
-        self.norm_curve_max[low:] = norm_curve_max_top[low:]
-        self.norm_curve_min[low:] = norm_curve_min_top[low:]
-    
-    @staticmethod
-    def norm_formula(image, the_min, the_max):
-        """Standard Normalization Formula"""
-        
-        image_flat = image.flatten()
-        
-        diff = np.subtract(the_max, the_min)
-        np.subtract(image_flat, the_min, out=image_flat)
-        np.divide(image_flat, diff, out=image_flat)
-        
-        image = image_flat.reshape(image.shape)
-        
-        return image
-    
-    def touchup_TUNE(self, img):
-        img *= 10.
-        np.power(img, 1 / 3, out=img)
-        img /= 3.5
-        # img += 0.1
-        
-        # img[img > 1.] = np.power(img[img > 1.], 1/2)
-        
-        # img *= 1.5
-        # img -= 0.75
-        
-        # img[img < 0.] = 0.
-        # img[img == 0.] = np.nan
-        img[~np.isfinite(img)] = np.nan
-        return img
-    
-    def coronagraph_touchup_TUNE(self):
-        """Deal with pixel outliers. Lots of adjustable parameters in here"""
-        self.touchup_TUNE(self.params.raw_image)
-        self.touchup_TUNE(self.params.modified_image)
-        # neg = self.modified_image<0
-        # neg_pts = self.modified_image[neg]
-        # minn = np.abs(np.min(neg_pts))
-        # normed = neg_pts + min(neg_pts)
-        
-        # self.modified_image += minn
-        
-        # self.params.modified_image = np.power(self.params.modified_image, 1 / 3)
-        # self.params.modified_image -= 0.15
-        # self.params.modified_image /= 1.5
-        
-        # self.modified_image = np.power(self.modified_image, 1/4)
-        # self.modified_image -= minn
-        
-        ## Deal with too hot things ##
-        # self.vmax = 2
-        # self.vmax_plot = 0.95  # np.max(changed_flat) #this is in the header of the imageprocessor now
-        # hotpowr = 1 / 2
-        # hot = self.modified_image > self.vmax
-        # self.modified_image[hot] = self.modified_image[hot] ** hotpowr
-        
-        # ## Deal with too cold things ##
-        # self.vmin = 0.3
-        # self.vmin_plot = -0.05  # np.min(changed_flat)# 0.3# -0.03 #this is in the header of the imageprocessor now
-        # coldpowr = 1 / 2
-        # cold = self.changed_flat < self.vmin
-        # self.changed_flat[cold] = -((np.abs(self.changed_flat[cold] - self.vmin) + 1) ** coldpowr - 1) + self.vmin
-        
-        ## Some Final Normalization ##      TODO: I think this might be breaking things!
-        # self.changed_flat = self.normalize(self.changed_flat, high=99.99, low=1)
-        pass
-    
-    #######################################
-    ## Image Reduction Helper Algorithms ##
-    #######################################
-    
-    @staticmethod
-    def rolling_window(data, block):
-        shape = data.shape[:-1] + (data.shape[-1] - block + 1, block)
-        strides = data.strides + (data.strides[-1],)
-        return np.lib.stride_tricks.as_strided(data, shape=shape, strides=strides)
-    
-    def despike(self, arr, n1=2.5, n2=40, block=25):
-        # Condition the Input
-        data = arr.copy()
-        data[data == -1] = np.NaN
-        offset = np.nanmin(data)
-        data -= offset
-        roll = self.rolling_window(data, block)
-        roll = np.ma.masked_invalid(roll)
-        std = n1 * roll.std(axis=1)
-        mean = roll.mean(axis=1)
-        # Use the last value to fill-up.
-        std = np.r_[std, np.tile(std[-1], block - 1)]
-        mean = np.r_[mean, np.tile(mean[-1], block - 1)]
-        mask = (np.abs(data - mean.filled(fill_value=np.NaN)) >
-                std.filled(fill_value=np.NaN))
-        data[mask] = np.NaN
-        # Pass two: recompute the mean and std without the flagged values from pass
-        # one now removing the flagged data.
-        roll = self.rolling_window(data, block)
-        roll = np.ma.masked_invalid(roll)
-        std = n2 * roll.std(axis=1)
-        mean = roll.mean(axis=1)
-        # Use the last value to fill-up.
-        std = np.r_[std, np.tile(std[-1], block - 1)]
-        mean = np.r_[mean, np.tile(mean[-1], block - 1)]
-        mask = (np.abs(arr - mean.filled(fill_value=np.NaN)) >
-                std.filled(fill_value=np.NaN))
-        arr[mask] = mean[mask]
-        return arr + offset
-    
-    def coronaNorm(self):
-        """Normalize the in_object using the radial percentile curves"""
-        # Make Curves
-        self.make_save_smoothed_curves()
-        
-        # Normalize Them
-        self.execute_norm()
-        
-        # Deal with some outliers
-        self.coronagraph_touchup_TUNE()
-        
-        # Vignette
-        self.vignette()  # Truncate the in_object above given radius
-    
-    def execute_norm(self):
-        """Apply the Normalization to the Image Array"""
-        with warnings.catch_warnings():
-            warnings.filterwarnings('error')
-            try:
-                # Standard Normalization Formula
-                self.params.modified_image = self.norm_formula(self.params.modified_image, self.norm_curve_min, self.norm_curve_max)
-                # self.params.modified_image = self.params.quantile_image
-            
-            except RuntimeWarning as e:
-                print(e)
-        return
-    
-    @staticmethod
-    def norm_formula(image, the_min, the_max):
-        """Standard Normalization Formula"""
-        image_flat = image.flatten()
-        diff = np.subtract(the_max, the_min)
-        np.subtract(image_flat, the_min, out=image_flat)
-        np.divide(image_flat, diff, out=image_flat)
-        image = image_flat.reshape(image.shape)
-        return image
-    
-    def prep_output(self):
-        self.mask_output()
-        self.mirror_output()
-    
-    def mask_output(self, do_mask=None):
-        """Allows you to only show sub-sections of the in_object as reduced images"""
-        if not do_mask:
-            return False
-        
-        self.grid_mask = self.get_mask(self.params.modified_image, force=True)
-        
-        if self.grid_mask is not None:
-            self.params.modified_image[self.grid_mask] = self.params.raw_image[self.grid_mask]
-    
-    def mirror_output(self, do_mirror=None):
-        # Allows you to mirror horizontally, with only one half rfeduced
-        if not do_mirror:
-            return False
-        
-        self.mirror_mask = self.get_mask(self.params.modified_image, force=True)
-        
-        newDat = self.params.modified_image[self.mirror_mask]
-        xx, yy = self.mirror_mask.shape[0], int(self.mirror_mask.shape[1] / 2)
-        grid = newDat.reshape(xx, yy)
-        flipped = np.fliplr(grid)
-        
-        if self.mirror_mask is not None:
-            self.params.modified_image[~self.mirror_mask] = flipped.flatten()  # np.flip(newDat)
-    
-    def get_mask(self, output_frame, force=None):
-        """ Generates a mask that defines which portion of the in_object will be modified"""
-        if force is not None:
-            self.renew_mask = force
-        if not self.renew_mask:
-            return self.grid_mask
-        
-        corona_mask = np.full_like(output_frame, False, dtype=bool)
-        rezz = corona_mask.shape[0]
-        half = int(rezz / 2)
-        
-        mode = 'y'
-        
-        if type(mode) in [float, int]:
-            mask_num = mode
-        elif 'y' in mode:
-            mask_num = 1
-        elif 'n' in mode:
-            mask_num = 2
-        else:
-            if 'r' in mode:
-                if len(mode) < 2:
-                    mode += 'a'
-            
-            if 'a' in mode:
-                top = 8
-                btm = 1
-            elif 'h' in mode:
-                top = 6
-                btm = 3
-            elif 'd' in mode:
-                top = 8
-                btm = 7
-            elif 'w' in mode:
-                top = 2
-                btm = 1
-            else:
-                print('Unrecognized Mode')
-                top = 8
-                btm = 1
-            
-            ii = 0
-            while True:
-                mask_num = np.random.randint(btm, top + 1)
-                if mask_num not in self.mask_num:
-                    self.mask_num.append(mask_num)
-                    break
-                ii += 1
-                if ii > 10:
-                    self.mask_num = []
-        
-        if mask_num == 1:
-            corona_mask[:, :] = True
-        
-        if mask_num == 2:
-            corona_mask[:, :] = False
-        
-        if mask_num == 3:
-            corona_mask[half:, :] = True
-        
-        if mask_num == 4:
-            corona_mask[:half, :] = True
-        
-        if mask_num == 5:
-            corona_mask[:, half:] = True
-        
-        if mask_num == 6:
-            corona_mask[:, :half] = True
-        
-        if mask_num == 7:
-            corona_mask[half:, half:] = True
-            corona_mask[:half, :half] = True
-        
-        if mask_num == 8:
-            corona_mask[half:, half:] = True
-            corona_mask[:half, :half] = True
-            corona_mask = np.invert(corona_mask)
-        
-        return corona_mask
     
     def vignette(self):
         """Truncate the in_object above a certain radis"""
@@ -1821,24 +955,7 @@ class QRNProcessor(Processor):
         plt.tight_layout()
         plt.show()
         return True
-    
-    #         self.force_save_radial_figures(save, fig, ax0, show)
-    #         if not do:
-    #             return
-    #         if self.first:
-    #             self.first = False
-    #             return
-    #         import pdb; pdb.set_trace()
-    # self.output_abscissa
-    #         dprint("plot_full_normalization")
-    
-    # locs = np.arange(self.rez)[::int(self.rez/5)]
-    # ax1.set_xticks(locs)
-    # ax1.set_xticklabels(self.n2r(locs))
-    # ax.axvline(self.tRadius, c='r')
-    # raw_touch = self.params.raw_image+0
-    # self.touchup(raw_touch)
-    
+
     def force_save_radial_figures(self, save, fig, ax0, show):
         first = True
         while True:
@@ -1885,59 +1002,3 @@ class QRNProcessor(Processor):
         out = np.array((xBox, yBox))
         return out
     
-    ########################
-    ## Utilities ##
-    ########################
-    ## Static Methods ##
-    def n2r(self, n):
-        """Convert index to solar radius"""
-        if not self.fit_limb_radius:
-            self.find_limb_radius()
-        if n is None:
-            n = 0
-        r = n / self.fit_limb_radius
-        return r
-    
-    def r2n(self, r):
-        """Convert index to solar radius"""
-        if not self.fit_limb_radius:
-            self.find_limb_radius()
-        n = r * self.fit_limb_radius
-        return n
-    
-    @staticmethod
-    def normalize(image, high=98, low=15):
-        """Normalize the Array"""
-        if low is None:
-            lowP = 0
-        else:
-            lowP = np.nanpercentile(image, low)
-        highP = np.nanpercentile(image, high)
-        import warnings
-        with warnings.catch_warnings():
-            warnings.filterwarnings('error')
-            try:
-                out = (image - lowP) / (highP - lowP)
-            except RuntimeWarning as e:
-                out = image
-        return out
-    
-    @staticmethod
-    def fill_end(use):
-        iii = -1
-        val = use[iii]
-        while np.isnan(val):
-            iii -= 1
-            val = use[iii]
-        use[iii:] = val
-        return use
-    
-    @staticmethod
-    def fill_start(use):
-        iii = 0
-        val = use[iii]
-        while np.isnan(val):
-            iii += 1
-            val = use[iii]
-        use[:iii] = val
-        return use
