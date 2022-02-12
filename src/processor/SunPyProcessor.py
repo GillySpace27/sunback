@@ -109,26 +109,32 @@ class AIA_PREP_Processor(SunPyProcessor):
         self.pointing_table = None
         self.pointing_end = None
         self.pointing_start = None
+        self.in_name_possibles  = ["Quantile", "T_Integrated", "LEV1"]
         self.in_name = ["Quantile", "T_Integrated", "LEV1"]
         self.out_name_stem = "LEV1p5_{}"
         self.params.modified_image = None
+        pass
     
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
             self.select_maps()
             self.get_aia_prep_data()
-            self.out_name = self.out_name_stem.format(self.in_name[0])
             self.do_AIA_PREP()
             self.save_out()
-            
         return self.params.modified_image
     
     def select_maps(self):
+        self.out_name = self.out_name_stem.format(self.in_name[0])
+        while self.out_name.casefold() in self.hdu_name_list:
+            self.in_name = self.in_name_possibles.pop(0)
+            self.out_name = self.out_name_stem.format(self.in_name[0])
+            
+            # frame, wave, t_rec, center, int_time, img_type = self.load_best_fits_field(self.fits_path, in_name)
+            
+        self.load_fits_image(self.fits_path, in_name=self.in_name)
         self.params.header["LVL_NUM"] = 1.5
-        # self.params.header["exposure_time"] = self.params.int_tm_tot
         self.level_1_maps = [sunpy.map.Map((self.params.raw_image, self.params.header))]
-        # self.level_1_maps.append(sunpy.map.Map((self.params.raw_image, self.params.header)))
 
     def get_aia_prep_data(self):
         if self.correction_table is None:
@@ -157,16 +163,8 @@ class AIA_PREP_Processor(SunPyProcessor):
             map_degradation = correct_degradation(map_registered, correction_table=self.correction_table)
             map_normalized = normalize_exposure(map_degradation)
             map_double_normed = map_normalized / np.nanmax(map_normalized.data)
-            
-            # seconds = map_degradation.exposure_time.to(u.s).value
-            # print("Degrade Seconds = {:0.4f}".format(seconds))
-            # print("Params Seconds = {:0.4f}".format(self.params.int_tm_tot))
-            # seconds = map_normalized.exposure_time.to(u.s).value
-            # print("Norm Seconds = {:0.4f}".format(seconds))
-            
-            out = map_double_normed if 'q' in self.out_name.casefold() else map_normalized
+            out = map_double_normed if 'q' in self.out_name.casefold() else map_degradation
             self.level_15_maps.append(out)
-            pass
             
     def save_out(self):
         # Plot
