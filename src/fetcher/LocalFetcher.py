@@ -64,7 +64,7 @@ class LocalSingleFetcher(Fetcher):
                 print("LocalSingleFetcher")
                 raise e
                 
-                # self.view_original()
+                # self.view_raw()
 
 
     
@@ -135,13 +135,13 @@ class LocalCdfFetcher(Fetcher):
     
     
     def confirm_save(self, orig_img_path, new_img_path):
-            # Load the original file for reference
+            # Load the raw file for reference
             
             print("\n   V Plotting Confirmation of Reduction:")
            
-            print("      Original:")
+            print("      raw:")
             self.open_cdf(orig_img_path)
-            self.peek_load(title="ORIGINAL: {}".format(os.path.basename(orig_img_path)))
+            self.peek_load(title="raw: {}".format(os.path.basename(orig_img_path)))
 
             print("      Modified:")
             self.open_cdf(new_img_path)
@@ -213,9 +213,9 @@ class LocalCdfFetcher(Fetcher):
         ax.imshow(to_plot, origin="lower")
         ax.set_title("Modified")
 
-        to_plot1 = self.quick_filter(self.params.original_image)
+        to_plot1 = self.quick_filter(self.params.raw_image)
         ax1.imshow(to_plot1, origin="lower")
-        ax1.set_title("Original")
+        ax1.set_title("LEV1")
         
         fig.set_size_inches(10,5)
         plt.show()
@@ -279,7 +279,7 @@ class LocalCdfFetcher(Fetcher):
         frame_shape = this_frame.shape
         # Set the Frame
         self.params.modified_image = this_frame+0
-        self.params.original_image = this_frame+0
+        self.params.raw_image = this_frame+0
         
 #         stem = "         Loaded {}A frame of size {}, idx={}"
 #         print(stem.format(this_wave, frame_shape, select_ind))

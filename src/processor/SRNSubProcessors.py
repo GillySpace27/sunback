@@ -98,7 +98,7 @@ class SRNSingleShotProcessor(SRNProcessor):
         
         self.frame_list.append((frame, wave))
         
-#         print("           Storing Frame {}...".format(wave), end='')
+#         print("           Storing Frame {}...".format(wave), pointing_end='')
         if do_plot:
             plt.imshow(frame, origin='lower')
             plt.title(wave)
@@ -189,7 +189,7 @@ class SRNpreProcessor(SRNProcessor):
         not_weak = self.header["EXPTIME"] > 1.0
         set_to_make = self.params.remake_norm_curves() or self.reprocess_mode()
         not_made_yet = not os.path.exists(self.params.curve_path()) or self.outer_min is None
-        frame_is_not_loaded = self.params.original_image is None
+        frame_is_not_loaded = self.params.raw_image is None
         self.go_ahead = not_weak & not_dark and (set_to_make or not_made_yet or frame_is_not_loaded)
         return self.go_ahead
 

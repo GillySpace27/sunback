@@ -53,8 +53,10 @@ class ValidationProcessor(Processor):
 #
     def fetch(self):
         """Do whatever you want to each image_path in the directory"""
-        to_destroy = self.validate_fits()
-        self.destroy_files(to_destroy)
+        print("Old validator tried to run")
+        pass
+        # to_destroy = self.validate_fits()
+        # self.destroy_files(to_destroy)
 #                self.remove_files(local_fits_path)
 #     def cleanup(self):
 #         """Runs once after all the images have been modified with do_work"""
@@ -71,59 +73,59 @@ class ValidationProcessor(Processor):
 #     ## Top-Level ##
 #     ###################
 #
-    def validate_fits(self):
-        import numpy as np
-        if self.params.skip_validation:
-            return []
-        all_fits_paths = self.params.local_fits_paths()
-        n_fits = len(all_fits_paths)
-        destroyed = 0
-        dark = 0
-        missing = 0
-        to_destroy = []
-        print('')
-        for local_fits_path in tqdm(all_fits_paths, desc=" > Validating Fits Files", unit='imgs'):
-        # for local_fits_path in all_fits_paths:
-            delete = False
-            
-            with fits.open(local_fits_path, ignore_missing_end=True) as hdul:
-                hdul.verify('silentfix+warn')
-                
-                #TEST 1 - IS IT A DARK FRAME?
-                img_type = hdul[1].header['IMG_TYPE']
-                if img_type.casefold() == 'dark'.casefold():
-                    delete = True
-                    dark += 1
-                    print("Dark Image Detected")
-                    
-                #TEST 2 - IS FILLED WITH NULLS?
-                frame = hdul[-1].data
-                good_pix = np.sum(np.isfinite(frame))
-                total_pix = frame.shape[0]*frame.shape[1]
-                good_percent = good_pix / total_pix
-                # Dark Frame had 0.37
-                if good_percent < 0.6:
-                    # print("Good Percent: {:0.4f}".format(good_percent))
-                    delete = True
-                    missing += 1
-                    print("Missing Data Detected")
-                hdul.close()
-
-            if delete:
-                to_destroy.append(local_fits_path)
-                destroyed += 1
-                n_fits -= 1
-        if destroyed:
-            print(" ii     Fits Files Validated: {}, Bad Frames: {}\n".format(n_fits, destroyed))
-        else:
-            print(" ii     Fits Files Validated: {}. No Bad Frames!\n".format(n_fits))
-    
-        if missing:
-            print(" ii          > {} missing data".format(missing))
-        if dark:
-            print(" ii          > {} dark frames".format(dark))
-            
-        return to_destroy
+    # def validate_fits(self):
+    #     import numpy as np
+    #     if self.params.skip_validation:
+    #         return []
+    #     all_fits_paths = self.params.local_fits_paths()
+    #     n_fits = len(all_fits_paths)
+    #     destroyed = 0
+    #     dark = 0
+    #     missing = 0
+    #     to_destroy = []
+    #     print('Validation is Running')
+    #     for local_fits_path in tqdm(all_fits_paths, desc=" > Validating Fits Files", unit='imgs'):
+    #     # for local_fits_path in all_fits_paths:
+    #         delete = False
+    #
+    #         with fits.open(local_fits_path, ignore_missing_end=True) as hdul:
+    #             hdul.verify('silentfix+warn')
+    #             self.remove_blank_frames(hdul) # This might not work
+    #             #TEST 1 - IS IT A DARK FRAME?
+    #             img_type = hdul[1].header['IMG_TYPE']
+    #             if img_type.casefold() == 'dark'.casefold():
+    #                 delete = True
+    #                 dark += 1
+    #                 print("Dark Image Detected")
+    #
+    #             #TEST 2 - IS FILLED WITH NULLS?
+    #             frame = hdul[-1].data
+    #             good_pix = np.sum(np.isfinite(frame))
+    #             total_pix = frame.shape[0]*frame.shape[1]
+    #             good_percent = good_pix / total_pix
+    #             # Dark Frame had 0.37
+    #             if good_percent < 0.6:
+    #                 # print("Good Percent: {:0.4f}".format(good_percent))
+    #                 delete = True
+    #                 missing += 1
+    #                 print("Missing Data Detected")
+    #             hdul.close()
+    #
+    #         if delete:
+    #             to_destroy.append(local_fits_path)
+    #             destroyed += 1
+    #             n_fits -= 1
+    #     if destroyed:
+    #         print(" ii     Fits Files Validated: {}, Bad Frames: {}\n".format(n_fits, destroyed))
+    #     else:
+    #         print(" ii     Fits Files Validated: {}. No Bad Frames!\n".format(n_fits))
+    #
+    #     if missing:
+    #         print(" ii          > {} missing data".format(missing))
+    #     if dark:
+    #         print(" ii          > {} dark frames".format(dark))
+    #
+    #     return to_destroy
        
     def destroy_files(self, to_destroy=[]):
         if to_destroy:
@@ -215,8 +217,8 @@ class ValidationProcessor(Processor):
 #         self.file_size = []
 #         for local_file in self.params.local_fits_paths():
 #             if local_file not in self.requested_files:
-#                 start = self.parse_filename_to_time(local_file)
-#                 if start not in self.requested_files:
+#                 pointing_start = self.parse_filename_to_time(local_file)
+#                 if pointing_start not in self.requested_files:
 #                     self.remove_fits_and_png(local_file)
 #             else:
 #                 keep.append(local_file)
@@ -224,7 +226,7 @@ class ValidationProcessor(Processor):
 #             self.params.local_fits_paths(keep)
 #
 #         if len(self.redownload) > 0:
-#             print("        Deleting old files...", end='')
+#             print("        Deleting old files...", pointing_end='')
 #             print("  Success! Deleted {} old images".format(len(self.redownload)))
 #
 #
@@ -300,10 +302,10 @@ class ValidationProcessor(Processor):
 #         self.modified_image = self.modified_image.astype('float32')
 #         self.modified_image[self.modified_image == 0] = np.nan
 #
-#         if self.original_image is None:
-#             self.original_image = self.modified_image + 0
+#         if self.raw_image is None:
+#             self.raw_image = self.modified_image + 0
 #
-#         self.original_flat = self.original_image.flatten()
+#         self.raw_flat = self.raw_image.flatten()
 #         self.changed_flat = self.modified_image.flatten()
 #
 #
@@ -469,7 +471,7 @@ class ValidationProcessor(Processor):
 #
 #         ## Scatter Plot the intensities
 #         skip = 50
-#         ax0.scatter(self.n2r(self.rad_flat[::skip]), self.original_image.flatten()[::skip], c='k', s=2)
+#         ax0.scatter(self.n2r(self.rad_flat[::skip]), self.raw_image.flatten()[::skip], c='k', s=2)
 #
 #         if False:  # get_normed and self.modified_image.flatten() is None:
 #             self.image_modify()
@@ -561,9 +563,9 @@ class ValidationProcessor(Processor):
 #             except OSError as e:
 #                 if first:
 #                     print("\n\n", e)
-#                     print("  !!!!!!! Close the Dang Plot!", end='')
+#                     print("  !!!!!!! Close the Dang Plot!", pointing_end='')
 #                     first = False
-#                 print('.', end='')
+#                 print('.', pointing_end='')
 #
 #     def save_radial_figures(self, do=False, fig=None, ax=None, show=False):
 #         if not do: return

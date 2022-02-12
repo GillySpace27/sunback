@@ -1525,7 +1525,7 @@ def get_cmdclass():
 
     # we override "build_py" in both distutils and setuptools
     #
-    # most invocation pathways end up running build_py:
+    # most invocation pathways pointing_end up running build_py:
     #  distutils/build -> build_py
     #  distutils/install -> distutils/build ->..
     #  setuptools/bdist_wheel -> distutils/install ->..

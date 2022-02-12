@@ -204,7 +204,7 @@ def norm_stretch(in_array, alpha=0.35):
 def many_alphas():
     fig, ax = plt.subplots(1,1)
     
-    for use_equation_num, CurveString, ls, c in zip([1,4], ["Original", "New Roots Idea"], ["-","-"], ["r","b"]):
+    for use_equation_num, CurveString, ls, c in zip([1,4], ["LEV1", "New Roots Idea"], ["-","-"], ["r","b"]):
         demo_plot_many_alphas(axis=ax, ls=ls, c=c, label=CurveString)
     
     ax.legend()
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     pass
     fig, ax = plt.subplots(1,1)
     
-    for use_equation_num, CurveString, ls, c in zip([1,4], ["Original", "New Roots Idea"], ["-","-"], ["r","b"]):
+    for use_equation_num, CurveString, ls, c in zip([1,4], ["LEV1", "New Roots Idea"], ["-","-"], ["r","b"]):
         demo_plot_many_alphas(axis=ax, ls=ls, c=c, first0=first0, label=CurveString)
         first0 = False
         

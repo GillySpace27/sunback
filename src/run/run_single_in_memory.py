@@ -114,4 +114,4 @@ if __name__ == "__main__":
 #     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
 #
 #     # Run the Code
-#     run.Runner(p).start()
+#     run.Runner(p).pointing_start()

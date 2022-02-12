@@ -31,7 +31,7 @@ class ImageProcessor(Processor):
     progress_unit = "Images"
     
     changed = None
-    original = None
+    raw = None
     image_data = None
     show = False
     inches = 10
@@ -69,11 +69,12 @@ class ImageProcessor(Processor):
         # self.load_curves()
         self.fits_path = fits_path or self.fits_path
         self.params.fits_path = self.fits_path
-        if True: #self.params.original_image is None:
-            frame0, _, _, _, _ = self.load_first_fits_field(fits_path)
+        if True: #self.params.raw_image is None:
+            list_of_inputs = ["LEV1p5_T", "LEV1p5_L", "T_Integrated", "LEV1"]
+            frame0, _, _, _, _ = self.load_a_fits_field(fits_path, list_of_inputs)
             frame1, self.wave1, self.t_rec1, center1, int_time = self.load_a_fits_field(fits_path, in_name)
-            self.params.original_image, self.params.modified_image = frame0, frame1
-            self.frame = np.zeros_like(self.params.original_image)
+            self.params.raw_image, self.params.modified_image = frame0, frame1
+            self.frame = np.zeros_like(self.params.raw_image)
         # self.peek_frames()
         self.image_data = str(self.wave1), fits_path, self.t_rec1, frame1.shape
         self.params.make_file_paths(self.image_data)
@@ -91,8 +92,8 @@ class ImageProcessor(Processor):
     def init_image_frame(self):
         """Load the fits file from disk and get a field or two"""
 
-        # self.original, self.changed = self.params.original_image, self.params.modified_image
-        self.frame = np.zeros_like(self.params.original_image)
+        # self.raw, self.changed = self.params.raw_image, self.params.modified_image
+        self.frame = np.zeros_like(self.params.raw_image)
         # self.peek_frames()
         try:
             shape = self.frame.shape
@@ -106,9 +107,9 @@ class ImageProcessor(Processor):
 
     def peek_frames(self):
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex='all', sharey='all')
-        ax1.imshow(self.params.original_image)
+        ax1.imshow(self.params.raw_image)
         ax2.imshow(self.params.modified_image)
-        ax3.imshow(np.abs(self.params.modified_image-self.params.original_image))
+        ax3.imshow(np.abs(self.params.modified_image-self.params.raw_image))
         plt.tight_layout()
         plt.show(block=True)
         
@@ -117,7 +118,7 @@ class ImageProcessor(Processor):
 
     
     def render(self):
-        """Render the original and changed plots"""
+        """Render the raw and changed plots"""
         # Which plots to make?
         if self.skip():
             return False
@@ -171,12 +172,12 @@ class ImageProcessor(Processor):
         cat_path = self.params.cat_path
         
         # Select Paths
-        orig_path = self.path_box[0] if self.path_box else self.get_original_path()
+        orig_path = self.path_box[0] if self.path_box else self.get_raw_path()
         mod_path = self.path_box[1] if self.path_box else self.get_changed_path()
 
-        # Confirm Original
-        original_paths  = [join(orig_dir, x) for x in listdir(orig_dir)]
-        have_orig = orig_path in original_paths
+        # Confirm raw
+        raw_paths  = [join(orig_dir, x) for x in listdir(orig_dir)]
+        have_orig = orig_path in raw_paths
         
         # Confirm Modified
         processed_paths = [join(mod_dir, x) for x in listdir(mod_dir)]
@@ -188,7 +189,7 @@ class ImageProcessor(Processor):
         else:
             return None, None, None
                 
-    def get_original_path(self):
+    def get_raw_path(self):
         if self.params.do_single:
             return self.params.orig_path.replace("orig\\","").replace("image_lev1", "orig")
         else:

@@ -42,7 +42,7 @@ def run_server(delay=10, debug=True, do_one='rainbow', stop=True):
     # else:
     # p.putters([AwsPutter()])  # Uploads the PNGs to AWS
     
-    # Runner(p).start()
+    # Runner(p).pointing_start()
     
     
     # Set the Parameters

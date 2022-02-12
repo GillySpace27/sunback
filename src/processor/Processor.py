@@ -54,7 +54,7 @@ class Processor:
     # current_wave = 'rainbow'
     proc_name = None
     modified_image = None
-    original_image = None
+    raw_image = None
     n_fits = None
     n_imgs = None
     ii = 0
@@ -95,8 +95,8 @@ class Processor:
     short_list = []
     out_dtype = np.float32
     
-    def __init__(self, params=None, quick=False, rp=None):
-        
+    def __init__(self, params=None, quick=False, rp=None, in_name="LEV1"):
+        self.in_name = in_name
         self.header = None
         self.reprocess_mode(rp)
         self.load(params, quick=quick)
@@ -211,8 +211,9 @@ class Processor:
     
     def load_fits_paths(self, absolute=True, ext=".fits"):
         """ Creates a List of the existant fits files in the fits_directory"""
-        paths, abs_paths = self.__find_ext_files_in_directory(self.params.fits_directory(), ext)
-        self.fits_folder = self.params.fits_directory()
+        self.fits_folder = self.params.temp_directory() if self.params.do_temp \
+            else self.params.fits_directory()
+        paths, abs_paths = self.__find_ext_files_in_directory(self.fits_folder, ext)
         out_paths = self.params.local_fits_paths(abs_paths if absolute else paths)
         self.n_fits = self.params.n_fits = len(self.params.local_fits_paths())
         if not self.quietly: ("   Found {} {} Files in {}".format(self.params.n_fits, ext, self.params.fits_directory()))
@@ -247,13 +248,14 @@ class Processor:
         frame, wave, t_rec, center, int_time, img_type = self.load_best_fits_field(self.fits_path, in_name)
         
         if frame is not None and img_type.casefold() != 'dark':
-            self.params.original_image = np.asarray(frame, dtype=np.float32)
-            self.params.original_image2 = np.asarray(frame, dtype=np.float32)
-            # self.params.modified_image = copy(self.params.original_image)
+            self.params.raw_image = np.asarray(frame, dtype=np.float32) +0
+            self.params.raw_image2 = np.asarray(frame, dtype=np.float32)+0
+            if self.params.modified_image is None:
+                self.params.modified_image = copy(self.params.raw_image)+0
             
             self.params.cmap = aia_color_table(int(wave) * u.angstrom)
             
-            #             self.original_flat = self.original_image.flatten()
+            #             self.raw_flat = self.raw_image.flatten()
             #             self.changed_flat = self.modified_image.flatten()
             
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
@@ -283,10 +285,10 @@ class Processor:
     def plot_two(self, name="Algorithm Result", bounds=None):
         fig, (ax0, ax1) = plt.subplots(1,2, sharex=True, sharey=True, num=name)
         
-        org = self.params.original_image
+        org = self.params.raw_image
         mod = self.params.modified_image
         
-        # self.view_original(fig, ax0)
+        # self.view_raw(fig, ax0)
         ax0.imshow(org, cmap = self.params.cmap)
         ax1.imshow(mod, cmap = self.params.cmap)
         
@@ -298,7 +300,7 @@ class Processor:
         #     ax1.set_xlim((3400,4000))
         #     ax1.set_ylim((2300,3200))
         
-        ax0.set_title("Original")
+        ax0.set_title("LEV1")
         ax1.set_title("Changed")
         
         plt.tight_layout()
@@ -312,7 +314,7 @@ class Processor:
     def set_centerpoint(self, center):
         """Parse the centerpoint and ensure correct scaling"""
         self.params.center = center
-        image_edge = self.params.original_image.shape
+        image_edge = self.params.raw_image.shape
         center_given = np.abs(self.params.center)
         
         Top_Tolerance = 0.65
@@ -464,7 +466,7 @@ class Processor:
                 print(" X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(self.skipped))
             else:
                 print(" ^ ^ ^Successfully {} {} Files ({} skipped) \n".format(self.finished_verb, n_success, self.skipped), flush=True)
-                print(" ^ ------------------------------------------------------------------------  ^\n")
+                print(" ^ ---------------------------------------------------------------  ^\n")
         else:
             print(" ^    No Files Found\n")
             
@@ -535,7 +537,74 @@ class Processor:
     def process_one_wavelength(self, wave):
         raise NotImplementedError()
     
-
+    def find_limb_radius(self):
+        # self.load_curves()
+        
+        # self.found_limb_radius = 400 # self.params.found_limb_radius or 1600
+        self.found_limb_radius = self.params.found_limb_radius or 1600
+        self.lCut = int(self.found_limb_radius - 0.01 * self.params.rez)
+        self.hCut = int(self.found_limb_radius + 0.01 * self.params.rez)
+        
+        try:
+            # abss = self.frame_abss
+            use_max = self.outer_max + 0
+            use_min = self.outer_min + 0
+            
+            # outer_mid_abs = abss[self.lCut:self.hCut]
+            
+            outer_mid_max = self.outer_max[self.lCut:self.hCut]
+            inner_mid_max = self.inner_max[self.lCut:self.hCut]
+            inner_mid_min = self.inner_min[self.lCut:self.hCut]
+            outer_mid_min = self.outer_min[self.lCut:self.hCut]
+            
+            outer_mid_max_maxInd = np.argmax(outer_mid_max) + self.lCut
+            inner_mid_max_maxInd = np.argmax(inner_mid_max) + self.lCut
+            inner_mid_min_maxInd = np.argmax(inner_mid_min) + self.lCut
+            outer_mid_min_maxInd = np.argmax(outer_mid_min) + self.lCut
+            
+            self.peak_indList = [outer_mid_max_maxInd, inner_mid_max_maxInd,
+                                 inner_mid_min_maxInd, outer_mid_min_maxInd]
+            self.fit_limb_radius = int(np.round(np.mean(self.peak_indList), 0))
+        except TypeError as e:
+            # print("\r        find_limb_radius failed: ", e)
+            self.fit_limb_radius = self.found_limb_radius
+        
+        self.lCut = int(self.fit_limb_radius - 0.01 * self.params.rez)
+        self.hCut = int(self.fit_limb_radius + 0.00 * self.params.rez)
+    
+    def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
+        """Build an r-coordinate array of shape(in_object)"""
+        if self.params.modified_image is None:
+            self.params.modified_image = self.params.raw_image + 0
+        if self.params.rez is None:
+            self.params.rez = self.params.modified_image.shape[0]
+        if self.params.center is None:
+            self.params.center = [self.params.rez / 2, self.params.rez / 2]
+        
+        self.output_abscissa = np.arange(self.params.rez)
+        self.find_limb_radius()
+        
+        try:
+            self.radius
+        except AttributeError:
+            self.radius = None
+        
+        if self.radius is None or force or self.params.modified_image.shape[0] != self.params.rez:
+            # dprint("init_radius_array")
+            
+            xx, yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
+            xc, yc = xx - self.params.center[0], yy - self.params.center[1]
+            
+            # self.xxyy =
+            self.radius = np.sqrt(xc * xc + yc * yc)
+            self.rad_flat = self.radius.flatten()
+            self.vcut = int(vignette_radius * self.params.rez // 2)
+            self.vrad = self.n2r(self.vcut)
+            self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
+            self.s_radius = s_radius
+            self.tRadius = self.s_radius * t_factor
+            del self.radius
+    
     
     ########################################
     ## M3: Identify Directory of Interest ##
@@ -565,7 +634,7 @@ class Processor:
     ## M4: Save Frame to Fits ##
     ############################
     
-    def save_frame_to_fits_file(self, fits_path, frame, out_name=None, dtype="float32"):
+    def save_frame_to_fits_file(self, fits_path, frame, out_name=None, dtype=None, shrink=True):
         """Save a fits file to disk"""
         # print("Saving Frame to Fits File")
         if out_name is None:
@@ -575,9 +644,13 @@ class Processor:
         good_frame = np.any(frame)
         
         if good_frame:
-            
-            frame2 = frame
-            # frame2 = frame.astype(np.ushort)
+            frame2 = frame + 0
+            # frame2 = frame
+            if "float" in str(frame.dtype):
+                # frame2 *= 10**3
+                frame2 = np.abs(frame2)
+                frame2 = frame2.astype(np.float32)
+                # frame2[0] = 2**16 - 3
             
             with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True) as hdul:
                 hdul.verify('silentfix+ignore')  # Then Verify
@@ -593,7 +666,8 @@ class Processor:
                 hdul[0].header['total_int_time'] = self.int_tm_tot
                 try:
                     hdul.close(output_verify='fix')
-                    print(" ** Saved Frame {}\n".format(field))
+                    if self.params.speak_save:
+                        print(" ** Saved Frame {}\n".format(field))
                 except PermissionError as e:
                     print("Failed to save a file: \n {}".format(fits_path))
     
@@ -636,40 +710,44 @@ class Processor:
             fields = self.load_a_fits_field(fits_path, 1)
         return fields
     
-    def load_a_fits_field(self, fits_path, field=None):
+    def load_a_fits_field(self, fits_path, field=None, quiet=False):
         """Load a fits file from disk"""
         with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
             hdul.verify('silentfix+ignore')  # Verify
             self.list_hdus(hdul)
             # self.in_name = self.find_correct_in_name(hdul)
-            frame = self.load_single_frame(hdul, field)
+            frame = self.load_single_frame(hdul, field, quiet)
             wave, t_rec, center, int_time, self.found_limb_radius = self.get_fits_info(hdul)
-        
         return frame, wave, t_rec, center, int_time
     
-    def load_single_frame(self, hdul, field=None):
-        try:
-            if field is not None:
-                self.in_name = field
-            frame = None
-            if self.in_name is not None:
-                if self.in_name in hdul:
-                    hdu = hdul[self.in_name]
-                elif self.in_name =='original':
-                    in_name = "COMPRESSED_IMAGE"
-                    if in_name in hdul:
-                        hdu = hdul[in_name]
-                else:
-                    hdu = hdul[-1]
-                    self.params.png_frame_name = hdu.name
-                frame = deepcopy(hdu.data)
-            return frame
-        except OSError as e:
-            print(e)
-            return frame
-        except (UnboundLocalError, TypeError) as e:
-            print("load single frame:: ", e)
-            return None
+    def load_single_frame(self, hdul, field=None, quiet=False):
+        if field is not None:
+            self.in_name = field
+
+        data, header = self.open_fits_hdul(hdul, quiet)
+        if data is None:
+            a=1+1
+        return data + 0
+        # try:
+        #     frame = None
+        #     if self.in_name is not None:
+        #         if self.in_name in hdul:
+        #             hdu = hdul[self.in_name]
+        #         elif self.in_name =="LEV1":
+        #             in_name = "COMPRESSED_IMAGE"
+        #             if in_name in hdul:
+        #                 hdu = hdul[in_name]
+        #         else:
+        #             hdu = hdul[-1]
+        #             self.params.png_frame_name = hdu.name
+        #         frame = deepcopy(hdu.data)
+        #     return frame
+        # except OSError as e:
+        #     print(e)
+        #     return frame
+        # except (UnboundLocalError, TypeError) as e:
+        #     print("load single frame:: ", e)
+        #     return None
     
     def load_best_fits_field(self, fits_path, in_name=None):
         """Load a fits file from disk"""
@@ -703,7 +781,7 @@ class Processor:
         to_replace_list = ['COMPRESSED_IMAGE', '']
         for to_replace in to_replace_list:
             if to_replace in hdul:
-                names = ['original']
+                names = ["LEV1"]
                 for ii, item in enumerate(hdul):
                     if item.name == to_replace:
                         if len(names):
@@ -782,7 +860,7 @@ class Processor:
             vprint("Skipping Save Curves!")
     
     # def save_smoothed_curves(self):
-    #     print(" *\n *    Saving Smoothed Curves...", end='')
+    #     print(" *\n *    Saving Smoothed Curves...", pointing_end='')
     #         if self.prep_smooth_save_outs(): #self.do_save:
     #             np.savetxt(self.params.curve_path(), self.curve_out_array)
     #             print("Success!")
@@ -815,10 +893,10 @@ class Processor:
             # self.save_curves()
             
             # if hdul['primary'].data is None:
-            #     hdul['primary'].data = hdul['original'].data + 0
+            #     hdul['primary'].data = hdul["LEV1"].data + 0
             #     hdul[0].name = 'primary'
-            #     hdul['primary'].header = hdul['primary'].header + hdul['original'].header
-            #     del hdul['original']
+            #     hdul['primary'].header = hdul['primary'].header + hdul["LEV1"].header
+            #     del hdul["LEV1"]
             #
             # # hdul.writeto(self.fits_path, output_verify="ignore", overwrite=True)
             #
@@ -884,7 +962,7 @@ class Processor:
         return compressed
     
     def get_fits_info(self, hdul):
-        # Load the original out_array
+        # Load the raw out_array
         wave, t_rec, center, int_time, found_limb_radius = None, None, None, None, None
         ii = 0
         for ii in range(len(hdul)):
@@ -904,24 +982,40 @@ class Processor:
                 continue
         self.first_hIndex = ii
         self.params.found_limb_radius = found_limb_radius
+        self.params.header = self.header
         return wave, t_rec, center, int_time, found_limb_radius
     
-    def open_fits_hdul(self, hdul):
+    def open_fits_hdul(self, hdul, quiet=False):
         """Load a fits file from disk"""
-        
-        if isinstance(self.in_name, type("")):
-            if self.in_name.casefold() in self.hdu_name_list:
-                field_hdu = hdul[self.in_name]
-            else:
-                print("\r *       {} not found, proceeding with {} instead".format(self.in_name, self.hdu_name_list[-1].upper()))
-                self.in_name = -1
         
         if self.in_name is None:
             return None
         
-        if isinstance(self.in_name, type(int(1))):
+        elif isinstance(self.in_name, int):
             field_hdu = hdul[self.hdu_name_list[self.in_name]]
+
+        elif isinstance(self.in_name, str):
+            self.in_name = [self.in_name]
         
+        if isinstance(self.in_name, list):
+            in_list = self.in_name
+            use_name = None
+            lower_hdus = [x.casefold() for x in self.hdu_name_list]
+            for name in self.in_name:
+                name = name.casefold()
+                if name in self.hdu_name_list or name in lower_hdus:
+                    use_name = name
+                    if not quiet:
+                        print(" +    Using frame {}".format(use_name))
+                    break
+            if not use_name:
+                print("\r *       {} not found, proceeding with {} instead".format(
+                        in_list, self.hdu_name_list[-1].upper()))
+                self.in_name = -1
+            self.in_name = use_name
+            self.frame_name=use_name
+            field_hdu = hdul[self.in_name]
+            
         data = None
         header = None
         try:
@@ -929,7 +1023,12 @@ class Processor:
             header = hdul[1].header
         except TypeError:
             vprint("Processor: 911 !Failed to Load Frame!")
+            
+        if data is None:
+            a=1+1
+            
         return data, header
+    
     
     def determine_penultimate_frame_name(self, hdul=None):
         if not self.hdu_name_list:
@@ -1055,8 +1154,8 @@ class Processor:
         return self.params.modified_image
     
     def get_orig(self):
-        """Return just the original_image frome"""
-        return self.params.original_image
+        """Return just the raw_image frome"""
+        return self.params.raw_image
     
     def super_flush(self, txt=None, end=None, many=5):
         """Flush the stdout many times"""
@@ -1068,6 +1167,7 @@ class Processor:
     
     
     def list_hdus(self, hdul):
+        self.remove_blank_frames(hdul) # This might not work
         self.hdu_name_list = [frame.name.casefold() for frame in hdul]
         return self.hdu_name_list
     
@@ -1089,12 +1189,12 @@ class Processor:
             for ff in to_find:
                 self.print_with(HDU, ff)
     
-    def view_original(self, fig=None, ax=None):
+    def view_raw(self, fig=None, ax=None):
         if fig is None and ax is None:
             fig, ax = plt.subplots(num='Input Image')
         ax.set_title("Preview of Start Frame: {}".format(self.params.hdu_name))
-        minmin = np.min(self.params.original_image)
-        img = np.sqrt(np.asarray(self.params.original_image - minmin, dtype=np.float32))
+        minmin = np.min(self.params.raw_image)
+        img = np.sqrt(np.asarray(self.params.raw_image - minmin, dtype=np.float32))
         ax.imshow(img, cmap=self.params.cmap)
     
     def print_without(self, HDU, not_wanted=None):
@@ -1207,7 +1307,132 @@ class Processor:
         # print(" ^    Successfully {} from {} images! ({} skipped)".format(self.finished_verb, ii, self.skipped))
         
         
+    def orig_smasher(self, orig):
+        return np.log10(orig) / 2
+    
+    def touchup_TUNE(self, img):
+        img *= 10.
+        np.power(img, 1 / 3, out=img)
+        img /= 3.5
+        # img += 0.1
         
+        # img[img > 1.] = np.power(img[img > 1.], 1/2)
+        
+        # img *= 1.5
+        # img -= 0.75
+        
+        # img[img < 0.] = 0.
+        # img[img == 0.] = np.nan
+        img[~np.isfinite(img)] = np.nan
+        return img
+    
+    @staticmethod
+    def rolling_window(data, block):
+        shape = data.shape[:-1] + (data.shape[-1] - block + 1, block)
+        strides = data.strides + (data.strides[-1],)
+        return np.lib.stride_tricks.as_strided(data, shape=shape, strides=strides)
+    
+    def despike(self, arr, n1=2.5, n2=40, block=25):
+        # Condition the Input
+        data = arr.copy()
+        data[data == -1] = np.NaN
+        offset = np.nanmin(data)
+        data -= offset
+        roll = self.rolling_window(data, block)
+        roll = np.ma.masked_invalid(roll)
+        std = n1 * roll.std(axis=1)
+        mean = roll.mean(axis=1)
+        # Use the last value to fill-up.
+        std = np.r_[std, np.tile(std[-1], block - 1)]
+        mean = np.r_[mean, np.tile(mean[-1], block - 1)]
+        mask = (np.abs(data - mean.filled(fill_value=np.NaN)) >
+                std.filled(fill_value=np.NaN))
+        data[mask] = np.NaN
+        # Pass two: recompute the mean and std without the flagged values from pass
+        # one now removing the flagged data.
+        roll = self.rolling_window(data, block)
+        roll = np.ma.masked_invalid(roll)
+        std = n2 * roll.std(axis=1)
+        mean = roll.mean(axis=1)
+        # Use the last value to fill-up.
+        std = np.r_[std, np.tile(std[-1], block - 1)]
+        mean = np.r_[mean, np.tile(mean[-1], block - 1)]
+        mask = (np.abs(arr - mean.filled(fill_value=np.NaN)) >
+                std.filled(fill_value=np.NaN))
+        arr[mask] = mean[mask]
+        return arr + offset
+  
+
+    @staticmethod
+    def norm_formula(image, the_min, the_max):
+        """Standard Normalization Formula"""
+        image_flat = image.flatten()
+        diff = np.subtract(the_max, the_min)
+        np.subtract(image_flat, the_min, out=image_flat)
+        np.divide(image_flat, diff, out=image_flat)
+        image = image_flat.reshape(image.shape)
+        return image
+
+    def vignette(self):
+        """Truncate the in_object above a certain radis"""
+        self.params.modified_image[self.vignette_mask] = np.nan
+        self.params.quantile_image[self.vignette_mask] = np.nan
+        self.params.raw_image[self.vignette_mask] = np.nan
+    
+
+    ## Static Methods ##
+    def n2r(self, n):
+        """Convert index to solar radius"""
+        if not self.fit_limb_radius:
+            self.find_limb_radius()
+        if n is None:
+            n = 0
+        r = n / self.fit_limb_radius
+        return r
+    
+    def r2n(self, r):
+        """Convert index to solar radius"""
+        if not self.fit_limb_radius:
+            self.find_limb_radius()
+        n = r * self.fit_limb_radius
+        return n
+    
+    @staticmethod
+    def normalize(image, high=98, low=15):
+        """Normalize the Array"""
+        if low is None:
+            lowP = 0
+        else:
+            lowP = np.nanpercentile(image, low)
+        highP = np.nanpercentile(image, high)
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error')
+            try:
+                out = (image - lowP) / (highP - lowP)
+            except RuntimeWarning as e:
+                out = image
+        return out
+    
+    @staticmethod
+    def fill_end(use):
+        iii = -1
+        val = use[iii]
+        while np.isnan(val):
+            iii -= 1
+            val = use[iii]
+        use[iii:] = val
+        return use
+    
+    @staticmethod
+    def fill_start(use):
+        iii = 0
+        val = use[iii]
+        while np.isnan(val):
+            iii += 1
+            val = use[iii]
+        use[:iii] = val
+        return use
         
         
         

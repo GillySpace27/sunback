@@ -36,7 +36,6 @@ def run_one_multishot_image(batch_name= "Gonzalez", wave=None, config=None, wave
     # Set the Parameters
     p = make_params(batch_name, wave, config, wave_to_use)
     p.do_recent(False)
-    p.skip_validation = True
     p.alpha=alpha
     
     # Set the Processes
@@ -288,4 +287,4 @@ if __name__ == "__main__":
 #     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
 #
 #     # Run the Code
-#     run.Runner(p).start()
+#     run.Runner(p).pointing_start()

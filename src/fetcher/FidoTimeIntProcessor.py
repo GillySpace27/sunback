@@ -103,13 +103,13 @@ class FidoTimeIntProcessor(FidoFetcher):
     def should_do_exposure(self, fits_path):
         """Do we need to do time integration here?"""
         self.keyframe_fits_path = fits_path
-        # in_name = "original_image" # self.set_hdul_in_name(fits_path)
+        # in_name = "raw_image" # self.set_hdul_in_name(fits_path)
         need_exposure = self.params.exposure_time_seconds() > 0
         have_input = True #self.in_name is not None
         already_made = self.out_name in self.hdu_name_list
         
         if already_made:
-            orig, wave, t_rec, center, int_time = self.load_a_fits_field(fits_path,"original")
+            orig, wave, t_rec, center, int_time = self.load_a_fits_field(fits_path,"LEV1")
             tint, wave, t_rec, center, int_time = self.load_a_fits_field(fits_path,"t_integrated")
             if tint is not None:
                 tint *= int_time
@@ -140,7 +140,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         
         keyframe, wave, t_rec, center, t_int = self.load_a_fits_field(fits_path, self.in_name)
         self.orig_t_int = t_int
-        self.params.original_image = keyframe
+        self.params.raw_image = keyframe
         self.params.modified_image = np.zeros_like(keyframe, dtype=np.float32)
 
         # Define new exposure time window
@@ -170,12 +170,12 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.int_tm_tot = 0
         self.n_exposures = 0
         
-        self.params.modified_image = np.zeros_like(self.params.original_image, dtype=np.float32)
+        self.params.modified_image = np.zeros_like(self.params.raw_image, dtype=np.float32)
         exp_paths = [x for x in self.exposure_paths if not os.path.isdir(x)]
         for ii, path in enumerate(tqdm(exp_paths, desc="Summing Frames")):
             try:
                 if not os.path.isdir(path):
-                    frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, "original")
+                    frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, "LEV1", quiet=True)
                     self.orig_t_int = self.orig_t_int or int_time
                     self.params.modified_image += frame
                     self.int_tm_tot += int_time

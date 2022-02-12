@@ -6,6 +6,7 @@ from fetcher.LocalFetcher import LocalFetcher
 from processor.ImageProcessorCV import ImageProcessorCV
 from processor.QRNProcessor import QRNProcessor
 from processor.SRNSubProcessors import SRNradialFiltProcessor, SRNpreProcessor
+from processor.SunPyProcessor import AIA_PREP_Processor
 from processor.ValidationProcessor import ValidationProcessor
 from processor.VideoProcessor import VideoProcessor
 from processor.Processor import Processor
@@ -33,16 +34,17 @@ do_wavelengths = all_wavelengths  # ['0211']
 PNG_FRAME_NAME = 'Quantile' #'SRN'
 # wave_to_use = '0211'
 
-def run_range_multishot_movie(batch_name= "Gonzalez", wave=None, config=None, wave_to_use=None, alpha=0.35):
+def run_range_multishot_movie(batch_name= "Test", wave=None, config=None, wave_to_use=None, alpha=0.35):
     # Set the Parameters
     p = make_params(batch_name, wave, config, wave_to_use)
     p.do_recent(False)
-    p.skip_validation = True
+    p.do_prep = False # Won't do AIA prep upon download of each frame
     p.alpha=alpha
     
     # Set the Processes
     p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
     p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
+    p.processors([AIA_PREP_Processor],         rp=True)   # Do Sunpy Things
 
     p.processors([QRNProcessor],         rp=False)  # Applies the QRN Processor
 
@@ -64,7 +66,7 @@ def make_configs(wave_to_use):
     c0 = {
         "name": "Test",
         "debug": True, "do_one": wave_to_use, "stop": True,
-        "tstart": "2022/01/01 00:00:00", "tend": "2022/01/10 00:00:00",
+        "tstart": "2022/01/01 00:00:00", "tend": "2022/01/3 00:00:00",
         "cadence_minutes": 4*6*60, "fps": 1, "exposure_time": 5*60,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
     }
@@ -292,4 +294,4 @@ if __name__ == "__main__":
 #     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
 #
 #     # Run the Code
-#     run.Runner(p).start()
+#     run.Runner(p).pointing_start()

@@ -41,7 +41,7 @@ class WebFitsFetcher(Fetcher):
         
             self.__get_img_time()
             sys.stdout.flush()
-            print(" *  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
+            print("\r *  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
             return paths
         return self.params.local_fits_paths()
     

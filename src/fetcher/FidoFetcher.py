@@ -8,12 +8,16 @@ from time import strptime, mktime
 import sys
 
 from drms import DrmsExportError
-from parfive import Downloader
 from sunpy.net import Fido, attrs
+from parfive import Downloader
 import numpy as np
 from astropy.io import fits
 from os import stat
+
+from tqdm import tqdm
+
 from fetcher.Fetcher import Fetcher
+from processor.SunPyProcessor import AIA_PREP_Processor
 
 from utils.time_util import parse_time_string_to_local
 import astropy.units as u
@@ -81,14 +85,14 @@ class FidoFetcher(Fetcher):
         # vprint("\r          ")
         time_integrator = type(self) is not FidoFetcher
         
-        vprint(" v Fetching Fits Files: {}".format(self.params.current_wave()), self.verb)
+        out_string = " v Fetching Fits Files: {}  ---------------------------------------------------  v"
+        vprint(out_string.format(self.params.current_wave()), self.verb)
         
         need_file = (self.params.download_files() and not have_file)
         want_to_redo = (self.reprocess_mode() and have_file)
         if need_file or want_to_redo or time_integrator:
             self.print_load_banner(verb=self.verb)
             self.download_fits_series(temp=temp)
-            # self.validate_download()
             # self.enumerate()
         else:
             if self.params.do_single:
@@ -105,6 +109,7 @@ class FidoFetcher(Fetcher):
         if self.fido_search_found_num:
             self.fido_parse_result()
             self.fido_download_fits_ensured(temp, hold)
+            self.validate_download()
         else:
             print("\n     No Images Found\n")
     
@@ -120,12 +125,6 @@ class FidoFetcher(Fetcher):
         wave_attr = attrs.Wavelength(int(self.params.current_wave()) * u.angstrom)
         sample_attr = attrs.Sample(self.params.cadence_minutes())
         base_attrs = time_attr & wave_attr & sample_attr
-        
-        # from sunpy.net.attrs import Instrument
-        # from sunpy.net.jsoc.attrs import Keys
-        # Search for records from the internet
-        
-        # attrs.jsoc.Keys
         
         if self.params.do_recent():
             inst_attr = attrs.Instrument.aia
@@ -227,16 +226,24 @@ class FidoFetcher(Fetcher):
     
     def get_start_and_end_times_from_result(self):
         # self.verb = True
-        all_times = self.fido_search_result.get_response(0)
+        try:
+            all_times = self.fido_search_result.get_response(0)
+        except AttributeError as e:
+            all_times = self.fido_search_result
+            
         start_time_list = []
         # end_time_list = []
         for result in all_times:
             try:
-                start_time_list.append(result["T_REC"])
+                try:
+                    start_time_list.append(result["T_REC"][0])
+                except Exception as e:
+                    start_time_list.append(result["T_REC"])
+                    raise e
             except KeyError:
                 start_time_list.append(result["Start Time"].value)
             
-            # end_time_list.append(result.time.end)
+            # end_time_list.append(result.time.pointing_end)
         
         times = sorted(start_time_list)
         time_start = times[0]
@@ -257,7 +264,7 @@ class FidoFetcher(Fetcher):
     
     def multi_banner(self):
         if self.n_fits == self.fido_search_found_num:
-            print(" ^     Successfully Downloaded all {} Files\n".format(self.n_fits), flush=True)
+            print("\r ^     Successfully Downloaded all {} Files\n".format(self.n_fits), flush=True)
         elif self.n_fits:
             print(" ^     Downloaded {} Files out of {}\n".format(self.n_fits, self.fido_search_found_num), flush=True)
         else:
@@ -267,6 +274,68 @@ class FidoFetcher(Fetcher):
     
     # Validation
     def validate_download(self):
+        if self.params.do_prep:
+            self.params.speak_save=False
+            AIA_PREP_Processor(params=self.params, rp=True).process()
+
+
+
+    def validate_fits(self):
+        import numpy as np
+        if True:
+            return []
+        all_fits_paths = self.params.local_fits_paths()
+        n_fits = len(all_fits_paths)
+        destroyed = 0
+        dark = 0
+        missing = 0
+        to_destroy = []
+        print('Validation is Running')
+        for local_fits_path in tqdm(all_fits_paths, desc=" > Validating Fits Files", unit='imgs'):
+        # for local_fits_path in all_fits_paths:
+            delete = False
+            
+            with fits.open(local_fits_path, ignore_missing_end=True) as hdul:
+                hdul.verify('silentfix+warn')
+                self.remove_blank_frames(hdul) # This might not work
+                #TEST 1 - IS IT A DARK FRAME?
+                img_type = hdul[1].header['IMG_TYPE']
+                if img_type.casefold() == 'dark'.casefold():
+                    delete = True
+                    dark += 1
+                    print("Dark Image Detected")
+                    
+                #TEST 2 - IS FILLED WITH NULLS?
+                frame = hdul[-1].data
+                good_pix = np.sum(np.isfinite(frame))
+                total_pix = frame.shape[0]*frame.shape[1]
+                good_percent = good_pix / total_pix
+                # Dark Frame had 0.37
+                if good_percent < 0.6:
+                    # print("Good Percent: {:0.4f}".format(good_percent))
+                    delete = True
+                    missing += 1
+                    print("Missing Data Detected")
+                hdul.close()
+
+            if delete:
+                to_destroy.append(local_fits_path)
+                destroyed += 1
+                n_fits -= 1
+        if destroyed:
+            print(" ii     Fits Files Validated: {}, Bad Frames: {}\n".format(n_fits, destroyed))
+        else:
+            print(" ii     Fits Files Validated: {}. No Bad Frames!\n".format(n_fits))
+    
+        if missing:
+            print(" ii          > {} missing data".format(missing))
+        if dark:
+            print(" ii          > {} dark frames".format(dark))
+            
+        return to_destroy
+
+
+
         # try:
         #     self.set_output_paths()
         # except:
@@ -274,7 +343,8 @@ class FidoFetcher(Fetcher):
         # self.list_requested_files()
         # self.local_fits_paths = list_files_in_directory(self.fits_folder)
         
-        pass
+        
+        # pass
         
         # if self.params.delete_old():
         #     self.remove_all_old_fits_pngs()
@@ -289,6 +359,37 @@ class FidoFetcher(Fetcher):
         
         # self.find_missing_images()
         # self.get_missing_images()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
     def list_requested_files(self):
         self.requested_files = []

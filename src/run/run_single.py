@@ -3,6 +3,7 @@ from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from fetcher.LocalFetcher import LocalSingleFetcher
 from processor.ImageProcessorCV import ImageProcessorCV
 from processor.QRNProcessor import QRNProcessor
+from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor
 from science.parameters import Parameters
 from run import SingleRunner
 import matplotlib.pyplot as plt
@@ -10,7 +11,7 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_single(wave="0304", tstart="2013-09-29T13:30:00", duration_seconds=30, frames=3):
+def run_single(wave="0304", tstart="2013-09-29T13:30:00", duration_seconds=60, frames=None):
     """Download a single image and time-integrate it, then apply QRN
         :type wave: strings
         :type tstart: string
@@ -18,12 +19,15 @@ def run_single(wave="0304", tstart="2013-09-29T13:30:00", duration_seconds=30, f
         :type frames: int
     """
     # Set the Parameters
-    p = default_run_single_params(wave, tstart, duration_seconds, frames)
+    name = "Single_Test"
+    p = default_run_single_params(wave, tstart, duration_seconds, frames, name)
+    p.do_prep = False # Won't do AIA prep upon download of each frame
     
     # Set the Processes
-    p.fetchers(FidoFetcher,                rp=True)  # Gets the desired file
-    p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
-    p.processors([QRNProcessor],           rp=True)  # Applies the SRN Filter
+    # p.fetchers(FidoFetcher,                rp=True)  # Gets the desired file
+    # p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
+    # p.processors([AIA_PREP_Processor],         rp=True)   # Do Sunpy Things
+    # p.processors([QRNProcessor],           rp=True)  # Applies the SRN Filter
     p.putters(ImageProcessorCV,            rp=True)  # Makes the PNGs from Fits
     
     # Run the Code
@@ -64,7 +68,7 @@ if __name__ == "__main__":
     # Do something if this file is invoked on its own
     
     # all_wavelengths = ['0193', '0211', '0131', '0335', '0094','0304','0171', ]
-    do_wavelengths = ["0304", "0171"] #,  "0304"]
+    do_wavelengths = ['0304'] #,  "0304"]
     
     for wave_to_use in do_wavelengths:
         run_single(wave=wave_to_use)
@@ -138,4 +142,4 @@ if __name__ == "__main__":
 #     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
 #
 #     # Run the Code
-#     run.Runner(p).start()
+#     run.Runner(p).pointing_start()

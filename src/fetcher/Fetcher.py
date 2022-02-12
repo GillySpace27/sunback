@@ -12,6 +12,7 @@ class Fetcher(Processor):
     def __init__(self, params=None, quick=False, rp=None):
         # Initialize class variables
         super().__init__(params, quick, rp)
+        self.frame_count = 0
         # self.load(params)
     
     def more_init(self):
@@ -55,8 +56,11 @@ class Fetcher(Processor):
                     wave=wave[1:]
                 right_wave = [wave in x for x in possible]
                 loc2 = np.where(right_wave)[0]
-                if len(loc2):
+                if len(loc2) == 1:
                     use_index = int(locs[loc2])
+                elif len(loc2) > 1:
+                    use_index = int(locs[loc2[self.frame_count]])
+                    self.frame_count += 1
                 else:
                     return False
             else:

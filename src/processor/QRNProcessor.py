@@ -59,7 +59,7 @@ class QRNProcessor(Processor):
         
         self.radius = None
         # Ingest
-        self.in_name = in_name
+        self.in_name = ["LEV1p5_T","LEV1p5_L", "T_Integrated", "LEV1"]
         self.fits_path = fits_path
         self.show = show
         self.verb = verb
@@ -212,7 +212,7 @@ class QRNProcessor(Processor):
         not_weak = self.header["EXPTIME"] > 1.0
         set_to_make = self.params.remake_norm_curves() or self.reprocess_mode()
         not_made_yet = not os.path.exists(self.params.curve_path()) or self.outer_min is None
-        frame_is_not_loaded = self.params.original_image is None
+        frame_is_not_loaded = self.params.raw_image is None
         self.go_ahead = not_weak & not_dark and (set_to_make or not_made_yet or frame_is_not_loaded)
         return self.go_ahead
     
@@ -310,7 +310,7 @@ class QRNProcessor(Processor):
     def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
         if self.params.modified_image is None:
-            self.params.modified_image = self.params.original_image + 0
+            self.params.modified_image = self.params.raw_image + 0
         if self.params.rez is None:
             self.params.rez = self.params.modified_image.shape[0]
         if self.params.center is None:
@@ -458,22 +458,22 @@ class QRNProcessor(Processor):
         # plt.show()
         # plt.figure()
         
-        # image_shape = self.params.original_image2.shape
-        # flat_original = self.params.original_image2.flatten() + 0
+        # image_shape = self.params.raw_image2.shape
+        # flat_raw = self.params.raw_image2.flatten() + 0
         
         # top_half =
         # bot_half =
-        # percentile_image_flat = stats.rankdata(flat_original, "average")/len(flat_original)
+        # percentile_image_flat = stats.rankdata(flat_raw, "average")/len(flat_raw)
         # plt.imshow(self.params.quantile_image, origin="lower")
         # plt.show()
         
-        # percentile_image_flat = stats.rankdata(flat_original, "average")/len(flat_original)
+        # percentile_image_flat = stats.rankdata(flat_raw, "average")/len(flat_raw)
         # self.params.percentile_image = percentile_image_flat.reshape(image_shape)
         
         self.params.percentile_image = self.params.quantile_image
         
-        # original = flat_original.reshape(image_shape)
-        # plt.imshow(self.orig_smasher(original), vmin=0, vmax=1)
+        # raw = flat_raw.reshape(image_shape)
+        # plt.imshow(self.orig_smasher(raw), vmin=0, vmax=1)
         # plt.imshow(self.params.modified_image,origin='lower', vmin=0, vmax=1)
         # plt.show(block=True)
     
@@ -490,21 +490,21 @@ class QRNProcessor(Processor):
         self.skip_points = 10 if self.params.rez < 3000 else 300
         
         # Gather Points to Display
-        flat_original = self.params.original_image2.flatten() + 0
+        flat_raw = self.params.raw_image2.Fflatten() + 0
         flat_sunback = self.params.modified_image.flatten() + 0
         flat_percentilize = self.params.percentile_image.flatten() + 0
         
         # Take a short subset of the points
         absiss = self.n2r(self.rad_flat[::self.skip_points])
         
-        original_short_points = self.orig_smasher(flat_original[::self.skip_points])
+        raw_short_points = self.orig_smasher(flat_raw[::self.skip_points])
         sunback_short_points = flat_sunback[::self.skip_points]
         percentile_short_points = flat_percentilize[::self.skip_points]
         
         # Plot Scatter Plots
         blk_alpha = 0.4
-        axA.set_title("log10(Original)/2")
-        axA.scatter(absiss, original_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
+        axA.set_title("log10(raw)/2")
+        axA.scatter(absiss, raw_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
         
         axB.set_title("Sunback")
         axB.scatter(absiss, sunback_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
@@ -549,7 +549,7 @@ class QRNProcessor(Processor):
         ## Plot Images
         ax1, ax2, ax3 = axes
         
-        ax1.imshow(self.orig_smasher(self.params.original_image2), origin='lower', cmap='gray', vmin=0, vmax=1)
+        ax1.imshow(self.orig_smasher(self.params.raw_image2), origin='lower', cmap='gray', vmin=0, vmax=1)
         ax2.imshow(self.params.modified_image, origin='lower', cmap='gray', vmin=0, vmax=1)
         ax3.imshow(self.params.percentile_image, origin='lower', cmap='gray', vmin=0, vmax=1)
     
@@ -615,11 +615,11 @@ class QRNProcessor(Processor):
         
         # Plot Scatter Points
         self.skip_points = 10 if self.params.rez < 3000 else 50  # TODO Make this sample better, linear isn't appropriate because its a circle
-        scat = self.params.original_image2.flatten()
+        scat = self.params.raw_image2.flatten()
         blk_alpha = 0.4
         ax.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat[::self.skip_points], c='k', s=4, alpha=blk_alpha, edgecolors='none', label="2. SRN")
         
-        # self.touchup_TUNE(self.params.original_image+0)
+        # self.touchup_TUNE(self.params.raw_image+0)
         
         ## Plot Formatting
         ax.set_ylabel("Intensity")
@@ -787,7 +787,7 @@ class QRNProcessor(Processor):
     
     def radial_statistics(self):  # TODO Make this much faster
         """ Find the statistics in each radial bin"""
-        self.params.quantile_image = copy(self.params.original_image.flatten())
+        self.params.quantile_image = copy(self.params.raw_image.flatten())
         for ii, bin_list in enumerate(self.radBins):
             self.store_bin_array(ii)
         self.finalize_radial_statistics()
@@ -833,40 +833,7 @@ class QRNProcessor(Processor):
         
         self.vignette()
     
-    def find_limb_radius(self):
-        # self.load_curves()
-        
-        # self.found_limb_radius = 400 # self.params.found_limb_radius or 1600
-        self.found_limb_radius = self.params.found_limb_radius or 1600
-        self.lCut = int(self.found_limb_radius - 0.01 * self.params.rez)
-        self.hCut = int(self.found_limb_radius + 0.01 * self.params.rez)
-        
-        try:
-            # abss = self.frame_abss
-            use_max = self.outer_max + 0
-            use_min = self.outer_min + 0
-            
-            # outer_mid_abs = abss[self.lCut:self.hCut]
-            
-            outer_mid_max = self.outer_max[self.lCut:self.hCut]
-            inner_mid_max = self.inner_max[self.lCut:self.hCut]
-            inner_mid_min = self.inner_min[self.lCut:self.hCut]
-            outer_mid_min = self.outer_min[self.lCut:self.hCut]
-            
-            outer_mid_max_maxInd = np.argmax(outer_mid_max) + self.lCut
-            inner_mid_max_maxInd = np.argmax(inner_mid_max) + self.lCut
-            inner_mid_min_maxInd = np.argmax(inner_mid_min) + self.lCut
-            outer_mid_min_maxInd = np.argmax(outer_mid_min) + self.lCut
-            
-            self.peak_indList = [outer_mid_max_maxInd, inner_mid_max_maxInd,
-                                 inner_mid_min_maxInd, outer_mid_min_maxInd]
-            self.fit_limb_radius = int(np.round(np.mean(self.peak_indList), 0))
-        except TypeError as e:
-            # print("\r        find_limb_radius failed: ", e)
-            self.fit_limb_radius = self.found_limb_radius
-        
-        self.lCut = int(self.fit_limb_radius - 0.01 * self.params.rez)
-        self.hCut = int(self.fit_limb_radius + 0.00 * self.params.rez)
+
     
     ###################################
     ## Smoothed Normalization Curve Stuff ##
@@ -1214,7 +1181,7 @@ class QRNProcessor(Processor):
     
     def coronagraph_touchup_TUNE(self):
         """Deal with pixel outliers. Lots of adjustable parameters in here"""
-        self.touchup_TUNE(self.params.original_image)
+        self.touchup_TUNE(self.params.raw_image)
         self.touchup_TUNE(self.params.modified_image)
         # neg = self.modified_image<0
         # neg_pts = self.modified_image[neg]
@@ -1337,7 +1304,7 @@ class QRNProcessor(Processor):
         self.grid_mask = self.get_mask(self.params.modified_image, force=True)
         
         if self.grid_mask is not None:
-            self.params.modified_image[self.grid_mask] = self.params.original_image[self.grid_mask]
+            self.params.modified_image[self.grid_mask] = self.params.raw_image[self.grid_mask]
     
     def mirror_output(self, do_mirror=None):
         # Allows you to mirror horizontally, with only one half rfeduced
@@ -1438,7 +1405,7 @@ class QRNProcessor(Processor):
         """Truncate the in_object above a certain radis"""
         self.params.modified_image[self.vignette_mask] = np.nan
         self.params.quantile_image[self.vignette_mask] = np.nan
-        self.params.original_image[self.vignette_mask] = np.nan
+        self.params.raw_image[self.vignette_mask] = np.nan
     
     ########################
     ## Plotting Stuff ##
@@ -1461,8 +1428,8 @@ class QRNProcessor(Processor):
         ########################
         self.plot_norm_curves(fig=fig, ax=ax0, save=False, smooth=True, extra=False, raw=False)
         
-        # Plot Scattered Points from the original image_path in midnightblue
-        orig_abs = self.params.original_image.flatten()
+        # Plot Scattered Points from the raw image_path in midnightblue
+        orig_abs = self.params.raw_image.flatten()
         ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
         
@@ -1479,13 +1446,13 @@ class QRNProcessor(Processor):
         ## Plot 1: Normalized ##
         ########################
         
-        # # Plot Scattered Points from the original image_path in midnightblue
+        # # Plot Scattered Points from the raw image_path in midnightblue
         # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
         #             alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
         #
-        # # Plot Scattered Points from the original image_path but rooted, in red
-        # self.touchup_TUNE(self.params.original_image)
-        # scat2 = self.params.original_image.flatten()
+        # # Plot Scattered Points from the raw image_path but rooted, in red
+        # self.touchup_TUNE(self.params.raw_image)
+        # scat2 = self.params.raw_image.flatten()
         # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
         #             alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
         #
@@ -1565,8 +1532,8 @@ class QRNProcessor(Processor):
         # ax1.set_xticks(locs)
         # ax1.set_xticklabels(self.n2r(locs))
         # ax.axvline(self.tRadius, c='r')
-        # original_touch = self.params.original_image+0
-        # self.touchup_TUNE(original_touch)
+        # raw_touch = self.params.raw_image+0
+        # self.touchup_TUNE(raw_touch)
     
     def plot_full_normalization(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
@@ -1594,9 +1561,9 @@ class QRNProcessor(Processor):
             ax0.axvline(self.n2r(self.lCut), ls=":")
             ax0.axvline(self.n2r(self.hCut), ls=":")
         
-        # Plot Scattered Points from the original image_path in midnightblue
+        # Plot Scattered Points from the raw image_path in midnightblue
         
-        orig_abs = self.params.original_image.flatten()
+        orig_abs = self.params.raw_image.flatten()
         # ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
         #             alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3)
         
@@ -1604,16 +1571,16 @@ class QRNProcessor(Processor):
         ## Plot 1: Normalized ##
         ########################
         
-        # Plot Scattered Points from the original image_path in midnightblue
-        do_original_scatter = False
-        if do_original_scatter:
+        # Plot Scattered Points from the raw image_path in midnightblue
+        do_raw_scatter = False
+        if do_raw_scatter:
             ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
                         alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
         
-        # Plot Scattered Points from the original image_path but rooted, in red
+        # Plot Scattered Points from the raw image_path but rooted, in red
         do_red_points = False
         if do_red_points:
-            scat2 = self.params.original_image.flatten()
+            scat2 = self.params.raw_image.flatten()
             ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
                         alpha=red_alpha, edgecolors='none', c='r', s=3, zorder=0, label="1. INT+ROOT")
         
@@ -1680,8 +1647,8 @@ class QRNProcessor(Processor):
         # ax1.set_xticks(locs)
         # ax1.set_xticklabels(self.n2r(locs))
         # ax.axvline(self.tRadius, c='r')
-        # original_touch = self.params.original_image+0
-        # self.touchup_TUNE(original_touch)
+        # raw_touch = self.params.raw_image+0
+        # self.touchup_TUNE(raw_touch)
     
     def plot_full_normalization_server(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
@@ -1705,23 +1672,23 @@ class QRNProcessor(Processor):
             ax0.axvline(self.n2r(self.lCut), ls=":")
             ax0.axvline(self.n2r(self.hCut), ls=":")
         
-        # Plot Scattered Points from the original image_path in midnightblue
-        flat_original = self.params.original_image.flatten()
-        ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_original[::self.skip_points],
+        # Plot Scattered Points from the raw image_path in midnightblue
+        flat_raw = self.params.raw_image.flatten()
+        ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_raw[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
         
         ########################
         ## Plot 1: Normalized ##
         ########################
         
-        # Plot Scattered Points from the original image_path in midnightblue
-        #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_original[::self.skip_points], zorder=-1,
+        # Plot Scattered Points from the raw image_path in midnightblue
+        #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_raw[::self.skip_points], zorder=-1,
         #                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
         
-        # Plot Scattered Points from the original image_path but rooted, in red
-        flat_original = self.params.original_image.flatten()
-        touched_original = self.touchup(self.params.original_image + 0)
-        #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), touched_original[::self.skip_points],
+        # Plot Scattered Points from the raw image_path but rooted, in red
+        flat_raw = self.params.raw_image.flatten()
+        touched_raw = self.touchup(self.params.raw_image + 0)
+        #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), touched_raw[::self.skip_points],
         #                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
         
         # Plot Scattered Points from the final modified image_path, in black
@@ -1789,8 +1756,8 @@ class QRNProcessor(Processor):
             ax0.axvline(self.n2r(self.lCut), ls=":")
             ax0.axvline(self.n2r(self.hCut), ls=":")
         
-        # Plot Scattered Points from the original image_path in midnightblue
-        orig_abs = self.params.original_image.flatten()
+        # Plot Scattered Points from the raw image_path in midnightblue
+        orig_abs = self.params.raw_image.flatten()
         ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
         
@@ -1798,13 +1765,13 @@ class QRNProcessor(Processor):
         ## Plot 1: Normalized ##
         ########################
         
-        # Plot Scattered Points from the original image_path in midnightblue
+        # Plot Scattered Points from the raw image_path in midnightblue
         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
         
-        # Plot Scattered Points from the original image_path but rooted, in red
-        self.touchup(self.params.original_image)
-        scat2 = self.params.original_image.flatten()
+        # Plot Scattered Points from the raw image_path but rooted, in red
+        self.touchup(self.params.raw_image)
+        scat2 = self.params.raw_image.flatten()
         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
         
@@ -1869,8 +1836,8 @@ class QRNProcessor(Processor):
     # ax1.set_xticks(locs)
     # ax1.set_xticklabels(self.n2r(locs))
     # ax.axvline(self.tRadius, c='r')
-    # original_touch = self.params.original_image+0
-    # self.touchup(original_touch)
+    # raw_touch = self.params.raw_image+0
+    # self.touchup(raw_touch)
     
     def force_save_radial_figures(self, save, fig, ax0, show):
         first = True

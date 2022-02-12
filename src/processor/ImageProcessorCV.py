@@ -17,6 +17,7 @@ class ImageProcessorCV(ImageProcessor):
         self.frame_name = None
         self.img_frame = None
         self.out_path = None
+        self.in_name = -1
         
     
     def do_fits_function(self, fits_path, in_name=None):
@@ -36,15 +37,15 @@ class ImageProcessorCV(ImageProcessor):
         raise NotImplementedError
     
     def display_all(self):
-        self.display_original()
+        self.display_raw()
         self.display_changed()
         
-    def display_original(self):
-        print("Original")
-        self.frame = np.flipud(self.params.original_image)
+    def display_raw(self):
+        print("LEV1")
+        self.frame = np.flipud(self.params.raw_image)
         self.prep_save()
         plt.imshow(self.frame)
-        plt.title("Original")
+        plt.title("LEV1")
         plt.show(block=True)
         
     def display_changed(self):
@@ -57,7 +58,7 @@ class ImageProcessorCV(ImageProcessor):
         
     def render_all(self):
         """Render one image_path"""
-        self.plot_aia_original()
+        self.plot_aia_raw()
         self.plot_aia_changed()
         # self.save_concatinated()
         
@@ -81,14 +82,16 @@ class ImageProcessorCV(ImageProcessor):
         shutil.copyfile(src_file, dest_file, follow_symlinks=True)
         # self.make_shortcut(src_file,dest_file , False)
     
-    def plot_aia_original(self):
-        """Plot the original_image data from AIA"""
+    def plot_aia_raw(self):
+        """Plot the raw_image data from AIA"""
         # Get the Frame and Path
-        self.frame_name = "t_integrated"
+        # self.frame_name = "t_integrated"
+        self.frame_name = ["LEV1p5_T", "LEV1p5_L", "T_Integrated", "LEV1"]
+        
         frame, wave, t_rec, center, int_time = self.load_a_fits_field(self.fits_path, self.frame_name)
         self.frame = np.flipud(frame)
-        # self.frame = np.flipud(self.params.original_image)
-        self.out_path = self.get_original_path()
+        # self.frame = np.flipud(self.params.raw_image)
+        self.out_path = self.get_raw_path()
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
         
         self.prep_save()
@@ -115,9 +118,10 @@ class ImageProcessorCV(ImageProcessor):
     
     def make_image(self):
         out = self.frame + 0
-        maxmax = np.nanpercentile(out, 95)
+        maxmax = np.nanpercentile(out, 99)
         minmin = np.nanpercentile(out, 1)
         themax = np.nanmax(out)
+        
         if themax > 100 or themax < 0.8:
             out = (self.frame-minmin)/(maxmax-minmin)
             print("\nRenormalizing", maxmax, minmin, np.max(out), np.min(out))
