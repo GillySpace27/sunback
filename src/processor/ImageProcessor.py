@@ -189,9 +189,9 @@ class ImageProcessor(Processor):
         else:
             return None, None, None
                 
-    def get_raw_path(self):
+    def get_raw_path(self, mod=False):
         if self.params.do_single:
-            return self.params.orig_path.replace("orig\\","").replace("image_lev1", "orig")
+            return self.params.orig_path.replace("orig\\","").replace("image_lev1", mod if mod else "raw")
         else:
             return self.params.orig_path
     

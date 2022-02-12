@@ -59,6 +59,7 @@ class ImageProcessorCV(ImageProcessor):
     def render_all(self):
         """Render one image_path"""
         self.plot_aia_raw()
+        self.plot_aia_log()
         self.plot_aia_changed()
         # self.save_concatinated()
         
@@ -89,11 +90,28 @@ class ImageProcessorCV(ImageProcessor):
         self.frame_name = ["LEV1p5_T", "LEV1p5_L", "T_Integrated", "LEV1"]
         
         frame, wave, t_rec, center, int_time = self.load_a_fits_field(self.fits_path, self.frame_name)
+        # frame = np.log10(frame)
+        # frame = frame / np.nanpercentile(frame, 50)/2
+        self.frame = np.flipud(frame)
+        # self.frame = np.flipud(self.params.raw_image)
+        self.out_path = self.get_raw_path()
+        os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
+        self.vignette()
+        self.prep_save()
+        self.img_save(self.out_path)
+
+    def plot_aia_log(self):
+        """Plot the raw_image data from AIA"""
+        # Get the Frame and Path
+        # self.frame_name = "t_integrated"
+        self.frame_name = ["LEV1p5_T", "LEV1p5_L", "T_Integrated", "LEV1"]
+        
+        frame, wave, t_rec, center, int_time = self.load_a_fits_field(self.fits_path, self.frame_name)
         frame = np.log10(frame)
         frame = frame / np.nanpercentile(frame, 50)/2
         self.frame = np.flipud(frame)
         # self.frame = np.flipud(self.params.raw_image)
-        self.out_path = self.get_raw_path()
+        self.out_path = self.get_raw_path(mod='log')
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
         self.vignette()
         self.prep_save()
@@ -142,7 +160,21 @@ class ImageProcessorCV(ImageProcessor):
         
         self.prep_save()
         self.img_save(self.out_path)
-        
+ 
+    # def plot_aia_changed(self):
+    #     """Plot the modified_image data from AIA"""
+    #     # Get the Frame and Path
+    #     self.frame_name = self.params.png_frame_name #.hdu_name_list[-1]
+    #     self.frame = np.flipud(self.params.modified_image)
+    #     self.out_path = self.get_changed_path()
+    #     out_dir = os.path.dirname(self.out_path)
+    #     os.makedirs(out_dir, exist_ok=True)
+    #     print("Saving to {}".format(self.out_path))
+    #     self.vignette()
+    #
+    #     self.prep_save()
+    #     self.img_save(self.out_path)
+    
     
     def prep_save(self):
         self.make_image()

@@ -109,7 +109,7 @@ class AIA_PREP_Processor(SunPyProcessor):
         self.pointing_table = None
         self.pointing_end = None
         self.pointing_start = None
-        self.in_name_possibles  = ["Quantile", "T_Integrated", "LEV1"]
+        self.in_name_possibles  = ["Quantile", "T_Integrated", "LEV1", "T_Integrated"]
         self.in_name = ["Quantile", "T_Integrated", "LEV1"]
         self.out_name_stem = "LEV1p5_{}"
         self.params.modified_image = None
