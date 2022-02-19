@@ -531,15 +531,8 @@ class QRNProcessor(Processor):
         
         from utils.stretch_intensity_module import norm_stretch
         self.params.quantile_image = norm_stretch(self.params.quantile_image, alpha=self.params.alpha)
-        
-        self.vignette()
     
-    
-    def vignette(self):
-        """Truncate the in_object above a certain radis"""
-        self.params.modified_image[self.vignette_mask] = np.nan
-        self.params.quantile_image[self.vignette_mask] = np.nan
-        self.params.raw_image[self.vignette_mask] = np.nan
+
     
     ########################
     ## Plotting Stuff ##

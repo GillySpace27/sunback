@@ -371,24 +371,34 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.count += 1
         
     def finalize_plot(self):
-        self.fig.set_size_inches(8,8)
+        self.fig.set_size_inches(10,8)
         plt.tight_layout()
         # plt.show(block="True")
-        
-        save_path = os.path.join(self.params.imgs_top_directory(), "quad.png" )
+        import time
+        now = int(np.round(time.time() - 1645314148))
+        save_path = os.path.join(self.params.imgs_top_directory(), "{}_quad.png".format(now) )
+        plt.tight_layout()
         self.fig.savefig(save_path, dpi=1000)
         
-        save_path = os.path.join(self.params.imgs_top_directory(), "quad_zoom.png" )
+        save_path = os.path.join(self.params.imgs_top_directory(), "{}_quad_zoom.png".format(now) )
         plt.xlim((3250,4000))
         plt.ylim((2250,3000))
+        plt.tight_layout()
         self.fig.savefig(save_path, dpi=1000)
+ 
+        save_path = os.path.join(self.params.imgs_top_directory(), "{}_quad_zoom2.png".format(now) )
+        plt.xlim((2404,3500))
+        plt.ylim((3000,4096))
+        plt.tight_layout()
+        self.fig.savefig(save_path, dpi=1000)
+ 
         
         plt.close(self.fig)
 
 
     def frame_touchup(self, frame_name, frame):
         frame[~np.isfinite(frame)] = np.nan
-        
+        # return frame
         if frame_name is not "quantile":
             # Do Power and scale
             frame = np.power(frame, 1/3)
@@ -404,7 +414,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
             # Replace the Disk
             self.init_radius_array()
             mask = self.radius < self.found_limb_radius*1.01
-            frame[mask] = self.base_image[mask]
+            frame[mask] = 0.5 #self.base_image[mask]
 
         darken_rfilt = 1.2
         darken_quant = 1.1

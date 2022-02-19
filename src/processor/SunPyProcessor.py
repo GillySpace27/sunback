@@ -1,6 +1,6 @@
 import os
 from copy import copy
-from datetime import time
+import time
 from os import makedirs
 from os.path import join, dirname, basename
 import matplotlib.pyplot as plt
@@ -65,7 +65,7 @@ class SunPyProcessor(Processor):
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
-        self.radial_bin_edges = equally_spaced_bins(nbins=100) * u.R_sun
+        self.radial_bin_edges = equally_spaced_bins(inner_value=0, nbins=200) * u.R_sun
         self.in_name = in_name or ["lev1p5_t_int",  "lev1_t_int", "lev1p5_single", "lev1_single"]
         
     
@@ -259,7 +259,8 @@ class NRGFProcessor(SunPyProcessor):
         print(" * Starting Filter...", end='')
         import time
         tm = time.time()
-        self.params.modified_image = radial.nrgf(aia_map, self.radial_bin_edges).data
+        self.params.modified_image = radial.nrgf(aia_map,
+                                                 self.radial_bin_edges, application_radius=0.).data
         print("Done! Took: {:0.4f} seconds".format(time.time()-tm))
         return np.abs(self.params.modified_image)
 
@@ -338,7 +339,7 @@ class AIA_RFILT_Processor(SunPyProcessor):
         import time
         tm = time.time()
         self.params.modified_image = radial.intensity_enhance(aia_map, self.radial_bin_edges).data
-        print("Done! Took: {} seconds".format(tm-time.time()))
+        print("Done! Took: {:0.4f} seconds".format(time.time()-tm))
         return self.params.modified_image
     
     
@@ -351,4 +352,44 @@ class AIA_RFILT_Processor(SunPyProcessor):
         # # All the figures are plotted.
         # plt.show()
 
+class MSGNProcessor(SunPyProcessor):
+    """This class template holds the code for the Sunpy Processors"""
+    name = filt_name = "MSGN Processor"
+    description = "Apply MSGN effets to images"
+    progress_verb = 'Normalizing'
+    finished_verb = "Normalized"
+    out_name_stem = "MSGN"
+    
+    # Parse Inputs
+    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        """Initialize the main class"""
+        super().__init__(params, quick, rp, in_name)
+        
+    
+    def do_work(self):
+        """Analyze the Image, Normalize it, Plot"""
+        import sunkit_image.enhance as enhance
+        
+        # maxind = min(len(self.in_name), 5)
+        self.out_name = self.out_name_stem# .format(self.in_name[:maxind])
+        # The FNRGF filter is applied
+        print(" * Starting Filter...", end='')
+        tm = time.time()
+        self.params.modified_image = enhance.mgn(self.params.raw_image)
+        print("Done! Took: {:0.4f} seconds".format(time.time()-tm))
+        return self.params.modified_image
+
+        
+        # aia_map = sunpy.map.Map((self.params.modified_image, self.params.header))
+        #
+    
+    
+    
+        # # The FNRGF filtered map is plotted.
+        # fig = plt.figure()
+        # ax = plt.subplot(projection=out2)
+        # out2.plot()
+        #
+        # # All the figures are plotted.
+        # plt.show()
     

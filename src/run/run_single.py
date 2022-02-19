@@ -4,7 +4,7 @@ from fetcher.LocalFetcher import LocalSingleFetcher
 from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
 from processor.QRNProcessor import QRNProcessor
 from processor.SRNProcessor import SRNProcessor
-from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, AIA_RFILT_Processor
+from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, AIA_RFILT_Processor, MSGNProcessor
 from science.parameters import Parameters
 from run import SingleRunner
 import matplotlib.pyplot as plt
@@ -33,6 +33,7 @@ def run_single(wave="0171", tstart="2013-09-29T13:35:00", duration_seconds=60*4,
     # p.processors([SRNProcessor],           rp=True)  # Applies the SRN Filter
     # p.processors([QRNProcessor],           rp=True)  # Applies the QRN Filter
     # p.processors([NRGFProcessor],            rp=True)  # Applies the NRGF Filter
+    # p.processors([MSGNProcessor],            rp=True)  # Applies the NRGF Filter
     # p.processors([FNRGFProcessor],            rp=True)  # Applies the FNRGF Filter
     # p.processors([AIA_RFILT_Processor],            rp=True)  # Applies the AIA_RFILT Filter
 
