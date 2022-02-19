@@ -73,10 +73,11 @@ class SRNProcessor(Processor):
     rendered_max_box = []
     radBins_all = []
     
-    def __init__(self, fits_path=None, in_name="T_INTEGRATED", orig=False, show=False, verb=False, quick=False, rp=None, params=None):
+    def __init__(self, fits_path=None, in_name=None, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
         # Parse Inputs
+        self.in_name = in_name or ["lev1p5_t_int",  "lev1_t_int", "lev1p5_single", "lev1_single"]
 
         self.RN = None
         self.binfactor = 1
@@ -1456,7 +1457,7 @@ class SRNProcessor(Processor):
         
         # # Plot Scattered Points from the raw image_path in midnightblue
         # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-        #             alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
+        #             alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. lev1_t_int")
         #
         # # Plot Scattered Points from the raw image_path but rooted, in red
         # self.touchup_TUNE(self.params.raw_image)
@@ -1584,7 +1585,7 @@ class SRNProcessor(Processor):
            do_raw_scatter = False
            if do_raw_scatter:
                ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-                           alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
+                           alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3, label="1. lev1_t_int")
            
            # Plot Scattered Points from the raw image_path but rooted, in red
            do_red_points = False
@@ -1693,7 +1694,7 @@ class SRNProcessor(Processor):
         
             # Plot Scattered Points from the raw image_path in midnightblue
     #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_raw[::self.skip_points], zorder=-1,
-    #                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
+    #                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. lev1_t_int")
             
             # Plot Scattered Points from the raw image_path but rooted, in red
             flat_raw = self.params.raw_image.flatten()
@@ -1778,7 +1779,7 @@ class SRNProcessor(Processor):
     
         # Plot Scattered Points from the raw image_path in midnightblue
         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. T_INT")
+                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. lev1_t_int")
         
         # Plot Scattered Points from the raw image_path but rooted, in red
         self.touchup(self.params.raw_image)

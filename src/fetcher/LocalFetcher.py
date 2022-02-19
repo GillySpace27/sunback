@@ -215,7 +215,7 @@ class LocalCdfFetcher(Fetcher):
 
         to_plot1 = self.quick_filter(self.params.raw_image)
         ax1.imshow(to_plot1, origin="lower")
-        ax1.set_title("LEV1")
+        ax1.set_title("lev1_Single")
         
         fig.set_size_inches(10,5)
         plt.show()

@@ -84,7 +84,7 @@ class Parameters:
         self.debug_mode = False
         self.did_print = False
         self.Force_init = False
-        self.list_of_default_hdus = ['t_integrated', "LEV1", 0, 1]
+        self.list_of_default_hdus = ['lev1_t_int', "lev1_Single", 0, 1]
         self.raw_image=None
         self.modified_image=None
         self.quantile_image=None

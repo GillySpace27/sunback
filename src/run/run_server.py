@@ -4,9 +4,11 @@ from fetcher.WebFitsFetcher import WebFitsFetcher
 from processor.ImageProcessor import ImageProcessor
 # from processor.SRNProcessor import SRNProcessor, \
 from processor.ImageProcessorCV import ImageProcessorCV
+from processor.QRNProcessor import QRNProcessor
 from processor.SRNSubProcessors import SRNSingleShotProcessor, SRNpreProcessor, SRNradialFiltProcessor
 # from putter.AwsPutter import AwsPutter
 # from putter.DesktopPutter import DesktopPutter
+from putter.DesktopPutter import DesktopPutter
 from science.parameters import Parameters
 from run import Runner
 
@@ -21,6 +23,7 @@ def run_server(delay=10, debug=True, do_one='rainbow', stop=True):
     p.run_type("Web Server Daemon")
     p.png_frame_name = 'SRN'
     p.do_orig = True
+    p.speak_save = False
     
     # Run Flags
     # p.download_files(False)
@@ -31,14 +34,14 @@ def run_server(delay=10, debug=True, do_one='rainbow', stop=True):
     # # p.delete_old(True)
 
     p.fetchers(WebFitsFetcher, rp=True)  # Gets Fits from JSOC Most Recent
-    p.processors(SRNSingleShotProcessor, rp=True)  # Applies the Radial Filtering
+    p.processors(QRNProcessorz, rp=True)  # Applies the Radial Filtering
     p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
+    p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
     
     #
     # p.processors(SRNpreProcessor, rp=True)  # Applies the Radial Filtering
     # p.processors(SRNradialFiltProcessor, rp=True)  # Applies the Radial Filtering
     # if p.is_debug():
-    #     p.putters([DesktopPutter()])  # Runs the Desktop Background Sequence on PNGs
     # else:
     # p.putters([AwsPutter()])  # Uploads the PNGs to AWS
     

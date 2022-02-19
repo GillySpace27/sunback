@@ -4,13 +4,16 @@ import cv2
 from processor.ImageProcessor import ImageProcessor
 import numpy as np
 import matplotlib.pyplot as plt
+import astropy.units as u
+
+from science.color_tables import aia_color_table
+
 
 class ImageProcessorCV(ImageProcessor):
     filt_name = 'CV Image Writer'
     description = "Turn all the fits files into png files"
     progress_verb = "Writing"
     progress_unit = "Images"
-
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
@@ -18,7 +21,6 @@ class ImageProcessorCV(ImageProcessor):
         self.img_frame = None
         self.out_path = None
         self.in_name = -1
-        
     
     def do_fits_function(self, fits_path, in_name=None):
         """ Main Call on the Fits Path """
@@ -32,22 +34,22 @@ class ImageProcessorCV(ImageProcessor):
             self.plot_two()
             self.plot_two("Less Zoomed", True)
             # self.display_all()
-    
+        
         # self.init_image_frame()
         raise NotImplementedError
     
     def display_all(self):
         self.display_raw()
         self.display_changed()
-        
+    
     def display_raw(self):
-        print("LEV1")
+        print("lev1_Single")
         self.frame = np.flipud(self.params.raw_image)
         self.prep_save()
         plt.imshow(self.frame)
-        plt.title("LEV1")
+        plt.title("lev1_Single")
         plt.show(block=True)
-        
+    
     def display_changed(self):
         print("Changed")
         self.frame = np.flipud(self.params.modified_image)
@@ -55,39 +57,41 @@ class ImageProcessorCV(ImageProcessor):
         plt.imshow(self.frame)
         plt.title("Changed")
         plt.show(block=True)
-        
-    def render_all(self):
+    
+    def render_all(self, reference=False):
         """Render one image_path"""
-        self.plot_aia_raw()
-        self.plot_aia_log()
+        
+        if reference:
+            self.plot_aia_raw()
+            self.plot_aia_log()
+        
         self.plot_aia_changed()
         # self.save_concatinated()
         
         # self.do_shortcut()
-        
+    
     def do_shortcut(self):
         cat_png_path = self.cat_path
         root_folder = os.path.dirname(self.params.base_directory())
         fits_folder = os.path.dirname(self.params.use_image_path())
         cat_png_filename = os.path.basename(cat_png_path)
-        shorts_folder =  os.path.join(root_folder, "shorts")
+        shorts_folder = os.path.join(root_folder, "shorts")
         # short_path = os.path.join(shorts_folder, cat_png_filename.replace(".png", ".lnk"))
-        
         
         timestamp = self.image_data[2]
         short_path = os.path.join(shorts_folder, "{}_{}.png".format(self.params.current_wave(), timestamp.split('.')[0]))
         os.makedirs(shorts_folder, exist_ok=True)
-
-        src_file  =  cat_png_path
-        dest_file =  os.path.normpath(short_path)
+        
+        src_file = cat_png_path
+        dest_file = os.path.normpath(short_path)
         shutil.copyfile(src_file, dest_file, follow_symlinks=True)
         # self.make_shortcut(src_file,dest_file , False)
     
     def plot_aia_raw(self):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
-        # self.frame_name = "t_integrated"
-        self.frame_name = ["LEV1p5_T", "LEV1p5_L", "T_Integrated", "LEV1"]
+        # self.frame_name = "t_int"
+        self.frame_name = ["lev1p5_T", "lev1p5_L", "lev1_t_int", "lev1_Single"]
         
         frame, wave, t_rec, center, int_time = self.load_a_fits_field(self.fits_path, self.frame_name)
         # frame = np.log10(frame)
@@ -99,16 +103,16 @@ class ImageProcessorCV(ImageProcessor):
         self.vignette()
         self.prep_save()
         self.img_save(self.out_path)
-
+    
     def plot_aia_log(self):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
-        # self.frame_name = "t_integrated"
-        self.frame_name = ["LEV1p5_T", "LEV1p5_L", "T_Integrated", "LEV1"]
+        # self.frame_name = "t_int"
+        self.frame_name = ["lev1p5_T", "lev1p5_L", "lev1_t_int", "lev1_Single"]
         
         frame, wave, t_rec, center, int_time = self.load_a_fits_field(self.fits_path, self.frame_name)
         frame = np.log10(frame)
-        frame = frame / np.nanpercentile(frame, 50)/2
+        frame = frame / np.nanpercentile(frame, 50) / 2
         self.frame = np.flipud(frame)
         # self.frame = np.flipud(self.params.raw_image)
         self.out_path = self.get_raw_path(mod='log')
@@ -116,7 +120,7 @@ class ImageProcessorCV(ImageProcessor):
         self.vignette()
         self.prep_save()
         self.img_save(self.out_path)
-        
+    
     def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
         if self.params.modified_image is None:
@@ -147,20 +151,38 @@ class ImageProcessorCV(ImageProcessor):
         self.s_radius = s_radius
         self.tRadius = self.s_radius * t_factor
     
+    # def plot_aia_changed(self):
+    #     """Plot the modified_image data from AIA"""
+    #     # Get the Frame and Path
+    #     self.frame_name = self.params.png_frame_name #.hdu_name_list[-1]
+    #     self.frame = np.flipud(self.params.modified_image)
+    #     self.out_path = self.get_changed_path()
+    #     out_dir = os.path.dirname(self.out_path)
+    #     os.makedirs(out_dir, exist_ok=True)
+    #     print("Saving to {}".format(self.out_path))
+    #     self.vignette()
+    #
+    #     self.prep_save()
+    #     self.img_save(self.out_path)
+    #
     def plot_aia_changed(self):
-        """Plot the modified_image data from AIA"""
+        """Plot the raw_image data from AIA"""
         # Get the Frame and Path
-        self.frame_name = self.params.png_frame_name #.hdu_name_list[-1]
-        self.frame = np.flipud(self.params.modified_image)
-        self.out_path = self.get_changed_path()
-        out_dir = os.path.dirname(self.out_path)
-        os.makedirs(out_dir, exist_ok=True)
-        print("Saving to {}".format(self.out_path))
-        self.vignette()
+        # self.frame_name = "lev1_t_int"
+        self.frame_name = self.params.png_frame_name  # .hdu_name_list[-1]
         
+        frame, wave, t_rec, center, int_time = self.load_a_fits_field(self.fits_path, self.frame_name)
+        
+        self.frame = np.flipud(frame)
+        
+        self.out_path = self.get_changed_path()
+        os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
+        print("Saving to {}".format(self.out_path))
+        
+        self.vignette()
         self.prep_save()
         self.img_save(self.out_path)
- 
+    
     # def plot_aia_changed(self):
     #     """Plot the modified_image data from AIA"""
     #     # Get the Frame and Path
@@ -175,7 +197,6 @@ class ImageProcessorCV(ImageProcessor):
     #     self.prep_save()
     #     self.img_save(self.out_path)
     
-    
     def prep_save(self):
         self.make_image()
         self.label_plot()
@@ -188,9 +209,9 @@ class ImageProcessorCV(ImageProcessor):
         themax = np.nanmax(out)
         
         if themax > 100 or themax < 0.8:
-            out = (self.frame-minmin)/(maxmax-minmin)
+            out = (self.frame - minmin) / (maxmax - minmin)
             print("\nRenormalizing", maxmax, minmin, np.max(out), np.min(out))
-            
+        
         self.img_frame = (self.params.cmap(out)[:, :, :3] * 255).astype(np.uint8)
         b, g, r = cv2.split(self.img_frame)  # get b,g,r
         rgb_img = cv2.merge([r, g, b])  # switch it to rgb
@@ -204,7 +225,7 @@ class ImageProcessorCV(ImageProcessor):
             # cv2.imshow(mat=self.params.rbg_image)
             plt.imshow(self.params.rbg_image)
             plt.show()
-            
+    
     def label_plot(self):
         """Annotate with Text"""
         # img = self.img_frame
@@ -213,53 +234,48 @@ class ImageProcessorCV(ImageProcessor):
         time_string = self.clean_time_string(time_string_raw)
         time_list = time_string.split()
         
-
-        
-        
         inst = 'AIA'
         _, wave = self.clean_name_string(full_name)
         clock = time_list[1].lower()
         day = time_list[0][:-5]
         year = time_list[0][-4:]
-
+        
         x0 = 3900
         x1 = 3875
         scale = 3
-        h1=100
-        h2=200
-        h3=300
+        h1 = 100
+        h2 = 200
+        h3 = 300
         if shape[0] < 3000:
             x0 = x0 // 4
             x1 = x1 // 4
             scale = 1
-            h1=40
-            h2=80
-            h3=120
-
+            h1 = 40
+            h2 = 80
+            h3 = 120
+        
         # if self.params.alpha is not None:
         #     cv2.putText(img, "a={:0.3f}".format(self.params.alpha), (int(x0*0.95), h3), 0,   scale, (255, 255, 255), 3)
-
         
         if type(self.frame_name) is list:
             frame_name = [x for x in self.frame_name if x.casefold() in self.hdu_name_list][0]
         else:
             frame_name = self.frame_name
-            
         
-        cv2.putText(img, frame_name.casefold(), (int(x0*0.92), h1), 0,   scale, (255, 255, 255), 3)
+        cv2.putText(img, frame_name.casefold(), (int(x0 * 0.92), h1), 0, scale, (255, 255, 255), 3)
         
         reticle = False
         if reticle:
             cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
-                   int(self.params.header["R_SUN"]), (255,255,255), 3)
+                       int(self.params.header["R_SUN"]), (255, 255, 255), 3)
             cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
-                   int(10), (255,0,0), 10)
-            
-        cv2.putText(img, inst, (x0, h2), 0,   scale, (255, 255, 255), 3)
-        cv2.putText(img, wave, (x1, h3), 0,   scale, (255, 255, 255), 3)
-        cv2.putText(img, clock,   (0, h1), 0, scale, (255, 255, 255), 3)
-        cv2.putText(img, day,     (0, h2), 0, scale, (255, 255, 255), 3)
-        cv2.putText(img, year,    (0, h3), 0, scale, (255, 255, 255), 3)
+                       int(10), (255, 0, 0), 10)
+        
+        cv2.putText(img, inst, (x0, h2), 0, scale, (255, 255, 255), 3)
+        cv2.putText(img, wave, (x1, h3), 0, scale, (255, 255, 255), 3)
+        cv2.putText(img, clock, (0, h1), 0, scale, (255, 255, 255), 3)
+        cv2.putText(img, day, (0, h2), 0, scale, (255, 255, 255), 3)
+        cv2.putText(img, year, (0, h3), 0, scale, (255, 255, 255), 3)
     
     def cleanup(self):
         # self.make_intermediate_videos()
@@ -284,15 +300,129 @@ class ImageProcessorCV(ImageProcessor):
             print("Success!")
         except (FileNotFoundError, AttributeError) as e:
             print("ImageProcessorCV")
-            raise(e)
+            raise (e)
         
-          # destroy = False
-          # if destroy:
-          #     shutil.rmtree(self.orig_directory)
+        # destroy = False
+        # if destroy:
+        #     shutil.rmtree(self.orig_directory)
     
-        
     @staticmethod
     def peek_frame(img):
         shrink = 5
         cv2.imshow("win2", img[::shrink, ::shrink, ::shrink])
         cv2.waitKey(0)
+
+
+class MultiImageProcessorCv(ImageProcessorCV):
+    filt_name = 'MultiImageProcessorCv'
+    description = "Turn all the fits files into png files"
+    progress_verb = "Writing"
+    progress_unit = "Images"
+    # list_of_inputs = ["lev1p5_T", "lev1p5_L", "lev1_t_int", "lev1_Single"]
+    
+    def __init__(self, params=None, quick=False, rp=None):
+        super().__init__(params, quick, rp)
+        self.base_image = None
+        self.n_plots = None
+        self.n_cols = None
+        self.n_rows = None
+        self.init = False
+        self.count = 0
+        self.frame_names = []
+        self.frames = []
+        self.good_frames = []
+        self.fig = None
+    
+    def do_fits_function(self, fits_path, in_name=None):
+        """ Main Call on the Fits Path """
+        self.init_frame(fits_path, None)
+        self.init_plot()
+        
+        for frame_name in self.good_frames:
+            frame1, wave1, t_rec1, center1, int_time = self.load_a_fits_field(fits_path, frame_name)
+            self.add_to_plot(frame_name, frame1)
+        
+        self.finalize_plot()
+        return None
+    
+    def init_plot(self):
+        if not self.fig:
+            self.good_frames = [x for x in self.hdu_name_list if ("lev1_" not in x)][1:]
+            self.n_plots = len(self.good_frames)
+            self.n_rows = 2
+            self.n_cols = self.n_plots // self.n_rows
+            self.n_slots = self.n_rows * self.n_cols
+            while self.n_slots < self.n_plots:
+                self.n_cols += 1
+                self.n_slots = self.n_rows * self.n_cols
+                
+            self.fig, self.axArray = plt.subplots(self.n_rows, self.n_cols, sharex="all", sharey="all")
+            self.axArray = self.axArray.flatten()
+            self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
+            
+    def add_to_plot(self, frame_name, frame):
+        # if "quant" not in frame_name:
+        #     frame = self.orig_smasher(frame)
+        frame = self.frame_touchup(frame_name, frame)
+        self.axArray[self.count].imshow(frame, origin="lower", vmin=0., vmax=1, cmap=self.params.cmap)
+        self.axArray[self.count].set_title(frame_name)
+        self.frame_names.append(frame_name)
+        self.frames.append(frame)
+        self.count += 1
+        
+    def finalize_plot(self):
+        self.fig.set_size_inches(8,8)
+        plt.tight_layout()
+        # plt.show(block="True")
+        
+        save_path = os.path.join(self.params.imgs_top_directory(), "quad.png" )
+        self.fig.savefig(save_path, dpi=1000)
+        
+        save_path = os.path.join(self.params.imgs_top_directory(), "quad_zoom.png" )
+        plt.xlim((3250,4000))
+        plt.ylim((2250,3000))
+        self.fig.savefig(save_path, dpi=1000)
+        
+        plt.close(self.fig)
+
+
+    def frame_touchup(self, frame_name, frame):
+        frame[~np.isfinite(frame)] = np.nan
+        
+        if frame_name is not "quantile":
+            # Do Power and scale
+            frame = np.power(frame, 1/3)
+            small = np.nanpercentile(frame, 0.01)
+            big = np.nanpercentile(frame, 99.9)
+            frame = (frame - small) / (big - small)
+    
+        if frame_name == "lev1p5_t_int":
+            # Save the Disk
+            self.base_image = frame
+    
+        if frame_name == "nrgf":
+            # Replace the Disk
+            self.init_radius_array()
+            mask = self.radius < self.found_limb_radius*1.01
+            frame[mask] = self.base_image[mask]
+
+        darken_rfilt = 1.2
+        darken_quant = 1.1
+
+        if frame_name == "rfilt":
+            # Save the Disk
+            # self.base_image = frame
+            # frame = np.sqrt(frame)
+            minx = np.nanpercentile(frame, 0.1)
+            maxx = np.nanpercentile(frame, 99.9)
+            frame = (frame - minx) / (maxx - minx)
+            frame /= darken_rfilt
+            
+        if frame_name == "quantile":
+            frame /= darken_quant
+            
+        # self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
+        # frame[self.vignette_mask] = np.nan
+        
+        return frame
+    

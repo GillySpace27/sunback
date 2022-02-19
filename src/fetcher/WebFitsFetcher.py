@@ -1,3 +1,4 @@
+import os
 import sys
 import urllib
 from datetime import datetime
@@ -53,6 +54,7 @@ class WebFitsFetcher(Fetcher):
         for ii in np.arange(tries):
             # Retry download
             try:
+                os.makedirs(os.path.dirname(local_temp_path), exist_ok=True)
                 urlretrieve(link, local_temp_path)
                 if exists(local_path):
                     remove(local_path)

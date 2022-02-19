@@ -32,7 +32,7 @@ def vprint(in_string, verb=None, *args, **kwargs):
 class FidoTimeIntProcessor(FidoFetcher):
     name = filt_name = "Time Integration"
     in_name = -1
-    out_name = "t_integrated"
+    out_name = "lev1_t_int"
     description = "Get many frames around the keyframe and sum them"
     finished_verb = "Summed"
     dopng = False
@@ -76,6 +76,9 @@ class FidoTimeIntProcessor(FidoFetcher):
         
         if self.params.destroy:
             self.delete_temp()  # TEMPCHANGE
+            
+        self.params.do_temp=False
+        
 
     def do_fits_function(self, fits_path, in_name=None):
         """This is the thing that will be executed on every file
@@ -109,8 +112,8 @@ class FidoTimeIntProcessor(FidoFetcher):
         already_made = self.out_name in self.hdu_name_list
         
         if already_made:
-            orig, wave, t_rec, center, int_time = self.load_a_fits_field(fits_path,"LEV1")
-            tint, wave, t_rec, center, int_time = self.load_a_fits_field(fits_path,"t_integrated")
+            orig, wave, t_rec, center, int_time = self.load_a_fits_field(fits_path,"lev1_Single")
+            tint, wave, t_rec, center, int_time = self.load_a_fits_field(fits_path,"lev1_t_int")
             if tint is not None:
                 tint *= int_time
                 match = np.sum(tint.astype(int) == orig.astype(int))/len(tint)**2
@@ -175,7 +178,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         for ii, path in enumerate(tqdm(exp_paths, desc="Summing Frames")):
             try:
                 if not os.path.isdir(path):
-                    frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, "LEV1", quiet=True)
+                    frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, "lev1_Single", quiet=True)
                     self.orig_t_int = self.orig_t_int or int_time
                     self.params.modified_image += frame
                     self.params.int_tm_tot += int_time

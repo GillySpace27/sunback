@@ -1,7 +1,17 @@
 import os
 from copy import copy
+from datetime import time
 from os import makedirs
 from os.path import join, dirname, basename
+import matplotlib.pyplot as plt
+
+import astropy.units as u
+import sunpy.data.sample
+import sunpy.map
+
+import sunkit_image.radial as radial
+from sunkit_image.utils import equally_spaced_bins
+import aiapy
 import numpy as np
 from aiapy.calibrate import correct_degradation
 from aiapy.calibrate.util import get_pointing_table, get_correction_table
@@ -52,10 +62,12 @@ class SunPyProcessor(Processor):
     can_initialize = True
     
     # Parse Inputs
-    def __init__(self, params=None, quick=False, rp=None, in_name="LEV1"):
+    def __init__(self, params=None, quick=False, rp=None, in_name=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
-        self.in_name = in_name
+        self.radial_bin_edges = equally_spaced_bins(nbins=100) * u.R_sun
+        self.in_name = in_name or ["lev1p5_t_int",  "lev1_t_int", "lev1p5_single", "lev1_single"]
+        
     
     def setup(self):
         pass
@@ -72,7 +84,7 @@ class SunPyProcessor(Processor):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
             print("Template Ran")
-        self.out_name = "lev15"
+        self.out_name = "Default"
         # self.params.raw_image
         return self.params.modified_image
     
@@ -103,42 +115,52 @@ class AIA_PREP_Processor(SunPyProcessor):
     def __init__(self, params=None, quick=False, rp=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
+        self.last_wave = None
+        self.psf = None
         self.level_1_maps = None
         self.level_15_maps = None
         self.correction_table = None
         self.pointing_table = None
         self.pointing_end = None
         self.pointing_start = None
-        self.in_name_possibles  = ["Quantile", "T_Integrated", "LEV1", "T_Integrated"]
-        self.in_name = ["Quantile", "T_Integrated", "LEV1"]
-        self.out_name_stem = "LEV1p5_{}"
+        self.in_name_possibles = ["lev1_t_int", "lev1_Single", "lev1_t_int"]
+        self.in_name = ["lev1_t_int", "lev1_Single"]
+        self.out_name_stem = "lev1p5_{}"
         self.params.modified_image = None
-        pass
     
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
-            self.select_maps()
             self.get_aia_prep_data()
             self.do_AIA_PREP()
             self.save_out()
-        return self.params.modified_image
+            return self.params.modified_image
+        return None
+    
+    def should_run(self):
+        """Decide of the processor should run on this file"""
+        return self.select_maps()
     
     def select_maps(self):
-        self.out_name = self.out_name_stem.format(self.in_name[0])
-        self.params.reprocess_mode()
-        while self.out_name.casefold() in self.hdu_name_list:
+        maxind = min(len(self.in_name), 5)
+        maxInd=1
+        self.out_name = self.out_name_stem.format(self.in_name[-5:])
+        try:
+            self.out_name = self.out_name.casefold()
             self.in_name = self.in_name_possibles.pop(0)
-            self.out_name = self.out_name_stem.format(self.in_name[0])
-            
-            # frame, wave, t_rec, center, int_time, img_type = self.load_best_fits_field(self.fits_path, in_name)
-            
+            while self.out_name in self.hdu_name_list and not self.reprocess_mode():
+                self.in_name = self.in_name_possibles.pop(0)
+                self.out_name = self.out_name_stem.format(self.in_name[0]).casefold()
+        except IndexError:
+            return False
+        
         self.load_fits_image(self.fits_path, in_name=self.in_name)
         self.params.header["LVL_NUM"] = 1.5
         self.level_1_maps = [sunpy.map.Map((self.params.raw_image, self.params.header))]
-
-    def get_aia_prep_data(self):
-        if self.correction_table is None:
+        return True
+    
+    def get_aia_prep_data(self, force=False):
+        if self.correction_table is None or force:
             # We get the pointing table outside of the loop for the relevant time range.
             # Otherwise you're making a call to the JSOC every single time.
             self.pointing_start = self.level_1_maps[0].date - 3 * u.h
@@ -146,27 +168,49 @@ class AIA_PREP_Processor(SunPyProcessor):
             self.pointing_table = get_pointing_table(self.pointing_start, self.pointing_end)
             # The same applies for the correction table.
             self.correction_table = get_correction_table()
-
-    # def do_AIA_PREP(self):
-    #     self.level_15_maps = []
-    #     for a_map in self.level_1_maps:
-    #         map_updated_pointing = update_pointing(a_map, pointing_table=self.pointing_table)
-    #         map_registered = register(map_updated_pointing)
-    #         map_degradation = correct_degradation(map_registered, correction_table=self.correction_table)
-    #         map_normalized = normalize_exposure(map_degradation)
-    #         self.level_15_maps.append(map_normalized)
+    
+    def deconvolve_psf(self, a_map):
+        import aiapy.psf as psf
+        if not a_map.wavelength == self.last_wave or self.psf is None:
+            # Make the psf map if needed
+            self.psf = psf.psf(a_map.wavelength)
+        # Deconvolve the PSF
+        m_deconvolved = aiapy.psf.deconvolve(a_map, psf=self.psf)
+        return m_deconvolved
+    
+    def get_updated_pointing(self, a_map, one_deep=True):
+        # Get the new pointing information
+        try:
+            map_updated_pointing = update_pointing(a_map, pointing_table=self.pointing_table)
+            return map_updated_pointing
+        except IndexError as e:
+            # If it fails
+            if one_deep:
+                # For the first time, re-prep the data
+                self.get_aia_prep_data(force=True)
+                # Return a recursion of this funtion
+                return self.get_updated_pointing(a_map, one_deep=False)
+            else:
+                raise e
+        
     
     def do_AIA_PREP(self):
         self.level_15_maps = []
         for a_map in self.level_1_maps:
-            map_updated_pointing = update_pointing(a_map, pointing_table=self.pointing_table)
+            
+            if False:
+                a_map = self.deconvolve_psf(a_map)
+
+            map_updated_pointing = self.get_updated_pointing(a_map)
+            
+            # Execute AIA_PREP
             map_registered = register(map_updated_pointing)
             map_degradation = correct_degradation(map_registered, correction_table=self.correction_table)
             map_normalized = normalize_exposure(map_degradation)
             map_double_normed = map_normalized / np.nanmax(map_normalized.data)
             out = map_double_normed if 'q' in self.out_name.casefold() else map_degradation
             self.level_15_maps.append(out)
-            
+    
     def save_out(self):
         # Plot
         # self.plot_lev1p5(plot_result=True)
@@ -177,8 +221,6 @@ class AIA_PREP_Processor(SunPyProcessor):
         
         # Get the Header
         self.header = self.params.header = sunpy.io.fits.header_to_fits(done_map.meta)
-
-        
     
     def plot_lev1p5(self, plot_result=True):
         two_maps = [self.level_15_maps[0]]
@@ -190,22 +232,123 @@ class AIA_PREP_Processor(SunPyProcessor):
             sequence = sunpy.map.Map(two_maps, sequence=True)
             sequence.peek(resample=0.25, annotate=True)
             plt.show(block=True)
+
+
+
+
+
+class NRGFProcessor(SunPyProcessor):
+    """This class template holds the code for the Sunpy Processors"""
+    name = filt_name = "NRGF Processor"
+    description = "Apply NRGF effets to images"
+    progress_verb = 'Normalizing'
+    finished_verb = "Normalized"
+    out_name_stem = "NRGF"
     
-    #     if not self.header:
-    #         print("No header Loaded")
-    #         return False
-    #     self.can_use_keyframes = True
-    #     not_dark = self.header["IMG_TYPE"] == "LIGHT"
-    #     not_weak = self.header["EXPTIME"] > 1.0
-    #     set_to_make = self.params.remake_norm_curves() or self.reprocess_mode()
-    #     not_made_yet = not os.path.exists(self.params.curve_path()) or self.outer_min is None
-    #     frame_is_not_loaded = self.params.raw_image is None
-    #     self.go_ahead = not_weak & not_dark and (set_to_make or not_made_yet or frame_is_not_loaded)
-    #     return self.go_ahead
-    # #
+    # Parse Inputs
+    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        """Initialize the main class"""
+        super().__init__(params, quick, rp, in_name)
     
-    ###################
-    ##   Main Calls  ##
-    ###################
+    def do_work(self):
+        """Analyze the Image, Normalize it, Plot"""
+        self.out_name = self.out_name_stem #.format(self.in_name)
+        aia_map = sunpy.map.Map((self.params.raw_image, self.params.header))
+        
+        # The NRGF filter is applied after it.
+        print(" * Starting Filter...", end='')
+        import time
+        tm = time.time()
+        self.params.modified_image = radial.nrgf(aia_map, self.radial_bin_edges).data
+        print("Done! Took: {:0.4f} seconds".format(time.time()-tm))
+        return np.abs(self.params.modified_image)
+
+class FNRGFProcessor(SunPyProcessor):
+    """This class template holds the code for the Sunpy Processors"""
+    name = filt_name = "FNRGF Processor"
+    description = "Apply FNRGF effets to images"
+    progress_verb = 'Normalizing'
+    finished_verb = "Normalized"
+    out_name_stem = "FNRGF"
     
-    #######################################
+    # Parse Inputs
+    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        """Initialize the main class"""
+        super().__init__(params, quick, rp, in_name)
+        
+        self.order = 20
+        self.attenuation_coefficients = radial.set_attenuation_coefficients(self.order)
+    
+    def do_work(self):
+        """Analyze the Image, Normalize it, Plot"""
+        
+        maxind = min(len(self.in_name), 5)
+        
+        self.out_name = self.out_name_stem# .format(self.in_name[:maxind])
+        aia_map = sunpy.map.Map((self.params.raw_image, self.params.header))
+        
+        # The FNRGF filter is applied
+        print(" * Starting Filter...", end='')
+        tm = time.time()
+        self.params.modified_image = radial.fnrgf(aia_map, self.radial_bin_edges,
+                                                  self.order, self.attenuation_coefficients).data
+        print("Done! Took: {:0.4f} seconds".format(time.time()-tm))
+        return self.params.modified_image
+    
+    
+    
+        # # The FNRGF filtered map is plotted.
+        # fig = plt.figure()
+        # ax = plt.subplot(projection=out2)
+        # out2.plot()
+        #
+        # # All the figures are plotted.
+        # plt.show()
+
+
+class AIA_RFILT_Processor(SunPyProcessor):
+    """Implementation of: https://docs.sunpy.org/projects/sunkit-image/en/stable/api/sunkit_image.radial.intensity_enhance.html#sunkit_image.radial.intensity_enhance
+        Which is clled Intensity_enhance, but it's a version of AIR_RFILT that divides curve that is fitted to the data
+        Technically this is similar to SRN, I will be interested to see how it performs
+    """
+    name = filt_name = "AIA_RFILT_Sunpy Processor"
+    description = "Apply AIA_Rfilt_Sunpy to the images"
+    progress_verb = 'Filtering'
+    finished_verb = "Normalized"
+    out_name_stem = "RFILT"
+    
+    # Parse Inputs
+    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        """Initialize the main class"""
+        super().__init__(params, quick, rp, in_name)
+    
+    def do_work(self):
+        """Analyze the Image, Normalize it, Plot"""
+        
+        # Build the Output Name
+        maxind = min(len(self.in_name), 5)
+        outName = self.in_name[:maxind]
+        self.out_name = self.out_name_stem #.format(outName)
+        
+        # Build the Map
+        aia_map = sunpy.map.Map((self.params.raw_image, self.params.header))
+        
+        # The filter is applied
+        print(" * Starting Filter...", end='')
+        import time
+        tm = time.time()
+        self.params.modified_image = radial.intensity_enhance(aia_map, self.radial_bin_edges).data
+        print("Done! Took: {} seconds".format(tm-time.time()))
+        return self.params.modified_image
+    
+    
+    
+        # # The FNRGF filtered map is plotted.
+        # fig = plt.figure()
+        # ax = plt.subplot(projection=out2)
+        # out2.plot()
+        #
+        # # All the figures are plotted.
+        # plt.show()
+
+    

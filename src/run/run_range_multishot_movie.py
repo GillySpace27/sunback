@@ -30,8 +30,8 @@ plt.ioff()
 # dostring = "Beautiful 304_l"
 all_wavelengths = ['0193', '0211', '0131', '0335', '0094','0304','0171', ]
 do_wavelengths = all_wavelengths  # ['0211']
-# do_wavelengths = ['0171']
-PNG_FRAME_NAME = 'Quantile' #'SRN'
+do_wavelengths = ['0304']
+PNG_FRAME_NAME = 'lev1p5_q' #'SRN'
 # wave_to_use = '0211'
 
 def run_range_multishot_movie(batch_name= "Test", wave=None, config=None, wave_to_use=None, alpha=0.35):
@@ -40,16 +40,16 @@ def run_range_multishot_movie(batch_name= "Test", wave=None, config=None, wave_t
     p.do_recent(False)
     p.do_prep = False # Won't do AIA prep upon download of each frame
     p.alpha=alpha
-    
+    p.destroy=True
     # Set the Processes
-    p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
-    p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
-    p.processors([AIA_PREP_Processor],         rp=True)   # Do Sunpy Things
+    # p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
+    # p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
+    # p.processors([QRNProcessor],         rp=False)  # Applies the QRN Processor
+    #
+    # p.processors([AIA_PREP_Processor],         rp=True)   # Do Sunpy Things
 
-    p.processors([QRNProcessor],         rp=False)  # Applies the QRN Processor
-
-    p.processors([ImageProcessorCV],           rp=False)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor],             rp=False)  # Makes the PNGs into a Movie
+    p.processors([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
+    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
 
     # Run the Code
     # print(p.do_one())
@@ -67,7 +67,7 @@ def make_configs(wave_to_use):
         "name": "Test",
         "debug": True, "do_one": wave_to_use, "stop": True,
         "tstart": "2022/01/01 00:00:00", "tend": "2022/01/3 00:00:00",
-        "cadence_minutes": 4*6*60, "fps": 1, "exposure_time": 5*60,
+        "cadence_minutes": 4*6*60, "fps": 1, "exposure_time": 1*60,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
     }
     

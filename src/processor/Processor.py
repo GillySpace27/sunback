@@ -94,7 +94,7 @@ class Processor:
     short_list = []
     out_dtype = np.float32
     
-    def __init__(self, params=None, quick=False, rp=None, in_name="LEV1"):
+    def __init__(self, params=None, quick=False, rp=None, in_name=None):
         self.vignette_mask = None
         self.in_name = in_name
         self.header = None
@@ -300,7 +300,7 @@ class Processor:
         #     ax1.set_xlim((3400,4000))
         #     ax1.set_ylim((2300,3200))
         
-        ax0.set_title("LEV1")
+        ax0.set_title("lev1_Single")
         ax1.set_title("Changed")
         
         plt.tight_layout()
@@ -672,7 +672,7 @@ class Processor:
                 try:
                     hdul.close(output_verify='fix')
                     if self.params.speak_save:
-                        print(" ** Saved Frame {}\n".format(field))
+                        print(" ** >> Saved Frame {} << **\n".format(field))
                 except PermissionError as e:
                     print("Failed to save a file: \n {}".format(fits_path))
     
@@ -737,7 +737,7 @@ class Processor:
         #     if self.in_name is not None:
         #         if self.in_name in hdul:
         #             hdu = hdul[self.in_name]
-        #         elif self.in_name =="LEV1":
+        #         elif self.in_name =="lev1_Single":
         #             in_name = "COMPRESSED_IMAGE"
         #             if in_name in hdul:
         #                 hdu = hdul[in_name]
@@ -785,7 +785,7 @@ class Processor:
         to_replace_list = ['COMPRESSED_IMAGE', '']
         for to_replace in to_replace_list:
             if to_replace in hdul:
-                names = ["LEV1"]
+                names = ["lev1_Single"]
                 for ii, item in enumerate(hdul):
                     if item.name == to_replace:
                         if len(names):
@@ -897,10 +897,10 @@ class Processor:
             # self.save_curves()
             
             # if hdul['primary'].data is None:
-            #     hdul['primary'].data = hdul["LEV1"].data + 0
+            #     hdul['primary'].data = hdul["lev1_Single"].data + 0
             #     hdul[0].name = 'primary'
-            #     hdul['primary'].header = hdul['primary'].header + hdul["LEV1"].header
-            #     del hdul["LEV1"]
+            #     hdul['primary'].header = hdul['primary'].header + hdul["lev1_Single"].header
+            #     del hdul["lev1_Single"]
             #
             # # hdul.writeto(self.fits_path, output_verify="ignore", overwrite=True)
             #
@@ -973,9 +973,8 @@ class Processor:
             try:
                 try:
                     name = [x for x in self.hdu_name_list if "lev" in x][-1]
-                except Exception as e:
+                except IndexError as e:
                     name = ii
-                    raise e
                 last_hdul_frame = hdul[name]
                 last_hdul_frame.header["DRMS_ID"]
                 self.header = last_hdul_frame.header
@@ -994,7 +993,7 @@ class Processor:
         self.params.header = self.header
         return wave, t_rec, center, int_time, found_limb_radius
     
-    def open_fits_hdul(self, hdul, quiet=False):
+    def open_fits_hdul(self, hdul, quiet=True):
         """Load a fits file from disk"""
         self.list_hdus(hdul)
         
@@ -1015,6 +1014,7 @@ class Processor:
                 name = name.casefold()
                 if name in self.hdu_name_list or name in lower_hdus:
                     use_name = name
+                    # quiet =False
                     if not quiet:
                         print(" +    Using frame {}".format(use_name))
                     break
@@ -1036,7 +1036,9 @@ class Processor:
             header = hdul[1].header
         except TypeError:
             vprint("Processor: 911 !Failed to Load Frame!")
-            
+        except IndexError:
+            data = field_hdu.data
+            header = hdul[0].header
         return data, header
     
     
