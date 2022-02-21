@@ -364,7 +364,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         # if "quant" not in frame_name:
         #     frame = self.orig_smasher(frame)
         frame = self.frame_touchup(frame_name, frame)
-        self.axArray[self.count].imshow(frame, origin="lower", vmin=0., vmax=1, cmap=self.params.cmap)
+        self.axArray[self.count].imshow(frame, origin="lower", vmin=0., vmax=1, cmap=self.params.cmap, interpolation=None)
         self.axArray[self.count].set_title(frame_name)
         self.frame_names.append(frame_name)
         self.frames.append(frame)

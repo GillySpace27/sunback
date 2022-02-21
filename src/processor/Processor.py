@@ -95,6 +95,7 @@ class Processor:
     out_dtype = np.float32
     
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        self.img_path = None
         self.vignette_mask = None
         self.in_name = in_name
         self.header = None
@@ -497,11 +498,10 @@ class Processor:
         """Apply the given funtion to the given fits path"""
         
         try:
-            self.params.modified_image = self.do_img_function()
+            self.img_path = self.params.use_image_path() or self.params.first_fits_path()
+            self.params.modified_image = self.modify_one_fits(self.img_path)
         except NotImplementedError as e:
-            img_path = self.params.use_image_path() or self.params.first_fits_path()
-            self.params.modified_image = self.modify_one_fits(img_path)
-            
+            self.params.modified_image = self.do_img_function()
         return self.params.modified_image
     
     def process_img_series(self):
@@ -792,6 +792,20 @@ class Processor:
                             item.name = names.pop(0)
                         else:
                             item.name = 'unknown_{}'.format(ii)
+
+    def remove_unprocessed_frames(self, fits_path=None):
+        # vprint("Blank Frame Ran")
+        fits_path = fits_path or self.fits_path
+        to_destroy = ['LEV1_SINGLE', 'LEV1_T_INT',]
+    
+        with fits.open(fits_path, cache=False, ignore_missing_end=True, mode='update') as hdul:
+            # hdul.verify('silentfix+ignore')  # Verify
+            self.hdu_name_list = self.list_hdus(hdul)
+            for name in to_destroy:
+                sm = name.casefold()
+                if sm in self.hdu_name_list:
+                    del hdul[name]
+
     
     # Curves Save and Load
     def prep_save_outs(self):

@@ -4,7 +4,8 @@ from fetcher.LocalFetcher import LocalSingleFetcher
 from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
 from processor.QRNProcessor import QRNProcessor
 from processor.SRNProcessor import SRNProcessor
-from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, AIA_RFILT_Processor, MSGNProcessor
+from processor.SRNSubProcessors import SRNSingleShotProcessor
+from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, Intensity_Enhance_Processor, MSGNProcessor
 from science.parameters import Parameters
 from run import SingleRunner
 import matplotlib.pyplot as plt
@@ -12,7 +13,7 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_single(wave="0171", tstart="2013-09-29T13:35:00", duration_seconds=60*4, frames=None):
+def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*4, frames=None):
     """Download a single image and time-integrate it, then apply QRN
         :type wave: strings
         :type tstart: string
@@ -24,18 +25,19 @@ def run_single(wave="0171", tstart="2013-09-29T13:35:00", duration_seconds=60*4,
     p = default_run_single_params(wave, tstart, duration_seconds, frames, name)
     
     # Set the Processes
-    get_images=False
+    get_images=True
     if get_images:
         p.fetchers(FidoFetcher,                rp=True)  # Gets the desired file
         p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
         p.processors([AIA_PREP_Processor],         rp=True)   # Do Sunpy Things
     
-    # p.processors([SRNProcessor],           rp=True)  # Applies the SRN Filter
-    # p.processors([QRNProcessor],           rp=True)  # Applies the QRN Filter
-    # p.processors([NRGFProcessor],            rp=True)  # Applies the NRGF Filter
-    # p.processors([MSGNProcessor],            rp=True)  # Applies the NRGF Filter
+    # p.processors([SRNSingleShotProcessor],           rp=True)  # Applies the SRN Filter
+    p.processors([QRNProcessor],           rp=True)  # Applies the QRN Filter
+    
+    p.processors([MSGNProcessor],            rp=True)  # Applies the NRGF Filter
+    p.processors([NRGFProcessor],            rp=True)  # Applies the NRGF Filter
     # p.processors([FNRGFProcessor],            rp=True)  # Applies the FNRGF Filter
-    # p.processors([AIA_RFILT_Processor],            rp=True)  # Applies the AIA_RFILT Filter
+    p.processors([Intensity_Enhance_Processor], rp=True)  # Applies the AIA_RFILT Filter
 
 
     # p.png_frame_name = ['lev1P5_Q', 'Quantile']
@@ -80,7 +82,7 @@ if __name__ == "__main__":
     # Do something if this file is invoked on its own
     
     all_wavelengths = ['0193', '0211', '0131', '0335', '0094'] #,'0304','0171', ]
-    all_wavelengths = ['0171'] #,  "0304"]
+    all_wavelengths = ['0304'] #,  "0304"]
     
     for wave_to_use in all_wavelengths:
         run_single(wave=wave_to_use)

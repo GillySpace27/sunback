@@ -192,7 +192,8 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.params.modified_image /= self.params.int_tm_tot # DN / sec
         self.params.modified_image *= self.orig_t_int #TODO remove this line to make the curves be per second
         self.params.modified_image = np.asarray(self.params.modified_image, dtype=self.out_dtype)
-
+        self.params.header["Exptime_TOT"] = self.params.int_tm_tot  # TODO Make this actually work
+        
     ## TEMP FOLDER IO ##
     def prep_temp_folder(self):
         self.params.download_files(True)

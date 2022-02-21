@@ -261,6 +261,21 @@ class SRNProcessor(Processor):
     
     def init_for_modify(self):
         self.init_radius_array()
+
+    #     def init_images(self, modified_image=None):
+    #         """Get all the variables ready for the normalization"""
+    #         dprint("\ninit_images")
+    #         if modified_image is not None:
+    #             self.modified_image = modified_image
+    #         self.rez = self.modified_image.shape[0]
+    #         self.modified_image = self.modified_image.astype('float32')
+    #         self.modified_image[self.modified_image == 0] = np.nan
+    #
+    #         if self.raw_image is None:
+    #             self.raw_image = self.modified_image + 0
+    #
+    #         self.raw_flat = self.raw_image.flatten()
+    #         self.changed_flat = self.modified_image.flatten()
     
     def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
@@ -1412,10 +1427,11 @@ class SRNProcessor(Processor):
     
     def vignette(self):
         """Truncate the in_object above a certain radis"""
+        return
         self.params.modified_image[self.vignette_mask] = np.nan
         self.params.quantile_image[self.vignette_mask] = np.nan
         self.params.raw_image[self.vignette_mask] = np.nan
-    
+        
     ########################
     ## Plotting Stuff ##
     ########################
