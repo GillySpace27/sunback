@@ -25,23 +25,24 @@ def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*4,
     p = default_run_single_params(wave, tstart, duration_seconds, frames, name)
     
     # Set the Processes
-    get_images=True
+    get_images = True
     if get_images:
         p.fetchers(FidoFetcher,                rp=True)  # Gets the desired file
         p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
         p.processors([AIA_PREP_Processor],         rp=True)   # Do Sunpy Things
     
-    # p.processors([SRNSingleShotProcessor],           rp=True)  # Applies the SRN Filter
-    p.processors([QRNProcessor],           rp=True)  # Applies the QRN Filter
+    working_processors = True
+    if working_processors:
+        p.processors([QRNProcessor],           rp=True)  # Applies the QRN Filter
+        p.processors([MSGNProcessor],            rp=True)  # Applies the NRGF Filter
+        p.processors([NRGFProcessor],            rp=True)  # Applies the NRGF Filter
+        p.processors([Intensity_Enhance_Processor], rp=True)  # Applies the AIA_RFILT Filter
     
-    p.processors([MSGNProcessor],            rp=True)  # Applies the NRGF Filter
-    p.processors([NRGFProcessor],            rp=True)  # Applies the NRGF Filter
     # p.processors([FNRGFProcessor],            rp=True)  # Applies the FNRGF Filter
-    p.processors([Intensity_Enhance_Processor], rp=True)  # Applies the AIA_RFILT Filter
-
-
+    # p.processors([SRNSingleShotProcessor],           rp=True)  # Applies the SRN Filter
     # p.png_frame_name = ['lev1P5_Q', 'Quantile']
     # p.putters(ImageProcessorCV,            rp=True)  # Makes the PNGs from Fits
+    
     p.putters(MultiImageProcessorCv,            rp=True)  # Makes the PNGs from Fits
     
     # Run the Code
@@ -82,7 +83,7 @@ if __name__ == "__main__":
     # Do something if this file is invoked on its own
     
     all_wavelengths = ['0193', '0211', '0131', '0335', '0094'] #,'0304','0171', ]
-    all_wavelengths = ['0304'] #,  "0304"]
+    all_wavelengths = ['0171', '0304'] #,  "0304"]
     
     for wave_to_use in all_wavelengths:
         run_single(wave=wave_to_use)

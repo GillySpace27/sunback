@@ -6,9 +6,11 @@ from os import listdir, getcwd, makedirs
 from os.path import join, dirname, abspath, isdir, basename
 import astropy.units as u
 from time import sleep, strptime, mktime
+import time
 
 import cv2
 import numpy as np
+import sunpy
 
 from run import SingleRunner
 from science.color_tables import aia_color_table
@@ -95,6 +97,8 @@ class Processor:
     out_dtype = np.float32
     
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        self.tm = 0
+        self.raw_map = None
         self.img_path = None
         self.vignette_mask = None
         self.in_name = in_name
@@ -249,16 +253,13 @@ class Processor:
         frame, wave, t_rec, center, int_time, img_type = self.load_best_fits_field(self.fits_path, in_name)
         
         if frame is not None and img_type.casefold() != 'dark':
+            self.params.raw_name = self.frame_name
             self.params.raw_image = np.asarray(frame, dtype=np.float32) +0
             self.params.raw_image2 = np.asarray(frame, dtype=np.float32)+0
             if self.params.modified_image is None:
                 self.params.modified_image = copy(self.params.raw_image)+0
             
             self.params.cmap = aia_color_table(int(wave) * u.angstrom)
-            
-            #             self.raw_flat = self.raw_image.flatten()
-            #             self.changed_flat = self.modified_image.flatten()
-            
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
             self.file_basename = basename(self.fits_path)
             self.set_centerpoint(center)
@@ -403,14 +404,29 @@ class Processor:
     ########################################
     ## M2: For Every File in Path, do Func##
     ########################################
-    # def set_function(self, func):
-    #     """This is the function which gets applied to every file in the directory
-    #     Must follow the form:
-    #             out_frame = func(fits_path, frame_name)
-    #     """
-    #     self.do_fits_function = func
+    def do_fits_function(self, fits_path=None, in_name=None, image=True):
+        """Calls the do_work function on a single fits path if indicated"""
+        if self.load_fits_image(fits_path, in_name=in_name):
+            if (not self.use_keyframes) or (self.fits_path in self.keyframes):
+                if self.should_run():
+                    self.tic()
+                    self.raw_map = sunpy.map.Map((self.params.raw_image, self.params.header))
+                    out = self.do_work()
+                    self.toc()
+                    return out
+        return None
     
-    def do_fits_function(self, fits_path, in_name):
+    def tic(self):
+        print(" * Starting Filter...", end='')
+        self.tm = time.time()
+
+    def toc(self):
+        print("Done! Took: {:0.1f} seconds".format(time.time()-self.tm))
+    
+    def should_run(self):
+        return True
+    
+    def do_work(self):
         raise NotImplementedError
     
     def do_img_function(self):

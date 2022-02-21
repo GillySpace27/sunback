@@ -225,13 +225,6 @@ class QRNProcessor(Processor):
     ##   Main Calls  ##
     ###################
     
-    def do_fits_function(self, fits_path=None, in_name=None, image=True):
-        """Calls the do_work function on a single fits path if indicated"""
-        if self.load_fits_image(fits_path, in_name=in_name):
-            if (not self.use_keyframes) or (self.fits_path in self.keyframes):
-                return self.do_work()  # Do the work on the fits files
-        return None
-    
     # def do_img_function(self):
     #     """Calls the do_work function on a single fits path if indicated"""
     #     raise NotImplementedError

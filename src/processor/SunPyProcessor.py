@@ -60,7 +60,7 @@ class SunPyProcessor(Processor):
     do_png = False
     renew_mask = True
     can_initialize = True
-    aia_map = None
+    raw_map = None
     
     # Parse Inputs
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
@@ -69,41 +69,6 @@ class SunPyProcessor(Processor):
         self.tm = 0
         self.radial_bin_edges = equally_spaced_bins(inner_value=0.8, nbins=200) * u.R_sun
         self.in_name = in_name or ["lev1p5_t_int",  "lev1_t_int", "lev1p5_single", "lev1_single"]
-    
-    def do_fits_function(self, fits_path=None, in_name=None, image=True):
-        """Calls the do_work function on a single fits path if indicated"""
-        if self.load_fits_image(fits_path, in_name=in_name):
-            if (not self.use_keyframes) or (self.fits_path in self.keyframes):
-                if self.should_run():
-                    self.tic()
-                    out = self.do_work()
-                    self.toc()
-                    return out
-        return None
-    
-    def do_work(self):
-        """Analyze the Image, Normalize it, Plot"""
-        if self.should_run():
-            print("Template Ran")
-        self.out_name = "Default"
-        # self.params.raw_image
-        return self.params.modified_image
-    
-    def cleanup(self):
-        """Runs after all the images have been modified with do_work"""
-        pass
-    
-    def should_run(self):
-        """Decide of the processor should run on this file"""
-        return True
-
-    def tic(self):
-        print(" * Starting Filter...", end='')
-        self.tm = time.time()
-        
-    def toc(self):
-        print("Done! Took: {:0.4f} seconds".format(time.time()-self.tm))
-
 
 
 class AIA_PREP_Processor(SunPyProcessor):
@@ -254,19 +219,12 @@ class NRGFProcessor(SunPyProcessor):
     finished_verb = "Normalized"
     out_name = "NRGF"
     
-    # Parse Inputs
-    def __init__(self, params=None, quick=False, rp=None, in_name=None):
-        """Initialize the main class"""
-        super().__init__(params, quick, rp, in_name)
-    
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
-        self.aia_map = sunpy.map.Map((self.params.raw_image, self.params.header))
-        
-        # The NRGF filter is applied after it.
-        self.params.modified_image = radial.nrgf(self.aia_map,
+        self.params.modified_image = radial.nrgf(self.raw_map,
                                                  self.radial_bin_edges, application_radius=0.).data
         return self.params.modified_image
+
 
 class FNRGFProcessor(SunPyProcessor):
     """This class template holds the code for the Sunpy Processors"""
@@ -284,12 +242,7 @@ class FNRGFProcessor(SunPyProcessor):
         self.attenuation_coefficients = radial.set_attenuation_coefficients(self.order)
     
     def do_work(self):
-        """Analyze the Image, Normalize it, Plot"""
-        
-        self.aia_map = sunpy.map.Map((self.params.raw_image, self.params.header))
-        
-        # The FNRGF filter is applied
-        self.params.modified_image = radial.fnrgf(self.aia_map, self.radial_bin_edges,
+        self.params.modified_image = radial.fnrgf(self.raw_map, self.radial_bin_edges,
                                                   self.order, self.attenuation_coefficients).data
         return self.params.modified_image
 
@@ -304,30 +257,13 @@ class Intensity_Enhance_Processor(SunPyProcessor):
     description = "Apply Intensity_Enhance to the images"
     progress_verb = 'Filtering'
     finished_verb = "Normalized"
-    out_name_stem = "int_enhance"
-    
-    # Parse Inputs
-    def __init__(self, params=None, quick=False, rp=None, in_name=None):
-        """Initialize the main class"""
-        super().__init__(params, quick, rp, in_name)
-        self.out_name = self.out_name_stem
+    out_name = "int_enhance"
     
     def do_work(self):
-        """Analyze the Image, Normalize it, Plot"""
-        # Build the Map
-        self.aia_map = sunpy.map.Map((self.params.raw_image, self.params.header))
-        self.params.modified_image = radial.intensity_enhance(self.aia_map, self.radial_bin_edges).data
+        self.params.modified_image = radial.intensity_enhance(self.raw_map, self.radial_bin_edges).data
         return self.params.modified_image
     
     
-    
-        # # The FNRGF filtered map is plotted.
-        # fig = plt.figure()
-        # ax = plt.subplot(projection=out2)
-        # out2.plot()
-        #
-        # # All the figures are plotted.
-        # plt.show()
 
 class MSGNProcessor(SunPyProcessor):
     """This class template holds the code for the Sunpy Processors"""
@@ -335,38 +271,12 @@ class MSGNProcessor(SunPyProcessor):
     description = "Apply MSGN effets to images"
     progress_verb = 'Normalizing'
     finished_verb = "Normalized"
-    out_name_stem = "MSGN"
-    
-    # Parse Inputs
-    def __init__(self, params=None, quick=False, rp=None, in_name=None):
-        """Initialize the main class"""
-        super().__init__(params, quick, rp, in_name)
-        
+    out_name = "MSGN"
     
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         import sunkit_image.enhance as enhance
-        
-        # maxind = min(len(self.in_name), 5)
-        self.out_name = self.out_name_stem# .format(self.in_name[:maxind])
-        # The FNRGF filter is applied
-        print(" * Starting Filter...", end='')
-        tm = time.time()
         self.params.modified_image = enhance.mgn(self.params.raw_image)
-        print("Done! Took: {:0.4f} seconds".format(time.time()-tm))
         return self.params.modified_image
 
         
-        # aia_map = sunpy.map.Map((self.params.modified_image, self.params.header))
-        #
-    
-    
-    
-        # # The FNRGF filtered map is plotted.
-        # fig = plt.figure()
-        # ax = plt.subplot(projection=out2)
-        # out2.plot()
-        #
-        # # All the figures are plotted.
-        # plt.show()
-    
