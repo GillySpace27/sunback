@@ -133,7 +133,7 @@ class SRNpreProcessor(SRNProcessor):
     finished_verb = "Analyzed"
     show_plots = True
     
-    def __init__(self, fits_path=None, in_name="lev1_t_int", orig=False,
+    def __init__(self, fits_path=None, in_name="t_int(lev1p0)", orig=False,
                  show=False, verb=False, quick=False, rp=None, params=None):
         super().__init__(fits_path=fits_path, in_name=in_name, orig=orig, show=show, verb=verb, quick=quick, rp=rp, params=params)
         self.first = True
@@ -149,7 +149,7 @@ class SRNpreProcessor(SRNProcessor):
         if self.should_run():
             self.image_learn()
             # self.plot_norm_curves(save=True)
-        self.out_name = "quantile"
+        # self.out_name = "quantile"
         return self.params.quantile_image
     
     def cleanup(self):

@@ -30,7 +30,7 @@ plt.ioff()
 all_wavelengths = ['0193', '0211', '0131', '0335', '0094','0304','0171', ]
 do_wavelengths = all_wavelengths  # ['0211']
 # do_wavelengths = ['0171']
-PNG_FRAME_NAME = 'Quantile' #'SRN'
+PNG_FRAME_NAME = 'quantile' #'SRN'
 
 def run_one_multishot_image(batch_name= "Gonzalez", wave=None, config=None, wave_to_use=None, alpha=0.35):
     # Set the Parameters

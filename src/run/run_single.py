@@ -3,9 +3,10 @@ from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from fetcher.LocalFetcher import LocalSingleFetcher
 from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
 from processor.QRNProcessor import QRNProcessor
+from processor.RHTProcessor import RHTProcessor
 from processor.SRNProcessor import SRNProcessor
 from processor.SRNSubProcessors import SRNSingleShotProcessor
-from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, Intensity_Enhance_Processor, MSGNProcessor
+from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor
 from science.parameters import Parameters
 from run import SingleRunner
 import matplotlib.pyplot as plt
@@ -24,24 +25,26 @@ def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*4,
     name = "Single_Test"
     p = default_run_single_params(wave, tstart, duration_seconds, frames, name)
     
+    master = False
+    
     # Set the Processes
-    get_images = True
+    get_images = True and master
     if get_images:
-        p.fetchers(FidoFetcher,                rp=True)  # Gets the desired file
+        p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
         p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
-        p.processors([AIA_PREP_Processor],         rp=True)   # Do Sunpy Things
+        p.processors([AIA_PREP_Processor],     rp=True)   # Do Sunpy Things
     
-    working_processors = True
-    if working_processors:
-        p.processors([QRNProcessor],           rp=True)  # Applies the QRN Filter
-        p.processors([MSGNProcessor],            rp=True)  # Applies the NRGF Filter
-        p.processors([NRGFProcessor],            rp=True)  # Applies the NRGF Filter
-        p.processors([Intensity_Enhance_Processor], rp=True)  # Applies the AIA_RFILT Filter
+    radial_norms = True and master
+    if radial_norms:
+        p.processors([QRNProcessor],            rp=True)  # Applies the QRN Filter
+        p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
+        # p.processors([IntEnhanceProcessor],     rp=True)  # Applies the Sunpy IntEnhance Filter
     
-    # p.processors([FNRGFProcessor],            rp=True)  # Applies the FNRGF Filter
-    # p.processors([SRNSingleShotProcessor],           rp=True)  # Applies the SRN Filter
-    # p.png_frame_name = ['lev1P5_Q', 'Quantile']
-    # p.putters(ImageProcessorCV,            rp=True)  # Makes the PNGs from Fits
+    p.aftereffects_in_name = "quantile"
+    aftereffects = True and master
+    if aftereffects:
+        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
     
     p.putters(MultiImageProcessorCv,            rp=True)  # Makes the PNGs from Fits
     
@@ -76,17 +79,26 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
     p.download_files(True)
     p.do_prep = False # Won't do AIA prep upon download of each frame
     p.use_drive = "G"
+
+    # p.processors([FNRGFProcessor],            rp=True)  # Applies the Sunpy FNRGF Filter
+    # p.processors([SRNSingleShotProcessor],           rp=True)  # Applies the SRN Filter
+    # p.png_frame_name = ['lev1P5_Q', 'Quantile']
+    # p.putters(ImageProcessorCV,            rp=True)  # Makes the PNGs from Fits
+
     
     return p
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     
-    all_wavelengths = ['0193', '0211', '0131', '0335', '0094'] #,'0304','0171', ]
-    all_wavelengths = ['0171', '0304'] #,  "0304"]
+    all_wavelengths = ['0304', '0171', '0211', '0193', '0131', '0335', '0094', ]
+    # all_wavelengths = ['0171', '0304'] #,  "0304"]
     
     for wave_to_use in all_wavelengths:
         run_single(wave=wave_to_use)
+        
+        import sys
+        sys.exit()
 
 
 

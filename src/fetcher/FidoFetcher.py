@@ -193,6 +193,7 @@ class FidoFetcher(Fetcher):
             # with open(loc, mode="w+") as sys.stdout:
             self.verb = False
             print(" **       Fido Fetching...")
+            print("\r \n   [/~~~~~~~~~~~~~~~~~~~~~~~~~~~FIDO~~~~~~~~~~~~~~~~~~~~~~~~~~~\\]")
             try:
                 results = Fido.fetch(self.needed_files, path=self.out_path, downloader=SubDownloader)
             except DrmsExportError as e:
@@ -263,6 +264,8 @@ class FidoFetcher(Fetcher):
     # Printing #####################################################
     
     def multi_banner(self):
+        
+        print("\r   [\\~~~~~~~~~~~~~~~~~~~~~~~~~~~FIDO~~~~~~~~~~~~~~~~~~~~~~~~~~~//]\n")
         if self.n_fits == self.fido_search_found_num:
             print("\r ^     Successfully Downloaded all {} Files\n".format(self.n_fits), flush=True)
         elif self.n_fits:
@@ -270,6 +273,8 @@ class FidoFetcher(Fetcher):
         else:
             print(" ^     Unable to Download...Try again Later.")
             raise (ConnectionRefusedError(" Unable to Download...Try again Later."))
+
+        
         self.super_flush()
     
     # Validation

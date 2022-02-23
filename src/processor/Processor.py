@@ -36,7 +36,7 @@ class Processor:
     """Top Level Class"""
     # name = 'data'
     in_name = -1
-    out_name = 'filtered'
+    out_name = ''
     filt_name = "Base Processor Class"
     batch_name = name = 'default_name'
     description = "Use an Unnamed Processor"
@@ -106,15 +106,17 @@ class Processor:
         self.reprocess_mode(rp)
         self.load(params, quick=quick)
         if self.params:
-            self.run_type_str = "\\item ({}) {}".format(self.this_file_name, self.run_type)
+            self.run_type_str = "\\item  {}".format(self.this_file_name, self.run_type)
             self.paper_out.append(self.run_type_str)
     
-    @staticmethod
-    def plan(self):
+    def plan(self, end=False):
         """Find the name of this processor and print"""
-        self.proc_name = self.filt_name
-        if 'null' not in self.proc_name.casefold():
-            proc_name = self.proc_name + "\t : \t" + self.description
+        if self.filt_name is not None:
+            if end and self.params is not None:
+                duration = "\t : \t" + self.params.durList.pop(0)
+            else:
+                duration = ""
+            proc_name = self.filt_name + "\t : \t" + self.description  + duration
             print('      ' + proc_name)
     
     def put(self, params=None):
@@ -155,6 +157,7 @@ class Processor:
         self.progress_string = self.progress_stem.format(self.progress_verb, self.progress_unit)
         
         if self.params is not None:
+            wave = wave or self.params.current_wave()
             #  Refresh Params and Load Paths
             self.name = self.params.batch_name(batch_name)
             self.super_flush()
@@ -198,6 +201,16 @@ class Processor:
         
         if absolute is not None:
             self.base_absolute = absolute
+
+    def make_temp_dir(self, img_path):
+        if self.params.do_single and img_path:
+            temp_top_dir = os.path.dirname(self.params.temp_directory())
+            this_name = os.path.basename(img_path)[:-5]
+            self.params.temp_directory(os.path.join(temp_top_dir, this_name))
+        os.makedirs(self.params.temp_directory(), exist_ok=True)
+        self.params.do_temp = True
+        return self.params.temp_directory()
+
     
     def load_paths(self, verb=False):
         """ Determines and lists the files that exist in the given directories"""
@@ -210,7 +223,7 @@ class Processor:
             print('\r v {}...  ------------------------------------------------  v'.format(self.filt_name), flush=True)
             if self.finished_verb.casefold() in ["summed"]:
                 exp = self.params.exposure_time_seconds()
-                print(" *    Exposure Time is {} seconds, which is {:0.3f} frames".format(exp, exp / 12))
+                print(" *    Exposure Time is {} seconds, which is {:0.2f} frames".format(exp, exp / 12))
             print("\r +    {}: {}, Redo = {}".format(self.progress_verb, self.params.current_wave(), self.reprocess_mode()))
             # vprint("\r +    Using {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()))
     
@@ -264,6 +277,9 @@ class Processor:
             self.file_basename = basename(self.fits_path)
             self.set_centerpoint(center)
             self.params.image_data = self.image_data
+            
+
+            
             return True
         else:
             print("Skipped Fits!")
@@ -302,7 +318,7 @@ class Processor:
         #     ax1.set_xlim((3400,4000))
         #     ax1.set_ylim((2300,3200))
         
-        ax0.set_title("lev1_Single")
+        ax0.set_title("lev1p0")
         ax1.set_title("Changed")
         
         plt.tight_layout()
@@ -406,6 +422,7 @@ class Processor:
     ########################################
     def do_fits_function(self, fits_path=None, in_name=None, image=True):
         """Calls the do_work function on a single fits path if indicated"""
+
         if self.load_fits_image(fits_path, in_name=in_name):
             if (not self.use_keyframes) or (self.fits_path in self.keyframes):
                 if self.should_run():
@@ -417,12 +434,15 @@ class Processor:
         return None
     
     def tic(self):
-        print(" * Starting Filter...", end='')
+        print(" *    Running Filter...", end='\n')
         self.tm = time.time()
 
     def toc(self):
-        print("Done! Took: {:0.1f} seconds".format(time.time()-self.tm))
-    
+        dur = time.time()-self.tm
+        print(" ^    Done! Took: {:0.2f} seconds\n".format(dur))
+        self.params.durList.append(dur)
+        # TODO make the duration list thing work, displaying the time it took to do each thing at the end.
+        
     def should_run(self):
         return True
     
@@ -440,20 +460,20 @@ class Processor:
     
     def process(self, params=None):
         """Load the parameters and run the algorithm"""
-        
+        self.params = params or self.params
         if self.params is not None:
             if self.params.do_single:
                 self.setup()
-                self.load(params, quietly=False)
+                self.load(self.params, quietly=False)
                 mod = self.modify_one_image()
                 if mod is None:
-                    print(" ^     Skipped - Already Done!\n")
+                    print(" ^     No Fits Frame Saved!  ------------------------------------------------  ^\n")
                 self.cleanup()
             elif self.do_png:
-                self.load(params, quietly=False)
+                self.load(self.params, quietly=False)
                 self.process_img_series()
             else:
-                self.load(params, quietly=False)
+                self.load(self.params, quietly=False)
                 self.process_fits_series()
         
     ##  Run on Fits Files
@@ -497,27 +517,51 @@ class Processor:
     def modify_one_fits(self, fits_path):
         """Apply the given funtion to the given fits path"""
         self.confirm_fits_file(fits_path)
-        output = self.do_fits_function(fits_path, self.in_name)
+        try:
+            output = self.do_fits_function(fits_path, self.in_name)
+        except np.linalg.LinAlgError as e:
+            print("Modify one fits :: ", e, "\n")
+            output = 0.5*np.ones_like(self.params.raw_image)
+            output[0] = 0.
+            output[1] = 1.
         try:
             frame = output.get()
         except AttributeError as e:
             # print(e)
             frame = output
+            
+        self.save_frame(frame, fits_path)
+        return frame
         
+    def save_frame(self, frame, fits_path):
         if self.save_to_fits and frame is not None:
             self.save_frame_to_fits_file(fits_path, frame, dtype=self.out_dtype)
             # def save_frame_to_fits_file(fits_path, frame, out_name=None, dtype="float32"):
         
-        return frame
     
+    def select_single_image(self):
+        path1 = self.params.use_image_path()
+        path2 = self.fits_path
+        all_fits_paths = self.params.local_fits_paths()
+        wavestr = self.params.current_wave()[1:]
+        wave_paths = [x for x in all_fits_paths if wavestr in x]
+        if len(wave_paths) == 1:
+            self.img_path = wave_paths[0]
+        elif path1 is not None or path2 is not None:
+            self.img_path = path1 or path2
+        else:
+            raise FileNotFoundError("No image found for wavelength: {}".format(wavestr))
+        
     def modify_one_image(self,):
         """Apply the given funtion to the given fits path"""
         
         try:
-            self.img_path = self.params.use_image_path() or self.params.first_fits_path()
+            self.select_single_image()
             self.params.modified_image = self.modify_one_fits(self.img_path)
+            
         except NotImplementedError as e:
             self.params.modified_image = self.do_img_function()
+            # self.out_name = self.out_name
         return self.params.modified_image
     
     def process_img_series(self):
@@ -654,7 +698,13 @@ class Processor:
         """Save a fits file to disk"""
         # print("Saving Frame to Fits File")
         if out_name is None:
-            field = self.out_name
+            in_name = self.frame_name
+            entries = in_name.split("(")
+            previous_name = entries[-1].replace(")","")
+            last_name = entries[0]
+            this_filters_name = self.out_name
+            the_original = "({})".format(last_name)
+            field = this_filters_name + the_original
         else:
             field = out_name
         good_frame = np.any(frame)
@@ -664,31 +714,32 @@ class Processor:
             # frame2 = frame
             if "float" in str(frame.dtype):
                 # frame2 *= 10**3
-                frame2 = np.abs(frame2)
+                # frame2 = np.abs(frame2)
                 frame2 = frame2.astype(np.float32)
                 # frame2[0] = 2**16 - 3
             
             with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True) as hdul:
                 hdul.verify('silentfix+ignore')  # Then Verify
                 self.remove_blank_frames(hdul) # THis might not work
-                
-                # if self.params.int_tm_tot is not None and self.header['EXPTIME'] != 1:
-                #     self.header['EXPTIME'] = self.params.int_tm_tot
-                
+
                 fit_frame = fits.ImageHDU(frame2, name=field, header=self.header)
-                # fit_frame = fit_frame
+
                 if field not in hdul:
                     hdul.append(fit_frame)  # Write
                 else:
                     hdul[field] = fit_frame  # Write
                 
-                hdul = self.delete_further_hdus(hdul, field)
+                # hdul = self.delete_further_hdus(hdul, field)
 
-                
                 try:
                     hdul.close(output_verify='fix')
                     if self.params.speak_save:
-                        print(" ** >> Saved Frame {} << **\n".format(field))
+                        middle = "        ** >> Saved Frame {} << **".format(field)
+                        midlen = len(middle) - 14
+                        print("        ** "+"V"*midlen+" **")
+                        print(middle)
+                        print("        ** "+"^"*midlen+" **\n")
+                        
                 except PermissionError as e:
                     print("Failed to save a file: \n {}".format(fits_path))
     
@@ -733,7 +784,7 @@ class Processor:
     
     def load_a_fits_field(self, fits_path, field=None, quiet=False):
         """Load a fits file from disk"""
-        with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
+        with fits.open(fits_path, cache=False, ignore_missing_end=True, ignore_missing_simple=True) as hdul:
             hdul.verify('silentfix+ignore')  # Verify
             self.list_hdus(hdul)
             # self.in_name = self.find_correct_in_name(hdul)
@@ -744,16 +795,15 @@ class Processor:
     def load_single_frame(self, hdul, field=None, quiet=False):
         if field is not None:
             self.in_name = field
-
         data, header = self.open_fits_hdul(hdul, quiet)
-
-        return data + 0
+        self.newHeader = header
+        return data
         # try:
         #     frame = None
         #     if self.in_name is not None:
         #         if self.in_name in hdul:
         #             hdu = hdul[self.in_name]
-        #         elif self.in_name =="lev1_Single":
+        #         elif self.in_name =="lev1p0":
         #             in_name = "COMPRESSED_IMAGE"
         #             if in_name in hdul:
         #                 hdu = hdul[in_name]
@@ -781,6 +831,10 @@ class Processor:
             wave, t_rec, center, int_time, self.found_limb_radius = self.get_fits_info(hdul)
             frame, header = self.open_fits_hdul(hdul)
             img_type = self.header['IMG_TYPE']
+            
+            if self.in_name is not None:
+                print(" +    Loading Frame: {}".format(self.in_name))
+            
         return frame, wave, t_rec, center, int_time, img_type
     
     def set_hdul_in_name(self, fits_path=None, hdul=None, field=None):
@@ -801,7 +855,7 @@ class Processor:
         to_replace_list = ['COMPRESSED_IMAGE', '']
         for to_replace in to_replace_list:
             if to_replace in hdul:
-                names = ["lev1_Single"]
+                names = ["lev1p0"]
                 for ii, item in enumerate(hdul):
                     if item.name == to_replace:
                         if len(names):
@@ -812,7 +866,7 @@ class Processor:
     def remove_unprocessed_frames(self, fits_path=None):
         # vprint("Blank Frame Ran")
         fits_path = fits_path or self.fits_path
-        to_destroy = ['LEV1_SINGLE', 'LEV1_T_INT',]
+        to_destroy = ['lev1p0', 't_int(lev1p0)',]
     
         with fits.open(fits_path, cache=False, ignore_missing_end=True, mode='update') as hdul:
             # hdul.verify('silentfix+ignore')  # Verify
@@ -821,8 +875,25 @@ class Processor:
                 sm = name.casefold()
                 if sm in self.hdu_name_list:
                     del hdul[name]
-
+                    
+    def remove_unprocessed_frames2(self, fits_path=None):
+        # vprint("Blank Frame Ran")
+        fits_path = fits_path or self.fits_path
+        to_destroy = ['lev1p0']
     
+        with fits.open(fits_path, cache=False, ignore_missing_end=True, mode='update') as hdul:
+            # hdul.verify('silentfix+ignore')  # Verify
+            self.hdu_name_list = self.list_hdus(hdul)
+            for name in to_destroy:
+                sm = name.casefold()
+                for nn in self.hdu_name_list:
+                    if sm in nn:
+                        try:
+                            del hdul[nn]
+                        except KeyError as e:
+                            print("KeyError", e)
+                            # pass
+                            
     # Curves Save and Load
     def prep_save_outs(self):
         """Prepare the scalar_out_curve for writing"""
@@ -904,6 +975,7 @@ class Processor:
     def load_curves(self, force=None, verb=False):
         """Load the curves so they don't have to be recalculated"""
         lc = self.load_print_latch
+        lc = False
         if os.path.exists(self.params.curve_path()):
             if self.abs_min_scalar is None or force:
                 if lc: vprint("\r *    Loading Radial Curves...", end='')
@@ -927,10 +999,10 @@ class Processor:
             # self.save_curves()
             
             # if hdul['primary'].data is None:
-            #     hdul['primary'].data = hdul["lev1_Single"].data + 0
+            #     hdul['primary'].data = hdul["lev1p0"].data + 0
             #     hdul[0].name = 'primary'
-            #     hdul['primary'].header = hdul['primary'].header + hdul["lev1_Single"].header
-            #     del hdul["lev1_Single"]
+            #     hdul['primary'].header = hdul['primary'].header + hdul["lev1p0"].header
+            #     del hdul["lev1p0"]
             #
             # # hdul.writeto(self.fits_path, output_verify="ignore", overwrite=True)
             #
@@ -1023,8 +1095,9 @@ class Processor:
         self.params.header = self.header
         return wave, t_rec, center, int_time, found_limb_radius
     
-    def open_fits_hdul(self, hdul, quiet=True):
+    def open_fits_hdul(self, hdul, quiet=True, fail=False):
         """Load a fits file from disk"""
+        quiet = True
         self.list_hdus(hdul)
         
         if self.in_name is None:
@@ -1039,22 +1112,23 @@ class Processor:
         if isinstance(self.in_name, list):
             in_list = self.in_name
             use_name = None
-            lower_hdus = [x.casefold() for x in self.hdu_name_list]
+            # lowercase_hdu_names = [x.casefold() for x in self.hdu_name_list]
             for name in self.in_name:
                 name = name.casefold()
-                if name in self.hdu_name_list or name in lower_hdus:
-                    use_name = name
-                    # quiet =False
-                    if not quiet:
-                        print(" +    Using frame {}".format(use_name))
-                    break
+                for nn in self.hdu_name_list:
+                    if name in nn: # or name in lowercase_hdu_names:
+                        use_name = nn
+                        if not quiet:
+                            print(" +    Using frame {}".format(use_name))
+                        break
             if not use_name:
                 last_frame = self.hdu_name_list[-1].casefold()
                 print("\r *       {} not found, proceeding with {} instead".format(
                         in_list, last_frame))
+                if fail:
+                    raise
                 use_name = last_frame
-            self.in_name = use_name
-            self.frame_name=use_name
+            self.in_name = self.frame_name = use_name
             try:
                 field_hdu = hdul[self.in_name]
             except KeyError as e:
@@ -1062,12 +1136,12 @@ class Processor:
         data = None
         header = None
         try:
-            data = field_hdu.data
+            data = field_hdu.data+0
             header = hdul[1].header
         except TypeError:
             vprint("Processor: 911 !Failed to Load Frame!")
         except IndexError:
-            data = field_hdu.data
+            data = field_hdu.data+0
             header = hdul[0].header
         return data, header
     
@@ -1093,10 +1167,7 @@ class Processor:
     
     def find_correct_in_name(self, hdul, in_name=None):
         """Determine which out_array of the input file to use on redo"""
-        # if self.ensured:
-        #     return self.in_name
-        # self.ensured = True
-        
+      
         
         if in_name is not None:
             self.in_name = in_name
@@ -1108,26 +1179,21 @@ class Processor:
         
         self.hdu_name_list = self.list_hdus(hdul)
         
-        input_frame_name = self.determine_in_frame_name()
-        first_frame_name = self.hdu_name_list[0]
-        second_frame_name = self.hdu_name_list[1]
-        last_frame_name = self.hdu_name_list[-1]
-        output_frame_name = self.determine_out_frame_name()
-        penultimate_frame_name = self.determine_penultimate_frame_name()
+        input_frame_name = self.determine_in_frame_name().split('(')[0]
+        first_frame_name = self.hdu_name_list[0].split('(')[0]
+        second_frame_name = self.hdu_name_list[1].split('(')[0]
+        last_frame_name = self.hdu_name_list[-1].split('(')[0]
+        output_frame_name = self.determine_out_frame_name().split('(')[0]
+        penultimate_frame_name = self.determine_penultimate_frame_name().split('(')[0]
         try:
-            previous_frame_name = self.hdu_name_list[self.hdu_name_list.index(output_frame_name)-1]
+            previous_frame_name = self.hdu_name_list[self.hdu_name_list.index(output_frame_name)-1].split('(')[0]
         except ValueError:
-            previous_frame_name = penultimate_frame_name
+            previous_frame_name = penultimate_frame_name.split('(')[0]
+        all_frame_names = [x.casefold().split('(')[0] for x in self.hdu_name_list if type(x) is str]
+        filter_already_applied = True if output_frame_name.casefold() in all_frame_names else False
+
         
-        
-        filter_already_applied = filter_applied_last = False
-        if output_frame_name.casefold() in [x.casefold() for x in self.hdu_name_list if type(x) is str]:
-            filter_already_applied = True
-        if input_frame_name.casefold() == output_frame_name.casefold():
-            filter_applied_last = True
-            # If you're about to redo a filter
-        
-        if filter_already_applied or filter_applied_last:
+        if filter_already_applied:
             if reprocess_mode == 'skip' or reprocess_mode is False:
                 # Skip it
                 self.in_name = None

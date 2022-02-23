@@ -67,8 +67,8 @@ class SunPyProcessor(Processor):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
         self.tm = 0
-        self.radial_bin_edges = equally_spaced_bins(inner_value=0.8, nbins=200) * u.R_sun
-        self.in_name = in_name or ["lev1p5_t_int",  "lev1_t_int", "lev1p5_single", "lev1_single"]
+        self.radial_bin_edges = equally_spaced_bins(inner_value=0.0, nbins=300) * u.R_sun
+        self.in_name = in_name or ["lev1p0", "t_int", "lev1p5"]
 
 
 class AIA_PREP_Processor(SunPyProcessor):
@@ -97,9 +97,8 @@ class AIA_PREP_Processor(SunPyProcessor):
         self.pointing_table = None
         self.pointing_end = None
         self.pointing_start = None
-        self.in_name_possibles = ["lev1_t_int", "lev1_Single", "lev1_t_int"]
-        self.in_name = ["lev1_t_int", "lev1_Single"]
-        self.out_name_stem = "lev1p5_{}"
+        self.in_name = ["lev1p0", "t_int"]
+        self.out_name = "lev1p5"
         self.params.modified_image = None
     
     def do_work(self):
@@ -107,36 +106,34 @@ class AIA_PREP_Processor(SunPyProcessor):
         if self.should_run():
             self.get_aia_prep_data()
             self.do_AIA_PREP()
-            self.save_out()
+            self.remove_unprocessed_frames2()
             return self.params.modified_image
         return None
     
-    def should_run(self):
-        """Decide of the processor should run on this file"""
-        return self.select_maps()
-    
-    def cleanup(self):
-        self.remove_unprocessed_frames()
-    
-    def select_maps(self):
-        maxind = min(len(self.in_name), 5)
-        maxInd=1
-        self.out_name = self.out_name_stem.format(self.in_name[-5:])
-        try:
-            self.out_name = self.out_name.casefold()
-            self.in_name = self.in_name_possibles.pop(0)
-            while self.out_name in self.hdu_name_list and not self.reprocess_mode():
-                self.in_name = self.in_name_possibles.pop(0)
-                self.out_name = self.out_name_stem.format(self.in_name[0]).casefold()
-        except IndexError:
-            return False
-        
-        self.load_fits_image(self.fits_path, in_name=self.in_name)
+    def do_AIA_PREP(self):
+        self.level_15_maps = []
+        for a_map in self.level_1_maps:
+            
+            if False:
+                a_map = self.deconvolve_psf(a_map)
+            
+            map_updated_pointing = self.get_updated_pointing(a_map)
+            
+            # Execute AIA_PREP
+            map_registered = register(map_updated_pointing)
+            map_degradation = correct_degradation(map_registered, correction_table=self.correction_table)
+            map_normalized = normalize_exposure(map_degradation)
+            map_double_normed = map_normalized / np.nanmax(map_normalized.data)
+            out = map_double_normed if 'q' in self.out_name.casefold() else map_degradation
+            self.level_15_maps.append(out)
+            
+        done_map = self.level_15_maps[0]
+        self.params.modified_image = done_map.data
+        self.header = self.params.header = sunpy.io.fits.header_to_fits(done_map.meta)
+
+    def get_aia_prep_data(self, force=False):
         self.params.header["LVL_NUM"] = 1.5
         self.level_1_maps = [sunpy.map.Map((self.params.raw_image, self.params.header))]
-        return True
-    
-    def get_aia_prep_data(self, force=False):
         if self.correction_table is None or force:
             # We get the pointing table outside of the loop for the relevant time range.
             # Otherwise you're making a call to the JSOC every single time.
@@ -169,35 +166,6 @@ class AIA_PREP_Processor(SunPyProcessor):
                 return self.get_updated_pointing(a_map, one_deep=False)
             else:
                 raise e
-        
-    
-    def do_AIA_PREP(self):
-        self.level_15_maps = []
-        for a_map in self.level_1_maps:
-            
-            if False:
-                a_map = self.deconvolve_psf(a_map)
-
-            map_updated_pointing = self.get_updated_pointing(a_map)
-            
-            # Execute AIA_PREP
-            map_registered = register(map_updated_pointing)
-            map_degradation = correct_degradation(map_registered, correction_table=self.correction_table)
-            map_normalized = normalize_exposure(map_degradation)
-            map_double_normed = map_normalized / np.nanmax(map_normalized.data)
-            out = map_double_normed if 'q' in self.out_name.casefold() else map_degradation
-            self.level_15_maps.append(out)
-    
-    def save_out(self):
-        # Plot
-        # self.plot_lev1p5(plot_result=True)
-        
-        # Get the Data
-        done_map = self.level_15_maps[0]
-        self.params.modified_image = done_map.data
-        
-        # Get the Header
-        self.header = self.params.header = sunpy.io.fits.header_to_fits(done_map.meta)
     
     def plot_lev1p5(self, plot_result=True):
         two_maps = [self.level_15_maps[0]]
@@ -222,7 +190,7 @@ class NRGFProcessor(SunPyProcessor):
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         self.params.modified_image = radial.nrgf(self.raw_map,
-                                                 self.radial_bin_edges, application_radius=0.).data
+                                                 self.radial_bin_edges, application_radius=0.00 * u.R_sun).data
         return self.params.modified_image
 
 
@@ -247,8 +215,7 @@ class FNRGFProcessor(SunPyProcessor):
         return self.params.modified_image
 
 
-
-class Intensity_Enhance_Processor(SunPyProcessor):
+class IntEnhanceProcessor(SunPyProcessor):
     """Implementation of: https://docs.sunpy.org/projects/sunkit-image/en/stable/api/sunkit_image.radial.intensity_enhance.html#sunkit_image.radial.intensity_enhance
         Which is clled Intensity_enhance, but seems like it's a version of AIR_RFILT that divides curve that is fitted to the data
         Technically this is similar to SRN, I will be interested to see how it performs
@@ -262,8 +229,7 @@ class Intensity_Enhance_Processor(SunPyProcessor):
     def do_work(self):
         self.params.modified_image = radial.intensity_enhance(self.raw_map, self.radial_bin_edges).data
         return self.params.modified_image
-    
-    
+
 
 class MSGNProcessor(SunPyProcessor):
     """This class template holds the code for the Sunpy Processors"""
@@ -273,10 +239,13 @@ class MSGNProcessor(SunPyProcessor):
     finished_verb = "Normalized"
     out_name = "MSGN"
     
+    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        """Initialize the main class"""
+        super().__init__(params, quick, rp, in_name)
+        self.in_name = self.params.aftereffects_in_name or in_name or self.in_name
+    
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         import sunkit_image.enhance as enhance
         self.params.modified_image = enhance.mgn(self.params.raw_image)
         return self.params.modified_image
-
-        

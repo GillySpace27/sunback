@@ -30,11 +30,15 @@ class LocalFetcher(Fetcher):
     description = "Load the images from Disk"
     filt_name = "Local Fetcher"
     
+    def __init__(self, params=None, quick=False, rp=None):
+        super().__init__(params, quick, rp)
+        
+    
     def fetch(self, params=None):
         print(" v Loading Local Files...")
         self.load(params)
         num = self.n_fits + self.n_imgs
-        print(" ^    Successfully Discovered {} fits and {} images\n".format(self.n_fits, self.n_imgs)
+        print(" ^    Discovered {} fits and {} images\n".format(self.n_fits, self.n_imgs)
               if num>0 else "No Files to Load!")
         if num == 0:
             print("\n    !!Quitting Program!!\n")
@@ -215,7 +219,7 @@ class LocalCdfFetcher(Fetcher):
 
         to_plot1 = self.quick_filter(self.params.raw_image)
         ax1.imshow(to_plot1, origin="lower")
-        ax1.set_title("lev1_Single")
+        ax1.set_title("lev1p0")
         
         fig.set_size_inches(10,5)
         plt.show()

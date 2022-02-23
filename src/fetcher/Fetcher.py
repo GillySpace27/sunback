@@ -69,6 +69,6 @@ class Fetcher(Processor):
             
             use_file = fits_files[use_index]
             use_path = os.path.join(self.params.fits_directory(), use_file)
-            print("Img Use Path:{}".format(use_path))
+            # print("Img Use Path:{}".format(use_path))
         return self.params.use_image_path(use_path)
 

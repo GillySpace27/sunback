@@ -41,11 +41,11 @@ def vprint(in_string, *args, **kwargs):
 
 class QRNProcessor(Processor):
     """This class holds the code for the Quantile Radial Norm Processor"""
-    name = filt_name = "Quantile Radial Norm Processor"
+    name = filt_name = "Quantile Norm Processor"
     description = "Apply the single-shot Quantile Norm to images"
     progress_verb = 'Normalizing'
     finished_verb = "Normalized"
-    out_name = "Quantile"
+    out_name = "quantile"
     
     # Flags
     show_plots = True
@@ -60,9 +60,8 @@ class QRNProcessor(Processor):
         
         self.radius = None
         # Ingest
-        # self.in_name = ["lev1p5_t_int", "lev1p5_L", "lev1_t_int", "lev1_Single"]
-        self.in_name = in_name or ["lev1p5_t_int",  "lev1_t_int", "lev1p5_single", "lev1_single"]
         self.fits_path = fits_path
+        self.in_name = in_name or ["lev1p0", "t_int", "lev1p5"]
         self.show = show
         self.verb = verb
         self.do_orig = orig
@@ -70,7 +69,6 @@ class QRNProcessor(Processor):
         # Parameters
         self.make_curves_latch = True  # This Recomputes the curves once
         self.floor = 0.01
-        self.out_name = "Quantile"
         self.s_radius = 400
         self.can_use_keyframes = False
 
@@ -182,8 +180,8 @@ class QRNProcessor(Processor):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
             self.image_learn()
-        self.out_name = "quantile"
-        return self.params.quantile_image
+        # self.out_name = "quantile"
+        return self.params.modified_image
     
     def cleanup(self):
         """Runs after all the images have been modified with do_work"""
@@ -271,14 +269,18 @@ class QRNProcessor(Processor):
         return False
     
     def init_for_learn(self):
+        self.init_modified_image()
         self.init_radius_array()
         # self.init_frame_curves()
         self.init_statistics()
-    
+        
+    def init_modified_image(self): ## TODO POTENTIAL BREAK POINT
+        # mod = self.params.modified_image
+        # if mod is None or not mod:
+        self.params.modified_image = np.zeros_like(self.params.raw_image)
+            
     def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
-        if self.params.modified_image is None:
-            self.params.modified_image = np.zeros_like(self.params.raw_image)
         
         self.params.center = [self.header["X0_MP"], self.header["Y0_MP"]]
         self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]
@@ -411,7 +413,7 @@ class QRNProcessor(Processor):
         self.cut_pixels = skip
         
         for binI, dat, xx, yy, ind in zip(self.binInds[::self.cut_pixels],
-                                          self.params.modified_image.flatten()[::self.cut_pixels],
+                                          self.params.raw_image.flatten()[::self.cut_pixels],
                                           self.binXX[::self.cut_pixels], self.binYY[::self.cut_pixels], self.binII[::self.cut_pixels]):
             # for each dat,
             
@@ -490,7 +492,8 @@ class QRNProcessor(Processor):
     
     def radial_statistics(self):  # TODO Make this much faster
         """ Find the statistics in each radial bin"""
-        self.params.quantile_image = copy(self.params.raw_image.flatten())
+        # self.params.modified_image = copy(self.params.raw_image.flatten())
+        self.params.mod_flat =self.params.modified_image.flatten()
         for ii, bin_list in enumerate(self.radBins):
             self.store_bin_array(ii)
         self.finalize_radial_statistics()
@@ -505,7 +508,7 @@ class QRNProcessor(Processor):
         
         if len(bin_array) > 0:
             quantileized = stats.rankdata(bin_array, "average") / len(bin_array)
-            self.params.quantile_image[good_coord] = quantileized
+            self.params.mod_flat[good_coord] = quantileized
 
     
     @staticmethod
@@ -520,10 +523,14 @@ class QRNProcessor(Processor):
     
     def finalize_radial_statistics(self):
         """Clean up the radial statistics to be used"""
-        self.params.quantile_image = self.params.quantile_image.reshape(self.params.modified_image.shape)
+        use_shape = self.params.raw_image.shape
+        self.params.modified_image = self.params.mod_flat.reshape(use_shape)
         
-        from utils.stretch_intensity_module import norm_stretch
-        self.params.quantile_image = norm_stretch(self.params.quantile_image, alpha=self.params.alpha)
+        # from utils.stretch_intensity_module import norm_stretch
+        # self.params.modified_image = norm_stretch(self.params.modified_image, alpha=self.params.alpha)
+
+        # plt.imshow(self.params.modified_image)
+        # plt.show(block=True)
     
 
     
@@ -568,7 +575,7 @@ class QRNProcessor(Processor):
         
         # # Plot Scattered Points from the raw image_path in midnightblue
         # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-        #             alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. lev1_t_int")
+        #             alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int(lev1p0)")
         #
         # # Plot Scattered Points from the raw image_path but rooted, in red
         # self.touchup_TUNE(self.params.raw_image)
@@ -695,7 +702,7 @@ class QRNProcessor(Processor):
         do_raw_scatter = False
         if do_raw_scatter:
             ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-                        alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3, label="1. lev1_t_int")
+                        alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int(lev1p0)")
         
         # Plot Scattered Points from the raw image_path but rooted, in red
         do_red_points = False
@@ -803,7 +810,7 @@ class QRNProcessor(Processor):
         
         # Plot Scattered Points from the raw image_path in midnightblue
         #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_raw[::self.skip_points], zorder=-1,
-        #                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. lev1_t_int")
+        #                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int(lev1p0)")
         
         # Plot Scattered Points from the raw image_path but rooted, in red
         flat_raw = self.params.raw_image.flatten()
@@ -887,7 +894,7 @@ class QRNProcessor(Processor):
         
         # Plot Scattered Points from the raw image_path in midnightblue
         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. lev1_t_int")
+                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int(lev1p0)")
         
         # Plot Scattered Points from the raw image_path but rooted, in red
         self.touchup(self.params.raw_image)

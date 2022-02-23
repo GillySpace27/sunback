@@ -74,8 +74,10 @@ class Runner:
     
             if len(self.params.fetchers()) > 0:
                 sys.stdout.flush()
-                print("\r                                         ")
-                print("\n>>>>>>>>>> Fetching Images <<<<<<<<<<\n", flush=True)
+                print("\n\n>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<")
+                print(">>>>>>>>>> Fetching Images <<<<<<<<<<", flush=True)
+                print("\r>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<\n")
+
                 # print(" Redownload Mode: {}\n".format(self.params.download_files()))
                 for fet, rp in zip(self.params.fetchers(), self.params._fet_rp):
                     fet_instance = fet(params=self.params, rp=rp)
@@ -84,8 +86,10 @@ class Runner:
             
             if len(self.params.processors()) > 0:
                 sys.stdout.flush()
-                print("\r                                          ")
-                print("\n>>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
+                print("\r\n>>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<<")
+                print(">>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
+                print("\r>>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<<\n")
+                
                 # print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
                 sys.stdout.flush()
                 for proc, rp in zip(self.params.processors(), self.params._proc_rp):
@@ -93,7 +97,10 @@ class Runner:
     
             if len(self.params.putters()) > 0:
                 sys.stdout.flush()
+                print("\r>>>>>>>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<<<<<<<")
                 print(">>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
+                print("\r>>>>>>>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<<<<<<<\n")
+                
                 # print(" Redo Imgs: {}".format(self.params.overwrite_pngs()))
                 # print(" Redo Videos: {}".format(self.params.write_video()))
                 for put, rp in zip(self.params.putters(), self.params._put_rp):
@@ -109,7 +116,7 @@ class Runner:
         print("     Check out my website: http://gilly.space\n")
         self.start_timestamp = time()
         if self.params.is_debug(): print("                    DEBUG MODE\n")
-        self.print_plan()
+        self.print_plan(end=False)
         print("\n", self.wall_1, "\n\n")
     
     def print_plan(self, end=False):
@@ -121,15 +128,15 @@ class Runner:
             print("   Here's the Plan:")
         if len(self.params.fetchers()) > 0:
             for fet in self.params.fetchers():
-                fet.plan(fet)
+                fet.plan(fet, end=end)
         
         if len(self.params.processors()) > 0:
             for proc in self.params.processors():
-                proc.plan(proc)
+                proc.plan(proc, end=end)
         
         if len(self.params.putters()) > 0:
             for put in self.params.putters():
-                put.plan(put)
+                put.plan(put, end=end)
         
         print("   And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
         # print("\n")
@@ -149,6 +156,8 @@ class Runner:
         
         # for ii in range(4):
         if self.verb and self.params.stop_after_one():
+            sleep(2)
+            
             print(r"""           '
                           .      '      .
                     .      .     :     .      .
@@ -171,8 +180,12 @@ class Runner:
                      .:;.      .:.   ::.     '::.
                      """)
             
-            print("\n")
+            sleep(2)
+            
+            for i in range(5):
+                print("\n  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *")
     
+            sleep(2)
 
 
 class SingleRunner(Runner):
