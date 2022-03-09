@@ -68,7 +68,7 @@ class SunPyProcessor(Processor):
         super().__init__(params, quick, rp, in_name)
         self.tm = 0
         self.radial_bin_edges = equally_spaced_bins(inner_value=0.0, nbins=300) * u.R_sun
-        self.in_name = in_name or self.params.master_frame_list
+        self.in_name = in_name or self.params.master_frame_list_newest
 
 
 class AIA_PREP_Processor(SunPyProcessor):
@@ -89,7 +89,7 @@ class AIA_PREP_Processor(SunPyProcessor):
     def __init__(self, params=None, quick=False, rp=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
-        self.in_name = self.params.master_frame_list
+        self.in_name = self.params.master_frame_list_newest
         
         self.last_wave = None
         self.psf = None
@@ -119,10 +119,12 @@ class AIA_PREP_Processor(SunPyProcessor):
             if False:
                 a_map = self.deconvolve_psf(a_map)
             
-            map_updated_pointing = self.get_updated_pointing(a_map)
-            
+            if self.pointing_table is not None:
+                map_updated_pointing = self.get_updated_pointing(a_map)
+                map_registered = register(map_updated_pointing)
+            else:
+                map_registered = a_map
             # Execute AIA_PREP
-            map_registered = register(map_updated_pointing)
             map_degradation = correct_degradation(map_registered, correction_table=self.correction_table)
             map_normalized = normalize_exposure(map_degradation)
             map_double_normed = map_normalized / np.nanmax(map_normalized.data)
@@ -141,7 +143,11 @@ class AIA_PREP_Processor(SunPyProcessor):
             # Otherwise you're making a call to the JSOC every single time.
             self.pointing_start = self.level_1_maps[0].date - 3 * u.h
             self.pointing_end = self.level_1_maps[-1].date + 3 * u.h
-            self.pointing_table = get_pointing_table(self.pointing_start, self.pointing_end)
+            try:
+                self.pointing_table = get_pointing_table(self.pointing_start, self.pointing_end)
+            except RuntimeError as e:
+                print("\r"+str(e))
+
             # The same applies for the correction table.
             self.correction_table = get_correction_table()
     

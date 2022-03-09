@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import astropy.units as u
 
 from science.color_tables import aia_color_table
+from utils.stretch_intensity_module import norm_stretch
 
 
 class ImageProcessorCV(ImageProcessor):
@@ -96,9 +97,9 @@ class ImageProcessorCV(ImageProcessor):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
         # self.frame_name = "t_int"
-        self.frame_name = self.params.master_frame_list
+        self.frame_name = self.params.master_frame_list_oldest
         
-        frame, wave, t_rec, center, int_time = self.load_this_fits_frame(self.fits_path, self.frame_name)
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
         # frame = np.log10(frame)
         # frame = frame / np.nanpercentile(frame, 50)/2
         self.frame = np.flipud(frame)
@@ -113,9 +114,9 @@ class ImageProcessorCV(ImageProcessor):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
         # self.frame_name = "t_int"
-        self.frame_name = self.params.master_frame_list
+        self.frame_name = self.params.master_frame_list_newest
         
-        frame, wave, t_rec, center, int_time = self.load_this_fits_frame(self.fits_path, self.frame_name)
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
         frame = np.log10(frame)
         frame = frame / np.nanpercentile(frame, 50) / 2
         self.frame = np.flipud(frame)
@@ -136,10 +137,10 @@ class ImageProcessorCV(ImageProcessor):
         self.params.center = (self.header["X0_MP"], self.header["Y0_MP"])
         
         nn = 1
-        while self.found_limb_radius > self.params.rez/2:
+        while self.found_limb_radius > self.params.rez / 2:
             nn *= 2
             self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"] / nn
-            self.params.center = [self.header["X0_MP"]/nn, self.header["Y0_MP"]/nn]
+            self.params.center = [self.header["X0_MP"] / nn, self.header["Y0_MP"] / nn]
         
         self.shrink_factor = nn
         self.output_abscissa = np.arange(self.params.rez)
@@ -151,8 +152,6 @@ class ImageProcessorCV(ImageProcessor):
         self.vcut = int(vignette_radius * self.params.rez // 2)
         self.vrad = self.n2r(self.vcut)
         self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
-        a=1
-
     
     # def plot_aia_changed(self):
     #     """Plot the modified_image data from AIA"""
@@ -174,7 +173,7 @@ class ImageProcessorCV(ImageProcessor):
         # self.frame_name = "t_int"
         self.frame_name = self.params.png_frame_name  # .hdu_name_list[-1]
         
-        frame, wave, t_rec, center, int_time = self.load_this_fits_frame(self.fits_path, self.frame_name)
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
         
         self.frame = np.flipud(frame)
         
@@ -277,8 +276,8 @@ class ImageProcessorCV(ImageProcessor):
         cv2.putText(img, inst, (x0, h2), 0, scale, (255, 255, 255), scale2)
         cv2.putText(img, wave, (x1, h3), 0, scale, (255, 255, 255), scale2)
         cv2.putText(img, clock, (0, h1), 0, scale, (255, 255, 255), scale2)
-        cv2.putText(img, day, (0, h2), 0,   scale, (255, 255, 255), scale2)
-        cv2.putText(img, year, (0, h3), 0,  scale, (255, 255, 255), scale2)
+        cv2.putText(img, day, (0, h2), 0, scale, (255, 255, 255), scale2)
+        cv2.putText(img, year, (0, h3), 0, scale, (255, 255, 255), scale2)
     
     def cleanup(self):
         # self.make_intermediate_videos()
@@ -317,10 +316,11 @@ class ImageProcessorCV(ImageProcessor):
 
 
 class MultiImageProcessorCv(ImageProcessorCV):
-    filt_name = 'MultiImageProcessorCv'
+    filt_name = 'MultiImage Plotter'
     description = "Look at the different methods compared"
     progress_verb = "Writing"
     progress_unit = "Images"
+    
     # list_of_inputs = ["lev1p5", "t_int", "lev1p0"]
     
     def __init__(self, params=None, quick=False, rp=None):
@@ -339,55 +339,107 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.good_frame_stems = []
         self.fig = None
     
-    def do_fits_function(self, fits_path, in_name=None):
+    def do_fits_function(self, fits_path, in_name=None, doBar=False):
         """ Main Call on the Fits Path """
         self.tic()
-        self.init_frame(fits_path, None)
+        self.init_frame(fits_path)
         self.init_plot()
-        # print("\r ** Beginning to Plot...")
-        pbar = tqdm(self.good_frame_stems, desc="")
-        max_width = np.max([len(x) for x in self.good_frames])
-        for ii, frame_name in enumerate(pbar):
-            pbar.set_description(" *     Plotting {}".format(frame_name.ljust(max_width)), refresh=True)
-            frame1, wave1, t_rec1, center1, int_time = self.load_this_fits_frame(fits_path, frame_name)
-            self.add_to_plot(self.good_frames[ii], frame1)
-            last = ii == len(self.good_frames)-1
-            if last:
-                pbar.set_description(" *    Plots Complete", refresh=True)
+        self.init_radius_array()
+        
+        iterable = tqdm(self.good_frames, desc="") if doBar else self.good_frames
+        for ii, frame_name in enumerate(iterable):
+            self.handle_one_frame(fits_path, frame_name, doBar, iterable)
+        
+        if doBar: iterable.set_description(" *    Plots Complete", refresh=True)
+        
         self.finalize_and_save_plots()
+        self.reinit_constants()
         self.toc()
         self.open_folder(self.main_save_path)
         return None
+    
+    def handle_one_frame(self, fits_path, frame_name, doBar, iterable):
+        max_width = np.max([len(x) for x in self.good_frames])
+        if doBar: iterable.set_description(" *     Plotting {}".format(frame_name.ljust(max_width)), refresh=True)
+        frame1, wave1, t_rec1, center1, int_time, name = self.load_this_fits_frame(fits_path, frame_name)
+        frame1[self.vignette_mask] = np.nan
+        self.add_to_plot(name, frame1)
+    
+    def init_frame(self, fits_path=None, in_name=-1):
+        """Load the fits file from disk and get a in_name or two"""
+        
+        self.fits_path = fits_path or self.fits_path
+        self.params.fits_path = self.fits_path
+        
+        self.params.raw_image, _, _, _, _, self.raw_name = \
+            self.load_this_fits_frame(fits_path, self.params.master_frame_list_newest)
+        
+        self.params.modified_image, wave1, t_rec1, _, _, self.mod_name = \
+            self.load_this_fits_frame(fits_path, in_name)
+        
+        # self.peek_frames()
+        self.image_data = str(wave1), fits_path, t_rec1, self.params.modified_image.shape
+        self.params.make_file_paths(self.image_data)
+        self.name, self.wave = self.clean_name_string(str(wave1))
     
     def open_folder(self, path):
         import webbrowser
         webbrowser.open('file:///' + path)
     
     def init_plot(self):
-        if not self.fig:
-            self.good_frames = [x for x in self.hdu_name_list if ("lev1_" not in x)][1:]
-            self.good_frames.insert(0, self.good_frames[0])
-            self.good_frame_stems = [x.split('(')[0] for x in self.good_frames]
-            self.n_plots = len(self.good_frames)
-            self.n_rows = 2
-            self.n_cols = self.n_plots // self.n_rows
-            self.n_slots = self.n_rows * self.n_cols
-            while self.n_slots < self.n_plots:
-                self.n_cols += 1
-                self.n_slots = self.n_rows * self.n_cols
-            
-            self.fig, self.axArray = plt.subplots(self.n_rows, self.n_cols, sharex="all", sharey="all")
-            self.fig.suptitle("Comparison of {} at {}".format(self.wave, self.header["T_REC"]))
-            self.axArray = self.axArray.flatten()
+        self.good_frames = [x for x in self.hdu_name_list if ("lev1_" not in x)]  # TODO I removed a [1:] here, not sure what it was doing...
+        
+        use_cmap = True
+        if use_cmap:
             self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
-            blank = np.zeros_like(self.params.raw_image)
-            for ax in self.axArray:
-                ax.imshow(blank, interpolation="None")
-                ax.set_title(" ")
+        else:
+            from matplotlib import cm
+            self.params.cmap = cm.gray
+        
+        # try:
+        #     lev1p5_mask = ['lev1p5' in x for x in self.good_frames]
+        #     lev1p5_loc = np.where(lev1p5_mask)[0][0]
+        #     repeat_frame = lev1p5_loc
+        # except IndexError as e:
+        #     print('\r' + str(e))
+        #     repeat_frame = 0
+        #
+        # self.good_frames.insert(repeat_frame, self.good_frames[repeat_frame])
+        self.good_frames.pop(0)
+        
+        self.good_frame_stems = [x.split('(')[0] for x in self.good_frames]
+        
+        self.n_plots = len(self.good_frames)
+        self.n_rows = 2
+        self.n_cols = self.n_plots // self.n_rows
+        self.n_slots = self.n_rows * self.n_cols
+        while self.n_slots < self.n_plots:
+            self.n_cols += 1
+            self.n_slots = self.n_rows * self.n_cols
+        
+        self.fig, self.axArray = plt.subplots(self.n_rows, self.n_cols, sharex="all", sharey="all")
+        
+        try:
+            t_rec = self.header["T_REC"]
+        except KeyError as e:
+            t_rec = self.header["T_OBS"]
+        
+        self.fig.suptitle("{}  at  {}".format(self.wave, t_rec))
+        self.axArray = self.axArray.flatten()
+        
+        self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
+        blank = np.zeros_like(self.params.raw_image)
+        
+        for ax in self.axArray:
+            ax.imshow(blank, interpolation="None")
+            ax.set_title(" ")
     
     def add_to_plot(self, frame_name_in, frame):
-        
-        suffix = "_mod" if frame_name_in == self.last_frame_name else ""
+        # print("\r * Adding Plot  {}".format(frame_name_in))
+        if 'primary' in frame_name_in:
+            suffix = "_mod"
+        else:
+            suffix = ""
         frame_name = frame_name_in + suffix
         self.last_frame_name = frame_name_in
         frame, dont = self.frame_touchup(frame_name, frame)
@@ -400,69 +452,91 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.frames.append(frame)
         self.count += 1
     
-    def finalize_and_save_plots(self):
-        print(" *    Exporting Files...", end="")
-        self.fig.set_size_inches(10,8)
+    def finalize_and_save_plots(self, dpi=500):
+        
+        inches = 4
+        colWid = self.n_cols * inches
+        rowWid = self.n_rows * inches
+        
+        self.fig.set_size_inches(w=colWid, h=rowWid)
         plt.tight_layout()
-        # plt.show(block="True")
-        # now = int(np.round(time.time() - 1645314148 -107115))
-        wave = self.wave
-        plt.tight_layout()
+        
+        save_path = os.path.join(self.params.imgs_top_directory(), "{}_compare.png".format(self.wave))
+        self.main_save_path = save_path
+        self.fig.savefig(save_path, dpi=dpi)
+        if False:
+            # plt.show(block=True)
+            self.plot_zooms()
+    
+    def plot_zooms(self, dpi=500):
         zooms = os.path.join(self.params.imgs_top_directory(), "zooms")
         os.makedirs(zooms, exist_ok=True)
         
-        dpi = 500
-        
-        save_path = os.path.join(self.params.imgs_top_directory(), "{}_compare.png".format(wave) )
-        self.main_save_path = save_path
+        save_path = os.path.join(zooms, "{}_compare.png".format(self.wave))
         self.fig.savefig(save_path, dpi=dpi)
         
-        save_path = os.path.join(zooms, "{}_compare.png".format(wave) )
-        self.fig.savefig(save_path, dpi=dpi)
-        
-        save_path = os.path.join(zooms, "1_zoom_{}_compare.png".format(wave) )
-        plt.xlim((3250,4000))
-        plt.ylim((2250,3000))
+        save_path = os.path.join(zooms, "1_zoom_{}_compare.png".format(self.wave))
+        plt.xlim((3250 / self.shrink_factor, 4000 / self.shrink_factor))
+        plt.ylim((2250 / self.shrink_factor, 3000 / self.shrink_factor))
         plt.tight_layout()
         self.fig.savefig(save_path, dpi=dpi)
         
-        save_path = os.path.join(zooms, "2_zoom_{}_compare.png".format(wave) )
-        plt.xlim((2404,3500))
-        plt.ylim((3000,4096))
+        save_path = os.path.join(zooms, "2_zoom_{}_compare.png".format(self.wave))
+        plt.xlim((2404 / self.shrink_factor, 3500 / self.shrink_factor))
+        plt.ylim((3000 / self.shrink_factor, 4096 / self.shrink_factor))
         plt.tight_layout()
         self.fig.savefig(save_path, dpi=dpi)
         
-        plt.close(self.fig)
-        print("Done")
+        # plt.close(self.fig)
+        # print("Done - Files Saved in {}".format(self.params.imgs_top_directory()))
     
+    def reinit_constants(self):
+        self.count = 0
+        self.last_frame_name = None
+        plt.close(self.fig)
     
     def frame_touchup(self, frame_name, frame):
-        from utils.stretch_intensity_module import norm_stretch
+    
+        short_circuit = False
+        if short_circuit:
+            return frame, True
+    
+        # Frame Cleanup
         frame = frame.astype(np.float32)
         frame[~np.isfinite(frame)] = np.nan
+        
+        
+        if "primary" in frame_name:
+            frame *= 2
     
-        small = np.nanpercentile(frame, 0.01)
-        for name in ["_mod", "nrgf"]: #, "int_enhance"]:
+        basic_scrunch = True
+        if basic_scrunch:
+            frame = self.scrunch(frame)
+    
+        ## Perform Nonlinear Transforms
+        # Power
+        for name in ["_mod", "nrgf"]:  # , "int_enhance"]:
             if name in frame_name:
-                frame -= small
-                frame = np.power(frame, 1/2)
-                
-        small = np.nanpercentile(frame, 0.01)
-        big = np.nanpercentile(frame, 99.99)
+                frame = self.power_mod(frame)
     
-        dont = False
+        # Maxima Stretching
+        do_maxima_scrunch = True
+        if do_maxima_scrunch:
+            frame = self.maxima_scrunch(frame)
+            
+        # Norm Stretching
+        stretch = True
+        if stretch:
+            if "qrn" in frame_name:
+                frame = norm_stretch(frame)
+        
+        dont_vminmax = False
         for name in ["RHT"]:
             if name in frame_name:
-                dont = True
-        if not dont:
-            rng = 3
-            if big > rng or small < -rng:
-                frame = (frame - small) / (big - small)
-        
-            # Norm Stretching
-            frame = norm_stretch(frame)
+                dont_vminmax = True
 
-        return frame, dont
+    
+        return frame, dont_vminmax
     # if frame_name == "nrgf":
     #     # Replace the Disk
     #     self.init_radius_array()
@@ -486,3 +560,30 @@ class MultiImageProcessorCv(ImageProcessorCV):
     
     # self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
     # frame[self.vignette_mask] = np.nan
+    
+    def power_mod(self, frame):
+        frame *= 10.
+        pow = 1/4
+        np.power(frame, pow, out=frame)
+        frame *= pow
+        return frame
+    
+    def scrunch(self, frame, n_exclude=50):
+        # lowlow = np.nanmin(frame)
+        # highigh = np.nanmax(frame)
+        
+        total = self.params.rez ** 2
+        perc = n_exclude / total
+    
+        low = np.nanpercentile(frame, perc)
+        high = np.nanpercentile(frame, 100-perc)
+    
+        frame = self.norm_formula(frame, low, high)
+        return frame
+    
+    def maxima_scrunch(self, frame, num=1.0):
+        mask = frame > num
+        frame[mask] = np.nan
+        frame = self.scrunch(frame)
+        frame[mask] = num
+        return frame

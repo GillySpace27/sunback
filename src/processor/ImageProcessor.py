@@ -41,7 +41,10 @@ class ImageProcessor(Processor):
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
-    
+
+        self.mod_name = None
+        self.raw_name = None
+        self.frame_name0 = None
         self.params.cmap = None
         self.fig, self.frame_ax = None, None
         self.plot_formatted = False
@@ -70,11 +73,14 @@ class ImageProcessor(Processor):
         self.fits_path = fits_path or self.fits_path
         self.params.fits_path = self.fits_path
         if True: #self.params.raw_image is None:
-            list_of_inputs = self.params.master_frame_list
+            list_of_inputs = self.params.master_frame_list_oldest
             frame0, _, _, _, _ = self.load_this_fits_frame(fits_path, list_of_inputs)
+            self.raw_name = self.frame_name + ''
             frame1, self.wave1, self.t_rec1, center1, int_time = self.load_this_fits_frame(fits_path, in_name)
+            self.mod_name = self.frame_name + ''
             self.params.raw_image, self.params.modified_image = frame0, frame1
             self.frame = np.zeros_like(self.params.raw_image)
+            
         # self.peek_frames()
         self.image_data = str(self.wave1), fits_path, self.t_rec1, frame1.shape
         self.params.make_file_paths(self.image_data)
@@ -84,7 +90,6 @@ class ImageProcessor(Processor):
         use_cmap=True
         if use_cmap:
             self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
-
         else:
             from matplotlib import cm
             self.params.cmap = cm.gray

@@ -41,7 +41,7 @@ def vprint(in_string, *args, **kwargs):
 
 class QRNProcessor(Processor):
     """This class holds the code for the Quantile Radial Norm Processor"""
-    name = filt_name = "Quantile Norm Processor"
+    name = filt_name = "Quantile Norm"
     description = "Apply the single-shot Quantile Norm to images"
     progress_verb = 'Filtering'
     finished_verb = "Radially Filtered"
@@ -57,11 +57,12 @@ class QRNProcessor(Processor):
     def __init__(self, fits_path=None, in_name=None, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
-        
+
+        self.shrink_factor = 1
         self.radius = None
         # Ingest
         self.fits_path = fits_path
-        self.in_name = in_name or self.params.master_frame_list
+        self.in_name = in_name or self.params.master_frame_list_newest
         self.show = show
         self.verb = verb
         self.do_orig = orig
@@ -180,7 +181,6 @@ class QRNProcessor(Processor):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
             self.image_learn()
-        # self.out_name = "quantile"
         return self.params.modified_image
     
     def cleanup(self):
@@ -290,12 +290,20 @@ class QRNProcessor(Processor):
         self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]
         self.params.rez = self.header["NAXIS1"]
         
+        nn = 1
+        while self.found_limb_radius > self.params.rez/2:
+            nn *= 2
+            self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"] / nn
+            self.params.center = [self.header["X0_MP"]/nn, self.header["Y0_MP"]/nn]
+        
+        self.shrink_factor = nn
         self.output_abscissa = np.arange(self.params.rez)
         
         xx, yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
         xc, yc = xx - self.params.center[0], yy - self.params.center[1]
         self.radius = np.sqrt(xc * xc + yc * yc)
         self.rad_flat = self.radius.flatten()
+        
         
         self.binfactor = binfactor = 2
         self.binInds = np.asarray(binfactor * np.floor(self.rad_flat // binfactor), dtype=np.int32)
@@ -818,12 +826,12 @@ class QRNProcessor(Processor):
         
         # Plot Scattered Points from the raw image_path but rooted, in red
         flat_raw = self.params.raw_image.flatten()
-        touched_raw = self.touchup(self.params.raw_image + 0)
+        touched_raw = self.touchup_TUNE(self.params.raw_image + 0)
         #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), touched_raw[::self.skip_points],
         #                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
         
         # Plot Scattered Points from the final modified image_path, in black
-        self.touchup(self.params.modified_image)
+        self.touchup_TUNE(self.params.modified_image)
         flat_modified_image = np.array(self.params.modified_image.flatten(), dtype=np.float32)
         ax1.scatter(self.n2r(self.rad_flat[::skip]), flat_modified_image[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
         #         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
@@ -901,13 +909,13 @@ class QRNProcessor(Processor):
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int")
         
         # Plot Scattered Points from the raw image_path but rooted, in red
-        self.touchup(self.params.raw_image)
+        self.touchup_TUNE(self.params.raw_image)
         scat2 = self.params.raw_image.flatten()
         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
         
         # Plot Scattered Points from the final modified image_path, in black
-        self.touchup(self.params.modified_image)
+        self.touchup_TUNE(self.params.modified_image)
         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
         ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
         

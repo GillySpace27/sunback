@@ -94,7 +94,7 @@ class SRNSingleShotProcessor(SRNProcessor):
     def image_store_cdf(self, do_plot=False):
         
         wave = self.params.image_data[0]+0
-        frame = self.touchup(self.params.modified_image)+0
+        frame = self.touchup_TUNE(self.params.modified_image)+0
         
         self.frame_list.append((frame, wave))
         

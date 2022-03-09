@@ -28,8 +28,8 @@ class Parameters:
     def __init__(self):
         """Sets all the attributes to None"""
         # Initialize Variables
-        self.master_frame_list = ["lev1p5", "t_int", "lev1p0", "primary", ""]
-        # self.master_frame_list = reversed(["lev1p5", "t_int", "lev1p0", "primary", ""])
+        self.master_frame_list_newest = ["lev1p5", "t_int", "lev1p0", "primary", ""]
+        self.master_frame_list_oldest = [ x for x in reversed(self.master_frame_list_newest)]
         self.durList = []
         self.aftereffects_in_name = "lev1p5"
         self.fits_save_path = None
@@ -819,7 +819,7 @@ class Parameters:
         full_path1 = join(self.fits_directory(), path1)
         full_path2 = join(self.fits_directory(), path2)
         
-        frame, wave, t_rec, center, int_time = Processor.load_last_fits_field(self_proc, full_path1)
+        frame, wave, t_rec, center, int_time, name = Processor.load_last_fits_field(self_proc, full_path1)
         if compare_two_files:
             frame2, wave2, t_rec2, center2, int_time2 = Processor.load_last_fits_field(self_proc, full_path2)
         else:

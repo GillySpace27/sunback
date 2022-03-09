@@ -107,8 +107,8 @@ class FidoTimeIntProcessor(FidoFetcher):
         already_made = self.out_name in self.hdu_name_list
         
         if already_made:
-            orig, wave, t_rec, center, int_time = self.load_this_fits_frame(fits_path, "lev1p0")
-            tint, wave, t_rec, center, int_time = self.load_this_fits_frame(fits_path, "t_int")
+            orig, wave, t_rec, center, int_time, name = self.load_this_fits_frame(fits_path, "lev1p0")
+            tint, wave, t_rec, center, int_time, name = self.load_this_fits_frame(fits_path, "t_int")
             if tint is not None:
                 tint *= int_time
                 match = np.sum(tint.astype(int) == orig.astype(int)) / len(tint) ** 2
@@ -172,7 +172,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         for ii, path in enumerate(tqdm(exp_paths, desc="Summing Frames")):
             try:
                 if not os.path.isdir(path) and ".fits" in path:
-                    frame, wave, t_rec, center, int_time = self.load_this_fits_frame(path, "lev1p0", quiet=True)
+                    frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(path, "lev1p0", quiet=True)
                     self.orig_t_int = self.orig_t_int or int_time
                     self.params.modified_image += frame
                     self.params.int_tm_tot += int_time

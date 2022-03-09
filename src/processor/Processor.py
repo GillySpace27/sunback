@@ -273,7 +273,7 @@ class Processor:
         if self.params.fits_path is None:
             self.params.fits_path = self.fits_path
         
-        frame, wave, t_rec, center, int_time = self.load_this_fits_frame(self.fits_path, in_name)
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, in_name)
         
         if frame is not None and self.header['IMG_TYPE'].casefold() != 'dark':
             self.params.raw_name = self.frame_name
@@ -288,14 +288,11 @@ class Processor:
             self.file_basename = basename(self.fits_path)
             self.set_centerpoint(center)
             self.params.image_data = self.image_data
-            
-            
-            
             return True
         else:
             print("Skipped Fits!")
-            if img_type.casefold() == 'dark':
-                self.delete_fits_and_png(fits_path)
+            # if img_type.casefold() == 'dark':
+            #     self.delete_fits_and_png(fits_path)
             return False
     
     def delete_fits_and_png(self, fits_path):
@@ -445,14 +442,14 @@ class Processor:
                     return out
         return None
     
-    def tic(self):
-        if self.loud_tic:
+    def tic(self, loud=False):
+        if self.loud_tic or loud:
             print("\n\n *    Running Filter on {}...".format(self.params.current_wave()), end='\n')
         self.tm = time.time()
     
-    def toc(self):
+    def toc(self, loud=False):
         dur = time.time()-self.tm
-        if self.loud_tic:
+        if self.loud_tic or loud:
             print(" ^    Done! Took: {:0.2f} seconds, or {:0.2f} mins".format(dur, dur/60))
         self.params.durList.append(dur)
         self.duration = dur
@@ -1061,40 +1058,38 @@ class Processor:
     def load_this_fits_frame(self, fits_path=None, in_name=None, quiet=False):
         """Load a fits file from disk"""
         with fits.open(fits_path, cache=False, ignore_missing_end=True, ignore_missing_simple=True) as hdul:
-            # self.list_hdus(hdul)
-            self.set_in_frame_name(in_name=in_name, fits_path=fits_path, hdul=hdul)
+            nm = self.set_in_frame_name(in_name=in_name, fits_path=fits_path, hdul=hdul)
             frame, self.header = self.open_fits_hdul(hdul, quiet)
             wave, t_rec, center, int_time, self.found_limb_radius = self.get_fits_info(hdul)
-        return frame, wave, t_rec, center, int_time
+        return frame, wave, t_rec, center, int_time, nm
     
     def set_in_frame_name(self, in_name=None, fits_path=None, hdul=None):
         """Determine the right in_name given any kind of input"""
-        if in_name is not None:
-            self.in_name = in_name
-            return
+        if in_name is not None and type(in_name) in [str]:
+            self.in_name = self.frame_name = in_name
+            return self.in_name
         
         hdul = hdul or fits.open(fits_path, cache=False, ignore_missing_end=True)
-        self.find_correct_in_name(hdul)
-
-    def open_fits_hdul(self, hdul, quiet=True, fail=True):
-        """Load a fits file from disk"""
-        quiet=True
+      
+        self.in_name = self.find_correct_frame_name(hdul, name=in_name)
+        # correct_in_name    = self.find_correct_in_name(hdul)
+        return self.in_name
+        
+    def find_correct_frame_name(self, hdul, name, quiet=True):
+        """Parses an input variable to determine the frame it's talking about"""
         self.list_hdus(hdul)
         
-        if self.in_name is None:
-            return None
+        self.frame_name = None
         
-        elif isinstance(self.in_name, int):
-            field_hdu = hdul[self.hdu_name_list[self.in_name]]
+        if isinstance(name, int):
+            self.frame_name = self.hdu_name_list[name]
         
-        elif isinstance(self.in_name, str):
-            self.in_name = [self.in_name]
+        elif isinstance(name, str):
+            self.frame_name = name
         
-        if isinstance(self.in_name, list):
-            in_list = self.in_name
-            self.frame_name = None
-            # lowercase_hdu_names = [x.casefold() for x in self.hdu_name_list]
-            for input_name in self.in_name:
+        elif isinstance(name, list):
+            in_list = name
+            for input_name in name:
                 input_name = input_name.casefold()
                 
                 for full_name in self.hdu_name_list:
@@ -1107,19 +1102,19 @@ class Processor:
                         break
                 if self.frame_name is not None:
                     break
-            if not self.frame_name:
-                # print("\r *       {} not found".format(in_list))
-                raise FileNotFoundError("Frame {} not in File".format(in_list))
-                # first = min(len(self.hdu_name_list))
-                # last_frame = self.hdu_name_list[1].casefold()
-                # if fail:
-                #     raise
-                # use_name = last_frame
-            # self.in_name = self.frame_name = use_name
-            try:
-                field_hdu = hdul[self.frame_name]
-            except KeyError as e:
-                print("Oh No!")
+                    
+        if not self.frame_name:
+            raise FileNotFoundError("Frame {} not in File".format(in_list))
+
+        return self.frame_name
+
+    def open_fits_hdul(self, hdul, quiet=True, fail=True):
+        """Load a fits file from disk"""
+        try:
+            field_hdu = hdul[self.frame_name]
+        except KeyError as e:
+            print("Oh No!")
+            return None, None
 
         data = None
         header = None
@@ -1161,22 +1156,33 @@ class Processor:
         
         reprocess_mode = self.params.reprocess_mode(self.reprocess_mode())
         
+        # List all the various Names
         self.list_hdus(hdul)
         
-        input_frame_name = self.determine_in_frame_name().split('(')[0]
+        requested_in_frame_name = self.determine_requested_in_frame_name().split('(')[0]
+        
         first_frame_name = self.hdu_name_list[0].split('(')[0]
-        second_frame_name = self.hdu_name_list[1].split('(')[0]
+        
+        if len(self.hdu_name_list) > 1:
+            second_frame_name = self.hdu_name_list[1].split('(')[0]
+        else:
+            second_frame_name = first_frame_name
+        
         last_frame_name = self.hdu_name_list[-1].split('(')[0]
-        output_frame_name = self.determine_out_frame_name().split('(')[0]
+        
+        requested_output_frame_name = self.determine_out_frame_name().split('(')[0]
+        
         penultimate_frame_name = self.determine_penultimate_frame_name().split('(')[0]
+        
         try:
-            previous_frame_name = self.hdu_name_list[self.hdu_name_list.index(output_frame_name)-1].split('(')[0]
+            previous_frame_name = self.hdu_name_list[self.hdu_name_list.index(requested_output_frame_name)-1].split('(')[0]
         except ValueError:
             previous_frame_name = penultimate_frame_name.split('(')[0]
+            
         all_frame_names = [x.casefold().split('(')[0] for x in self.hdu_name_list if type(x) is str]
-        filter_already_applied = True if output_frame_name.casefold() in all_frame_names else False
         
-        
+        # Do logic
+        filter_already_applied = requested_output_frame_name.casefold() in all_frame_names
         if filter_already_applied:
             if reprocess_mode == 'skip' or reprocess_mode is False:
                 # Skip it
@@ -1190,29 +1196,29 @@ class Processor:
                 self.in_name = first_frame_name
             elif reprocess_mode == 'double':
                 # Repeat the filter a second time
-                self.in_name = output_frame_name
+                self.in_name = requested_output_frame_name
             elif reprocess_mode == 'add':
                 # Repeat the filter a second time
-                self.in_name = output_frame_name
+                self.in_name = requested_output_frame_name
                 self.out_name = self.out_name + "_redo"
             else:
                 raise NotImplementedError
         else:
-            self.in_name = input_frame_name
+            self.in_name = requested_in_frame_name
             if self.in_name == 'primary':
                 self.in_name = second_frame_name
         hdul.verify('silentfix+ignore')
-
+        return self.in_name
     
-    def determine_in_frame_name(self):
+    def determine_requested_in_frame_name(self):
         # Determine the called-for input out_array NAME
-        input_frame_name = self.hdu_name_list[-1]
-
-        if type(self.in_name) is str and self.in_name in self.hdu_name_list:
+        if type(self.in_name) is str:
+            # if self.in_name in self.hdu_name_list:
             input_frame_name = self.in_name.casefold()
         elif type(self.in_name) not in [list, type(None)]:
             input_frame_name = self.hdu_name_list[self.in_name].casefold()
-
+        else:
+            input_frame_name = self.in_name
         return input_frame_name
     
     def determine_out_frame_name(self):
@@ -1394,9 +1400,12 @@ class Processor:
         return np.log10(orig) / 2
     
     def touchup_TUNE(self, img):
+        print("TOUCHUP TOOOOOOOOON")
         img *= 10.
         np.power(img, 1 / 3, out=img)
         img /= 3.5
+        
+        
         # img += 0.1
         
         # img[img > 1.] = np.power(img[img > 1.], 1/2)

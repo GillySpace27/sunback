@@ -33,7 +33,7 @@ from processor.Processor import Processor
 
 
 class ValidationProcessor(Processor):
-    filt_name = 'Validation Processor'
+    filt_name = 'Validator'
     description = "Verify Good Images"
     progress_verb = "Validating"
     progress_unit = "Fits Files"

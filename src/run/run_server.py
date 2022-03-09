@@ -3,11 +3,12 @@
 from fetcher.WebFitsFetcher import WebFitsFetcher
 from processor.ImageProcessor import ImageProcessor
 # from processor.SRNProcessor import SRNProcessor, \
-from processor.ImageProcessorCV import ImageProcessorCV
+from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
 from processor.QRNProcessor import QRNProcessor
 from processor.SRNSubProcessors import SRNSingleShotProcessor, SRNpreProcessor, SRNradialFiltProcessor
 # from putter.AwsPutter import AwsPutter
 # from putter.DesktopPutter import DesktopPutter
+from processor.SunPyProcessor import AIA_PREP_Processor, NRGFProcessor
 from putter.DesktopPutter import DesktopPutter
 from science.parameters import Parameters
 from run import Runner
@@ -34,9 +35,14 @@ def run_server(delay=10, debug=True, do_one='rainbow', stop=True):
     # # p.delete_old(True)
 
     # p.fetchers(WebFitsFetcher, rp=True)  # Gets Fits from JSOC Most Recent
-    # p.processors(QRNProcessor, rp=True)  # Applies the Radial Filtering
-    p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
+    # p.processors([AIA_PREP_Processor],     rp=False)   # Do Sunpy Things
+    # p.processors([QRNProcessor], rp=True)  # Applies the Radial Filtering
+    # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
+    
+    # p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
     # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
+    p.putters([MultiImageProcessorCv],            rp=True)  # Makes the PNGs from Fits
+    
     #
     #
     # p.processors(SRNpreProcessor, rp=True)  # Applies the Radial Filtering

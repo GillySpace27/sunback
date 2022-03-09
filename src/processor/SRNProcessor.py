@@ -1713,12 +1713,12 @@ class SRNProcessor(Processor):
             
             # Plot Scattered Points from the raw image_path but rooted, in red
             flat_raw = self.params.raw_image.flatten()
-            touched_raw = self.touchup(self.params.raw_image+0)
+            touched_raw = self.touchup_TUNE(self.params.raw_image+0)
     #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), touched_raw[::self.skip_points],
     #                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
            
             # Plot Scattered Points from the final modified image_path, in black
-            self.touchup(self.params.modified_image)
+            self.touchup_TUNE(self.params.modified_image)
             flat_modified_image = np.array(self.params.modified_image.flatten(), dtype=np.float32)
             ax1.scatter(self.n2r(self.rad_flat[::skip]), flat_modified_image[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
     #         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
@@ -1797,13 +1797,13 @@ class SRNProcessor(Processor):
                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int")
         
         # Plot Scattered Points from the raw image_path but rooted, in red
-        self.touchup(self.params.raw_image)
+        self.touchup_TUNE(self.params.raw_image)
         scat2 = self.params.raw_image.flatten()
         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
                     alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
         
         # Plot Scattered Points from the final modified image_path, in black
-        self.touchup(self.params.modified_image)
+        self.touchup_TUNE(self.params.modified_image)
         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
         ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. SRN")
         
@@ -1871,7 +1871,7 @@ class SRNProcessor(Processor):
         # ax1.set_xticklabels(self.n2r(locs))
         # ax.axvline(self.tRadius, c='r')
     # raw_touch = self.params.raw_image+0
-    # self.touchup(raw_touch)
+    # self.touchup_TUNE(raw_touch)
     
     
     

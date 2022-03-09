@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 import urllib
 from datetime import datetime
@@ -23,7 +24,11 @@ class WebFitsFetcher(Fetcher):
     progress_verb = 'Downloading'
     finished_verb = "Aquired"
     # show_plots = True
-    
+
+    def __init__(self, params=None, quick=False, rp=None):
+        super().__init__(params, quick, rp)
+        self.destroy = True
+
     def fetch(self, params=None):
         """Gets the Fits Files from the Archive URL
         :param params:
@@ -32,6 +37,8 @@ class WebFitsFetcher(Fetcher):
         # self.params.current_wave()
         self.load(self.params, quietly=True, wave=self.params.current_wave('rainbow'))
         if self.params.download_files():
+            if self.destroy:
+                self.delete_directory_items(self.fits_folder)
             print(" V  Downloading Fits Files from {}...".format(self.base_url), flush=True)
             # super.super.__init__(params)
             img_links = self.__get_fits_links(self.base_url)
@@ -48,6 +55,26 @@ class WebFitsFetcher(Fetcher):
         else:
             print("Skipping download!")
         return self.params.local_fits_paths()
+
+    
+    def delete_directory(self, directory):
+        if os.path.isdir(directory):
+            shutil.rmtree(directory)
+    
+    def delete_directory_items(self, directory=None):
+        for root, dirs, files in os.walk(directory):
+            for file in files:
+                self.force_delete(file, root)
+    
+    @staticmethod
+    def force_delete(file, root='', do=True):
+        if do:
+            if not os.path.isdir(file):
+                os.remove(os.path.join(root, file))
+            else:
+                shutil.rmtree(file)
+
+
     
     def grab(self, link):
         tries = 3

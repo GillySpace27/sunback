@@ -33,7 +33,7 @@ class NoiseGateProcessor(Processor):
         frames = []
         # pairs = []
         for path in tqdm(fits_in_paths, desc=" *    Loading Frames"):
-            frame, wave, t_rec, center, int_time = self.load_this_fits_frame(path, self.in_name, quiet=True)
+            frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(path, self.in_name, quiet=True)
             frames.append(frame)
             # pairs.append((frame,header))
         
