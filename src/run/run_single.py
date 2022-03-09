@@ -2,6 +2,7 @@ from fetcher.FidoFetcher import FidoFetcher
 from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from fetcher.LocalFetcher import LocalSingleFetcher
 from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
+from processor.NoiseGateProcessor import NoiseGateProcessor
 from processor.QRNProcessor import QRNProcessor
 from processor.RHTProcessor import RHTProcessor
 from processor.SRNProcessor import SRNProcessor
@@ -25,23 +26,24 @@ def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*4,
     name = "Single_Test"
     p = default_run_single_params(wave, tstart, duration_seconds, frames, name)
     
-    master = False
+    master = True
     
     # Set the Processes
     get_images = True and master
     if get_images:
         p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
         p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
+        # p.processors([NoiseGateProcessor],     rp=True)
         p.processors([AIA_PREP_Processor],     rp=True)   # Do Sunpy Things
     
-    radial_norms = True and master
+    radial_norms = False and master
     if radial_norms:
         p.processors([QRNProcessor],            rp=True)  # Applies the QRN Filter
         p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
-        # p.processors([IntEnhanceProcessor],     rp=True)  # Applies the Sunpy IntEnhance Filter
+        p.processors([IntEnhanceProcessor],     rp=True)  # Applies the Sunpy IntEnhance Filter
     
     p.aftereffects_in_name = "quantile"
-    aftereffects = True and master
+    aftereffects = False and master
     if aftereffects:
         p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
@@ -67,7 +69,7 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
     # Set Metadata
     p.batch_name(name)
     p.run_type("Process a Single Image Start to Finish")
-    
+    p.fetchers(LocalSingleFetcher)
     # Set Flags
     p.do_single = True
     p.config = None
@@ -97,8 +99,8 @@ if __name__ == "__main__":
     for wave_to_use in all_wavelengths:
         run_single(wave=wave_to_use)
         
-        import sys
-        sys.exit()
+        # import sys
+        # sys.exit()
 
 
 

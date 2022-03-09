@@ -125,3 +125,4 @@ ENV/
 /image_times
 /resources/jythonMusic/
 /src/run/dep/
+/src/utils/noise_gate/image-noise-gate/

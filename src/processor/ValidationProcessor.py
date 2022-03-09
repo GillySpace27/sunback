@@ -323,7 +323,7 @@ class ValidationProcessor(Processor):
 #         pass
 #
 #     def load_cached_data(self, in_name='radBins'):
-#         self.load_a_fits_attribute(fits_path=self.fits_path, field='radBins')
+#         self.load_a_fits_attribute(fits_path=self.fits_path, in_name='radBins')
 #         pass
 #
 #     def prep_save_outs(self):

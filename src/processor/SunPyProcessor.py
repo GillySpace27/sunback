@@ -68,7 +68,7 @@ class SunPyProcessor(Processor):
         super().__init__(params, quick, rp, in_name)
         self.tm = 0
         self.radial_bin_edges = equally_spaced_bins(inner_value=0.0, nbins=300) * u.R_sun
-        self.in_name = in_name or ["lev1p0", "t_int", "lev1p5"]
+        self.in_name = in_name or ["lev1p0", "t_int", "gated", "lev1p5"]
 
 
 class AIA_PREP_Processor(SunPyProcessor):
@@ -89,6 +89,8 @@ class AIA_PREP_Processor(SunPyProcessor):
     def __init__(self, params=None, quick=False, rp=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
+        self.in_name = ["lev1p0", "t_int", "gated"]
+        
         self.last_wave = None
         self.psf = None
         self.level_1_maps = None
@@ -97,7 +99,6 @@ class AIA_PREP_Processor(SunPyProcessor):
         self.pointing_table = None
         self.pointing_end = None
         self.pointing_start = None
-        self.in_name = ["lev1p0", "t_int"]
         self.out_name = "lev1p5"
         self.params.modified_image = None
     
@@ -106,7 +107,8 @@ class AIA_PREP_Processor(SunPyProcessor):
         if self.should_run():
             self.get_aia_prep_data()
             self.do_AIA_PREP()
-            self.remove_unprocessed_frames2()
+            # if self.params.destroy:
+            # self.remove_unprocessed_frames2()
             return self.params.modified_image
         return None
     

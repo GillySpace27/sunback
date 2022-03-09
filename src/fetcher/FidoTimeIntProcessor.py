@@ -75,7 +75,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         
         self.params.do_temp = False
     
-    def do_fits_function(self, fits_path, in_name=None):
+    def do_fits_function(self, fits_path=None, in_name=None, image=True):
         """This is the thing that will be executed on every file
             In this case, that thing is time integration
         """
@@ -83,7 +83,7 @@ class FidoTimeIntProcessor(FidoFetcher):
             return False
         self.fits_path = fits_path
         
-        self.in_name = self.set_hdul_in_name(fits_path)
+        self.set_in_frame_name(fits_path=fits_path, in_name=in_name)
         
         if self.should_do_exposure(fits_path):
             # self.params.do_temp = True
@@ -101,14 +101,14 @@ class FidoTimeIntProcessor(FidoFetcher):
     def should_do_exposure(self, fits_path):
         """Do we need to do time integration here?"""
         self.keyframe_fits_path = fits_path
-        # in_name = "raw_image" # self.set_hdul_in_name(fits_path)
+        # in_name = "raw_image" # self.set_in_frame_name(fits_path)
         need_exposure = self.params.exposure_time_seconds() > 0
         have_input = True  # self.in_name is not None
         already_made = self.out_name in self.hdu_name_list
         
         if already_made:
-            orig, wave, t_rec, center, int_time = self.load_a_fits_field(fits_path, "lev1p0")
-            tint, wave, t_rec, center, int_time = self.load_a_fits_field(fits_path, "t_int(lev1p0)")
+            orig, wave, t_rec, center, int_time = self.load_this_fits_frame(fits_path, "lev1p0")
+            tint, wave, t_rec, center, int_time = self.load_this_fits_frame(fits_path, "t_int")
             if tint is not None:
                 tint *= int_time
                 match = np.sum(tint.astype(int) == orig.astype(int)) / len(tint) ** 2
@@ -133,9 +133,9 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.subname = fits_path.split('\\')[-1][:-5]
         # self.subname = basename(fits_path.split('.')[0])
         self.params.do_temp = True
-        self.set_hdul_in_name(fits_path)
+        self.set_in_frame_name(fits_path=fits_path)
         
-        keyframe, wave, t_rec, center, t_int = self.load_a_fits_field(fits_path, self.in_name)
+        keyframe, wave, t_rec, center, t_int = self.load_this_fits_frame(fits_path, self.in_name)
         self.orig_t_int = t_int
         self.params.raw_image = keyframe
         self.params.modified_image = np.zeros_like(keyframe, dtype=np.float32)
@@ -172,7 +172,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         for ii, path in enumerate(tqdm(exp_paths, desc="Summing Frames")):
             try:
                 if not os.path.isdir(path) and ".fits" in path:
-                    frame, wave, t_rec, center, int_time = self.load_a_fits_field(path, "lev1p0", quiet=True)
+                    frame, wave, t_rec, center, int_time = self.load_this_fits_frame(path, "lev1p0", quiet=True)
                     self.orig_t_int = self.orig_t_int or int_time
                     self.params.modified_image += frame
                     self.params.int_tm_tot += int_time

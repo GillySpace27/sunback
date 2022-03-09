@@ -12,6 +12,7 @@ class Fetcher(Processor):
     def __init__(self, params=None, quick=False, rp=None):
         # Initialize class variables
         super().__init__(params, quick, rp)
+        self.duration = ''
         self.frame_count = 0
         # self.load(params)
     

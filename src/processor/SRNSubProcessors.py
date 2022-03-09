@@ -133,7 +133,7 @@ class SRNpreProcessor(SRNProcessor):
     finished_verb = "Analyzed"
     show_plots = True
     
-    def __init__(self, fits_path=None, in_name="t_int(lev1p0)", orig=False,
+    def __init__(self, fits_path=None, in_name="t_int", orig=False,
                  show=False, verb=False, quick=False, rp=None, params=None):
         super().__init__(fits_path=fits_path, in_name=in_name, orig=orig, show=show, verb=verb, quick=quick, rp=rp, params=params)
         self.first = True

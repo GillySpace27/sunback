@@ -85,7 +85,7 @@ class Parameters:
         self.debug_mode = False
         self.did_print = False
         self.Force_init = False
-        self.list_of_default_hdus = ['t_int(lev1p0)', "lev1p0", 0, 1]
+        self.list_of_default_hdus = ['t_int', "lev1p0", 0, 1]
         self.raw_image=None
         self.modified_image=None
         self.quantile_image=None
@@ -98,6 +98,7 @@ class Parameters:
         self._do_mirror = False
         self.use_cdf = False
         self.old_fetchers = []
+        self.fits_path = None
         
         # Movie Defaults
         self._download_files = False

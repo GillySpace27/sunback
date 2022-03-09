@@ -65,14 +65,14 @@ class ImageProcessor(Processor):
         return self
     
     def init_frame(self, fits_path=None, in_name=-1):
-        """Load the fits file from disk and get a field or two"""
+        """Load the fits file from disk and get a in_name or two"""
         # self.load_curves()
         self.fits_path = fits_path or self.fits_path
         self.params.fits_path = self.fits_path
         if True: #self.params.raw_image is None:
-            list_of_inputs = ["lev1p5(t_int)", "lev1p5(L)", "t_int(lev1p0)", "lev1p0"]
-            frame0, _, _, _, _ = self.load_a_fits_field(fits_path, list_of_inputs)
-            frame1, self.wave1, self.t_rec1, center1, int_time = self.load_a_fits_field(fits_path, in_name)
+            list_of_inputs = ["lev1p5", "t_int", "lev1p0"]
+            frame0, _, _, _, _ = self.load_this_fits_frame(fits_path, list_of_inputs)
+            frame1, self.wave1, self.t_rec1, center1, int_time = self.load_this_fits_frame(fits_path, in_name)
             self.params.raw_image, self.params.modified_image = frame0, frame1
             self.frame = np.zeros_like(self.params.raw_image)
         # self.peek_frames()
@@ -90,7 +90,7 @@ class ImageProcessor(Processor):
             self.params.cmap = cm.gray
 
     def init_image_frame(self):
-        """Load the fits file from disk and get a field or two"""
+        """Load the fits file from disk and get a in_name or two"""
 
         # self.raw, self.changed = self.params.raw_image, self.params.modified_image
         self.frame = np.zeros_like(self.params.raw_image)

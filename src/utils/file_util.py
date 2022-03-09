@@ -84,7 +84,7 @@ archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Defau
 #         hdul.close(output_verify='ignore')
 #
 #
-# def load_best_fits_field(fits_path, field1=-1):
+# def load_this_fits_frame(fits_path, field1=-1):
 #     """Load a fits file from disk"""
 #     with fits.open(fits_path, cache=False) as hdul:
 #         hdul.verify('silentfix+warn')  # Verify

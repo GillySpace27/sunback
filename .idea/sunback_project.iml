@@ -29,6 +29,7 @@
       <excludeFolder url="file://$MODULE_DIR$/src/run/.ipynb_checkpoints" />
       <excludeFolder url="file://$MODULE_DIR$/src/run/renders" />
       <excludeFolder url="file://$MODULE_DIR$/src/sunback_images" />
+      <excludeFolder url="file://$MODULE_DIR$/src/utils/noise_gate/image-noise-gate" />
       <excludeFolder url="file://$MODULE_DIR$/sunback.egg-info" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/venv2" />

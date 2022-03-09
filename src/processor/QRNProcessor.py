@@ -575,7 +575,7 @@ class QRNProcessor(Processor):
         
         # # Plot Scattered Points from the raw image_path in midnightblue
         # ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-        #             alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int(lev1p0)")
+        #             alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int")
         #
         # # Plot Scattered Points from the raw image_path but rooted, in red
         # self.touchup_TUNE(self.params.raw_image)
@@ -702,7 +702,7 @@ class QRNProcessor(Processor):
         do_raw_scatter = False
         if do_raw_scatter:
             ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-                        alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int(lev1p0)")
+                        alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int")
         
         # Plot Scattered Points from the raw image_path but rooted, in red
         do_red_points = False
@@ -810,7 +810,7 @@ class QRNProcessor(Processor):
         
         # Plot Scattered Points from the raw image_path in midnightblue
         #         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_raw[::self.skip_points], zorder=-1,
-        #                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int(lev1p0)")
+        #                     alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int")
         
         # Plot Scattered Points from the raw image_path but rooted, in red
         flat_raw = self.params.raw_image.flatten()
@@ -894,7 +894,7 @@ class QRNProcessor(Processor):
         
         # Plot Scattered Points from the raw image_path in midnightblue
         ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int(lev1p0)")
+                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int")
         
         # Plot Scattered Points from the raw image_path but rooted, in red
         self.touchup(self.params.raw_image)

@@ -95,9 +95,9 @@ class ImageProcessorCV(ImageProcessor):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
         # self.frame_name = "t_int"
-        self.frame_name = ["lev1p5(t_int)", "lev1p5(L)", "t_int(lev1p0)", "lev1p0"]
+        self.frame_name = ["lev1p5", "t_int", "lev1p0"]
         
-        frame, wave, t_rec, center, int_time = self.load_a_fits_field(self.fits_path, self.frame_name)
+        frame, wave, t_rec, center, int_time = self.load_this_fits_frame(self.fits_path, self.frame_name)
         # frame = np.log10(frame)
         # frame = frame / np.nanpercentile(frame, 50)/2
         self.frame = np.flipud(frame)
@@ -112,9 +112,9 @@ class ImageProcessorCV(ImageProcessor):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
         # self.frame_name = "t_int"
-        self.frame_name = ["lev1p5(t_int)", "lev1p5(L)", "t_int(lev1p0)", "lev1p0"]
+        self.frame_name = ["lev1p5", "t_int", "lev1p0"]
         
-        frame, wave, t_rec, center, int_time = self.load_a_fits_field(self.fits_path, self.frame_name)
+        frame, wave, t_rec, center, int_time = self.load_this_fits_frame(self.fits_path, self.frame_name)
         frame = np.log10(frame)
         frame = frame / np.nanpercentile(frame, 50) / 2
         self.frame = np.flipud(frame)
@@ -172,10 +172,10 @@ class ImageProcessorCV(ImageProcessor):
     def plot_aia_changed(self):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
-        # self.frame_name = "t_int(lev1p0)"
+        # self.frame_name = "t_int"
         self.frame_name = self.params.png_frame_name  # .hdu_name_list[-1]
         
-        frame, wave, t_rec, center, int_time = self.load_a_fits_field(self.fits_path, self.frame_name)
+        frame, wave, t_rec, center, int_time = self.load_this_fits_frame(self.fits_path, self.frame_name)
         
         self.frame = np.flipud(frame)
         
@@ -322,7 +322,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
     description = "Look at the different methods compared"
     progress_verb = "Writing"
     progress_unit = "Images"
-    # list_of_inputs = ["lev1p5(t_int)", "lev1p5(L)", "t_int(lev1p0)", "lev1p0"]
+    # list_of_inputs = ["lev1p5", "t_int", "lev1p0"]
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
@@ -337,21 +337,21 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.frame_names = []
         self.frames = []
         self.good_frames = []
+        self.good_frame_stems = []
         self.fig = None
     
     def do_fits_function(self, fits_path, in_name=None):
         """ Main Call on the Fits Path """
         self.tic()
         self.init_frame(fits_path, None)
-        self.wave = self.params.current_wave()
         self.init_plot()
         # print("\r ** Beginning to Plot...")
-        pbar = tqdm(self.good_frames, desc="")
+        pbar = tqdm(self.good_frame_stems, desc="")
         max_width = np.max([len(x) for x in self.good_frames])
         for ii, frame_name in enumerate(pbar):
             pbar.set_description(" *     Plotting {}".format(frame_name.ljust(max_width)), refresh=True)
-            frame1, wave1, t_rec1, center1, int_time = self.load_a_fits_field(fits_path, frame_name)
-            self.add_to_plot(frame_name, frame1)
+            frame1, wave1, t_rec1, center1, int_time = self.load_this_fits_frame(fits_path, frame_name)
+            self.add_to_plot(self.good_frames[ii], frame1)
             last = ii == len(self.good_frames)-1
             if last:
                 pbar.set_description(" *    Plots Complete", refresh=True)
@@ -368,6 +368,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         if not self.fig:
             self.good_frames = [x for x in self.hdu_name_list if ("lev1_" not in x)][1:]
             self.good_frames.insert(0, self.good_frames[0])
+            self.good_frame_stems = [x.split('(')[0] for x in self.good_frames]
             self.n_plots = len(self.good_frames)
             self.n_rows = 2
             self.n_cols = self.n_plots // self.n_rows

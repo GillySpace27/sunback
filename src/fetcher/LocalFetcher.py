@@ -54,6 +54,7 @@ class LocalSingleFetcher(Fetcher):
     
     def fetch(self, params=None):
         print(" v Loading Local File...")
+        self.duration = ''
         self.load(params)
         self.determine_image_path()
         for self.params.hdu_name in self.params.list_of_default_hdus:
