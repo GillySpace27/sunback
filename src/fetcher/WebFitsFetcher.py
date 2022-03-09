@@ -17,6 +17,7 @@ from tqdm import tqdm
 
 class WebFitsFetcher(Fetcher):
     base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
+    jpg_url_stem = "https://i0.wp.com/sdo.gsfc.nasa.gov/assets/img/latest/latest_{:04}_{:04}.jpg"
     description = "Get Fits Files from {}".format(base_url)
     filt_name = "WebFitsFetcher"
     # out_name = 'SRN'
@@ -28,33 +29,58 @@ class WebFitsFetcher(Fetcher):
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
         self.destroy = True
+    
+    def fetch_jpegs(self):
+        
+        # os.path.listdir(self.params.fits_directory())
+        j_urls=[]
+        rez = None
+        for path in self.params.local_fits_paths():
+            if rez is None:
+                frame, wave, t_rec, center, int_time, nm = self.load_first_fits_field(fits_path=path)
+                self.params.rez = frame.shape[0]
+            wavenum = int(''.join(i for i in path if i.isdigit()))
+            j_urls.append(self.jpg_url_stem.format(self.params.rez, wavenum))
+
+        j_directory = os.path.join(self.params.imgs_top_directory(), "jpeg")
+        self.j_paths = []
+        pbar = tqdm(j_urls, desc="  ")
+        for link in pbar:
+            pbar.set_description(" *  "+os.path.basename(link))
+            self.j_paths.append(self.grab(link, j_directory))
+        # print(paths)
+
 
     def fetch(self, params=None):
         """Gets the Fits Files from the Archive URL
         :param params:
         """
         self.params = params or self.params
-        # self.params.current_wave()
         self.load(self.params, quietly=True, wave=self.params.current_wave('rainbow'))
         if self.params.download_files():
-            if self.destroy:
-                self.delete_directory_items(self.fits_folder)
-            print(" V  Downloading Fits Files from {}...".format(self.base_url), flush=True)
-            # super.super.__init__(params)
-            img_links = self.__get_fits_links(self.base_url)
-            paths = []
-            pbar = tqdm(img_links, desc="  ")
-            for link in pbar:
-                pbar.set_description(" *  "+os.path.basename(link))
-                paths.append(self.grab(link))
-        
             self.__get_img_time()
-            sys.stdout.flush()
-            print("\r *  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
+            paths = self.get_fits_files()
+            self.fetch_jpegs()
+            
             return paths
         else:
             print("Skipping download!")
         return self.params.local_fits_paths()
+
+    def get_fits_files(self):
+        if self.destroy:
+            self.delete_directory_items(self.fits_folder)
+        print(" V  Downloading Fits Files from {}...".format(self.base_url), flush=True)
+        # super.super.__init__(params)
+        img_links = self.__get_fits_links(self.base_url)
+        paths = []
+        pbar = tqdm(img_links, desc="  ")
+        for link in pbar:
+            pbar.set_description(" *  "+os.path.basename(link))
+            paths.append(self.grab(link))
+        sys.stdout.flush()
+        print("\r *  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
+        return paths
 
     
     def delete_directory(self, directory):
@@ -76,11 +102,12 @@ class WebFitsFetcher(Fetcher):
 
 
     
-    def grab(self, link):
+    def grab(self, link, directory=None):
         tries = 3
         filename = link.split('/')[-1]
-        local_path = join(self.params.fits_directory(), filename)
-        local_temp_path = join(self.params.fits_directory(), "download__" + filename)
+        use_directory = directory or self.params.fits_directory()
+        local_path = join(use_directory, filename)
+        local_temp_path = join(use_directory, "download__" + filename)
         for ii in np.arange(tries):
             # Retry download
             try:
@@ -93,7 +120,7 @@ class WebFitsFetcher(Fetcher):
             except urllib.error.ContentTooShortError:
                 print("Failed Download...Retrying {} / {}".format(ii, tries))
                 pass
-        
+        return local_path
         # paths.append(local_path)
     
     @staticmethod

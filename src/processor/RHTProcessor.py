@@ -95,7 +95,7 @@ class RHTProcessor(Processor):
         if plot_angles:
             self.plot_angles()
         
-        return self.params.modified_image
+        return np.transpose(self.params.modified_image)
 
 
     def get_cube(self):

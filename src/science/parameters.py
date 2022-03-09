@@ -31,7 +31,7 @@ class Parameters:
         self.master_frame_list_newest = ["lev1p5", "t_int", "lev1p0", "primary", ""]
         self.master_frame_list_oldest = [ x for x in reversed(self.master_frame_list_newest)]
         self.durList = []
-        self.aftereffects_in_name = "lev1p5"
+        self.aftereffects_in_name = "qrn(lev1p5)"
         self.fits_save_path = None
         self.use_drive = "D"
         self.file_basename = None

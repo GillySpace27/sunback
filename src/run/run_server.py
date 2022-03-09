@@ -5,10 +5,12 @@ from processor.ImageProcessor import ImageProcessor
 # from processor.SRNProcessor import SRNProcessor, \
 from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
 from processor.QRNProcessor import QRNProcessor
-from processor.SRNSubProcessors import SRNSingleShotProcessor, SRNpreProcessor, SRNradialFiltProcessor
+from processor.RHTProcessor import RHTProcessor
+from processor.SRNProcessor import SRNProcessor
+from processor.SRNProcessor import SRNSingleShotProcessor, SRNpreProcessor, SRNradialFiltProcessor
 # from putter.AwsPutter import AwsPutter
 # from putter.DesktopPutter import DesktopPutter
-from processor.SunPyProcessor import AIA_PREP_Processor, NRGFProcessor
+from processor.SunPyProcessor import AIA_PREP_Processor, NRGFProcessor, MSGNProcessor
 from putter.DesktopPutter import DesktopPutter
 from science.parameters import Parameters
 from run import Runner
@@ -34,10 +36,14 @@ def run_server(delay=10, debug=True, do_one='rainbow', stop=True):
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
 
-    # p.fetchers(WebFitsFetcher, rp=True)  # Gets Fits from JSOC Most Recent
-    # p.processors([AIA_PREP_Processor],     rp=False)   # Do Sunpy Things
-    # p.processors([QRNProcessor], rp=True)  # Applies the Radial Filtering
-    # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
+    p.fetchers(WebFitsFetcher,              rp=True)  # Gets Fits from JSOC Most Recent
+    p.processors([AIA_PREP_Processor],      rp=False)   # Do Sunpy Things
+    p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
+    # p.processors([SRNSingleShotProcessor], rp=True)  # Applies the Radial Filtering
+    p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
+    
+    p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
     
     # p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
     # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs

@@ -1028,11 +1028,14 @@ class Processor:
         # Load the raw out_array
         wave, t_rec, center, int_time, found_limb_radius = None, None, None, None, None
         ii = 0
+        self.list_hdus(hdul)
         for ii in range(len(hdul)):
             try:
                 try:
                     name = [x for x in self.hdu_name_list if "lev" in x][-1]
                 except IndexError as e:
+                    name = ii
+                except TypeError as e:
                     name = ii
                 last_hdul_frame = hdul[name]
                 last_hdul_frame.header["DRMS_ID"]
@@ -1080,7 +1083,7 @@ class Processor:
         self.list_hdus(hdul)
         
         self.frame_name = None
-        
+        in_list = []
         if isinstance(name, int):
             self.frame_name = self.hdu_name_list[name]
         
@@ -1113,7 +1116,7 @@ class Processor:
         try:
             field_hdu = hdul[self.frame_name]
         except KeyError as e:
-            print("Oh No!")
+            print("Oh No! Can't Find {}".format(self.frame_name))
             return None, None
 
         data = None

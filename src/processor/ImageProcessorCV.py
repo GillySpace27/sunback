@@ -325,6 +325,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
+        self.max_width = 20
         self.main_save_path = None
         self.last_frame_name = None
         self.base_image = None
@@ -332,7 +333,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.n_cols = None
         self.n_rows = None
         self.init = False
-        self.count = 0
+        self.count = 1
         self.frame_names = []
         self.frames = []
         self.good_frames = []
@@ -346,10 +347,14 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.init_plot()
         self.init_radius_array()
         
+        self.max_width = np.max([len(x) for x in self.good_frames])
         iterable = tqdm(self.good_frames, desc="") if doBar else self.good_frames
-        for ii, frame_name in enumerate(iterable):
-            self.handle_one_frame(fits_path, frame_name, doBar, iterable)
-        
+        for self.count, frame_name in enumerate(iterable):
+            if frame_name == "jpeg":
+                self.plot_jpeg(fits_path, frame_name, doBar, iterable)
+                
+            else:
+                self.handle_one_frame(fits_path, frame_name, doBar, iterable)
         if doBar: iterable.set_description(" *    Plots Complete", refresh=True)
         
         self.finalize_and_save_plots()
@@ -358,9 +363,28 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.open_folder(self.main_save_path)
         return None
     
+    def plot_jpeg(self, fits_path, frame_name, doBar, iterable):
+        import PIL
+        from PIL import Image
+        j_directory = os.path.join(self.params.imgs_top_directory(), "jpeg")
+        paths = os.listdir(j_directory)
+        full_paths = [os.path.join(j_directory, pat) for pat in paths]
+        wavenum = int(''.join(i for i in fits_path if i.isdigit()))
+        correct = [x for x in full_paths if str(wavenum) in x][0]
+        image = Image.open(correct)
+        # from astropy.nddata import block_reduce
+        # image = block_reduce(image, self.shrink_factor/2)
+        # image=  image.rotate(180)
+        image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+        ax = self.axArray[0]
+        ax.imshow(image, origin='lower', interpolation="None")
+        ax.set_title('"The Sun Today"')
+        
+        return
+        
+    
     def handle_one_frame(self, fits_path, frame_name, doBar, iterable):
-        max_width = np.max([len(x) for x in self.good_frames])
-        if doBar: iterable.set_description(" *     Plotting {}".format(frame_name.ljust(max_width)), refresh=True)
+        if doBar: iterable.set_description(" *     Plotting {}".format(frame_name.ljust(self.max_width)), refresh=True)
         frame1, wave1, t_rec1, center1, int_time, name = self.load_this_fits_frame(fits_path, frame_name)
         frame1[self.vignette_mask] = np.nan
         self.add_to_plot(name, frame1)
@@ -406,12 +430,13 @@ class MultiImageProcessorCv(ImageProcessorCV):
         #
         # self.good_frames.insert(repeat_frame, self.good_frames[repeat_frame])
         self.good_frames.pop(0)
+        self.good_frames.insert(0, "jpeg")
         
         self.good_frame_stems = [x.split('(')[0] for x in self.good_frames]
         
         self.n_plots = len(self.good_frames)
         self.n_rows = 2
-        self.n_cols = self.n_plots // self.n_rows
+        self.n_cols = max((self.n_plots // self.n_rows, 1))
         self.n_slots = self.n_rows * self.n_cols
         while self.n_slots < self.n_plots:
             self.n_cols += 1
@@ -450,7 +475,6 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.axArray[self.count].set_title(frame_name)
         self.frame_names.append(frame_name)
         self.frames.append(frame)
-        self.count += 1
     
     def finalize_and_save_plots(self, dpi=500):
         
@@ -491,7 +515,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         # print("Done - Files Saved in {}".format(self.params.imgs_top_directory()))
     
     def reinit_constants(self):
-        self.count = 0
+        self.count = 1
         self.last_frame_name = None
         plt.close(self.fig)
     

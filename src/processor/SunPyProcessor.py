@@ -250,7 +250,7 @@ class MSGNProcessor(SunPyProcessor):
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
-        self.in_name = self.params.aftereffects_in_name or in_name or self.in_name
+        self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
     
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
