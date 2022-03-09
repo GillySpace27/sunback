@@ -246,14 +246,23 @@ class MSGNProcessor(SunPyProcessor):
     progress_verb = 'Normalizing'
     finished_verb = "Normalized"
     out_name = "MSGN"
+    first = True
     
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
-        self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
-    
+        # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
+        if MSGNProcessor.first:
+            self.in_name = "lev1p5(primary)"
+
+        else:
+            self.in_name = "qrn(lev1p5)"
+            
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         import sunkit_image.enhance as enhance
         self.params.modified_image = enhance.mgn(self.params.raw_image)
         return self.params.modified_image
+    
+    def cleanup(self):
+        MSGNProcessor.first = False

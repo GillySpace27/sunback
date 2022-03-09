@@ -43,7 +43,9 @@ def run_server(delay=10, debug=True, do_one='rainbow', stop=True):
     p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
     
     p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-    p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
+    p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+
+    # p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
     
     # p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
     # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs

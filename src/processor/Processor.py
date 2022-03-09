@@ -1074,8 +1074,10 @@ class Processor:
         
         hdul = hdul or fits.open(fits_path, cache=False, ignore_missing_end=True)
       
-        self.in_name = self.find_correct_frame_name(hdul, name=in_name)
-        # correct_in_name    = self.find_correct_in_name(hdul)
+        try:
+            self.in_name = self.find_correct_frame_name(hdul, name=in_name)
+        except FileNotFoundError:
+            self.in_name = self.find_correct_in_name(hdul)
         return self.in_name
         
     def find_correct_frame_name(self, hdul, name, quiet=True):

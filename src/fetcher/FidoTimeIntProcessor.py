@@ -33,7 +33,6 @@ def vprint(in_string, verb=None, *args, **kwargs):
 
 class FidoTimeIntProcessor(FidoFetcher):
     name = filt_name = "Time Integration"
-    in_name = -1
     out_name = "t_int"
     description = "Get many frames around the keyframe and sum them"
     finished_verb = "Summed"
@@ -45,6 +44,7 @@ class FidoTimeIntProcessor(FidoFetcher):
     def __init__(self, params=None, quick=False, rp=False):
         # Initialize class variables
         super().__init__(params, quick, rp)
+        self.in_name = self.params.master_frame_list_newest
         self.progress_verb = 'Time Integrating: {} Seconds'.format(self.params.exposure_time_seconds())
         self.name = self.name.format(self.params.exposure_time_seconds)
         self.do_delete = True
