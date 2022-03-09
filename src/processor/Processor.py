@@ -11,6 +11,7 @@ import time
 import cv2
 import numpy as np
 import sunpy
+import sunpy.map
 
 # from run import SingleRunner
 from science.color_tables import aia_color_table
@@ -97,6 +98,8 @@ class Processor:
     out_dtype = np.float32
     
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        self.loud_tic = False
+        self.frame_name = None
         self.duration = ''
         self.tm = 0
         self.raw_map = None
@@ -279,6 +282,7 @@ class Processor:
             if self.params.modified_image is None:
                 self.params.modified_image = copy(self.params.raw_image)+0
             
+            self.params.current_wave(wave)
             self.params.cmap = aia_color_table(int(wave) * u.angstrom)
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
             self.file_basename = basename(self.fits_path)
@@ -431,6 +435,7 @@ class Processor:
         """Calls the do_work function on a single fits path if indicated"""
         
         if self.load_fits_image(fits_path, in_name=in_name):
+            # print(self.fits_path)
             if (not self.use_keyframes) or (self.fits_path in self.keyframes):
                 if self.should_run():
                     self.tic()
@@ -441,12 +446,14 @@ class Processor:
         return None
     
     def tic(self):
-        print(" *    Running Filter...", end='\n')
+        if self.loud_tic:
+            print("\n\n *    Running Filter on {}...".format(self.params.current_wave()), end='\n')
         self.tm = time.time()
     
     def toc(self):
         dur = time.time()-self.tm
-        print(" ^    Done! Took: {:0.2f} seconds, or {:0.2f} mins\n".format(dur, dur/60))
+        if self.loud_tic:
+            print(" ^    Done! Took: {:0.2f} seconds, or {:0.2f} mins".format(dur, dur/60))
         self.params.durList.append(dur)
         self.duration = dur
         # TODO make the duration list thing work, displaying the time it took to do each thing at the end.
@@ -506,7 +513,7 @@ class Processor:
             self.cleanup()
         
         n_success = self.ii + 1 - self.skipped
-        if n_success + self.skipped > 1:
+        if n_success + self.skipped >= 1:
             if n_success == 0:
                 print(" X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(self.skipped))
             else:
@@ -1069,9 +1076,9 @@ class Processor:
         hdul = hdul or fits.open(fits_path, cache=False, ignore_missing_end=True)
         self.find_correct_in_name(hdul)
 
-    def open_fits_hdul(self, hdul, quiet=True, fail=False):
+    def open_fits_hdul(self, hdul, quiet=True, fail=True):
         """Load a fits file from disk"""
-        quiet = True
+        quiet=True
         self.list_hdus(hdul)
         
         if self.in_name is None:
@@ -1085,7 +1092,7 @@ class Processor:
         
         if isinstance(self.in_name, list):
             in_list = self.in_name
-            use_name = None
+            self.frame_name = None
             # lowercase_hdu_names = [x.casefold() for x in self.hdu_name_list]
             for input_name in self.in_name:
                 input_name = input_name.casefold()
@@ -1094,22 +1101,26 @@ class Processor:
                     test_name = full_name.split('(')[0]
                     
                     if input_name in test_name: # or name in lowercase_hdu_names:
-                        use_name = full_name
+                        self.frame_name = full_name
                         if not quiet:
-                            print(" +    Using frame {}".format(use_name))
+                            print("\r +    Using frame {}".format(self.frame_name))
                         break
-            if not use_name:
-                last_frame = self.hdu_name_list[1].casefold()
-                print("\r *       {} not found, proceeding with {} instead".format(
-                        in_list, last_frame))
-                if fail:
-                    raise
-                use_name = last_frame
-            self.in_name = self.frame_name = use_name
+                if self.frame_name is not None:
+                    break
+            if not self.frame_name:
+                # print("\r *       {} not found".format(in_list))
+                raise FileNotFoundError("Frame {} not in File".format(in_list))
+                # first = min(len(self.hdu_name_list))
+                # last_frame = self.hdu_name_list[1].casefold()
+                # if fail:
+                #     raise
+                # use_name = last_frame
+            # self.in_name = self.frame_name = use_name
             try:
-                field_hdu = hdul[self.in_name]
+                field_hdu = hdul[self.frame_name]
             except KeyError as e:
                 print("Oh No!")
+
         data = None
         header = None
         try:
@@ -1447,8 +1458,8 @@ class Processor:
     
     def vignette(self):
         """Truncate the in_object above a certain radis"""
-        if self.vignette_mask is None:
-            self.init_radius_array()
+        # if self.vignette_mask is None:
+        self.init_radius_array()
         
         self.params.modified_image[self.vignette_mask] = np.nan
         self.params.raw_image[self.vignette_mask] = np.nan

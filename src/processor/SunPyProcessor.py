@@ -68,7 +68,7 @@ class SunPyProcessor(Processor):
         super().__init__(params, quick, rp, in_name)
         self.tm = 0
         self.radial_bin_edges = equally_spaced_bins(inner_value=0.0, nbins=300) * u.R_sun
-        self.in_name = in_name or ["lev1p0", "t_int", "gated", "lev1p5"]
+        self.in_name = in_name or self.params.master_frame_list
 
 
 class AIA_PREP_Processor(SunPyProcessor):
@@ -89,7 +89,7 @@ class AIA_PREP_Processor(SunPyProcessor):
     def __init__(self, params=None, quick=False, rp=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
-        self.in_name = ["lev1p0", "t_int", "gated"]
+        self.in_name = self.params.master_frame_list
         
         self.last_wave = None
         self.psf = None

@@ -70,7 +70,7 @@ class ImageProcessor(Processor):
         self.fits_path = fits_path or self.fits_path
         self.params.fits_path = self.fits_path
         if True: #self.params.raw_image is None:
-            list_of_inputs = ["lev1p5", "t_int", "lev1p0"]
+            list_of_inputs = self.params.master_frame_list
             frame0, _, _, _, _ = self.load_this_fits_frame(fits_path, list_of_inputs)
             frame1, self.wave1, self.t_rec1, center1, int_time = self.load_this_fits_frame(fits_path, in_name)
             self.params.raw_image, self.params.modified_image = frame0, frame1

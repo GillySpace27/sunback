@@ -17,7 +17,7 @@ from tqdm import tqdm
 class WebFitsFetcher(Fetcher):
     base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
     description = "Get Fits Files from {}".format(base_url)
-    
+    filt_name = "WebFitsFetcher"
     # out_name = 'SRN'
     # name = filt_name = 'SRN Single Shot Processor'
     progress_verb = 'Downloading'
@@ -28,22 +28,25 @@ class WebFitsFetcher(Fetcher):
         """Gets the Fits Files from the Archive URL
         :param params:
         """
-        if params is not None:
-            self.params = params
+        self.params = params or self.params
         # self.params.current_wave()
-        self.load(params, quietly=True, wave=self.params.current_wave('rainbow'))
+        self.load(self.params, quietly=True, wave=self.params.current_wave('rainbow'))
         if self.params.download_files():
-            print("  Downloading Fits Files from {}...".format(self.base_url), flush=True)
+            print(" V  Downloading Fits Files from {}...".format(self.base_url), flush=True)
             # super.super.__init__(params)
             img_links = self.__get_fits_links(self.base_url)
             paths = []
-            for link in tqdm(img_links, desc="  "):
+            pbar = tqdm(img_links, desc="  ")
+            for link in pbar:
+                pbar.set_description(" *  "+os.path.basename(link))
                 paths.append(self.grab(link))
         
             self.__get_img_time()
             sys.stdout.flush()
             print("\r *  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
             return paths
+        else:
+            print("Skipping download!")
         return self.params.local_fits_paths()
     
     def grab(self, link):

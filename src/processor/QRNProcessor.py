@@ -43,9 +43,9 @@ class QRNProcessor(Processor):
     """This class holds the code for the Quantile Radial Norm Processor"""
     name = filt_name = "Quantile Norm Processor"
     description = "Apply the single-shot Quantile Norm to images"
-    progress_verb = 'Normalizing'
-    finished_verb = "Normalized"
-    out_name = "quantile"
+    progress_verb = 'Filtering'
+    finished_verb = "Radially Filtered"
+    out_name = "QRN"
     
     # Flags
     show_plots = True
@@ -61,7 +61,7 @@ class QRNProcessor(Processor):
         self.radius = None
         # Ingest
         self.fits_path = fits_path
-        self.in_name = in_name or ["lev1p0", "t_int", "lev1p5"]
+        self.in_name = in_name or self.params.master_frame_list
         self.show = show
         self.verb = verb
         self.do_orig = orig
@@ -187,6 +187,7 @@ class QRNProcessor(Processor):
         """Runs after all the images have been modified with do_work"""
         if self.should_run():
             self.skipped -= 1
+            self.skipped = max((self.skipped, 0))
    
     def should_run(self):
         """Decide of the processor should run on this file"""
@@ -195,11 +196,14 @@ class QRNProcessor(Processor):
             return False
         self.can_use_keyframes = True
         not_dark = self.header["IMG_TYPE"] == "LIGHT"
-        not_weak = self.header["EXPTIME"] >= 1.0
+        not_weak = self.header["EXPTIME"] >= 0.9
         set_to_make = self.params.remake_norm_curves() or self.reprocess_mode()
         not_made_yet = not os.path.exists(self.params.curve_path()) or self.outer_min is None
         frame_is_not_loaded = self.params.raw_image is None
         self.go_ahead = not_weak & not_dark and (set_to_make or not_made_yet or frame_is_not_loaded)
+        if not self.go_ahead:
+            problem = "Weak" if not not_weak else "dark" if not not_dark else "incomprehensible"
+            print("Skipping because the file is {}".format(problem))
         return self.go_ahead
     
     # def delete_temp_folder(self, folder):

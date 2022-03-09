@@ -156,7 +156,7 @@ class Runner:
         
         # for ii in range(4):
         if self.verb and self.params.stop_after_one():
-            sleep(2)
+            sleep(0.5)
             
             print(r"""           '
                           .      '      .
@@ -180,12 +180,12 @@ class Runner:
                      .:;.      .:.   ::.     '::.
                      """)
             
-            sleep(2)
+            sleep(0.5)
             
             for i in range(5):
                 print("\n  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *")
     
-            sleep(2)
+            sleep(0.5)
 
 
 class SingleRunner(Runner):

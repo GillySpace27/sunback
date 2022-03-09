@@ -21,23 +21,23 @@ def run_server(delay=10, debug=True, do_one='rainbow', stop=True):
     # p.stop_after_one(True)
     p.batch_name("background_server")
     p.run_type("Web Server Daemon")
-    p.png_frame_name = 'SRN'
+    p.png_frame_name = ['QRN', "primary"]
     p.do_orig = True
     p.speak_save = False
-    
+    p.use_drive = "G"
     # Run Flags
-    # p.download_files(False)
+    p.download_files(True)
     # p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
     # p.overwrite_pngs(True)
     # p.write_video(False)
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
 
-    p.fetchers(WebFitsFetcher, rp=True)  # Gets Fits from JSOC Most Recent
-    p.processors(QRNProcessorz, rp=True)  # Applies the Radial Filtering
+    # p.fetchers(WebFitsFetcher, rp=True)  # Gets Fits from JSOC Most Recent
+    # p.processors(QRNProcessor, rp=True)  # Applies the Radial Filtering
     p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
-    p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
-    
+    # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
+    #
     #
     # p.processors(SRNpreProcessor, rp=True)  # Applies the Radial Filtering
     # p.processors(SRNradialFiltProcessor, rp=True)  # Applies the Radial Filtering

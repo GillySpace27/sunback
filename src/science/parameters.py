@@ -28,6 +28,8 @@ class Parameters:
     def __init__(self):
         """Sets all the attributes to None"""
         # Initialize Variables
+        self.master_frame_list = ["lev1p5", "t_int", "lev1p0", "primary", ""]
+        # self.master_frame_list = reversed(["lev1p5", "t_int", "lev1p0", "primary", ""])
         self.durList = []
         self.aftereffects_in_name = "lev1p5"
         self.fits_save_path = None

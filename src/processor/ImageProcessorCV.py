@@ -21,6 +21,7 @@ class ImageProcessorCV(ImageProcessor):
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
+        self.shrink_factor = 1
         self.frame_name = None
         self.img_frame = None
         self.out_path = None
@@ -95,7 +96,7 @@ class ImageProcessorCV(ImageProcessor):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
         # self.frame_name = "t_int"
-        self.frame_name = ["lev1p5", "t_int", "lev1p0"]
+        self.frame_name = self.params.master_frame_list
         
         frame, wave, t_rec, center, int_time = self.load_this_fits_frame(self.fits_path, self.frame_name)
         # frame = np.log10(frame)
@@ -112,7 +113,7 @@ class ImageProcessorCV(ImageProcessor):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
         # self.frame_name = "t_int"
-        self.frame_name = ["lev1p5", "t_int", "lev1p0"]
+        self.frame_name = self.params.master_frame_list
         
         frame, wave, t_rec, center, int_time = self.load_this_fits_frame(self.fits_path, self.frame_name)
         frame = np.log10(frame)
@@ -130,30 +131,28 @@ class ImageProcessorCV(ImageProcessor):
         if self.params.modified_image is None:
             self.params.modified_image = np.zeros_like(self.params.raw_image)
         
-        self.params.center = [self.header["X0_MP"], self.header["Y0_MP"]]
-        self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]
         self.params.rez = self.header["NAXIS1"]
+        self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]
+        self.params.center = (self.header["X0_MP"], self.header["Y0_MP"])
         
+        nn = 1
+        while self.found_limb_radius > self.params.rez/2:
+            nn *= 2
+            self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"] / nn
+            self.params.center = [self.header["X0_MP"]/nn, self.header["Y0_MP"]/nn]
+        
+        self.shrink_factor = nn
         self.output_abscissa = np.arange(self.params.rez)
         
         xx, yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
         xc, yc = xx - self.params.center[0], yy - self.params.center[1]
         self.radius = np.sqrt(xc * xc + yc * yc)
         self.rad_flat = self.radius.flatten()
-        
-        self.binfactor = binfactor = 2
-        self.binInds = np.asarray(binfactor * np.floor(self.rad_flat // binfactor), dtype=np.int32)
-        # self.make_annular_rings()
-        # self.binInds = np.digitize(self.rad_flat, self.RN)
-        
-        self.binXX = xx.flatten()
-        self.binYY = yy.flatten()
-        self.binII = np.arange(len(self.rad_flat))
         self.vcut = int(vignette_radius * self.params.rez // 2)
         self.vrad = self.n2r(self.vcut)
         self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
-        self.s_radius = s_radius
-        self.tRadius = self.s_radius * t_factor
+        a=1
+
     
     # def plot_aia_changed(self):
     #     """Plot the modified_image data from AIA"""
@@ -181,7 +180,7 @@ class ImageProcessorCV(ImageProcessor):
         
         self.out_path = self.get_changed_path()
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
-        print("Saving to {}".format(self.out_path))
+        # print("Saving to {}".format(self.out_path))
         
         self.vignette()
         self.prep_save()
@@ -214,7 +213,7 @@ class ImageProcessorCV(ImageProcessor):
         
         if themax > 100 or themax < 0.8:
             out = (self.frame - minmin) / (maxmax - minmin)
-            print("\nRenormalizing", maxmax, minmin, np.max(out), np.min(out))
+            # print("\nRenormalizing", maxmax, minmin, np.max(out), np.min(out))
         
         self.img_frame = (self.params.cmap(out)[:, :, :3] * 255).astype(np.uint8)
         b, g, r = cv2.split(self.img_frame)  # get b,g,r
@@ -246,18 +245,18 @@ class ImageProcessorCV(ImageProcessor):
         
         x0 = 3900
         x1 = 3875
-        scale = 3
+        scale = 3 if self.shrink_factor == 1 else 2 if self.shrink_factor == 2 else 1
         h1 = 100
         h2 = 200
         h3 = 300
         if shape[0] < 3000:
             x0 = x0 // 4
             x1 = x1 // 4
-            scale = 1
+            # scale = 1
             h1 = 40
             h2 = 80
             h3 = 120
-        
+        scale2 = scale
         # if self.params.alpha is not None:
         #     cv2.putText(img, "a={:0.3f}".format(self.params.alpha), (int(x0*0.95), h3), 0,   scale, (255, 255, 255), 3)
         
@@ -266,7 +265,7 @@ class ImageProcessorCV(ImageProcessor):
         else:
             frame_name = self.frame_name
         
-        cv2.putText(img, frame_name.casefold(), (int(x0 * 0.92), h1), 0, scale, (255, 255, 255), 3)
+        cv2.putText(img, frame_name.casefold(), (int(x0 * 0.92), h1), 0, scale, (255, 255, 255), scale2)
         
         reticle = False
         if reticle:
@@ -275,11 +274,11 @@ class ImageProcessorCV(ImageProcessor):
             cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
                        int(10), (255, 0, 0), 10)
         
-        cv2.putText(img, inst, (x0, h2), 0, scale, (255, 255, 255), 3)
-        cv2.putText(img, wave, (x1, h3), 0, scale, (255, 255, 255), 3)
-        cv2.putText(img, clock, (0, h1), 0, scale, (255, 255, 255), 3)
-        cv2.putText(img, day, (0, h2), 0, scale, (255, 255, 255), 3)
-        cv2.putText(img, year, (0, h3), 0, scale, (255, 255, 255), 3)
+        cv2.putText(img, inst, (x0, h2), 0, scale, (255, 255, 255), scale2)
+        cv2.putText(img, wave, (x1, h3), 0, scale, (255, 255, 255), scale2)
+        cv2.putText(img, clock, (0, h1), 0, scale, (255, 255, 255), scale2)
+        cv2.putText(img, day, (0, h2), 0,   scale, (255, 255, 255), scale2)
+        cv2.putText(img, year, (0, h3), 0,  scale, (255, 255, 255), scale2)
     
     def cleanup(self):
         # self.make_intermediate_videos()
