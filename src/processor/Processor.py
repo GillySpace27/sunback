@@ -100,7 +100,7 @@ class Processor:
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         self.loud_tic = False
         self.frame_name = None
-        self.duration = ''
+        self.duration = 0
         self.tm = 0
         self.raw_map = None
         self.img_path = None
@@ -113,6 +113,7 @@ class Processor:
             self.run_type_str = "\\item  {}".format(self.this_file_name, self.run_type)
             self.paper_out.append(self.run_type_str)
     
+    # @staticmethod
     def plan(self, end=False):
         """Find the name of this processor and print"""
         if not end:
@@ -124,7 +125,7 @@ class Processor:
             #     duration = ""
             # proc_name = self.filt_name + "\t : \t" + self.description  + duration
             # print('      ' + proc_name)
-            print('      {:15} : {:20} : {:10}'.format(self.filt_name, self.description, self.duration))
+            print('      {:15} : {:20} : {:10}'.format(self.filt_name, self.description, str(self.duration)))
     
     def put(self, params=None):
         self.process(params)
@@ -263,7 +264,7 @@ class Processor:
         return ext_paths, abs_ext_paths
     
     def load_fits_image(self, fits_path=None, in_name=None):
-        """open the fits file and grab the necessary data"""
+        """open the fits file and grab_obj the necessary data"""
         
         if fits_path is not None:
             self.fits_path = os.path.normpath(fits_path)
@@ -435,10 +436,10 @@ class Processor:
             # print(self.fits_path)
             if (not self.use_keyframes) or (self.fits_path in self.keyframes):
                 if self.should_run():
-                    self.tic()
+                    # self.tic()
                     self.raw_map = sunpy.map.Map((self.params.raw_image, self.params.header))
                     out = self.do_work()
-                    self.toc()
+                    # self.toc()
                     return out
         return None
     
@@ -449,6 +450,7 @@ class Processor:
     
     def toc(self, loud=False):
         dur = time.time()-self.tm
+        self.tm = time.time()
         if self.loud_tic or loud:
             print(" ^    Done! Took: {:0.2f} seconds, or {:0.2f} mins".format(dur, dur/60))
         self.params.durList.append(dur)
@@ -472,6 +474,8 @@ class Processor:
     
     def process(self, params=None):
         """Load the parameters and run the algorithm"""
+        self.tic()
+        
         self.params = params or self.params
         if self.params is not None:
             if self.params.do_single:
@@ -487,7 +491,9 @@ class Processor:
             else:
                 self.load(self.params, quietly=False)
                 self.process_fits_series()
-    
+                
+        self.toc()
+        
     ##  Run on Fits Files
     def process_fits_series(self):
         """Apply the function to all necessary fits files"""
@@ -514,7 +520,7 @@ class Processor:
             if n_success == 0:
                 print(" X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(self.skipped))
             else:
-                print(" ^ ^ ^Successfully {} {} Files ({} skipped) \n".format(self.finished_verb, n_success, self.skipped), flush=True)
+                print(" ^ ^ ^Successfully {} {} Files ({} skipped) in {:0.4f} seconds\n".format(self.finished_verb, n_success, self.skipped, self.duration), flush=True)
                 print(" ^ ---------------------------------------------------------------  ^\n")
         else:
             print(" ^    No Files Found\n")
@@ -531,6 +537,7 @@ class Processor:
         self.confirm_fits_file(fits_path)
         try:
             output = self.do_fits_function(fits_path, self.in_name)
+            
         except np.linalg.LinAlgError as e:
             print("Modify one fits :: ", e, "\n")
             output = 0.5*np.ones_like(self.params.raw_image)
@@ -644,7 +651,7 @@ class Processor:
         self.lCut = int(self.fit_limb_radius - 0.01 * self.params.rez)
         self.hCut = int(self.fit_limb_radius + 0.00 * self.params.rez)
     
-    def init_radius_array(self, vignette_radius=1.21, s_radius=400, t_factor=1.28, force=False):
+    def init_radius_array(self, vignette_radius=1.2, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
         if self.params.modified_image is None:
             self.params.modified_image = self.params.raw_image + 0

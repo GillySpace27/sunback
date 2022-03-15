@@ -26,7 +26,21 @@ def make_thumbs(rtPath):
 
 
 def get_thumblinks(rtPath):
-    name = split(rtPath)[-1]
+    import os
+    rep = '_mod'
+    if rep in rtPath:
+        orig = True
+    else:
+        orig = False
+    
+    filename = os.path.basename(rtPath)
+    
+    if not orig:
+        name = filename[-8:]
+    else:
+        name = filename.replace(rep, '_orig')
+        name = name[-13:]
+    
     arcPath = "renders/archive/" + "{}_{}".format(int(time()), name)
     smallPath = "renders/thumbs/" + name
     bigPath = 'renders/' + name

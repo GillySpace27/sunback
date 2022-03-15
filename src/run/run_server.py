@@ -11,15 +11,16 @@ from processor.SRNProcessor import SRNSingleShotProcessor, SRNpreProcessor, SRNr
 # from putter.AwsPutter import AwsPutter
 # from putter.DesktopPutter import DesktopPutter
 from processor.SunPyProcessor import AIA_PREP_Processor, NRGFProcessor, MSGNProcessor
+from putter.AwsPutter import AwsPutter
 from putter.DesktopPutter import DesktopPutter
 from science.parameters import Parameters
-from run import Runner
+from run import Runner, SingleRunner
 
 
-def run_server(delay=10, debug=True, do_one='rainbow', stop=True):
+def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
     p = Parameters()
     p.is_debug(debug)
-    p.delay_seconds(3 if debug else delay)
+    p.delay_seconds(delay)
     p.do_one(do_one, stop)
     # p.stop_after_one(True)
     p.batch_name("background_server")
@@ -30,34 +31,35 @@ def run_server(delay=10, debug=True, do_one='rainbow', stop=True):
     p.use_drive = "G"
     # Run Flags
     p.download_files(True)
+    p.get_fits = True
+    # p.set_waves_to_do('0171')
     # p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
     # p.overwrite_pngs(True)
     # p.write_video(False)
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
 
-    p.fetchers(WebFitsFetcher,              rp=True)  # Gets Fits from JSOC Most Recent
-    p.processors([AIA_PREP_Processor],      rp=False)   # Do Sunpy Things
-    p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
-    # p.processors([SRNSingleShotProcessor], rp=True)  # Applies the Radial Filtering
-    p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
-    
-    p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-    p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-
-    # p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
-    
-    # p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
-    # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
-    p.putters([MultiImageProcessorCv],            rp=True)  # Makes the PNGs from Fits
-    
+    # p.fetchers(WebFitsFetcher,              rp=True)  # Gets Fits from JSOC Most Recent
+    # p.processors([AIA_PREP_Processor],      rp=False)   # Do Sunpy Things
+    # p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
+    # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
+    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    # p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
+    # p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
     #
+
+    p.putters([AwsPutter])  # Uploads the PNGs to AWS
+    # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
+
+
+    # p.processors([SRNSingleShotProcessor], rp=True)  # Applies the Radial Filtering
+    # p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
     #
     # p.processors(SRNpreProcessor, rp=True)  # Applies the Radial Filtering
     # p.processors(SRNradialFiltProcessor, rp=True)  # Applies the Radial Filtering
     # if p.is_debug():
     # else:
-    # p.putters([AwsPutter()])  # Uploads the PNGs to AWS
     
     # Runner(p).pointing_start()
     
@@ -75,7 +77,7 @@ def run_server(delay=10, debug=True, do_one='rainbow', stop=True):
     # p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
     #
     # # Run the Code
-    Runner(p).start()
+    SingleRunner(p).start()
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own

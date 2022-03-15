@@ -6,11 +6,11 @@ from science.parameters import Parameters
 from run import Runner
 
 
-def run_background(delay=30, debug=True, stop=False):
+def run_background(delay=60, debug=True, stop=False):
     p = Parameters()
     p.is_debug(debug)
     p.stop_after_one(stop)
-    p.delay_seconds(3 if debug else delay)
+    p.delay_seconds(10 if debug else delay)
     p.batch_name("background_client")
     p.run_type("Background Updator")
     

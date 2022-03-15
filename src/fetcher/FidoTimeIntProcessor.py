@@ -135,7 +135,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.params.do_temp = True
         self.set_in_frame_name(fits_path=fits_path)
         
-        keyframe, wave, t_rec, center, t_int = self.load_this_fits_frame(fits_path, self.in_name)
+        keyframe, wave, t_rec, center, t_int, name = self.load_this_fits_frame(fits_path, self.in_name)
         self.orig_t_int = t_int
         self.params.raw_image = keyframe
         self.params.modified_image = np.zeros_like(keyframe, dtype=np.float32)

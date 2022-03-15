@@ -785,8 +785,8 @@ class SRNProcessor(Processor):
         
         self.params.quantile_image = self.params.quantile_image.reshape(self.params.modified_image.shape)
         
-        from utils.stretch_intensity_module import norm_stretch
-        self.params.quantile_image = norm_stretch(self.params.quantile_image, alpha=self.params.alpha)
+        # from utils.stretch_intensity_module import norm_stretch
+        # self.params.quantile_image = norm_stretch(self.params.quantile_image, alpha=self.params.alpha)
         
         self.vignette()
     

@@ -74,9 +74,9 @@ class ImageProcessor(Processor):
         self.params.fits_path = self.fits_path
         if True: #self.params.raw_image is None:
             list_of_inputs = self.params.master_frame_list_oldest
-            frame0, _, _, _, _ = self.load_this_fits_frame(fits_path, list_of_inputs)
+            frame0, _, _, _, _, name0 = self.load_this_fits_frame(fits_path, list_of_inputs)
             self.raw_name = self.frame_name + ''
-            frame1, self.wave1, self.t_rec1, center1, int_time = self.load_this_fits_frame(fits_path, in_name)
+            frame1, self.wave1, self.t_rec1, center1, int_time, name1 = self.load_this_fits_frame(fits_path, in_name)
             self.mod_name = self.frame_name + ''
             self.params.raw_image, self.params.modified_image = frame0, frame1
             self.frame = np.zeros_like(self.params.raw_image)
@@ -127,7 +127,7 @@ class ImageProcessor(Processor):
         # Which plots to make?
         if self.skip():
             return False
-        if self.params.do_orig or True: #TODO shouldn't be permanent
+        if self.params.do_orig:
             trials = [False, True]
         else:
             trials = [True]
@@ -177,7 +177,7 @@ class ImageProcessor(Processor):
         cat_path = self.params.cat_path
         
         # Select Paths
-        orig_path = self.path_box[0] if self.path_box else self.get_raw_path()
+        orig_path = self.path_box[0] if self.path_box else self.get_orig_path()
         mod_path = self.path_box[1] if self.path_box else self.get_changed_path()
 
         # Confirm raw
@@ -194,12 +194,15 @@ class ImageProcessor(Processor):
         else:
             return None, None, None
                 
-    def get_raw_path(self, mod=False):
+    def get_orig_path(self, mod=False):
         if self.params.do_single:
             return self.params.orig_path.replace("orig\\","").replace("image_lev1p0", mod if mod else "raw")
         else:
-            return self.params.orig_path
-    
+            if not mod:
+                return self.params.orig_path
+            else:
+                return self.params.orig_path.replace(".png", "_{}.png".format(mod))
+            
     def get_changed_path(self):
         if self.params.do_single:
             return self.params.mod_path.replace("mod\\","").replace("image_lev1p0", "mod")
@@ -238,9 +241,18 @@ class ImageProcessor(Processor):
     @staticmethod
     def clean_time_string(time_string):
         # Make the name strings
+        import pytz
         
-        cleaned = datetime.strptime(time_string[:-4], "%Y-%m-%dT%H:%M:%S")
-        cleaned += timedelta(hours=-7)
+        # Ingest the original time in UTC
+        original = datetime.strptime(time_string[:-4], "%Y-%m-%dT%H:%M:%S")
+        tz_UTC = pytz.timezone('UTC')
+        original = original.replace(tzinfo=tz_UTC)
+        
+        tz_mountain = pytz.timezone('US/Mountain')
+        cleaned = original.astimezone(tz_mountain)
+        out_str = cleaned.strftime("%m-%d-%Y %I:%M%p")
+        
+        return out_str
         
         # tz = timezone(timedelta(range_hours=-1))
         # import pdb; pdb.set_trace()
@@ -250,7 +262,7 @@ class ImageProcessor(Processor):
         # cleaned = Time(time_string).datetime.strftime("%I:%M%p, %b-%d, %Y")
         # print("----------->", cleaned)
         # import pdb; pdb.set_trace()
-        return cleaned.strftime("%m-%d-%Y %I:%M%p")
+        # return
         # name = full_name + ''
         # while name[0] == '0':
         #     name = name[1:]
@@ -259,3 +271,123 @@ class ImageProcessor(Processor):
     @staticmethod
     def absqrt(image, **kwargs):
         return np.sqrt(np.abs(image, **kwargs))
+    
+    def frame_touchup(self, frame_name, frame):
+        # print("Touchup on {}".format(frame_name))
+        
+        # maxmax = np.nanpercentile(frame, 99)
+        # minmin = np.nanpercentile(frame, 1)
+        # themax = np.nanmax(frame)
+        # if themax > 100 or themax < 0.8:
+        #     # out = (self.frame - minmin) / (maxmax - minmin)
+        #     pass
+            
+        
+        
+        short_circuit = False
+        if short_circuit:
+            return frame, True
+    
+        # Frame Cleanup
+        frame = frame.astype(np.float32)
+        frame[~np.isfinite(frame)] = np.nan
+        
+        if '(' in frame_name:
+            frame_name2 = frame_name.split('(')[0]
+        
+        if "primary" in frame_name2:
+            frame *= 2
+    
+        basic_scrunch = True
+        if basic_scrunch:
+            frame = self.scrunch(frame)
+    
+        ## Perform Nonlinear Transforms
+        # Power
+        for name in ["lev1p5", "_mod", "nrgf"]:  # , "int_enhance"]:
+            if name in frame_name2:
+                frame = self.power_mod(frame)
+                break
+                
+        # Maxima Stretching
+        do_maxima_scrunch = True
+        if do_maxima_scrunch:
+            if 'qrn' in frame_name2:
+                frame = self.maxima_scrunch(frame, num2=0.)
+            elif "msgn(qrn)" in frame_name:
+                frame = self.maxima_scrunch(frame, num=0.95, num2=0.1)
+                # frame *= 1.05
+            else:
+                frame = self.maxima_scrunch(frame)
+ 
+        # Norm Stretching
+        stretch = True
+        if stretch:
+            if "qrn" in frame_name:
+                from utils.stretch_intensity_module import norm_stretch
+                frame = norm_stretch(frame)
+        
+        dont_vminmax = False
+        for name in ["RHT"]:
+            if name in frame_name:
+                dont_vminmax = True
+
+        self.dont_vminmax = dont_vminmax
+        return frame
+    # if frame_name == "nrgf":
+    #     # Replace the Disk
+    #     self.init_radius_array()
+    #     mask = self.radius < self.found_limb_radius*0.5
+    #     frame[mask] = 0.5 #self.base_image[mask]
+    
+    # darken_rfilt = 1.2
+    # darken_quant = 1.1
+    #
+    # if frame_name == "int_enhance":
+    #     # Save the Disk
+    #     # self.base_image = frame
+    #     # frame = np.sqrt(frame)
+    #     minx = np.nanpercentile(frame, 0.1)
+    #     maxx = np.nanpercentile(frame, 99.9)
+    #     frame = (frame - minx) / (maxx - minx)
+    #     frame /= darken_rfilt
+    #
+    # if frame_name == "quantile":
+    #     frame /= darken_quant
+    
+    # self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
+    # frame[self.vignette_mask] = np.nan
+    
+    def power_mod(self, frame):
+        frame *= 10.
+        pow = 1/2.5
+        np.power(frame, pow, out=frame)
+        frame *= pow * 1.3
+        
+        # frame = np.log10(frame)
+        # frame = frame / np.nanpercentile(frame, 50) / 2
+        
+        return frame
+    
+    def scrunch(self, frame, n_exclude=50):
+        # lowlow = np.nanmin(frame)
+        # highigh = np.nanmax(frame)
+        
+        total = self.params.rez ** 2
+        perc = n_exclude / total
+    
+        low = np.nanpercentile(frame, perc)
+        high = np.nanpercentile(frame, 100-perc)
+    
+        frame = self.norm_formula(frame, low, high)
+        return frame
+    
+    def maxima_scrunch(self, frame, num=1.0, num2=0.06):
+        mask1 = (frame > num)
+        mask2 = (frame < num2)
+        frame[mask1] = np.nan
+        frame[mask2] = np.nan
+        frame = self.scrunch(frame)
+        frame[mask1] = 1.0
+        frame[mask2] = 0.
+        return frame

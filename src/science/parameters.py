@@ -32,6 +32,9 @@ class Parameters:
         self.master_frame_list_oldest = [ x for x in reversed(self.master_frame_list_newest)]
         self.durList = []
         self.aftereffects_in_name = "qrn(lev1p5)"
+        self.get_fits = True
+        self.do_archive = False
+        self.do_orig = False
         self.fits_save_path = None
         self.use_drive = "D"
         self.file_basename = None
@@ -125,7 +128,7 @@ class Parameters:
         
         self._frames_per_second = 30
         self._bpm = 70
-        self._debug_delay = 2
+        self._debug_delay = 5
         
         self._run_type = "web"
         self.rez = None
@@ -821,9 +824,9 @@ class Parameters:
         
         frame, wave, t_rec, center, int_time, name = Processor.load_last_fits_field(self_proc, full_path1)
         if compare_two_files:
-            frame2, wave2, t_rec2, center2, int_time2 = Processor.load_last_fits_field(self_proc, full_path2)
+            frame2, wave2, t_rec2, center2, int_time2, name = Processor.load_last_fits_field(self_proc, full_path2)
         else:
-            frame2, wave2, t_rec2, center2, int_time2 = Processor.load_first_fits_field(self_proc, full_path1)
+            frame2, wave2, t_rec2, center2, int_time2, name = Processor.load_first_fits_field(self_proc, full_path1)
             
             # Modifying
         frame3 = abs(frame2 - frame)

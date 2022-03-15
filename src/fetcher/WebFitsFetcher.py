@@ -5,7 +5,9 @@ import urllib
 from datetime import datetime
 from os import rename, remove
 from os.path import exists, join
-from urllib.request import urlretrieve
+import urllib.request as ureq
+from time import time
+
 import numpy as np
 import requests
 from bs4 import BeautifulSoup
@@ -17,7 +19,7 @@ from tqdm import tqdm
 
 class WebFitsFetcher(Fetcher):
     base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
-    jpg_url_stem = "https://i0.wp.com/sdo.gsfc.nasa.gov/assets/img/latest/latest_{:04}_{:04}.jpg"
+    jpg_url_stem = "https://i0.wp.com/sdo.gsfc.nasa.gov/assets/img/latest/latest_{:04}_{:04}.jpg?ssl=" + str(time())
     description = "Get Fits Files from {}".format(base_url)
     filt_name = "WebFitsFetcher"
     # out_name = 'SRN'
@@ -28,11 +30,14 @@ class WebFitsFetcher(Fetcher):
 
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
-        self.destroy = True
+        self.destroy = False
     
     def fetch_jpegs(self):
+        print(" V Gathering JPEGS...")
         
-        # os.path.listdir(self.params.fits_directory())
+        if len(self.params.local_fits_paths()) < 1:
+            self.load()
+        
         j_urls=[]
         rez = None
         for path in self.params.local_fits_paths():
@@ -46,9 +51,11 @@ class WebFitsFetcher(Fetcher):
         self.j_paths = []
         pbar = tqdm(j_urls, desc="  ")
         for link in pbar:
-            pbar.set_description(" *  "+os.path.basename(link))
-            self.j_paths.append(self.grab(link, j_directory))
-        # print(paths)
+            txt = os.path.basename(link).split("?")[0]
+            pbar.set_description(" *  "+txt)
+            self.j_paths.append(self.grab(link, j_directory, hold=True))
+        print("\r ^ DONE!")
+        return self.j_paths
 
 
     def fetch(self, params=None):
@@ -57,11 +64,12 @@ class WebFitsFetcher(Fetcher):
         """
         self.params = params or self.params
         self.load(self.params, quietly=True, wave=self.params.current_wave('rainbow'))
+        paths=[]
         if self.params.download_files():
             self.__get_img_time()
-            paths = self.get_fits_files()
+            if self.params.get_fits:
+                paths = self.get_fits_files()
             self.fetch_jpegs()
-            
             return paths
         else:
             print("Skipping download!")
@@ -102,26 +110,78 @@ class WebFitsFetcher(Fetcher):
 
 
     
-    def grab(self, link, directory=None):
+    def grab(self, link, directory=None, hold=False):
         tries = 3
         filename = link.split('/')[-1]
+        filename = filename.split('?')[0]
         use_directory = directory or self.params.fits_directory()
         local_path = join(use_directory, filename)
-        local_temp_path = join(use_directory, "download__" + filename)
+        local_temp_path = join(use_directory, "temp", "download__" + filename)
         for ii in np.arange(tries):
             # Retry download
             try:
-                os.makedirs(os.path.dirname(local_temp_path), exist_ok=True)
-                urlretrieve(link, local_temp_path)
-                if exists(local_path):
-                    remove(local_path)
-                rename(local_temp_path, local_path)
+                local_temp_path = self.download_url(link, local_path)
+                # if exists(local_path):
+                #     remove(local_path)
+                # shutil.move(local_temp_path, local_path)
                 break
             except urllib.error.ContentTooShortError:
                 print("Failed Download...Retrying {} / {}".format(ii, tries))
                 pass
         return local_path
         # paths.append(local_path)
+    
+    def download_url(self, link, filename=None):
+    
+        # return
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+    
+        path = ureq.urlretrieve(link, filename)
+        return path[0]
+        
+        if "fits" in link:
+            pass
+    
+        import shutil
+        import urllib.request
+        import tempfile
+    
+        # # Create a request object with URL and headers
+        # url = link
+        # header = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) ', 'Cache-Control': 'max-age=0'}
+        # req = urllib.request.Request(url=url, headers=header)
+        #
+        # # Create an http response object
+        # with urllib.request.urlopen(req) as response:
+        #     # Create a file object
+        #     with open(local_temp_path, "wb") as f:
+        #         # Copy the binary content of the response to the file
+        #         shutil.copyfileobj(response, f)
+    
+        import urllib3
+        header = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) ', 'Cache-Control': 'max-age=0'}
+        http = urllib3.PoolManager()
+        # Create a file object
+        print(link)
+        with http.request("GET", link, headers=header, preload_content=False) as r, open(local_temp_path, "wb") as f:
+            # Copy the binary content of the response to the file
+            f.write(r.data)
+            # shutil.copyfileobj(r, f)
+            r.release_conn()
+    
+        asdf = 1
+        # request.data
+        # request.add_header('Cache-Control', 'max-age=0')
+        # response = urllib3.urlopen(request).read()
+    
+    
+        # import requests
+        # r = requests.get(link)
+        # a = 1
+        # req.Request(link, )
+        # os.unlink(local_temp_path)
+        # ureq.urlcleanup()
+        # ureq.urlretrieve(link, local_temp_path)
     
     @staticmethod
     def __get_fits_links(url):

@@ -31,7 +31,7 @@ class ImageProcessorCV(ImageProcessor):
     def do_fits_function(self, fits_path, in_name=None):
         """ Main Call on the Fits Path """
         self.init_frame(fits_path, self.params.png_frame_name)
-        self.render_all()
+        self.render_all(reference=True)
         return self
     
     def do_img_function(self):
@@ -68,8 +68,8 @@ class ImageProcessorCV(ImageProcessor):
         """Render one image_path"""
         
         if reference:
-            self.plot_aia_raw()
-            self.plot_aia_log()
+            self.plot_aia_orig()
+            # self.plot_aia_log()
         
         self.plot_aia_changed()
         # self.save_concatinated()
@@ -93,39 +93,38 @@ class ImageProcessorCV(ImageProcessor):
         shutil.copyfile(src_file, dest_file, follow_symlinks=True)
         # self.make_shortcut(src_file,dest_file , False)
     
-    def plot_aia_raw(self):
+    def plot_aia_orig(self):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
-        # self.frame_name = "t_int"
-        self.frame_name = self.params.master_frame_list_oldest
-        
+        self.frame_name = self.params.master_frame_list_newest
         frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
-        # frame = np.log10(frame)
-        # frame = frame / np.nanpercentile(frame, 50)/2
         self.frame = np.flipud(frame)
-        # self.frame = np.flipud(self.params.raw_image)
-        self.out_path = self.get_raw_path()
+
+        self.out_path = self.get_orig_path(mod='mod')
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
-        self.vignette()
-        self.prep_save()
-        self.img_save(self.out_path)
-    
+        
+        self.do_save()
+
     def plot_aia_log(self):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
-        # self.frame_name = "t_int"
         self.frame_name = self.params.master_frame_list_newest
-        
         frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
+        
         frame = np.log10(frame)
         frame = frame / np.nanpercentile(frame, 50) / 2
+        
         self.frame = np.flipud(frame)
-        # self.frame = np.flipud(self.params.raw_image)
-        self.out_path = self.get_raw_path(mod='log')
+        self.out_path = self.get_orig_path(mod='log')
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
+
+        self.do_save()
+        
+    def do_save(self):
         self.vignette()
         self.prep_save()
         self.img_save(self.out_path)
+
     
     def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
@@ -181,9 +180,8 @@ class ImageProcessorCV(ImageProcessor):
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
         # print("Saving to {}".format(self.out_path))
         
-        self.vignette()
-        self.prep_save()
-        self.img_save(self.out_path)
+        self.do_save()
+
     
     # def plot_aia_changed(self):
     #     """Plot the modified_image data from AIA"""
@@ -205,14 +203,7 @@ class ImageProcessorCV(ImageProcessor):
         self.path_box.append(self.out_path)
     
     def make_image(self):
-        out = self.frame + 0
-        maxmax = np.nanpercentile(out, 99)
-        minmin = np.nanpercentile(out, 1)
-        themax = np.nanmax(out)
-        
-        if themax > 100 or themax < 0.8:
-            out = (self.frame - minmin) / (maxmax - minmin)
-            # print("\nRenormalizing", maxmax, minmin, np.max(out), np.min(out))
+        out = self.frame_touchup(self.frame_name, self.frame + 0)
         
         self.img_frame = (self.params.cmap(out)[:, :, :3] * 255).astype(np.uint8)
         b, g, r = cv2.split(self.img_frame)  # get b,g,r
@@ -230,54 +221,95 @@ class ImageProcessorCV(ImageProcessor):
     
     def label_plot(self):
         """Annotate with Text"""
+        ## GET LABELS
+        # Get image
         # img = self.img_frame
         img = self.params.rbg_image
+        
+        # Get Time
         full_name, fits_path, time_string_raw, shape = self.image_data
         time_string = self.clean_time_string(time_string_raw)
         time_list = time_string.split()
-        
-        inst = 'AIA'
-        _, wave = self.clean_name_string(full_name)
         clock = time_list[1].lower()
         day = time_list[0][:-5]
         year = time_list[0][-4:]
         
-        x0 = 3900
-        x1 = 3875
-        scale = 3 if self.shrink_factor == 1 else 2 if self.shrink_factor == 2 else 1
-        h1 = 100
-        h2 = 200
-        h3 = 300
-        if shape[0] < 3000:
-            x0 = x0 // 4
-            x1 = x1 // 4
-            # scale = 1
-            h1 = 40
-            h2 = 80
-            h3 = 120
-        scale2 = scale
-        # if self.params.alpha is not None:
-        #     cv2.putText(img, "a={:0.3f}".format(self.params.alpha), (int(x0*0.95), h3), 0,   scale, (255, 255, 255), 3)
+        # Get Wavelength
+        inst = 'AIA'
+        _, wave = self.clean_name_string(full_name)
         
+        # Get Frame Name
         if type(self.frame_name) is list:
             frame_name = [x for x in self.frame_name if x.casefold() in self.hdu_name_list][0]
         else:
             frame_name = self.frame_name
+        fname = frame_name.casefold()
+        f_length = len(fname)
+        name_split = fname.split('(')
+        name = name_split[0]
+        if len(name_split)>1:
+            prev = name_split[1][:-1]
+        else:
+            prev = '-'
+        zone = "MT"
         
-        cv2.putText(img, frame_name.casefold(), (int(x0 * 0.92), h1), 0, scale, (255, 255, 255), scale2)
+        # Scale to Image Size
+        if self.shrink_factor == 1:
+            # Rez is 4k
+            scale = 4
+            h_spacing = 100
+            thickness = 3
+        elif self.shrink_factor == 2:
+            # rez is 2k
+            scale = 3
+            h_spacing = 70
+            thickness = 2
+        else:
+            # rez is 1K
+            scale = 2
+            h_spacing = 30
+            thickness = 2
+            
+        h0 = 20
+        h1 = h0 + h_spacing
+        h2 = h1 + h_spacing
+        h3 = h2 + h_spacing
+
+        ## APPLY LABELS
+        font = 1
+        wid = 18
+        rez = img.shape[0]
+        x0  = rez - wid*len(name) - 5
+        x1  = rez - wid*len(prev)
+        x2  = rez - wid*len(inst) + 2
+        x3  = rez - wid*len(wave) - 7
         
+        # Right Side
+        cv2.putText(img, name, (x0, h0), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, prev, (x1, h1), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, inst, (x2, h2), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, wave, (x3, h3), font, scale, (255, 255, 255), thickness)
+        
+        # Left Side
+        cv2.putText(img, clock, (0, h0), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, day,   (0, h1), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, year,  (0, h2), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, zone,  (0, h3), font, scale, (255, 255, 255), thickness)
+ 
         reticle = False
         if reticle:
-            cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
-                       int(self.params.header["R_SUN"]), (255, 255, 255), 3)
-            cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
-                       int(10), (255, 0, 0), 10)
+            self.draw_reticle(img)
+ 
+        # if self.params.alpha is not None:
+        #     cv2.putText(img, "a={:0.3f}".format(self.params.alpha), (int(x0*0.95), h3), 0,   scale, (255, 255, 255), 3)
+ 
+ 
+    def draw_reticle(self, img):
+        cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
+                   int(self.params.header["R_SUN"]), (255, 255, 255), 3)
         
-        cv2.putText(img, inst, (x0, h2), 0, scale, (255, 255, 255), scale2)
-        cv2.putText(img, wave, (x1, h3), 0, scale, (255, 255, 255), scale2)
-        cv2.putText(img, clock, (0, h1), 0, scale, (255, 255, 255), scale2)
-        cv2.putText(img, day, (0, h2), 0, scale, (255, 255, 255), scale2)
-        cv2.putText(img, year, (0, h3), 0, scale, (255, 255, 255), scale2)
+        cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
+                   int(10), (255, 0, 0), 10)
     
     def cleanup(self):
         # self.make_intermediate_videos()
@@ -325,6 +357,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
+        self.dont_vminmax = False
         self.max_width = 20
         self.main_save_path = None
         self.last_frame_name = None
@@ -342,7 +375,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
     
     def do_fits_function(self, fits_path, in_name=None, doBar=False):
         """ Main Call on the Fits Path """
-        self.tic()
+        # self.tic()
         self.init_frame(fits_path)
         self.init_plot()
         self.init_radius_array()
@@ -359,8 +392,8 @@ class MultiImageProcessorCv(ImageProcessorCV):
         
         self.finalize_and_save_plots()
         self.reinit_constants()
-        self.toc()
-        self.open_folder(self.main_save_path)
+        # self.toc()
+        # self.open_folder(self.main_save_path)
         return None
     
     def plot_jpeg(self, fits_path, frame_name, doBar, iterable):
@@ -462,14 +495,14 @@ class MultiImageProcessorCv(ImageProcessorCV):
     def add_to_plot(self, frame_name_in, frame):
         # print("\r * Adding Plot  {}".format(frame_name_in))
         if 'primary' in frame_name_in:
-            suffix = "_mod"
+            suffix = "_orig"
         else:
             suffix = ""
         frame_name = frame_name_in + suffix
         self.last_frame_name = frame_name_in
-        frame, dont = self.frame_touchup(frame_name, frame)
-        vmin = None if dont else 0.
-        vmax = None if dont else 1.
+        frame = self.frame_touchup(frame_name, frame)
+        vmin = None if self.dont_vminmax else 0.
+        vmax = None if self.dont_vminmax else 1.
         self.axArray[self.count].imshow(frame, origin="lower", vmin=vmin, vmax=vmax,
                                         cmap=self.params.cmap, interpolation="None")
         self.axArray[self.count].set_title(frame_name)
@@ -477,19 +510,20 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.frames.append(frame)
     
     def finalize_and_save_plots(self, dpi=500):
-        
+    
         inches = 4
         colWid = self.n_cols * inches
         rowWid = self.n_rows * inches
-        
+    
         self.fig.set_size_inches(w=colWid, h=rowWid)
         plt.tight_layout()
-        
-        save_path = os.path.join(self.params.imgs_top_directory(), "{}_compare.png".format(self.wave))
+    
+        save_path = os.path.join(self.params.imgs_top_directory(), "compare", "{}_compare.png".format(self.wave))
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         self.main_save_path = save_path
         self.fig.savefig(save_path, dpi=dpi)
+        # plt.show(block=True)
         if False:
-            # plt.show(block=True)
             self.plot_zooms()
     
     def plot_zooms(self, dpi=500):
@@ -519,95 +553,3 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.last_frame_name = None
         plt.close(self.fig)
     
-    def frame_touchup(self, frame_name, frame):
-    
-        short_circuit = False
-        if short_circuit:
-            return frame, True
-    
-        # Frame Cleanup
-        frame = frame.astype(np.float32)
-        frame[~np.isfinite(frame)] = np.nan
-        
-        
-        if "primary" in frame_name:
-            frame *= 2
-    
-        basic_scrunch = True
-        if basic_scrunch:
-            frame = self.scrunch(frame)
-    
-        ## Perform Nonlinear Transforms
-        # Power
-        for name in ["_mod", "nrgf"]:  # , "int_enhance"]:
-            if name in frame_name:
-                frame = self.power_mod(frame)
-    
-        # Maxima Stretching
-        do_maxima_scrunch = True
-        if do_maxima_scrunch:
-            frame = self.maxima_scrunch(frame)
-            
-        # Norm Stretching
-        stretch = True
-        if stretch:
-            if "qrn" in frame_name:
-                frame = norm_stretch(frame)
-        
-        dont_vminmax = False
-        for name in ["RHT"]:
-            if name in frame_name:
-                dont_vminmax = True
-
-    
-        return frame, dont_vminmax
-    # if frame_name == "nrgf":
-    #     # Replace the Disk
-    #     self.init_radius_array()
-    #     mask = self.radius < self.found_limb_radius*0.5
-    #     frame[mask] = 0.5 #self.base_image[mask]
-    
-    # darken_rfilt = 1.2
-    # darken_quant = 1.1
-    #
-    # if frame_name == "int_enhance":
-    #     # Save the Disk
-    #     # self.base_image = frame
-    #     # frame = np.sqrt(frame)
-    #     minx = np.nanpercentile(frame, 0.1)
-    #     maxx = np.nanpercentile(frame, 99.9)
-    #     frame = (frame - minx) / (maxx - minx)
-    #     frame /= darken_rfilt
-    #
-    # if frame_name == "quantile":
-    #     frame /= darken_quant
-    
-    # self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
-    # frame[self.vignette_mask] = np.nan
-    
-    def power_mod(self, frame):
-        frame *= 10.
-        pow = 1/4
-        np.power(frame, pow, out=frame)
-        frame *= pow
-        return frame
-    
-    def scrunch(self, frame, n_exclude=50):
-        # lowlow = np.nanmin(frame)
-        # highigh = np.nanmax(frame)
-        
-        total = self.params.rez ** 2
-        perc = n_exclude / total
-    
-        low = np.nanpercentile(frame, perc)
-        high = np.nanpercentile(frame, 100-perc)
-    
-        frame = self.norm_formula(frame, low, high)
-        return frame
-    
-    def maxima_scrunch(self, frame, num=1.0):
-        mask = frame > num
-        frame[mask] = np.nan
-        frame = self.scrunch(frame)
-        frame[mask] = num
-        return frame

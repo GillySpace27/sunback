@@ -71,7 +71,7 @@ class Runner:
         for wave in self.params.waves_to_do:
             print("Wavelength = {}".format(self.params.current_wave()), end="")
             self.params.current_wave(wave)
-    
+            
             if len(self.params.fetchers()) > 0:
                 sys.stdout.flush()
                 print("\n\n>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<")
@@ -196,6 +196,9 @@ class SingleRunner(Runner):
     def set_image(self, path=None, image=None):
         """Set up the target image_path"""
         pass
+    
+    # def process(self):
+    #     self.process_single()
     
     def process_single(self):
         """Run all of the processors on a single image_path"""

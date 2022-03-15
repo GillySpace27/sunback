@@ -6,7 +6,7 @@ from processor.NoiseGateProcessor import NoiseGateProcessor
 from processor.QRNProcessor import QRNProcessor
 from processor.RHTProcessor import RHTProcessor
 from processor.SRNProcessor import SRNProcessor
-from processor.SRNSubProcessors import SRNSingleShotProcessor
+# from processor.SRNSubProcessors import SRNSingleShotProcessor
 from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor
 from science.parameters import Parameters
 from run import SingleRunner
@@ -31,7 +31,7 @@ def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*4,
     # Set the Processes
     get_images = True and master
     if get_images:
-        p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
+        # p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
         p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
         # p.processors([NoiseGateProcessor],     rp=True)
         p.processors([AIA_PREP_Processor],     rp=True)   # Do Sunpy Things
@@ -45,6 +45,7 @@ def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*4,
     p.aftereffects_in_name = "quantile"
     aftereffects = False and master
     if aftereffects:
+        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
     

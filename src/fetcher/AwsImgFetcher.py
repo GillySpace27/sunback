@@ -29,7 +29,7 @@ class AwsImgFetcher(Fetcher):
         sys.stdout.flush()
         print("   Downloading PNGs from Amazon S3 to {}".format(self.params.imgs_top_directory()), flush=True)
         for ii, obj in enumerate(self.objects):
-            self.grab(obj)
+            self.grab_obj(obj)
         
         self.load()
         
@@ -41,7 +41,7 @@ class AwsImgFetcher(Fetcher):
         
         sys.stdout.flush()
     
-    def grab(self, obj):
+    def grab_obj(self, obj):
         """Get a specific object from the S3 Bucket"""
         
         # Exit if not appropriate not_wanted
