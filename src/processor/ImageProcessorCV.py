@@ -268,7 +268,7 @@ class ImageProcessorCV(ImageProcessor):
             # rez is 1K
             scale = 2
             h_spacing = 30
-            thickness = 2
+            thickness = 1
             
         h0 = 20
         h1 = h0 + h_spacing

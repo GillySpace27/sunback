@@ -7,7 +7,7 @@ first0 = True
 
 ## Main Function --------------------------------------------------------------
 
-def make_one_curve(alpha=0.35, xprime=None):
+def make_one_curve(alpha=0.35, xprime=None, alpha_high=0.35):
     """Given an exponent alpha and an input array, return a single curve
     :param alpha: scalar
     :param xprime: array of length N
@@ -37,7 +37,7 @@ def make_one_curve(alpha=0.35, xprime=None):
         x_high = xprime[highs]
         
         curve_low = ((2*x_low) ** alpha)/2
-        curve_high = -(((2*(-x_high)+2) ** alpha)/2 - 1)
+        curve_high = -(((2*(-x_high)+2) ** alpha_high)/2 - 1)
         
         out_curve = np.zeros_like(xprime)
         out_curve[lows] = curve_low
@@ -197,9 +197,9 @@ def plot_2d(in_array=None, out_array=None, alpha=None, do_plot=True):
         plt.show()
     return out_array
 
-def norm_stretch(in_array, alpha=0.35):
+def norm_stretch(in_array, alpha=0.35, alpha_high=0.35):
     """The only function anyone outside will ever see"""
-    return make_one_curve(xprime=in_array, alpha=alpha)
+    return make_one_curve(xprime=in_array, alpha=alpha, alpha_high=alpha_high)
 
 def many_alphas():
     fig, ax = plt.subplots(1,1)
@@ -223,6 +223,7 @@ if __name__ == "__main__":
     ax.legend()
     fig.set_size_inches((8,8))
     plt.tight_layout()
+    # plt.savefig()
     plt.show()
     # demo_plot_white_noise()
     # demo_plot_2D_method()

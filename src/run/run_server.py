@@ -46,10 +46,10 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
     # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     # p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
-    # p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
+    p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
     #
 
-    p.putters([AwsPutter])  # Uploads the PNGs to AWS
+    # p.putters([AwsPutter])  # Uploads the PNGs to AWS
     # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
 
 
