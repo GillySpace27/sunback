@@ -25,12 +25,7 @@ class DesktopPutter(Putter):
             self.sleep_until_delay_elapsed()
         # print("Loop Complete", flush=True)
     
-    def sleep_until_delay_elapsed(self):
-        """ Make sure that the loop takes the right amount of time """
-        delay = self.params.delay_seconds()
-        for ii in tqdm((range(int(delay))),
-                       desc="    {}, Waiting for {:0.0f} seconds".format(self.png_name, delay)):
-            sleep(1)
+
     
     def update_background(self, local_path):
         """

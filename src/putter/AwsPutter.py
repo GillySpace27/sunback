@@ -18,12 +18,17 @@ from time import sleep
 
 
 class AwsPutter(Putter):
+    filt_name = "AWSputter"
+    description = "Upload Images to AFWS"
+    progress_verb = "Uploading"
+    progress_verb = "Uploaded"
+    progress_unit = "Images"
     
     def put(self, params=None):
         if params is not None:
             self.__init__(params)
         """uploads all imgs in input to the s3 bucket"""
-        print("  *Uploading PNGs to {}...".format(bucket), flush=True)
+        print(" V Uploading PNGs to {}...".format(bucket), flush=True)
         sleep(0.1)
     
         to_upload = self.params.local_imgs_paths()
@@ -31,9 +36,9 @@ class AwsPutter(Putter):
         if self.params.do_orig:
             for file in os.listdir(self.params.orig_directory):
                 to_upload.append(os.path.join(self.params.orig_directory, file))
-        pbar = tqdm(to_upload, desc="Uploading Files")
+        pbar = tqdm(to_upload, desc=" * Uploading Files")
         for rtPath in pbar:
-            pbar.set_description(os.path.basename(rtPath))
+            pbar.set_description(" * " + os.path.basename(rtPath))
             smallPath, bigPath, arcPath = make_thumbs(rtPath)
 
             # Upload large File

@@ -294,7 +294,9 @@ class ImageProcessor(Processor):
         
         if '(' in frame_name:
             frame_name2 = frame_name.split('(')[0]
-        
+        else:
+            frame_name2 = frame_name
+            
         if "primary" in frame_name2:
             frame *= 2
     
@@ -325,7 +327,9 @@ class ImageProcessor(Processor):
         if stretch:
             if "qrn" in frame_name:
                 from utils.stretch_intensity_module import norm_stretch
-                frame = norm_stretch(frame, alpha=0.45, alpha_high=0.3)
+                frame = norm_stretch(frame, alpha=0.35, alpha_high=0.5)
+        
+                frame = 0.88 * frame
         
         dont_vminmax = False
         for name in ["RHT"]:
@@ -362,7 +366,7 @@ class ImageProcessor(Processor):
         frame *= 10.
         pow = 1/2.5
         np.power(frame, pow, out=frame)
-        frame *= pow * 1.3
+        frame *= pow
         
         # frame = np.log10(frame)
         # frame = frame / np.nanpercentile(frame, 50) / 2

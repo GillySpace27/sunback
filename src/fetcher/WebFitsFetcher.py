@@ -135,8 +135,11 @@ class WebFitsFetcher(Fetcher):
     
         # return
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-    
-        path = ureq.urlretrieve(link, filename)
+        try:
+            path = ureq.urlretrieve(link, filename)
+        except:
+            return None
+            
         return path[0]
         
         if "fits" in link:

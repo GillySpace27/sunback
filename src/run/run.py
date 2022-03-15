@@ -5,6 +5,7 @@ import sys
 from time import sleep, time, asctime, localtime
 
 import numpy as np
+from tqdm import tqdm
 
 
 class Runner:
@@ -153,39 +154,43 @@ class Runner:
         print("  Program Complete in {} minutes and {} seconds. {}".format(minutes, seconds, mode_string))
         self.print_plan(end=True)
         print(self.wall_2 + "\n")
-        
+        delay = self.params.delay_seconds()
+
+        if not self.params.stop_after_one():
+            delay = 600
+            for i in tqdm(np.arange(delay), desc=" ** Waiting for {:0.0f} seconds".format(delay)):
+                sleep(1)
+        else:
         # for ii in range(4):
-        if self.verb and self.params.stop_after_one():
-            sleep(0.5)
-            
-            print(r"""           '
-                          .      '      .
-                    .      .     :     .      .
-                     '.        ______       .'
-                       '  _.-"`      `"-._ '
-                        .'                '.
-                 `'--. /                    \ .--'`
-                      /                      \
-                     ;                        ;
-                - -- |                        | -- -
-                     |     _.                 |
-                     ;    /__`A   ,_          ;
-                 .-'  \   |= |;._.}{__       /  '-.
-                    _.-""-|.' # '. `  `.-"{}<._
-                          / 1938  \     \  x   `"
-                     ----/         \_.-'|--X----
-                     -=_ |         |    |- X.  =_
-                    - __ |_________|_.-'|_X-X##
-                    jgs `'-._|_|;:;_.-'` '::.  `"-
-                     .:;.      .:.   ::.     '::.
-                     """)
-            
-            sleep(0.5)
-            
-            for i in range(5):
-                print("\n  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *")
-    
-            sleep(0.5)
+            if self.verb:
+                
+                print(r"""           '
+                              .      '      .
+                        .      .     :     .      .
+                         '.        ______       .'
+                           '  _.-"`      `"-._ '
+                            .'                '.
+                     `'--. /                    \ .--'`
+                          /                      \
+                         ;                        ;
+                    - -- |                        | -- -
+                         |     _.                 |
+                         ;    /__`A   ,_          ;
+                     .-'  \   |= |;._.}{__       /  '-.
+                        _.-""-|.' # '. `  `.-"{}<._
+                              / 1938  \     \  x   `"
+                         ----/         \_.-'|--X----
+                         -=_ |         |    |- X.  =_
+                        - __ |_________|_.-'|_X-X##
+                        jgs `'-._|_|;:;_.-'` '::.  `"-
+                         .:;.      .:.   ::.     '::.
+                         """)
+                
+                sleep(0.5)
+                
+                for i in range(5):
+                    print("\n  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *")
+        
 
 
 class SingleRunner(Runner):
