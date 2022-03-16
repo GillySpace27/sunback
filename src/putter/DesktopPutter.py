@@ -40,6 +40,7 @@ class DesktopPutter(Putter):
         """
         local_path = abspath(local_path)
         self.png_name = local_path[-8:]
+        # self.params.current_wave(self.png_name)
         # print(local_path)
         assert isinstance(local_path, str)
         # print("Updating Background...", pointing_end='', flush=True)
