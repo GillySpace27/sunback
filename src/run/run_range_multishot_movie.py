@@ -5,7 +5,7 @@ from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from fetcher.LocalFetcher import LocalFetcher
 from processor.ImageProcessorCV import ImageProcessorCV
 from processor.QRNProcessor import QRNProcessor
-from processor.SRNSubProcessors import SRNradialFiltProcessor, SRNpreProcessor
+from processor.SRNProcessor import SRNradialFiltProcessor, SRNpreProcessor
 from processor.SunPyProcessor import AIA_PREP_Processor
 from processor.ValidationProcessor import ValidationProcessor
 from processor.VideoProcessor import VideoProcessor

@@ -2,7 +2,7 @@ from fetcher.FidoFetcher import FidoFetcher
 from processor.ImageProcessor import ImageProcessor
 # from processor.SRNProcessor import SRNProcessor, SRNSingleShotProcessor
 from processor.ImageProcessorCV import ImageProcessorCV
-from processor.SRNSubProcessors import SRNSingleShotProcessor, SRNpreProcessor, SRNradialFiltProcessor
+from processor.SRNProcessor import SRNSingleShotProcessor, SRNpreProcessor, SRNradialFiltProcessor
 
 from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters

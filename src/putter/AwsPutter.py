@@ -38,9 +38,10 @@ class AwsPutter(Putter):
                 to_upload.append(os.path.join(self.params.orig_directory, file))
         pbar = tqdm(to_upload, desc=" * Uploading Files")
         for rtPath in pbar:
+            break
             pbar.set_description(" * " + os.path.basename(rtPath))
             smallPath, bigPath, arcPath = make_thumbs(rtPath)
-
+            S3_UPLOAD_ARGS["ContentType"] = "images/png"
             # Upload large File
             bucket.upload_file(rtPath, bigPath, ExtraArgs=S3_UPLOAD_ARGS)
         
@@ -58,7 +59,20 @@ class AwsPutter(Putter):
     def __save_times(self):
         """Saves the Time file to S3 so we know when images were taken"""
         path = self.params.time_path()
+        path2 = path.replace(".txt", "_readable.txt")
+        frame, wave, t_rec, center, int_time, nm = self.load_this_fits_frame(self.params.local_fits_paths()[0], self.params.master_frame_list_newest)
+        shortened = t_rec.split('.')[0]
+        date, time = shortened.split('T')
+        out = time + ', ' + date + " UT"
+        
+        with open(path2, "w") as fp:
+            fp.write(out)
+        
+        # txt_args = S3_UPLOAD_ARGS
+        # txt_args["ContentType"] = "text/plain"
+        S3_UPLOAD_ARGS["ContentType"] = "text/plain"
         bucket.upload_file(path, path, ExtraArgs=S3_UPLOAD_ARGS)
+        bucket.upload_file(path2, path2, ExtraArgs=S3_UPLOAD_ARGS)
 
 
     # def put_ultimate(self):

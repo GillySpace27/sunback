@@ -35,7 +35,7 @@ os.chdir(new_path)
 # Import
 from fetcher.LocalFetcher import LocalSingleFetcher, LocalCdfFetcher
 from processor.ImageProcessorCV import ImageProcessorCV #, ImageProcessorNetCDF
-from processor.SRNSubProcessors import SRNSingleShotProcessor
+from processor.SRNProcessor import SRNSingleShotProcessor
 from science.parameters import Parameters
 from run import Runner, SingleRunner
 
