@@ -128,18 +128,18 @@ class ImageProcessorCV(ImageProcessor):
     
     def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
+
         if self.params.modified_image is None:
             self.params.modified_image = np.zeros_like(self.params.raw_image)
         
         self.params.rez = self.header["NAXIS1"]
         self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]
         self.params.center = (self.header["X0_MP"], self.header["Y0_MP"])
-        
         nn = 1
-        while self.found_limb_radius > self.params.rez / 2:
+        while self.found_limb_radius > (self.params.rez / 3):
             nn *= 2
             self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"] / nn
-            self.params.center = [self.header["X0_MP"] / nn, self.header["Y0_MP"] / nn]
+            self.params.center = [self.header["X0_MP"] / (2*nn), self.header["Y0_MP"] / (2*nn)]
         
         self.shrink_factor = nn
         self.output_abscissa = np.arange(self.params.rez)
@@ -485,7 +485,6 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.fig.suptitle("{}  at  {}".format(self.wave, t_rec))
         self.axArray = self.axArray.flatten()
         
-        self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
         blank = np.zeros_like(self.params.raw_image)
         
         for ax in self.axArray:

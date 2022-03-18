@@ -281,13 +281,11 @@ class ImageProcessor(Processor):
         # if themax > 100 or themax < 0.8:
         #     # out = (self.frame - minmin) / (maxmax - minmin)
         #     pass
-            
-        
-        
-        short_circuit = False
-        if short_circuit:
-            return frame, True
-    
+        A = 1
+        # self.params.short_circuit=True
+        if self.params.short_circuit or "legacy" in frame_name:
+            return frame
+
         # Frame Cleanup
         frame = frame.astype(np.float32)
         frame[~np.isfinite(frame)] = np.nan
@@ -332,7 +330,7 @@ class ImageProcessor(Processor):
                 frame = 0.83 * frame
         
         dont_vminmax = False
-        for name in ["RHT"]:
+        for name in ["RHT", 'legacy']:
             if name in frame_name:
                 dont_vminmax = True
 
