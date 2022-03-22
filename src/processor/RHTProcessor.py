@@ -66,10 +66,10 @@ class RHTProcessor(Processor):
     
     # Flags
     show_plots = True
-    do_png = False
     renew_mask = True
     can_initialize = True
     raw_map = None
+    # do_png = False
     
     # Parse Inputs
     def __init__(self, params=None, quick=False, rp=None, in_name=None):

@@ -20,13 +20,15 @@ class ImageProcessorCV(ImageProcessor):
     progress_verb = "Writing"
     progress_unit = "Images"
     
+    frame_name = None
+    img_frame = None
+    out_path = None
+    in_name = -1
+    
     def __init__(self, params=None, quick=False, rp=None):
-        super().__init__(params, quick, rp)
         self.shrink_factor = 1
-        self.frame_name = None
-        self.img_frame = None
-        self.out_path = None
-        self.in_name = -1
+        super().__init__(params, quick, rp)
+        self.frame_name = self.params.png_frame_name
     
     def do_fits_function(self, fits_path, in_name=None):
         """ Main Call on the Fits Path """
@@ -34,15 +36,15 @@ class ImageProcessorCV(ImageProcessor):
         self.render_all(reference=True)
         return self
     
-    def do_img_function(self):
-        """ Main Call on the Fits Path """
-        if False:
-            self.plot_two()
-            self.plot_two("Less Zoomed", True)
-            # self.display_all()
-        
-        # self.init_image_frame()
-        raise NotImplementedError
+    # def do_img_function(self):
+    #     """ Main Call on the Fits Path """
+    #     if False:
+    #         self.plot_two()
+    #         self.plot_two("Less Zoomed", True)
+    #         # self.display_all()
+    #
+    #     # self.init_image_frame()
+    #     raise NotImplementedError
     
     def display_all(self):
         self.display_raw()
@@ -125,34 +127,6 @@ class ImageProcessorCV(ImageProcessor):
         self.prep_save()
         self.img_save(self.out_path)
 
-    
-    def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
-        """Build an r-coordinate array of shape(in_object)"""
-
-        if self.params.modified_image is None:
-            self.params.modified_image = np.zeros_like(self.params.raw_image)
-        
-        self.params.rez = self.header["NAXIS1"]
-        self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]
-        self.params.center = (self.header["X0_MP"], self.header["Y0_MP"])
-        nn = 1
-        while self.found_limb_radius > (self.params.rez / 3):
-            nn *= 2
-            self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"] / nn
-            self.params.center = [self.header["X0_MP"] / (2*nn), self.header["Y0_MP"] / (2*nn)]
-        
-        self.shrink_factor = nn
-        self.output_abscissa = np.arange(self.params.rez)
-        
-        xx, yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
-        xc, yc = xx - self.params.center[0], yy - self.params.center[1]
-        self.radius = np.sqrt(xc * xc + yc * yc)
-        self.rad_flat = self.radius.flatten()
-        self.vcut = int(vignette_radius * self.params.rez // 2)
-        self.vrad = self.n2r(self.vcut)
-        self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
-    
-    # def plot_aia_changed(self):
     #     """Plot the modified_image data from AIA"""
     #     # Get the Frame and Path
     #     self.frame_name = self.params.png_frame_name #.hdu_name_list[-1]
@@ -228,7 +202,7 @@ class ImageProcessorCV(ImageProcessor):
         
         # Get Time
         full_name, fits_path, time_string_raw, shape = self.image_data
-        time_string = self.clean_time_string(time_string_raw)
+        time_string = self.clean_time_string(time_string_raw, out_fmt="%m-%d-%Y %I:%M%p %Z")
         time_list = time_string.split()
         clock = time_list[1].lower()
         day = time_list[0][:-5]

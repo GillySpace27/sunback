@@ -19,5 +19,5 @@ class Putter(Processor):
         """ Make sure that the loop takes the right amount of time """
         delay = self.params.delay_seconds()
         for ii in tqdm((range(int(delay))),
-                       desc="    {}, Waiting for {:0.0f} seconds".format(self.params.png_name, delay)):
+                       desc="    {}, Waiting for {:0.0f} seconds".format(self.png_name, delay)):
             sleep(1)

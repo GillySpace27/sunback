@@ -57,7 +57,7 @@ class SunPyProcessor(Processor):
     
     # Flags
     show_plots = True
-    do_png = False
+    # do_png = False
     renew_mask = True
     can_initialize = True
     raw_map = None
@@ -75,12 +75,12 @@ class AIA_PREP_Processor(SunPyProcessor):
     """This class holds the code for the AIA_PREP Processor"""
     name = filt_name = "AIA_PREP"
     description = "Apply AIA_PREP to images"
-    progress_verb = 'Preping'
+    progress_verb = 'Prepping'
     finished_verb = "Prepped"
     
     # Flags
     show_plots = True
-    do_png = False
+    # do_png = False
     renew_mask = True
     can_initialize = True
     can_use_keyframes = False
@@ -119,16 +119,20 @@ class AIA_PREP_Processor(SunPyProcessor):
             if False:
                 a_map = self.deconvolve_psf(a_map)
             
+            # Execute AIA_PREP
             if self.pointing_table is not None:
                 map_updated_pointing = self.get_updated_pointing(a_map)
                 map_registered = register(map_updated_pointing)
             else:
-                map_registered = a_map
-            # Execute AIA_PREP
-            map_degradation = correct_degradation(map_registered, correction_table=self.correction_table)
-            map_normalized = normalize_exposure(map_degradation)
-            map_double_normed = map_normalized / np.nanmax(map_normalized.data)
-            out = map_double_normed if 'q' in self.out_name.casefold() else map_degradation
+                map_registered = register(a_map)
+                
+            map_degraded = correct_degradation(map_registered, correction_table=self.correction_table)
+            map_normalized = normalize_exposure(map_degraded)
+            
+            doNorm = True
+            out = map_normalized if doNorm else map_degraded
+            # map_double_normed = map_normalized / np.nanmax(map_normalized.data)
+            # out = map_double_normed if 'q' in self.out_name.casefold() else map_degradation
             self.level_15_maps.append(out)
             
         done_map = self.level_15_maps[0]

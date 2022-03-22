@@ -49,7 +49,7 @@ class QRNProcessor(Processor):
     
     # Flags
     show_plots = True
-    do_png = False
+    # do_png = False
     renew_mask = True
     can_initialize = True
     
@@ -282,43 +282,7 @@ class QRNProcessor(Processor):
         # mod = self.params.modified_image
         # if mod is None or not mod:
         self.params.modified_image = np.zeros_like(self.params.raw_image)
-            
-    def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
-        """Build an r-coordinate array of shape(in_object)"""
-        
-        self.params.center = [self.header["X0_MP"], self.header["Y0_MP"]]
-        self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]
-        self.params.rez = self.header["NAXIS1"]
-        
-        nn = 1
-        while self.found_limb_radius > self.params.rez/2:
-            nn *= 2
-            self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"] / nn
-            self.params.center = [self.header["X0_MP"]/nn, self.header["Y0_MP"]/nn]
-        
-        self.shrink_factor = nn
-        self.output_abscissa = np.arange(self.params.rez)
-        
-        xx, yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
-        xc, yc = xx - self.params.center[0], yy - self.params.center[1]
-        self.radius = np.sqrt(xc * xc + yc * yc)
-        self.rad_flat = self.radius.flatten()
-        
-        
-        self.binfactor = binfactor = 2
-        self.binInds = np.asarray(binfactor * np.floor(self.rad_flat // binfactor), dtype=np.int32)
-        # self.make_annular_rings()
-        # self.binInds = np.digitize(self.rad_flat, self.RN)
-        
-        self.binXX = xx.flatten()
-        self.binYY = yy.flatten()
-        self.binII = np.arange(len(self.rad_flat))
-        self.vcut = int(vignette_radius * self.params.rez // 2)
-        self.vrad = self.n2r(self.vcut)
-        self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
-        self.s_radius = s_radius
-        self.tRadius = self.s_radius * t_factor
- 
+
     def init_statistics(self):
         """Initialize the statistical arrays"""
         dprint("init_statistics")

@@ -28,10 +28,11 @@ class Parameters:
     def __init__(self):
         """Sets all the attributes to None"""
         # Initialize Variables
-        self.master_frame_list_newest = ["lev1p5", "t_int", "lev1p0", "primary", ""]
+        self.master_frame_list_newest = ["lev1p5", "t_int", "lev1p0", "primary"]
         self.master_frame_list_oldest = [ x for x in reversed(self.master_frame_list_newest)]
+        self.short_circuit = False
         self.durList = []
-        self.aftereffects_in_name = "qrn(lev1p5)"
+        self.aftereffects_in_name = "qrn"
         self.get_fits = True
         self.do_archive = False
         self.do_orig = False
@@ -161,7 +162,7 @@ class Parameters:
     # TODO: extract getter/setter logic
     # Main Functions
     
-    def fetchers(self, _fetchers=None, rp=None):
+    def fetchers(self, _fetchers=None, rp=True):
         if _fetchers is not None:
             if type(_fetchers) not in [list]:
                 self._fetchers = [_fetchers]

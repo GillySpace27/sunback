@@ -1,18 +1,10 @@
 """This is the script to run on a server somewhere to process the images"""
 
 from fetcher.WebFitsFetcher import WebFitsFetcher
-from processor.ImageProcessor import ImageProcessor
-# from processor.SRNProcessor import SRNProcessor, \
-from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
+from processor.ImageProcessorCV import ImageProcessorCV
 from processor.QRNProcessor import QRNProcessor
-from processor.RHTProcessor import RHTProcessor
-from processor.SRNProcessor import SRNProcessor
-from processor.SRNProcessor import SRNSingleShotProcessor, SRNpreProcessor, SRNradialFiltProcessor
-# from putter.AwsPutter import AwsPutter
-# from putter.DesktopPutter import DesktopPutter
+from processor.SRNProcessor import SRNSingleShotProcessor_Legacy
 from processor.SunPyProcessor import AIA_PREP_Processor, NRGFProcessor, MSGNProcessor
-from putter.AwsPutter import AwsPutter
-from putter.DesktopPutter import DesktopPutter
 from science.parameters import Parameters
 from run import Runner, SingleRunner
 
@@ -25,7 +17,7 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
     # p.stop_after_one(True)
     p.batch_name("background_server")
     p.run_type("Web Server Daemon")
-    p.png_frame_name = ['QRN', "primary"]
+    p.png_frame_name = ['QRN', "lev1p5"]
     p.do_orig = True
     p.speak_save = False
     p.use_drive = "G"
@@ -39,22 +31,27 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
 
-    # p.fetchers(WebFitsFetcher,              rp=True)  # Gets Fits from JSOC Most Recent
-    # p.processors([AIA_PREP_Processor],      rp=True)   # Do Sunpy Things
-    # p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
+    p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
+    p.processors([AIA_PREP_Processor],              )  # Do Sunpy Things
+    p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
+    p.processors([SRNSingleShotProcessor_Legacy],            rp=True)  # Applies the Radial Filtering
+    p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
+    # p.putters([AwsPutter])  # Uploads the PNGs to AWS
+
+    
+    # p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
+    # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
+    
+    
+    # p.processors([SRNSingleShotProcessor_Legacy])
     # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
     # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-    # p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
-    p.putters([AwsPutter])  # Uploads the PNGs to AWS
-
-    #
-    # p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
-    # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
-
-
     # p.processors([SRNSingleShotProcessor], rp=True)  # Applies the Radial Filtering
     # p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
+    #
+
+
     #
     # p.processors(SRNpreProcessor, rp=True)  # Applies the Radial Filtering
     # p.processors(SRNradialFiltProcessor, rp=True)  # Applies the Radial Filtering

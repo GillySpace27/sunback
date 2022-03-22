@@ -20,7 +20,6 @@ from science.color_tables import aia_color_table
 class ImageProcessor(Processor):
     filt_name = 'Image Writer'
     out_name = ""
-    do_png = False
     save_to_fits = False
     wave = None
     # progress_stem = "    Exporting Pngs {}"
@@ -29,7 +28,7 @@ class ImageProcessor(Processor):
     description = "Turn all the fits files into png files"
     progress_verb = "Writing"
     progress_unit = "Images"
-    
+    # do_png = False
     changed = None
     raw = None
     image_data = None
@@ -41,7 +40,6 @@ class ImageProcessor(Processor):
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
-
         self.mod_name = None
         self.raw_name = None
         self.frame_name0 = None
@@ -67,7 +65,7 @@ class ImageProcessor(Processor):
             self.export_files()
         return self
     
-    def init_frame(self, fits_path=None, in_name=-1):
+    def init_frame(self, fits_path=None, in_name=None):
         """Load the fits file from disk and get a in_name or two"""
         # self.load_curves()
         self.fits_path = fits_path or self.fits_path
@@ -238,21 +236,7 @@ class ImageProcessor(Processor):
         #     name = name[1:]
         return digits, name
     
-    @staticmethod
-    def clean_time_string(time_string):
-        # Make the name strings
-        import pytz
-        
-        # Ingest the original time in UTC
-        original = datetime.strptime(time_string[:-4], "%Y-%m-%dT%H:%M:%S")
-        tz_UTC = pytz.timezone('UTC')
-        original = original.replace(tzinfo=tz_UTC)
-        
-        tz_mountain = pytz.timezone('US/Mountain')
-        cleaned = original.astimezone(tz_mountain)
-        out_str = cleaned.strftime("%m-%d-%Y %I:%M%p")
-        
-        return out_str
+
         
         # tz = timezone(timedelta(range_hours=-1))
         # import pdb; pdb.set_trace()
@@ -317,6 +301,14 @@ class ImageProcessor(Processor):
             elif "msgn(qrn)" in frame_name:
                 frame = self.maxima_scrunch(frame, num=0.95, num2=0.1)
                 # frame *= 1.05
+            elif "lev1p5(primary)" in frame_name:
+                #TODO someting wavelength dependenty here, like aia prep does.
+                num = 0.88
+                num2 = 0.075
+                
+                frame = self.maxima_scrunch(frame, num=num, num2=num2)
+                # frame *= 1.05
+            
             else:
                 frame = self.maxima_scrunch(frame)
  
@@ -325,9 +317,9 @@ class ImageProcessor(Processor):
         if stretch:
             if "qrn" in frame_name:
                 from utils.stretch_intensity_module import norm_stretch
-                frame = norm_stretch(frame, alpha=0.5, alpha_high=0.35)
+                frame = norm_stretch(frame, alpha=0.65, alpha_high=0.25)
         
-                frame = 0.83 * frame
+                # frame = 0.95 * frame
         
         dont_vminmax = False
         for name in ["RHT", 'legacy']:

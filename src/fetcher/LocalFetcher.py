@@ -155,7 +155,7 @@ class LocalCdfFetcher(Fetcher):
         
         
     def write_to_cdf(self, orig_img_path, new_img_path, frame_list, do_plot=False):
-        # Load + Modify the netCDF File
+        # Load + Legacy_SRN_Kernal the netCDF File
         dss = xr.open_dataset(orig_img_path)
 #         frames = dss.value
 #         print("Writing!")

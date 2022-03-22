@@ -33,7 +33,7 @@ class WebFitsFetcher(Fetcher):
         self.destroy = False
     
     def fetch_jpegs(self):
-        print(" V Gathering JPEGS...")
+        print(" V  Gathering JPEGS...")
         
         if len(self.params.local_fits_paths()) < 1:
             self.load()
@@ -43,18 +43,21 @@ class WebFitsFetcher(Fetcher):
         for path in self.params.local_fits_paths():
             if rez is None:
                 frame, wave, t_rec, center, int_time, nm = self.load_first_fits_field(fits_path=path)
-                self.params.rez = frame.shape[0]
+                rez = self.params.rez = frame.shape[0]
             wavenum = int(''.join(i for i in path if i.isdigit()))
             j_urls.append(self.jpg_url_stem.format(self.params.rez, wavenum))
 
         j_directory = os.path.join(self.params.imgs_top_directory(), "jpeg")
         self.j_paths = []
         pbar = tqdm(j_urls, desc="  ")
+        
+        
+        
         for link in pbar:
             txt = os.path.basename(link).split("?")[0]
             pbar.set_description(" *  "+txt)
             self.j_paths.append(self.grab(link, j_directory, hold=True))
-        print("\r ^ DONE!")
+        print("\r ^  DONE!")
         return self.j_paths
 
 
@@ -87,7 +90,7 @@ class WebFitsFetcher(Fetcher):
             pbar.set_description(" *  "+os.path.basename(link))
             paths.append(self.grab(link))
         sys.stdout.flush()
-        print("\r *  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
+        print("\r ^  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
         return paths
 
     

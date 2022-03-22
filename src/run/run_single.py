@@ -42,7 +42,7 @@ def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*4,
         p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
         p.processors([IntEnhanceProcessor],     rp=True)  # Applies the Sunpy IntEnhance Filter
     
-    p.aftereffects_in_name = "quantile"
+    p.aftereffects_in_name = "qrn"
     aftereffects = False and master
     if aftereffects:
         p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
