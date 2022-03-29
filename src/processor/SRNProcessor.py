@@ -1215,41 +1215,6 @@ class SRNProcessor(Processor):
     ## Image Reduction Helper Algorithms ##
     #######################################
     
-    @staticmethod
-    def rolling_window(data, block):
-        shape = data.shape[:-1] + (data.shape[-1] - block + 1, block)
-        strides = data.strides + (data.strides[-1],)
-        return np.lib.stride_tricks.as_strided(data, shape=shape, strides=strides)
-    
-    def despike(self, arr, n1=2.5, n2=40, block=25):
-        # Condition the Input
-        data = arr.copy()
-        data[data == -1] = np.NaN
-        offset = np.nanmin(data)
-        data -= offset
-        roll = self.rolling_window(data, block)
-        roll = np.ma.masked_invalid(roll)
-        std = n1 * roll.std(axis=1)
-        mean = roll.mean(axis=1)
-        # Use the last value to fill-up.
-        std = np.r_[std, np.tile(std[-1], block - 1)]
-        mean = np.r_[mean, np.tile(mean[-1], block - 1)]
-        mask = (np.abs(data - mean.filled(fill_value=np.NaN)) >
-                std.filled(fill_value=np.NaN))
-        data[mask] = np.NaN
-        # Pass two: recompute the mean and std without the flagged values from pass
-        # one now removing the flagged data.
-        roll = self.rolling_window(data, block)
-        roll = np.ma.masked_invalid(roll)
-        std = n2 * roll.std(axis=1)
-        mean = roll.mean(axis=1)
-        # Use the last value to fill-up.
-        std = np.r_[std, np.tile(std[-1], block - 1)]
-        mean = np.r_[mean, np.tile(mean[-1], block - 1)]
-        mask = (np.abs(arr - mean.filled(fill_value=np.NaN)) >
-                std.filled(fill_value=np.NaN))
-        arr[mask] = mean[mask]
-        return arr + offset
     
     def coronaNorm(self):
         """Normalize the in_object using the radial percentile curves"""

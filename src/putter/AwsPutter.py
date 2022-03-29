@@ -21,14 +21,15 @@ png_args["ContentType"] = "image/png"
 
 s3 = boto3.resource('s3')
 # bucket = s3.Bucket('gillyspace27-test-billboard')
-bucket = s3.Bucket('the-sun-now')
+bucket_name = 'the-sun-now'
+bucket = s3.Bucket(bucket_name)
 s3_client = boto3.client('s3')
 from time import sleep
 
 
 class AwsPutter(Putter):
     filt_name = "AWSputter"
-    description = "Upload Images to AFWS"
+    description = "Upload Images to AWS {}".format(bucket_name)
     progress_verb = "Uploading"
     progress_verb = "Uploaded"
     progress_unit = "Images"
@@ -43,34 +44,42 @@ class AwsPutter(Putter):
         self.__save_times()
         self.__upload_files()
     
-
-    def __upload_files(self):
+    def get_file_list(self):
         to_upload = self.params.local_imgs_paths()
-
+        
         if self.params.do_orig:
             for file in os.listdir(self.params.orig_directory):
                 to_upload.append(os.path.join(self.params.orig_directory, file))
-                
-                
-        print("\r * Uploading Files...")
-        pbar = tqdm(to_upload, desc=" * Uploading Files")
-        for rtPath in pbar:
-            pbar.set_description("   + " + os.path.basename(rtPath))
-            smallPath, bigPath, arcPath = make_thumbs(rtPath)
+        
+        pbar = tqdm(to_upload, desc=" * Uploading Files...")
+        return to_upload, pbar
+    
+    def __upload_files(self):
+    
+        to_upload, pbar = self.get_file_list()
+        results = self.params.multi_pool.imap(self.do_upload, to_upload)
+        for res in results:
+            pbar.update()
+    
+        print("\r ^ Success! Uploaded {} PNGs\n".format(len(self.params.local_imgs_paths())))
+
+    @staticmethod
+    def do_upload(root_path):
+            smallPath, bigPath, arcPath = make_thumbs(root_path)
+            
             # Upload large File
-            bucket.upload_file(rtPath, bigPath,      ExtraArgs=png_args)
+            bucket.upload_file(root_path, bigPath, ExtraArgs=png_args)
     
             # Upload Thumbnail
             bucket.upload_file(smallPath, smallPath, ExtraArgs=png_args)
     
             # Upload Archive
-            if "orig" not in rtPath and self.params.do_archive:
-                bucket.upload_file(rtPath, arcPath, ExtraArgs=png_args)
-        print("\r ^ Success! Uploaded {} PNGs\n".format(len(self.params.local_imgs_paths())))
-        
+            # if "orig" not in root_path and False:
+            #     bucket.upload_file(root_path, arcPath, ExtraArgs=png_args)
+            
     def __save_times(self):
         """Saves the Time file to S3 so we know when images were taken"""
-        print(" * Uploading Time File...", end='')
+        print(" * Uploading Time File...",flush=True)
         path = self.params.time_path()
         path2 = path.replace(".txt", "_readable.txt")
         
@@ -111,7 +120,7 @@ class AwsPutter(Putter):
         bucket.upload_file(path, path,   ExtraArgs=txt_args)
         bucket.upload_file(path2, path2, ExtraArgs=txt_args)
 
-        print("Done! ")
+        print("\r >   Done with Time! ")
 
     # def put_ultimate(self):
     #     """uploads all imgs in input to the s3 bucket"""

@@ -14,7 +14,8 @@ from putter.NullPutter import NullPutter
 import matplotlib.pyplot as plt
 
 from utils.time_util import define_time_range, define_recent_range
-
+global multi_pool
+multi_pool = None
 
 class Parameters:
     """
@@ -27,6 +28,11 @@ class Parameters:
     
     def __init__(self):
         """Sets all the attributes to None"""
+        global multi_pool
+        if multi_pool is None:
+            multi_pool = self.init_pool()
+        
+        self.multi_pool = multi_pool
         # Initialize Variables
         self.master_frame_list_newest = ["lev1p5", "t_int", "lev1p0", "primary"]
         self.master_frame_list_oldest = [ x for x in reversed(self.master_frame_list_newest)]
@@ -65,7 +71,7 @@ class Parameters:
         self._curve_path = None
         self._write_video = False
         self._overwrite_pngs = False
-        self._reprocess_mode = False
+        self._reprocess_mode = None
         self._current_wave = 'rainbow'
         self._imgs_directory = None
         self._fits_directory = None
@@ -92,7 +98,7 @@ class Parameters:
         self.did_print = False
         self.Force_init = False
         self.list_of_default_hdus = ['t_int', "lev1p0", 0, 1]
-        self.raw_image=None
+        self.raw_image = None
         self.modified_image=None
         self.quantile_image=None
         self.alpha=0.35
@@ -158,6 +164,30 @@ class Parameters:
         self._proc_rp = []
         self._put_rp = [None]
         # self.set_default_values()
+
+    def __getstate__(self):
+        self_dict = self.__dict__.copy()
+        try:
+            del self_dict['multi_pool']
+        except KeyError:
+            a=1
+        
+        return self_dict
+
+    @staticmethod
+    def init_pool(n_cores=10):
+        print("$$$$$$$$$$$$$   Initializing Pool of {}...".format(n_cores))
+        try:
+            from multiprocessing import set_start_method
+            set_start_method("spawn")
+        except RuntimeError:
+            pass
+        from multiprocessing import Pool
+        the_pool = Pool(n_cores)
+        from time import sleep
+        sleep(2+n_cores/2)
+        print("$$$$$$$$$$$$$   Pool Initialized!!", flush=True)
+        return the_pool
     
     # TODO: extract getter/setter logic
     # Main Functions

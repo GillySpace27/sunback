@@ -155,6 +155,7 @@ class Runner:
         self.print_plan(end=True)
         print(self.wall_2 + "\n")
         delay = self.params.delay_seconds()
+        # self.params.multi_pool.close()
 
         if not self.params.stop_after_one():
             delay = 600

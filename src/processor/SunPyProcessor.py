@@ -1,6 +1,7 @@
 import os
 from copy import copy
 import time
+from functools import partial
 from os import makedirs
 from os.path import join, dirname, basename
 import matplotlib.pyplot as plt
@@ -67,10 +68,16 @@ class SunPyProcessor(Processor):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
         self.tm = 0
-        self.radial_bin_edges = equally_spaced_bins(inner_value=0.0, nbins=300) * u.R_sun
+        self.radial_bin_edges = None
         self.in_name = in_name or self.params.master_frame_list_newest
 
-
+    def __getstate__(self):
+        self_dict = self.__dict__.copy()
+        # del self_dict['params']
+        # del self.params._cadence
+        # del self_dict['radial_bin_edges']
+        return self_dict
+    
 class AIA_PREP_Processor(SunPyProcessor):
     """This class holds the code for the AIA_PREP Processor"""
     name = filt_name = "AIA_PREP"
@@ -95,12 +102,15 @@ class AIA_PREP_Processor(SunPyProcessor):
         self.psf = None
         self.level_1_maps = None
         self.level_15_maps = None
-        self.correction_table = None
-        self.pointing_table = None
+        self.params.correction_table = None
+        self.params.pointing_table = None
         self.pointing_end = None
         self.pointing_start = None
         self.out_name = "lev1p5"
         self.params.modified_image = None
+        
+    def setup(self):
+        pass
     
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
@@ -116,17 +126,17 @@ class AIA_PREP_Processor(SunPyProcessor):
         self.level_15_maps = []
         for a_map in self.level_1_maps:
             
-            if False:
-                a_map = self.deconvolve_psf(a_map)
+            # if False:
+            #     a_map = self.deconvolve_psf(a_map)
             
             # Execute AIA_PREP
-            if self.pointing_table is not None:
+            if self.params.pointing_table is not None:
                 map_updated_pointing = self.get_updated_pointing(a_map)
                 map_registered = register(map_updated_pointing)
             else:
                 map_registered = register(a_map)
                 
-            map_degraded = correct_degradation(map_registered, correction_table=self.correction_table)
+            map_degraded = correct_degradation(map_registered, correction_table=self.params.correction_table)
             map_normalized = normalize_exposure(map_degraded)
             
             doNorm = True
@@ -140,21 +150,29 @@ class AIA_PREP_Processor(SunPyProcessor):
         self.header = self.params.header = sunpy.io.fits.header_to_fits(done_map.meta)
 
     def get_aia_prep_data(self, force=False):
-        self.params.header["LVL_NUM"] = 1.5
-        self.level_1_maps = [sunpy.map.Map((self.params.raw_image, self.params.header))]
-        if self.correction_table is None or force:
-            # We get the pointing table outside of the loop for the relevant time range.
-            # Otherwise you're making a call to the JSOC every single time.
-            self.pointing_start = self.level_1_maps[0].date - 3 * u.h
-            self.pointing_end = self.level_1_maps[-1].date + 3 * u.h
-            try:
-                self.pointing_table = get_pointing_table(self.pointing_start, self.pointing_end)
-            except RuntimeError as e:
-                print("\r"+str(e))
-
-            # The same applies for the correction table.
-            self.correction_table = get_correction_table()
-    
+        
+        if self.fits_path is None:
+            self.fits_path = self.keyframes[0]
+        raw_image, _, _, _, _, self.in_name = self.load_this_fits_frame(self.fits_path, self.params.master_frame_list_newest)
+        self.header["LVL_NUM"] = self.params.header["LVL_NUM"] = 1.5
+        self.level_1_maps = [sunpy.map.Map((raw_image, self.params.header))]
+        if self.params.correction_table is None or force:
+            # print("   v Fetching Prep Data...")
+            if self.level_1_maps is not None:
+                # We get the pointing table outside of the loop for the relevant time range.
+                # Otherwise you're making a call to the JSOC every single time.
+                pointing_start = self.level_1_maps[0].date - 3 * u.h
+                pointing_end = self.level_1_maps[-1].date + 3 * u.h
+                try:
+                    # with partial(print, "  ") as print:
+                    self.params.pointing_table = get_pointing_table(pointing_start, pointing_end)
+                except RuntimeError as e:
+                    # print("\r   - > "+str(e))
+                    pass
+                # The same applies for the correction table.
+                self.params.correction_table = get_correction_table()
+            # print("\r   ^ Prep Loaded!")
+            
     def deconvolve_psf(self, a_map):
         import aiapy.psf as psf
         if not a_map.wavelength == self.last_wave or self.psf is None:
@@ -166,18 +184,18 @@ class AIA_PREP_Processor(SunPyProcessor):
     
     def get_updated_pointing(self, a_map, one_deep=True):
         # Get the new pointing information
-        try:
-            map_updated_pointing = update_pointing(a_map, pointing_table=self.pointing_table)
-            return map_updated_pointing
-        except IndexError as e:
-            # If it fails
-            if one_deep:
-                # For the first time, re-prep the data
-                self.get_aia_prep_data(force=True)
-                # Return a recursion of this funtion
-                return self.get_updated_pointing(a_map, one_deep=False)
-            else:
-                raise e
+        # try:
+        map_updated_pointing = update_pointing(a_map, pointing_table=self.params.pointing_table)
+        return map_updated_pointing
+        # except IndexError as e:
+        #     # If it fails
+        #     if one_deep:
+        #         # For the first time, re-prep the data
+        #         self.get_aia_prep_data(force=True)
+        #         # Return a recursion of this funtion
+        #         return self.get_updated_pointing(a_map, one_deep=False)
+        #     else:
+        #         raise e
     
     def plot_lev1p5(self, plot_result=True):
         two_maps = [self.level_15_maps[0]]
@@ -201,8 +219,9 @@ class NRGFProcessor(SunPyProcessor):
     
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
+        radial_bin_edges = equally_spaced_bins(inner_value=0.0, nbins=300) * u.R_sun
         self.params.modified_image = radial.nrgf(self.raw_map,
-                                                 self.radial_bin_edges, application_radius=0.00 * u.R_sun).data
+                                                 radial_bin_edges, application_radius=0.00 * u.R_sun).data
         return self.params.modified_image
 
 

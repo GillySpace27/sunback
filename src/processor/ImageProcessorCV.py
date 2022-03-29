@@ -202,7 +202,8 @@ class ImageProcessorCV(ImageProcessor):
         
         # Get Time
         full_name, fits_path, time_string_raw, shape = self.image_data
-        time_string = self.clean_time_string(time_string_raw, out_fmt="%m-%d-%Y %I:%M%p %Z")
+        time_string = self.clean_time_string(time_string_raw,targetZone="US/Mountain", out_fmt="%m-%d-%Y %I:%M%p %Z")
+        zone = "MT"
         time_list = time_string.split()
         clock = time_list[1].lower()
         day = time_list[0][:-5]
@@ -225,7 +226,6 @@ class ImageProcessorCV(ImageProcessor):
             prev = name_split[1][:-1]
         else:
             prev = '-'
-        zone = "MT"
         
         # Scale to Image Size
         if self.shrink_factor == 1:
@@ -244,7 +244,7 @@ class ImageProcessorCV(ImageProcessor):
             h_spacing = 30
             thickness = 1
             
-        h0 = 20
+        h0 = 25
         h1 = h0 + h_spacing
         h2 = h1 + h_spacing
         h3 = h2 + h_spacing
@@ -259,10 +259,10 @@ class ImageProcessorCV(ImageProcessor):
         x3  = rez - wid*len(wave) - 7
         
         # Right Side
-        cv2.putText(img, name, (x0, h0), font, scale, (255, 255, 255), thickness)
-        cv2.putText(img, prev, (x1, h1), font, scale, (255, 255, 255), thickness)
-        cv2.putText(img, inst, (x2, h2), font, scale, (255, 255, 255), thickness)
-        cv2.putText(img, wave, (x3, h3), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, name, (x0, h0-5), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, prev, (x1, h1-5), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, inst, (x2, h2-5), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, wave, (x3, h3-5), font, scale, (255, 255, 255), thickness)
         
         # Left Side
         cv2.putText(img, clock, (0, h0), font, scale, (255, 255, 255), thickness)
@@ -482,7 +482,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.frame_names.append(frame_name)
         self.frames.append(frame)
     
-    def finalize_and_save_plots(self, dpi=500):
+    def finalize_and_save_plots(self, dpi=1000):
     
         inches = 4
         colWid = self.n_cols * inches

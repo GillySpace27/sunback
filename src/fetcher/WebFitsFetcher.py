@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 # from utils.file_util import find_root_directory
 from fetcher.Fetcher import Fetcher
 from tqdm import tqdm
+from functools import partial
 
 
 
@@ -31,9 +32,23 @@ class WebFitsFetcher(Fetcher):
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
         self.destroy = False
+        
+    def fetch(self, params=None):
+        """Gets the Fits Files from the Archive URL
+        :param params:
+        """
+        self.params = params or self.params
+        self.load(self.params, quietly=True, wave=self.params.current_wave('rainbow'))
+        if self.params.download_files():
+            self.__get_img_time()
+            paths =  self.fetch_fits_files()
+            jpaths = self.fetch_jpegs()
+            return paths
+        else:
+            print("Skipping download!")
+        return self.params.local_fits_paths()
     
-    def fetch_jpegs(self):
-        print(" V  Gathering JPEGS...")
+    def prep_for_jpeg_fetch(self):
         
         if len(self.params.local_fits_paths()) < 1:
             self.load()
@@ -47,51 +62,60 @@ class WebFitsFetcher(Fetcher):
             wavenum = int(''.join(i for i in path if i.isdigit()))
             j_urls.append(self.jpg_url_stem.format(self.params.rez, wavenum))
 
-        j_directory = os.path.join(self.params.imgs_top_directory(), "jpeg")
-        self.j_paths = []
-        pbar = tqdm(j_urls, desc="  ")
+        self.j_directory = os.path.join(self.params.imgs_top_directory(), "jpeg")
+        self.j_paths = j_urls
         
-        
-        
-        for link in pbar:
-            txt = os.path.basename(link).split("?")[0]
-            pbar.set_description(" *  "+txt)
-            self.j_paths.append(self.grab(link, j_directory, hold=True))
-        print("\r ^  DONE!")
-        return self.j_paths
-
-
-    def fetch(self, params=None):
-        """Gets the Fits Files from the Archive URL
-        :param params:
-        """
-        self.params = params or self.params
-        self.load(self.params, quietly=True, wave=self.params.current_wave('rainbow'))
-        paths=[]
-        if self.params.download_files():
-            self.__get_img_time()
-            if self.params.get_fits:
-                paths = self.get_fits_files()
-            self.fetch_jpegs()
+    def fetch_fits_files(self):
+        if self.params.get_fits:
+            if self.destroy:
+                self.delete_directory_items(self.fits_folder)
+            print(" V  Downloading Fits Files from {}...".format(self.base_url), flush=True)
+            img_links = self.__get_fits_links(self.base_url)
+            pbar = tqdm(img_links, desc=" * Downloading Fits")
+            result = self.params.multi_pool.map_async(self.grab, pbar)
+            paths = result.get()
+            print("\r ^  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
             return paths
-        else:
-            print("Skipping download!")
-        return self.params.local_fits_paths()
+        
+    def fetch_jpegs(self):
+        print(" V  Gathering JPEGS...")
+        self.print_once = False
+        self.prep_for_jpeg_fetch()
+        pbar = tqdm(self.j_paths, desc=" * Downloading JPEGs")
+        results = self.params.multi_pool.map_async(self.grab_jpeg, pbar)
+        pbar.display()
+        sys.stderr.flush()
+        import time
+        time.sleep(0.1)
+        print("\n ^  DONE!")
+        
+        return results
 
-    def get_fits_files(self):
-        if self.destroy:
-            self.delete_directory_items(self.fits_folder)
-        print(" V  Downloading Fits Files from {}...".format(self.base_url), flush=True)
-        # super.super.__init__(params)
-        img_links = self.__get_fits_links(self.base_url)
-        paths = []
-        pbar = tqdm(img_links, desc="  ")
-        for link in pbar:
-            pbar.set_description(" *  "+os.path.basename(link))
-            paths.append(self.grab(link))
-        sys.stdout.flush()
-        print("\r ^  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
-        return paths
+
+    def grab_jpeg(self, link):
+        return self.grab(link, directory=self.j_directory)
+
+    def grab(self, link, directory=None):
+        tries = 3
+        use_temp = False
+        filename = link.split('/')[-1]
+        filename = filename.split('?')[0]
+        use_directory = directory or self.params.fits_directory()
+        local_path = join(use_directory, filename)
+        # local_temp_path = join(use_directory, "temp", "download__" + filename)
+        for ii in np.arange(tries):
+            # Retry download
+            try:
+                self.download_url(link, local_path)
+                break
+            except urllib.error.ContentTooShortError:
+                print("Failed Download...Retrying {} / {}".format(ii, tries))
+                pass
+        return local_path
+
+
+
+
 
     
     def delete_directory(self, directory):
@@ -113,25 +137,7 @@ class WebFitsFetcher(Fetcher):
 
 
     
-    def grab(self, link, directory=None, hold=False):
-        tries = 3
-        filename = link.split('/')[-1]
-        filename = filename.split('?')[0]
-        use_directory = directory or self.params.fits_directory()
-        local_path = join(use_directory, filename)
-        local_temp_path = join(use_directory, "temp", "download__" + filename)
-        for ii in np.arange(tries):
-            # Retry download
-            try:
-                local_temp_path = self.download_url(link, local_path)
-                # if exists(local_path):
-                #     remove(local_path)
-                # shutil.move(local_temp_path, local_path)
-                break
-            except urllib.error.ContentTooShortError:
-                print("Failed Download...Retrying {} / {}".format(ii, tries))
-                pass
-        return local_path
+
         # paths.append(local_path)
     
     def download_url(self, link, filename=None):
@@ -211,5 +217,3 @@ class WebFitsFetcher(Fetcher):
         image_time = requests.get(self.base_url + "image_times").text[9:25]
         with open(self.params.time_path(), 'w') as fp:
             fp.write(image_time)
-            
-        pass

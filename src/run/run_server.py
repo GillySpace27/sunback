@@ -1,10 +1,11 @@
 """This is the script to run on a server somewhere to process the images"""
 
 from fetcher.WebFitsFetcher import WebFitsFetcher
-from processor.ImageProcessorCV import ImageProcessorCV
+from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
 from processor.QRNProcessor import QRNProcessor
 from processor.SRNProcessor import SRNSingleShotProcessor_Legacy
 from processor.SunPyProcessor import AIA_PREP_Processor, NRGFProcessor, MSGNProcessor
+from putter.AwsPutter import AwsPutter
 from science.parameters import Parameters
 from run import Runner, SingleRunner
 
@@ -25,21 +26,21 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
     p.download_files(True)
     p.get_fits = True
     # p.set_waves_to_do('0171')
-    # p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
+    p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
     # p.overwrite_pngs(True)
     # p.write_video(False)
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
 
-    p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
-    p.processors([AIA_PREP_Processor],              )  # Do Sunpy Things
-    p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
-    p.processors([SRNSingleShotProcessor_Legacy],            rp=True)  # Applies the Radial Filtering
+    # p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
+    # p.processors([AIA_PREP_Processor],           rp=True   )  # Do Sunpy Things
+    # p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
     p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
-    # p.putters([AwsPutter])  # Uploads the PNGs to AWS
+    # p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
+    p.putters([AwsPutter])  # Uploads the PNGs to AWS
 
     
-    # p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
+    # p.processors([SRNSingleShotProcessor_Legacy],            rp=True)  # Applies the Radial Filtering
     # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
     
     
