@@ -482,7 +482,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.frame_names.append(frame_name)
         self.frames.append(frame)
     
-    def finalize_and_save_plots(self, dpi=1000):
+    def finalize_and_save_plots(self, dpi=500):
     
         inches = 4
         colWid = self.n_cols * inches
@@ -491,7 +491,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.fig.set_size_inches(w=colWid, h=rowWid)
         plt.tight_layout()
     
-        save_path = os.path.join(self.params.imgs_top_directory(), "compare", "{}_compare.png".format(self.wave))
+        save_path = os.path.join(self.params.imgs_top_directory(), "compare", "{:04}_compare.png".format(int(self.wave)))
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         self.main_save_path = save_path
         self.fig.savefig(save_path, dpi=dpi)
@@ -503,16 +503,16 @@ class MultiImageProcessorCv(ImageProcessorCV):
         zooms = os.path.join(self.params.imgs_top_directory(), "zooms")
         os.makedirs(zooms, exist_ok=True)
         
-        save_path = os.path.join(zooms, "{}_compare.png".format(self.wave))
+        save_path = os.path.join(zooms, "{:04}_compare.png".format(int(self.wave)))
         self.fig.savefig(save_path, dpi=dpi)
         
-        save_path = os.path.join(zooms, "1_zoom_{}_compare.png".format(self.wave))
+        save_path = os.path.join(zooms, "1_zoom_{:04}_compare.png".format(int(self.wave)))
         plt.xlim((3250 / self.shrink_factor, 4000 / self.shrink_factor))
         plt.ylim((2250 / self.shrink_factor, 3000 / self.shrink_factor))
         plt.tight_layout()
         self.fig.savefig(save_path, dpi=dpi)
         
-        save_path = os.path.join(zooms, "2_zoom_{}_compare.png".format(self.wave))
+        save_path = os.path.join(zooms, "2_zoom_{:04}_compare.png".format(int(self.wave)))
         plt.xlim((2404 / self.shrink_factor, 3500 / self.shrink_factor))
         plt.ylim((3000 / self.shrink_factor, 4096 / self.shrink_factor))
         plt.tight_layout()

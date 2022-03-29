@@ -47,9 +47,14 @@ class AwsPutter(Putter):
     def get_file_list(self):
         to_upload = self.params.local_imgs_paths()
         
-        if self.params.do_orig:
+        if self.params.do_orig and False:
             for file in os.listdir(self.params.orig_directory):
                 to_upload.append(os.path.join(self.params.orig_directory, file))
+
+        if self.params.do_compare:
+            comp_dir = self.params.orig_directory.replace('orig', 'compare')
+            for file in os.listdir(comp_dir):
+                to_upload.append(os.path.join(comp_dir, file))
         
         pbar = tqdm(to_upload, desc=" * Uploading Files...")
         return to_upload, pbar
@@ -120,7 +125,7 @@ class AwsPutter(Putter):
         bucket.upload_file(path, path,   ExtraArgs=txt_args)
         bucket.upload_file(path2, path2, ExtraArgs=txt_args)
 
-        print("\r >   Done with Time! ")
+        print("\r - > Done with Time! ")
 
     # def put_ultimate(self):
     #     """uploads all imgs in input to the s3 bucket"""

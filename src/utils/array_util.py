@@ -35,7 +35,10 @@ def get_thumblinks(rtPath):
     
     filename = os.path.basename(rtPath)
     
-    if not orig:
+    if "compare" in filename:
+        name = filename
+    
+    elif not orig:
         name = filename[-8:]
     else:
         name = filename.replace(rep, '_orig')

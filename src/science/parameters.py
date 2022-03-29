@@ -152,7 +152,9 @@ class Parameters:
         self._do_multishot = True
         self._do_recent = True
         self._use_default_directories = True
-        self.do_orig = True
+        self.do_orig = False
+        self.do_compare = True
+        
         self.do_cat = False
         self.do_single = False
         

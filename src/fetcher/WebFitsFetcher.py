@@ -72,8 +72,11 @@ class WebFitsFetcher(Fetcher):
             print(" V  Downloading Fits Files from {}...".format(self.base_url), flush=True)
             img_links = self.__get_fits_links(self.base_url)
             pbar = tqdm(img_links, desc=" * Downloading Fits")
-            result = self.params.multi_pool.map_async(self.grab, pbar)
-            paths = result.get()
+            result = self.params.multi_pool.imap_unordered(self.grab, img_links)
+            paths = []
+            for res in result:
+                pbar.update()
+                paths.append(res)
             print("\r ^  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
             return paths
         
@@ -82,14 +85,17 @@ class WebFitsFetcher(Fetcher):
         self.print_once = False
         self.prep_for_jpeg_fetch()
         pbar = tqdm(self.j_paths, desc=" * Downloading JPEGs")
-        results = self.params.multi_pool.map_async(self.grab_jpeg, pbar)
-        pbar.display()
-        sys.stderr.flush()
+        paths = []
+        results = self.params.multi_pool.imap_unordered(self.grab_jpeg, pbar)
+        for res in results:
+            pbar.update()
+            paths.append(res)
+            sys.stderr.flush()
         import time
         time.sleep(0.1)
-        print("\n ^  DONE!")
+        print("\r ^  DONE!")
         
-        return results
+        return paths
 
 
     def grab_jpeg(self, link):
