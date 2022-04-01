@@ -16,6 +16,7 @@ import numpy as np
 
 from science.color_tables import aia_color_table
 
+from utils.stretch_intensity_module import norm_stretch
 
 class ImageProcessor(Processor):
     filt_name = 'Image Writer'
@@ -313,16 +314,7 @@ class ImageProcessor(Processor):
                 frame = self.maxima_scrunch(frame)
  
         # Norm Stretching
-        stretch = True
-        if stretch:
-            if "qrn" in frame_name:
-                from utils.stretch_intensity_module import norm_stretch
-                # frame = norm_stretch(frame, alpha=0.65, alpha_high=0.25)
-                aL = self.params.alpha_low  = 0.5
-                aH = self.params.alpha_high = 0.4
-                frame = norm_stretch(frame, alpha=aL, alpha_high=aH)
-        
-                # frame = 0.95 * frame
+        frame = self.do_norm_stretch(frame, frame_name)
         
         dont_vminmax = False
         for name in ["RHT", 'legacy']:
@@ -331,6 +323,37 @@ class ImageProcessor(Processor):
 
         self.dont_vminmax = dont_vminmax
         return frame
+    
+    
+    def do_norm_stretch(self, frame, frame_name, do=True):
+        if do and "qrn" in frame_name:
+            aL, aH = self.get_alphas()
+            frame = norm_stretch(frame, alpha=aL, alpha_high=aH)
+        return frame
+        
+    def get_alphas(self):
+        wave = self.params.current_wave(self.image_data[0])
+        wave = "{:04}".format(int(wave))
+        
+        wave_list = [{"wave": "0094", "aL": 0.50, "aH": 0.35},
+                     {"wave": "0131", "aL": 0.50, "aH": 0.20},
+                     {"wave": "0171", "aL": 0.50, "aH": 0.40},
+                     {"wave": "0193", "aL": 0.50, "aH": 0.45},
+                     {"wave": "0211", "aL": 0.50, "aH": 0.40},
+                     {"wave": "0304", "aL": 0.50, "aH": 0.40},
+                     {"wave": "0335", "aL": 0.50, "aH": 0.40},
+                     {"wave": "1600", "aL": 0.50, "aH": 0.40},
+                     {"wave": "1700", "aL": 0.50, "aH": 0.40}]
+
+        dictdict = {}
+        for wv in wave_list:
+            dictdict[wv["wave"]] = wv
+            
+        self.params.alpha_low  = dictdict[wave]['aL']
+        self.params.alpha_high = dictdict[wave]['aH']
+        return self.params.alpha_low, self.params.alpha_high
+        
+                        # frame = 0.95 * frame
     # if frame_name == "nrgf":
     #     # Replace the Disk
     #     self.init_radius_array()

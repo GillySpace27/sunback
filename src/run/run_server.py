@@ -34,15 +34,15 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
 
-    p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
-    p.processors([AIA_PREP_Processor],           rp=True   )  # Do Sunpy Things
-    p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
-    p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-    p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    # p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
+    # p.processors([AIA_PREP_Processor],           rp=True   )  # Do Sunpy Things
+    # p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
+    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
     p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
-    p.putters([AwsPutter])  # Uploads the PNGs to AWS
-    p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
+    # p.putters([AwsPutter])  # Uploads the PNGs to AWS
+    # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
     
 
     
