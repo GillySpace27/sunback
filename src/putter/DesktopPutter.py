@@ -20,7 +20,10 @@ class DesktopPutter(Putter):
         sys.stdout.flush()
         print("  *Setting Desktop Background to...", flush=True)
         self.super_flush()
-        for png_path in self.params.local_imgs_paths():
+
+        to_display = [file for file in self.params.local_imgs_paths() if ("aH" not in file and "aL" not in file)]
+        
+        for png_path in to_display:
             self.update_background(png_path)
             self.sleep_until_delay_elapsed()
         # print("Loop Complete", flush=True)
@@ -39,7 +42,7 @@ class DesktopPutter(Putter):
          :return:
         """
         local_path = abspath(local_path)
-        self.png_name = local_path[-8:]
+        self.png_name = local_path.split("\\")[-1]
         # self.params.current_wave(self.png_name)
         # print(local_path)
         assert isinstance(local_path, str)

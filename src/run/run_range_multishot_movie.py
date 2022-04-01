@@ -5,7 +5,7 @@ from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from fetcher.LocalFetcher import LocalFetcher
 from processor.ImageProcessorCV import ImageProcessorCV
 from processor.QRNProcessor import QRNProcessor
-from processor.SRNProcessor import SRNradialFiltProcessor, SRNpreProcessor
+# from processor.SRNProcessor import SRNradialFiltProcessor, SRNpreProcessor
 from processor.SunPyProcessor import AIA_PREP_Processor
 from processor.ValidationProcessor import ValidationProcessor
 from processor.VideoProcessor import VideoProcessor
@@ -42,11 +42,11 @@ def run_range_multishot_movie(batch_name= "Test", wave=None, config=None, wave_t
     p.alpha=alpha
     p.destroy=True
     # Set the Processes
-    # p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
+    p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
-    # p.processors([QRNProcessor],         rp=False)  # Applies the QRN Processor
+    p.processors([QRNProcessor],         rp=False)  # Applies the QRN Processor
     #
-    # p.processors([AIA_PREP_Processor],         rp=True)   # Do Sunpy Things
+    p.processors([AIA_PREP_Processor],         rp=True)   # Do Sunpy Things
 
     p.processors([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
     p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie

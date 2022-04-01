@@ -25,15 +25,13 @@ class Parameters:
     minutes = 60 * seconds
     hours = 60 * minutes
     _batch_name = "default"
+    n_pool = 10
     
     def __init__(self):
         """Sets all the attributes to None"""
-        global multi_pool
-        if multi_pool is None:
-            multi_pool = self.init_pool()
-        
-        self.multi_pool = multi_pool
+
         # Initialize Variables
+        self.multi_pool = None
         self.master_frame_list_newest = ["lev1p5", "t_int", "lev1p0", "primary"]
         self.master_frame_list_oldest = [ x for x in reversed(self.master_frame_list_newest)]
         self.short_circuit = False
@@ -154,7 +152,8 @@ class Parameters:
         self._use_default_directories = True
         self.do_orig = False
         self.do_compare = True
-        
+        self.alpha_low = 0.35
+        self.alpha_high = 0.35
         self.do_cat = False
         self.do_single = False
         
@@ -165,6 +164,14 @@ class Parameters:
         self._fet_rp = [None, None]
         self._proc_rp = []
         self._put_rp = [None]
+        
+        # global multi_pool
+        # if multi_pool is None:
+        #     multi_pool = self.init_pool(self.n_pool)
+        
+        # self.multi_pool = self.init_pool(self.n_pool)
+        
+        
         # self.set_default_values()
 
     def __getstate__(self):
@@ -176,20 +183,21 @@ class Parameters:
         
         return self_dict
 
-    @staticmethod
-    def init_pool(n_cores=10):
-        print("$$$$$$$$$$$$$   Initializing Pool of {}...".format(n_cores))
-        try:
-            from multiprocessing import set_start_method
-            set_start_method("spawn")
-        except RuntimeError:
-            pass
-        from multiprocessing import Pool
-        the_pool = Pool(n_cores)
-        from time import sleep
-        sleep(2+n_cores/2)
-        print("$$$$$$$$$$$$$   Pool Initialized!!", flush=True)
-        return the_pool
+    def init_pool(self, n_cores=10):
+        if self.multi_pool is None:
+            print("$$$$$$$$$$$$$   Initializing Pool of {}...".format(n_cores))
+            try:
+                from multiprocessing import set_start_method
+                set_start_method("spawn")
+            except RuntimeError:
+                pass
+            from multiprocessing import Pool
+            the_pool = Pool(n_cores)
+            from time import sleep
+            sleep(2+n_cores/2)
+            print("$$$$$$$$$$$$$   Pool Initialized!!", flush=True)
+            self.multi_pool = the_pool
+        return self.multi_pool
     
     # TODO: extract getter/setter logic
     # Main Functions

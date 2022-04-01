@@ -317,7 +317,10 @@ class ImageProcessor(Processor):
         if stretch:
             if "qrn" in frame_name:
                 from utils.stretch_intensity_module import norm_stretch
-                frame = norm_stretch(frame, alpha=0.65, alpha_high=0.25)
+                # frame = norm_stretch(frame, alpha=0.65, alpha_high=0.25)
+                aL = self.params.alpha_low  = 0.5
+                aH = self.params.alpha_high = 0.4
+                frame = norm_stretch(frame, alpha=aL, alpha_high=aH)
         
                 # frame = 0.95 * frame
         

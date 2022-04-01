@@ -6,6 +6,7 @@ from processor.QRNProcessor import QRNProcessor
 from processor.SRNProcessor import SRNSingleShotProcessor_Legacy
 from processor.SunPyProcessor import AIA_PREP_Processor, NRGFProcessor, MSGNProcessor
 from putter.AwsPutter import AwsPutter
+from putter.DesktopPutter import DesktopPutter
 from science.parameters import Parameters
 from run import Runner, SingleRunner
 
@@ -22,6 +23,7 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
     p.do_orig = True
     p.speak_save = False
     p.use_drive = "G"
+    p.init_pool(10)
     # Run Flags
     p.download_files(True)
     p.get_fits = True
@@ -35,18 +37,20 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
     p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
     p.processors([AIA_PREP_Processor],           rp=True   )  # Do Sunpy Things
     p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
+    p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
     p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
     p.putters([AwsPutter])  # Uploads the PNGs to AWS
+    p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
+    
 
     
     # p.processors([SRNSingleShotProcessor_Legacy],            rp=True)  # Applies the Radial Filtering
-    # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
     
     
     # p.processors([SRNSingleShotProcessor_Legacy])
     # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
-    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     # p.processors([SRNSingleShotProcessor], rp=True)  # Applies the Radial Filtering
     # p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform

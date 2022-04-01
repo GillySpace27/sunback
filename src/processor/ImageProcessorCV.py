@@ -185,7 +185,12 @@ class ImageProcessorCV(ImageProcessor):
         self.params.rbg_image = rgb_img
         self.vignette()
     
-    def img_save(self, path, save=True):
+    def img_save(self, path, save=True, stamp=False):
+        
+        if stamp:
+            aH = self.params.alpha_high
+            aL = self.params.alpha_low
+            path = path.replace(".png", "_ah-{:0.2f}_aL-{:0.2f}.png".format(aH, aL))
         if save:
             cv2.imwrite(path, self.params.rbg_image)
         else:
@@ -212,6 +217,11 @@ class ImageProcessorCV(ImageProcessor):
         # Get Wavelength
         inst = 'AIA'
         _, wave = self.clean_name_string(full_name)
+        
+        # Get Stretch Params
+        
+        
+        
         
         # Get Frame Name
         if type(self.frame_name) is list:
@@ -269,7 +279,17 @@ class ImageProcessorCV(ImageProcessor):
         cv2.putText(img, day,   (0, h1), font, scale, (255, 255, 255), thickness)
         cv2.putText(img, year,  (0, h2), font, scale, (255, 255, 255), thickness)
         cv2.putText(img, zone,  (0, h3), font, scale, (255, 255, 255), thickness)
- 
+
+
+        # Bottom Corners
+        try:
+            aH = "aH: {}".format(self.params.alpha_high)
+            aL = "aL: {}".format(self.params.alpha_low)
+            cv2.putText(img, aH, (0, 1000),  font, scale, (255, 255, 255), thickness)
+            cv2.putText(img, aL, (0, 1020), font, scale, (255, 255, 255), thickness)
+        except SystemError as e:
+            print(e)
+            
         reticle = False
         if reticle:
             self.draw_reticle(img)
@@ -350,25 +370,31 @@ class MultiImageProcessorCv(ImageProcessorCV):
     def do_fits_function(self, fits_path, in_name=None, doBar=False):
         """ Main Call on the Fits Path """
         # self.tic()
-        self.init_frame(fits_path)
-        self.init_plot()
+        self.init_frame_from_fits(fits_path)
+        self.init_quad_figure()
         self.init_radius_array()
-        
-        self.max_width = np.max([len(x) for x in self.good_frames])
-        iterable = tqdm(self.good_frames, desc="") if doBar else self.good_frames
-        for self.count, frame_name in enumerate(iterable):
-            if frame_name == "jpeg":
-                self.plot_jpeg(fits_path, frame_name, doBar, iterable)
-                
-            else:
-                self.handle_one_frame(fits_path, frame_name, doBar, iterable)
-        if doBar: iterable.set_description(" *    Plots Complete", refresh=True)
-        
+        self.collect_frames(fits_path, doBar)
         self.finalize_and_save_plots()
         self.reinit_constants()
+        
         # self.toc()
         # self.open_folder(self.main_save_path)
         return None
+
+    def collect_frames(self, fits_path, doBar):
+        self.max_width = np.max([len(x) for x in self.good_frames])
+        iterable = tqdm(self.good_frames, desc="") if doBar else self.good_frames
+        for self.count, frame_name in enumerate(iterable):
+            if "primary" in frame_name:
+                continue
+            if frame_name == "jpeg":
+                try:
+                    self.plot_jpeg(fits_path, frame_name, doBar, iterable)
+                except IndexError as e:
+                    print(str(IndexError), e)
+            else:
+                self.handle_one_frame(fits_path, frame_name, doBar, iterable)
+        if doBar: iterable.set_description(" *    Plots Complete", refresh=True)
     
     def plot_jpeg(self, fits_path, frame_name, doBar, iterable):
         import PIL
@@ -396,7 +422,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         frame1[self.vignette_mask] = np.nan
         self.add_to_plot(name, frame1)
     
-    def init_frame(self, fits_path=None, in_name=-1):
+    def init_frame_from_fits(self, fits_path=None, in_name=-1):
         """Load the fits file from disk and get a in_name or two"""
         
         self.fits_path = fits_path or self.fits_path
@@ -417,9 +443,8 @@ class MultiImageProcessorCv(ImageProcessorCV):
         import webbrowser
         webbrowser.open('file:///' + path)
     
-    def init_plot(self):
-        self.good_frames = [x for x in self.hdu_name_list if ("lev1_" not in x)]  # TODO I removed a [1:] here, not sure what it was doing...
-        
+    def init_quad_figure(self):
+        self.good_frames = [x for x in self.hdu_name_list if ("lev1_" not in x) and ('primary' not in x)]
         use_cmap = True
         if use_cmap:
             self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
@@ -436,7 +461,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         #     repeat_frame = 0
         #
         # self.good_frames.insert(repeat_frame, self.good_frames[repeat_frame])
-        self.good_frames.pop(0)
+        # self.good_frames.pop(0)
         self.good_frames.insert(0, "jpeg")
         
         self.good_frame_stems = [x.split('(')[0] for x in self.good_frames]

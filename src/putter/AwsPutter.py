@@ -40,12 +40,20 @@ class AwsPutter(Putter):
         """uploads all imgs in input to the s3 bucket"""
         print(" V Uploading PNGs to {}...".format(bucket), flush=True)
         # sleep(0.1)
-    
+        self.empty_the_bucket()
         self.__save_times()
         self.__upload_files()
     
+    
+    def empty_the_bucket(self):
+        print(" * Emptying Bucket")
+        bucket.objects.all().delete()
+        
+    
     def get_file_list(self):
-        to_upload = self.params.local_imgs_paths()
+        # to_upload = self.params.local_imgs_paths()
+        
+        to_upload = [file for file in self.params.local_imgs_paths() if ("aH" not in file and "aL" not in file)]
         
         if self.params.do_orig and False:
             for file in os.listdir(self.params.orig_directory):
