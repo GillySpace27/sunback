@@ -31,25 +31,26 @@ plt.ioff()
 all_wavelengths = ['0193', '0211', '0131', '0335', '0094','0304','0171', ]
 do_wavelengths = all_wavelengths  # ['0211']
 do_wavelengths = ['0304']
-PNG_FRAME_NAME = 'lev1p5_q' #'SRN'
+PNG_FRAME_NAME = -1
 # wave_to_use = '0211'
 
-def run_range_multishot_movie(batch_name= "Test", wave=None, config=None, wave_to_use=None, alpha=0.35):
+def run_range_multishot_movie(batch_name= "Test2", wave=None, config=None, wave_to_use=None, alpha=0.35):
     # Set the Parameters
     p = make_params(batch_name, wave, config, wave_to_use)
     p.do_recent(False)
     p.do_prep = False # Won't do AIA prep upon download of each frame
     p.alpha=alpha
     p.destroy=True
+    # p.do_parallel=True
+    p.init_pool(10)
     # Set the Processes
-    p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
-    # p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
-    p.processors([QRNProcessor],         rp=False)  # Applies the QRN Processor
-    #
-    p.processors([AIA_PREP_Processor],         rp=True)   # Do Sunpy Things
-
-    p.processors([ImageProcessorCV],           rp=True)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
+    
+    p.fetchers(FidoFetcher,                 rp=True)  # Gets Fits FIDO
+    # p.processors([FidoTimeIntProcessor],    rp=True)   # Integrate several frames for S/N
+    p.processors([AIA_PREP_Processor],      rp=True)   # Do Sunpy Things
+    p.processors([QRNProcessor],            rp=True)  # Applies the QRN Processor
+    # p.processors([ImageProcessorCV],        rp=True)  # Makes the PNGs from Fits
+    # p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
 
     # Run the Code
     # print(p.do_one())
@@ -59,16 +60,16 @@ def make_configs(wave_to_use):
     c8 = {
         "name": "Liftoff",
         "debug": True, "do_one": wave_to_use, "stop": True, #"tend": '2013/09/30 23:59:59',
-        "tstart": '2013/09/28 00:00:10', "tend": '2013/10/01 00:00:20',
+        "tstart": '2013/09/28 00:00:10', "tend": '2013/09/28 00:00:22',
         "cadence_minutes": 10, "fps": 10, "exposure_time": 60,
         "key_fixed_cadence": 1, "key_fixed_number": None, "time_preset": "l"
     }
     c0 = {
-        "name": "Test",
+        "name": "Test2",
         "debug": True, "do_one": wave_to_use, "stop": True,
-        "tstart": "2022/01/01 00:00:00", "tend": "2022/01/3 00:00:00",
-        "cadence_minutes": 4*6*60, "fps": 1, "exposure_time": 1*60,
-        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
+        "tstart": "2022/01/01 00:00:01", "tend": "2022/01/03 00:00:00",
+        "cadence_minutes": 60, "fps": 3, "exposure_time": 12,
+        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": None
     }
     
     c1 = {

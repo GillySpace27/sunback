@@ -303,10 +303,8 @@ class ImageProcessor(Processor):
                 frame = self.maxima_scrunch(frame, num=0.95, num2=0.1)
                 # frame *= 1.05
             elif "lev1p5(primary)" in frame_name:
-                #TODO someting wavelength dependenty here, like aia prep does.
                 num = 0.88
                 num2 = 0.075
-                
                 frame = self.maxima_scrunch(frame, num=num, num2=num2)
                 # frame *= 1.05
             

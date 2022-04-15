@@ -158,9 +158,9 @@ class Runner:
         # self.params.multi_pool.close()
 
         if not self.params.stop_after_one():
-            delay = 600
-            for i in tqdm(np.arange(delay), desc=" ** Waiting for {:0.0f} seconds".format(delay)):
-                sleep(1)
+            delay = 60*60
+            for i in tqdm(np.arange(delay//10), desc=" ** Waiting for {:0.0f} seconds".format(delay)):
+                sleep(1*10)
         else:
         # for ii in range(4):
             if self.verb:

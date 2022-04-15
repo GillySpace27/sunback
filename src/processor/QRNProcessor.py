@@ -161,6 +161,8 @@ class QRNProcessor(Processor):
         self.binAbss = None
         self.norm_curve_min = None
         self.norm_curve_max = None
+        self.norm_curve_max_bottom_name = None
+        self.norm_curve_min_bottom_name = None
         
         self.vignette_mask = None
         self.frame_maximum = None
@@ -181,6 +183,7 @@ class QRNProcessor(Processor):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
             self.image_learn()
+        self.plot_full_normalization()
         return self.params.modified_image
     
     def cleanup(self):
@@ -390,7 +393,9 @@ class QRNProcessor(Processor):
         
         for binI, dat, xx, yy, ind in zip(self.binInds[::self.cut_pixels],
                                           self.params.raw_image.flatten()[::self.cut_pixels],
-                                          self.binXX[::self.cut_pixels], self.binYY[::self.cut_pixels], self.binII[::self.cut_pixels]):
+                                          self.binXX[::self.cut_pixels],
+                                          self.binYY[::self.cut_pixels],
+                                          self.binII[::self.cut_pixels]):
             # for each dat,
             
             self.radBins[binI].append(dat)
@@ -656,7 +661,7 @@ class QRNProcessor(Processor):
         ########################
         ##  Plot 0: Absolute  ##
         ########################
-        self.plot_norm_curves(fig=fig, ax=ax0, save=False)
+        # self.plot_norm_curves(fig=fig, ax=ax0, save=False)
         
         # Vertical Lines
         ax0.axvline(1)
@@ -702,6 +707,7 @@ class QRNProcessor(Processor):
         ax0.set_xlim((0, 1.85))
         
         ax0.axvline(self.vrad, ls=':', c='lightgrey')
+
         ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
                      xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
         ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.025, 0.2),

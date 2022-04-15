@@ -406,7 +406,7 @@ class SRNProcessor(Processor):
     def percentilize(self):
         """Another way of looking at the data"""
         self.do_percentile_norm()
-        # self.do_percentile_plot()
+        self.do_percentile_plot()
     
     def do_percentile_norm(self):
         # Make Percentile Image
@@ -1940,6 +1940,7 @@ class SRNSingleShotProcessor(SRNProcessor):
         self.image_plot()
         self.first = False
         self.plot_full_normalization(save=True, show=False, do=True)
+        self.percentilize()
         print(" ^ Success!\n")
         return self.params.modified_image
     

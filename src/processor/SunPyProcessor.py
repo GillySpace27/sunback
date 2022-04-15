@@ -184,18 +184,18 @@ class AIA_PREP_Processor(SunPyProcessor):
     
     def get_updated_pointing(self, a_map, one_deep=True):
         # Get the new pointing information
-        # try:
-        map_updated_pointing = update_pointing(a_map, pointing_table=self.params.pointing_table)
-        return map_updated_pointing
-        # except IndexError as e:
-        #     # If it fails
-        #     if one_deep:
-        #         # For the first time, re-prep the data
-        #         self.get_aia_prep_data(force=True)
-        #         # Return a recursion of this funtion
-        #         return self.get_updated_pointing(a_map, one_deep=False)
-        #     else:
-        #         raise e
+        try:
+            map_updated_pointing = update_pointing(a_map, pointing_table=self.params.pointing_table)
+            return map_updated_pointing
+        except IndexError as e:
+            # If it fails
+            if one_deep:
+                # For the first time, re-prep the data
+                self.get_aia_prep_data(force=True)
+                # Return a recursion of this funtion
+                return self.get_updated_pointing(a_map, one_deep=False)
+            else:
+                raise e
     
     def plot_lev1p5(self, plot_result=True):
         two_maps = [self.level_15_maps[0]]
@@ -276,8 +276,7 @@ class MSGNProcessor(SunPyProcessor):
         super().__init__(params, quick, rp, in_name)
         # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
         if MSGNProcessor.first:
-            self.in_name = "lev1p5(primary)"
-
+            self.in_name = "lev1p5(lev1p0)"
         else:
             self.in_name = "qrn(lev1p5)"
             

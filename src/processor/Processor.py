@@ -518,19 +518,19 @@ class Processor:
         
         if n_fits_path > 0:
             self.setup()
-            serial = False
-            if serial:
-                self.serial_fits_series()
+            parallel = self.params.do_parallel
+            if parallel:
+                self.parallel_fits_series()
             else:
-                self.parallel_fits_series() #TODO MAKE THIS WORK
+                self.serial_fits_series()
             self.cleanup()
         
         n_success = self.ii + 1 - self.skipped
         if n_success + self.skipped >= 1:
-            if n_success == 0:
+            if n_success <= 0:
                 print("\r X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(self.skipped))
             else:
-                print("\r ^ ^ ^Successfully {} {} Files ({} skipped) in {:0.4f} seconds\n".format(self.finished_verb, n_success, self.skipped, self.duration),
+                print("\r ^ ^ ^Successfully {} {} Files ({} skipped) in {:0.4f} seconds\n".format(self.finished_verb, max(n_success,0), self.skipped, float(self.duration)),
                       flush=True)
                 print(" ^ ---------------------------------------------------------------  ^\n")
         else:
@@ -554,6 +554,12 @@ class Processor:
                     desc=self.progress_string)
         
         # results = self.params.multi_pool.imap_unprdered(self.modify_one_fits, self.keyframes)
+        
+        try:
+            self.params.multi_pool.imap_unordered
+        except AttributeError:
+            # print("Using default number of cores")
+            self.params.init_pool()
         
         for res in self.params.multi_pool.imap_unordered(self.modify_one_fits, self.keyframes):
             pbar.update()
@@ -821,7 +827,7 @@ class Processor:
                 
                 try:
                     hdul.close(output_verify='fix')
-                    if self.params.speak_save:
+                    if self.params.speak_save and False:
                         middle = "        ** >> Saved Frame {} << **".format(field)
                         midlen = len(middle) - 14
                         print("        ** " + "V" * midlen + " **")
@@ -1294,6 +1300,9 @@ class Processor:
         self.frame_name = frame_name or self.frame_name
         if self.frame_name is None:
             return None, None
+        if self.frame_name.casefold() == 'primary':
+            self.frame_name = "LEV1P0"
+            
         try:
             field_hdu = hdul[self.frame_name]
         except KeyError as e:

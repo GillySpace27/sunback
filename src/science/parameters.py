@@ -32,6 +32,7 @@ class Parameters:
 
         # Initialize Variables
         self.multi_pool = None
+        self.do_parallel = True
         self.master_frame_list_newest = ["lev1p5", "t_int", "lev1p0", "primary"]
         self.master_frame_list_oldest = [ x for x in reversed(self.master_frame_list_newest)]
         self.short_circuit = False
@@ -184,7 +185,7 @@ class Parameters:
         return self_dict
 
     def init_pool(self, n_cores=10):
-        if self.multi_pool is None:
+        if self.multi_pool is None and self.do_parallel is True:
             print("$$$$$$$$$$$$$   Initializing Pool of {}...".format(n_cores))
             try:
                 from multiprocessing import set_start_method

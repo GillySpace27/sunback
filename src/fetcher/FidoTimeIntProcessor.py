@@ -166,13 +166,17 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.get_exposure_paths()
         # self.params.int_tm_tot = 0
         self.n_exposures = 0
-        
-        self.params.modified_image = np.zeros_like(self.params.raw_image, dtype=np.float32)
+        name = None
         exp_paths = [x for x in self.exposure_paths if not os.path.isdir(x)]
+        frameNames = self.params.master_frame_list_newest
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(exp_paths[0], frameNames, quiet=True)
+        self.params.modified_image = np.zeros_like(frame, dtype=np.float32)
+        
+
         for ii, path in enumerate(tqdm(exp_paths, desc="Summing Frames")):
             try:
                 if not os.path.isdir(path) and ".fits" in path:
-                    frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(path, "lev1p0", quiet=True)
+                    frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(path, frameNames, quiet=True)
                     self.orig_t_int = self.orig_t_int or int_time
                     self.params.modified_image += frame
                     self.params.int_tm_tot += int_time

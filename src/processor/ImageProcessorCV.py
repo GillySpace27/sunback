@@ -100,7 +100,7 @@ class ImageProcessorCV(ImageProcessor):
         # Get the Frame and Path
         self.frame_name = self.params.master_frame_list_newest
         frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
-        self.frame = np.flipud(frame)
+        self.params.raw_image = self.frame = np.flipud(frame)
 
         self.out_path = self.get_orig_path(mod='mod')
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
@@ -220,9 +220,6 @@ class ImageProcessorCV(ImageProcessor):
         
         # Get Stretch Params
         
-        
-        
-        
         # Get Frame Name
         if type(self.frame_name) is list:
             frame_name = [x for x in self.frame_name if x.casefold() in self.hdu_name_list][0]
@@ -254,7 +251,7 @@ class ImageProcessorCV(ImageProcessor):
             h_spacing = 30
             thickness = 1
             
-        h0 = 25
+        h0 = 25 * scale
         h1 = h0 + h_spacing
         h2 = h1 + h_spacing
         h3 = h2 + h_spacing
@@ -262,7 +259,7 @@ class ImageProcessorCV(ImageProcessor):
         ## APPLY LABELS
         font = 1
         wid = 18
-        rez = img.shape[0]
+        rez = img.shape[0]-25*scale
         x0  = rez - wid*len(name) - 5
         x1  = rez - wid*len(prev)
         x2  = rez - wid*len(inst) + 2
@@ -285,8 +282,8 @@ class ImageProcessorCV(ImageProcessor):
         try:
             aH = "aH: {}".format(self.params.alpha_high)
             aL = "aL: {}".format(self.params.alpha_low)
-            cv2.putText(img, aH, (0, 1000),  font, scale, (255, 255, 255), thickness)
-            cv2.putText(img, aL, (0, 1020), font, scale, (255, 255, 255), thickness)
+            cv2.putText(img, aH, (0, 1000*scale),  font, scale, (255, 255, 255), thickness)
+            cv2.putText(img, aL, (0, 1020*scale), font, scale, (255, 255, 255), thickness)
         except SystemError as e:
             print(e)
             
@@ -385,16 +382,23 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.max_width = np.max([len(x) for x in self.good_frames])
         iterable = tqdm(self.good_frames, desc="") if doBar else self.good_frames
         for self.count, frame_name in enumerate(iterable):
-            if "primary" in frame_name:
-                continue
-            if frame_name == "jpeg":
-                try:
+            if self.image_is_plottable(frame_name):
+                if frame_name == "jpeg":
                     self.plot_jpeg(fits_path, frame_name, doBar, iterable)
-                except IndexError as e:
-                    print(str(IndexError), e)
-            else:
-                self.handle_one_frame(fits_path, frame_name, doBar, iterable)
+                else:
+                    self.handle_one_frame(fits_path, frame_name, doBar, iterable)
         if doBar: iterable.set_description(" *    Plots Complete", refresh=True)
+    
+    def image_is_plottable(self, frame_name):
+        return self.doesnt_have_wrong_string(frame_name)
+        
+    @staticmethod
+    def doesnt_have_wrong_string(frame_name, wrong_string=None):
+        bads = wrong_string or ["primary", "lev1p0"]
+        for nam in bads:
+            if nam in frame_name:
+                return False
+        return True
     
     def plot_jpeg(self, fits_path, frame_name, doBar, iterable):
         import PIL
@@ -403,7 +407,12 @@ class MultiImageProcessorCv(ImageProcessorCV):
         paths = os.listdir(j_directory)
         full_paths = [os.path.join(j_directory, pat) for pat in paths]
         wavenum = int(''.join(i for i in fits_path if i.isdigit()))
-        correct = [x for x in full_paths if str(wavenum) in x][0]
+        wave_path = [x for x in full_paths if str(wavenum) in x]
+        if len(wave_path):
+            correct = wave_path[0]
+        else:
+            rr = self.params.rez
+            correct = 0.75*np.ones((rr,rr))
         image = Image.open(correct)
         # from astropy.nddata import block_reduce
         # image = block_reduce(image, self.shrink_factor/2)
@@ -444,7 +453,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         webbrowser.open('file:///' + path)
     
     def init_quad_figure(self):
-        self.good_frames = [x for x in self.hdu_name_list if ("lev1_" not in x) and ('primary' not in x)]
+        self.good_frames = [x for x in self.hdu_name_list if self.image_is_plottable(x)]
         use_cmap = True
         if use_cmap:
             self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
