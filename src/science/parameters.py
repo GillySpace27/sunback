@@ -134,7 +134,7 @@ class Parameters:
         
         self._frames_per_second = 30
         self._bpm = 70
-        self._debug_delay = 5
+        self._debug_delay = 60*6
         
         self._run_type = "web"
         self.rez = None
