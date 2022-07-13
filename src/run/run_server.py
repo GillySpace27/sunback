@@ -11,7 +11,7 @@ from science.parameters import Parameters
 from run import Runner, SingleRunner
 
 
-def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
+def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
     p = Parameters()
     p.is_debug(debug)
     p.delay_seconds(delay)
@@ -24,7 +24,7 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
     p.speak_save = False
     p.use_drive = "G"
     p.do_parallel = True
-    p.init_pool(3)
+    p.init_pool(4)
     # Run Flags
     p.download_files(True)
     p.get_fits = True
@@ -35,18 +35,18 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
 
-    p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
-    # p.processors([AIA_PREP_Processor],      rp=True   )  # Do Sunpy Things
+    # p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
     # p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
-    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     # p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
-    # p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
+    p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
     # p.putters([AwsPutter])  # Uploads the PNGs to AWS
     # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
     
 
     
+    # p.processors([AIA_PREP_Processor],      rp=True   )  # Do Sunpy Things
     # p.processors([SRNSingleShotProcessor_Legacy],            rp=True)  # Applies the Radial Filtering
     
     

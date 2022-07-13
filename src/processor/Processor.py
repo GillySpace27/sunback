@@ -887,12 +887,12 @@ class Processor:
     def rename_primary(self, fits_path):
         with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True) as hdul:
             # hdul.verify('silentfix+ignore')  # Then Verify
-            print("\nBefore")
-            [print(tt.name) for tt in hdul]
+            # print("\nBefore")
+            # [print(tt.name) for tt in hdul]
             self.rename_initial_frames(hdul)  # This might not work
-        print("After")
-        [print(tt.name) for tt in hdul]
-        print("<>")
+        # print("After")
+        # [print(tt.name) for tt in hdul]
+        # print("<>")
             # hdul.close(output_verify='fix')
     
     @staticmethod
@@ -1662,18 +1662,24 @@ class Processor:
         image = image_flat.reshape(image.shape)
         return image
     
-    def vignette(self):
+    def vignette(self, frame=None):
         """Truncate the in_object above a certain radis"""
         # if self.vignette_mask is None:
         self.init_radius_array()
+        if frame is not None:
+            frame = frame.astype(np.float16)
+            frame[self.vignette_mask] = np.nan
+            return frame
         
-        self.params.modified_image.astype(np.float16)[self.vignette_mask] = np.nan
-        self.params.raw_image.astype(np.float16)[self.vignette_mask] = np.nan
-        
-        if self.params.quantile_image is not None:
-            self.params.quantile_image[self.vignette_mask] = np.nan
-        if self.params.rbg_image is not None:
-            self.params.rbg_image[self.vignette_mask] = 1
+        else:
+            self.params.modified_image.astype(np.float16)[self.vignette_mask] = np.nan
+            self.params.raw_image.astype(np.float16)[self.vignette_mask] = np.nan
+            
+            if self.params.quantile_image is not None:
+                self.params.quantile_image[self.vignette_mask] = np.nan
+            if self.params.rbg_image is not None:
+                self.params.rbg_image[self.vignette_mask] = 1
+            return None
     
     ## Static Methods ##
     def n2r(self, n):

@@ -276,9 +276,10 @@ class MSGNProcessor(SunPyProcessor):
         super().__init__(params, quick, rp, in_name)
         # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
         if MSGNProcessor.first:
-            self.in_name = "lev1p5(lev1p0)"
+            self.in_name = "primary"  #"lev1p5(lev1p0)"
         else:
-            self.in_name = "qrn(lev1p5)"
+            self.in_name = "qrn(primary)" #"qrn(lev1p5)"
+            #TODO make sure this works the same in all versions
             
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""

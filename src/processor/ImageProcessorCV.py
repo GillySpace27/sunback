@@ -98,7 +98,7 @@ class ImageProcessorCV(ImageProcessor):
     def plot_aia_orig(self):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
-        self.frame_name = self.params.master_frame_list_newest
+        self.frame_name = self.params.master_frame_list_oldest
         frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
         self.params.raw_image = self.frame = np.flipud(frame)
 
@@ -110,7 +110,7 @@ class ImageProcessorCV(ImageProcessor):
     def plot_aia_log(self):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
-        self.frame_name = self.params.master_frame_list_newest
+        self.frame_name = self.params.master_frame_list_oldest
         frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
         
         frame = np.log10(frame)
@@ -238,33 +238,43 @@ class ImageProcessorCV(ImageProcessor):
         if self.shrink_factor == 1:
             # Rez is 4k
             scale = 4
+            siz = 4
             h_spacing = 100
             thickness = 3
+            h0 = 25 * scale
+            rez = img.shape[0]-25*scale
+            
         elif self.shrink_factor == 2:
             # rez is 2k
             scale = 3
+            siz = 2
             h_spacing = 70
             thickness = 2
+            h0 = 25 * scale
+            rez = img.shape[0]-25*scale
+            
         else:
             # rez is 1K
             scale = 2
-            h_spacing = 30
+            siz = 1
             thickness = 1
+            h_spacing = 30
+            h0 = 25
+            rez = img.shape[0]
             
-        h0 = 25 * scale
+        # Calculate Locations of Labels
         h1 = h0 + h_spacing
         h2 = h1 + h_spacing
         h3 = h2 + h_spacing
 
+        wid_of_char = 18
+        x0  = rez - wid_of_char*len(name) - 5
+        x1  = rez - wid_of_char*len(prev)
+        x2  = rez - wid_of_char*len(inst) + 2
+        x3  = rez - wid_of_char*len(wave) - 7
+        
         ## APPLY LABELS
         font = 1
-        wid = 18
-        rez = img.shape[0]-25*scale
-        x0  = rez - wid*len(name) - 5
-        x1  = rez - wid*len(prev)
-        x2  = rez - wid*len(inst) + 2
-        x3  = rez - wid*len(wave) - 7
-        
         # Right Side
         cv2.putText(img, name, (x0, h0-5), font, scale, (255, 255, 255), thickness)
         cv2.putText(img, prev, (x1, h1-5), font, scale, (255, 255, 255), thickness)
@@ -282,8 +292,8 @@ class ImageProcessorCV(ImageProcessor):
         try:
             aH = "aH: {}".format(self.params.alpha_high)
             aL = "aL: {}".format(self.params.alpha_low)
-            cv2.putText(img, aH, (0, 1000*scale),  font, scale, (255, 255, 255), thickness)
-            cv2.putText(img, aL, (0, 1020*scale), font, scale, (255, 255, 255), thickness)
+            cv2.putText(img, aH, (0, 990*siz), font, scale, (255, 255, 255), thickness)
+            cv2.putText(img, aL, (0, 1015*siz), font, scale, (255, 255, 255), thickness)
         except SystemError as e:
             print(e)
             
@@ -390,13 +400,15 @@ class MultiImageProcessorCv(ImageProcessorCV):
         if doBar: iterable.set_description(" *    Plots Complete", refresh=True)
     
     def image_is_plottable(self, frame_name):
+        # return True
         return self.doesnt_have_wrong_string(frame_name)
         
     @staticmethod
     def doesnt_have_wrong_string(frame_name, wrong_string=None):
         bads = wrong_string or ["primary", "lev1p0"]
         for nam in bads:
-            if nam in frame_name:
+            # if nam in frame_name:
+            if nam.casefold() == frame_name:
                 return False
         return True
     
@@ -438,7 +450,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.params.fits_path = self.fits_path
         
         self.params.raw_image, _, _, _, _, self.raw_name = \
-            self.load_this_fits_frame(fits_path, self.params.master_frame_list_newest)
+            self.load_this_fits_frame(fits_path, self.params.master_frame_list_oldest)
         
         self.params.modified_image, wave1, t_rec1, _, _, self.mod_name = \
             self.load_this_fits_frame(fits_path, in_name)
@@ -501,10 +513,10 @@ class MultiImageProcessorCv(ImageProcessorCV):
     
     def add_to_plot(self, frame_name_in, frame):
         # print("\r * Adding Plot  {}".format(frame_name_in))
-        if 'primary' in frame_name_in:
-            suffix = "_orig"
-        else:
-            suffix = ""
+        # if 'primary' in frame_name_in:
+        #     suffix = "_orig"
+        # else:
+        suffix = ""
         frame_name = frame_name_in + suffix
         self.last_frame_name = frame_name_in
         frame = self.frame_touchup(frame_name, frame)
@@ -513,6 +525,9 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.axArray[self.count].imshow(frame, origin="lower", vmin=vmin, vmax=vmax,
                                         cmap=self.params.cmap, interpolation="None")
         self.axArray[self.count].set_title(frame_name)
+        self.axArray[self.count].patch.set_alpha(0)
+        
+        frame = self.vignette(frame)
         self.frame_names.append(frame_name)
         self.frames.append(frame)
     
