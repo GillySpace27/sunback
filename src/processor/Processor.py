@@ -4,6 +4,8 @@ from copy import copy, deepcopy
 from datetime import datetime
 from os import listdir, getcwd, makedirs
 from os.path import join, dirname, abspath, isdir, basename
+from pickle import PicklingError
+
 import astropy.units as u
 from time import sleep, strptime, mktime
 import time
@@ -290,8 +292,8 @@ class Processor:
         frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, in_name)
         if frame is not None and self.header['IMG_TYPE'].casefold() != 'dark':
             self.params.raw_name = self.frame_name
-            self.params.raw_image = np.asarray(frame, dtype=np.float32) + 0
-            self.params.raw_image2 = np.asarray(frame, dtype=np.float32) + 0
+            self.params.raw_image = np.asarray(frame, dtype=np.float32) + 0.0
+            self.params.raw_image2 = np.asarray(frame, dtype=np.float32) + 0.0
             
             # if self.params.modified_image is None or self.params.modified_image.size==1:
             #     self.params.modified_image = copy(self.params.raw_image) + 0
@@ -525,53 +527,59 @@ class Processor:
                 self.serial_fits_series()
             self.cleanup()
         
-        n_success = self.ii + 1 - self.skipped
-        if n_success + self.skipped >= 1:
-            if n_success <= 0:
-                print("\r X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(self.skipped))
+        try:
+            n_success = self.ii + 1 - self.skipped
+            if n_success + self.skipped >= 1:
+                if n_success <= 0:
+                    print("\r X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(self.skipped))
+                else:
+                    print("\r ^ ^ ^Successfully {} {} Files ({} skipped) in {:0.4f} seconds\n".format(self.finished_verb, max(n_success, 0), self.skipped,
+                                                                                                      float(self.duration)),
+                          flush=True)
+                    print(" ^ ---------------------------------------------------------------  ^\n")
             else:
-                print("\r ^ ^ ^Successfully {} {} Files ({} skipped) in {:0.4f} seconds\n".format(self.finished_verb, max(n_success,0), self.skipped, float(self.duration)),
-                      flush=True)
-                print(" ^ ---------------------------------------------------------------  ^\n")
-        else:
-            print(" ^    No Files Found\n")
+                print(" ^    No Files Found\n")
+        except ValueError as e:
+            print(e)
     
     def serial_fits_series(self):
-        for self.ii, fits_path in enumerate(tqdm(
-                self.keyframes,
-                unit=self.progress_unit,
-                desc=self.progress_string,
-                # probesize='50M',
-        )):
-            
-            out = self.modify_one_fits(fits_path)
-            if out is None:
+        print("Running in Serial Mode...", end='', flush=True)
+        pbar = self.init_pbar_now()
+        sys.stdout.flush()
+        for self.ii, fits_path in enumerate(pbar):
+            result = self.modify_one_fits(fits_path)
+            if result is None:
                 self.skipped += 1
-        
+        print("Finished", flush=True)
+    
     def parallel_fits_series(self):
+        print("Running in Parallel Mode...", end='')
+        self.init_pool_if_needed()
+        try:
+            iter = self.params.multi_pool.imap_unordered(self.modify_one_fits, self.keyframes)
+            
+            pbar = self.init_pbar_now()
+            for self.ii, result in enumerate(iter):
+                pbar.update()
+                if result is None:
+                    self.skipped += 1
+            print("Finished", flush=True)
+        except PicklingError as e:
+            print("Parallel Run Failed: ", e)
+            self.serial_fits_series()
+    
+    def init_pbar_now(self):
         pbar = tqdm(self.keyframes,
                     unit=self.progress_unit,
                     desc=self.progress_string)
-        
-        # results = self.params.multi_pool.imap_unprdered(self.modify_one_fits, self.keyframes)
-        
+        return pbar
+    
+    def init_pool_if_needed(self):
         try:
             self.params.multi_pool.imap_unordered
         except AttributeError:
             # print("Using default number of cores")
             self.params.init_pool()
-        
-        for res in self.params.multi_pool.imap_unordered(self.modify_one_fits, self.keyframes):
-            pbar.update()
-            if res is None:
-               self.skipped += 1
-            else:
-               self.ii += 1
-               
-        # pbar.update(len(results))
-        
-        
-        
     
     @staticmethod
     def confirm_fits_file(fits_path) -> bool:
@@ -587,11 +595,11 @@ class Processor:
         self.confirm_fits_file(fits_path)
         
         # self.load()
-        
+        self.in_name = self.in_name or self.params.master_frame_list_newest
         # return True
         try:
             output = self.do_fits_function(fits_path, self.in_name)
-
+            # output=None
         except np.linalg.LinAlgError as e:
             print("Legacy_SRN_Kernal one fits :: ", e, "\n")
             output = 0.5 * np.ones_like(self.params.raw_image)
@@ -602,7 +610,7 @@ class Processor:
         except AttributeError as e:
             # print(e)
             frame = output
-
+        
         self.save_frame(frame, fits_path)
         return frame
     
@@ -610,10 +618,7 @@ class Processor:
         if frame is not None:
             if self.save_to_fits:
                 self.save_frame_to_fits_file(fits_path, frame, dtype=self.out_dtype)
-                # def save_frame_to_fits_file(fits_path, frame, out_name=None, dtype="float32"):
-        else:
-            self.ii -= 1
-            
+    
     def select_single_image(self):
         path1 = self.params.use_image_path()
         path2 = self.fits_path
@@ -720,7 +725,7 @@ class Processor:
     
     def init_image_frames(self):
         if self.params.modified_image is None:
-            self.params.modified_image = self.params.raw_image + 0
+            self.params.modified_image = np.float16(self.params.raw_image)
     
     def determine_shrink_factor(self):
         rez = self.params.rez = self.header["NAXIS1"]
@@ -788,6 +793,8 @@ class Processor:
     ## M4: Save Frame to Fits ##
     ############################
     
+
+    
     def save_frame_to_fits_file(self, fits_path, frame, out_name=None, dtype=None, shrink=True):
         """Save a fits file to disk"""
         # print("Saving Frame to Fits File")
@@ -814,7 +821,7 @@ class Processor:
             
             with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True) as hdul:
                 hdul.verify('silentfix+ignore')  # Then Verify
-                self.remove_blank_frames(hdul)  # THis might not work
+                # self.rename_initial_frames(hdul)  # THis might not work
                 
                 fit_frame = fits.ImageHDU(frame2, name=field, header=self.header)
                 
@@ -876,20 +883,55 @@ class Processor:
         if fields[0] is None:
             fields = self.load_this_fits_frame(fits_path, 1)
         return fields
+
+    def rename_primary(self, fits_path):
+        with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True) as hdul:
+            # hdul.verify('silentfix+ignore')  # Then Verify
+            print("\nBefore")
+            [print(tt.name) for tt in hdul]
+            self.rename_initial_frames(hdul)  # This might not work
+        print("After")
+        [print(tt.name) for tt in hdul]
+        print("<>")
+            # hdul.close(output_verify='fix')
     
-    def remove_blank_frames(self, hdul):
+    @staticmethod
+    def rename_initial_frames(hdul):
         # vprint("Blank Frame Ran")
-        to_replace_list = ['COMPRESSED_IMAGE', '']
-        for to_replace in to_replace_list:
+        # for ii in [0,1]:
+        #     try:
+        #         level = hdul[ii].header['LVL_NUM']
+        #         level2= hdul[ii].level
+        #         break
+        #     except:
+        #         continue
+        
+        # level_string = 'lev' + str(level).replace('.', 'p')
+        # a=1
+        for to_replace in ['COMPRESSED_IMAGE', '']: #, 'PRIMARY']:
             if to_replace in hdul:
-                names = ["lev1p0"]
-                for ii, item in enumerate(hdul):
-                    if item.name == to_replace:
-                        if len(names):
-                            item.name = names.pop(0)
-                        else:
-                            item.name = 'unknown_{}'.format(ii)
-    
+                for item in hdul:
+                    if item.name.casefold() == to_replace.casefold():
+                        newitem = item.copy()
+                        
+                        # if "PRIMARY" in to_replace:
+                        #     level = "primary"
+                        #     level_string =
+                        # else:
+                        level = item.header['LVL_NUM']
+                        level_string = 'lev' + str(level).replace('.', 'p')
+                       
+                       
+                       
+                        newitem.name = level_string
+                        hdul.append(newitem)
+                        del hdul[item.name]
+                        break
+                # break
+                        #
+                        # item.data = np.empty(0)
+                        # item.name = to_replace
+                        
     def remove_unprocessed_frames(self, fits_path=None):
         # vprint("Blank Frame Ran")
         fits_path = fits_path or self.fits_path
@@ -1152,7 +1194,7 @@ class Processor:
     
     def set_in_frame_name(self, in_name=None, fits_path=None, hdul=None):
         """Determine the right in_name given any kind of input"""
-
+        
         # Short-circuit if the input is a string
         if in_name is not None and type(in_name) in [str]:
             self.in_name = self.frame_name = in_name
@@ -1186,8 +1228,7 @@ class Processor:
         
         all_names = [self.outer(x.casefold()) for x in self.hdu_name_list if type(x) is str]
         return first_name, second_name, penultimate_name, last_name, prev_name, all_names
-        
-        
+    
     def find_correct_in_name(self, hdul, name):
         """Determine which out_array of the input file to use on redo"""
         repo = self.reprocess_mode()
@@ -1199,8 +1240,8 @@ class Processor:
         requested_output_name = self.outer(self.determine_out_frame_name())
         
         first_name, second_name, penultimate_name, \
-            last_name, prev_name, all_names = self.get_frame_names(requested_output_name)
-
+        last_name, prev_name, all_names = self.get_frame_names(requested_output_name)
+        
         sh_first_name, sh_second_name, sh_penultimate_name, \
         sh_last_name, sh_prev_name, sh_all_names = self.get_frame_names(requested_output_name, True)
         
@@ -1230,7 +1271,7 @@ class Processor:
             self.in_name = requested_input_name
         hdul.verify('silentfix+ignore')
         return self.in_name
-
+    
     def determine_in_frame_name(self, hdul, name, quiet=True):
         """Parses an input variable to determine the frame it's talking about"""
         self.frame_name = None
@@ -1241,11 +1282,11 @@ class Processor:
         
         if isinstance(name, str):
             self.frame_name = name
-            
+        
         elif isinstance(name, int):
             offset = 0 if name < len(self.hdu_name_list) else 1
             self.frame_name = self.hdu_name_list[name - offset]
-
+        
         elif isinstance(name, list):
             self.frame_name = self.pick_from_list(name, quiet)
         
@@ -1297,22 +1338,28 @@ class Processor:
     
     def open_fits_hdul(self, hdul, quiet=True, fail=False, frame_name=None):
         """Load a fits file from disk"""
+        # self.rename_initial_frames(hdul)
         self.frame_name = frame_name or self.frame_name
-        if self.frame_name is None:
-            return None, None
-        if self.frame_name.casefold() == 'primary':
-            self.frame_name = "LEV1P0"
-            
+        self.hdu_name_list = self.list_hdus(hdul)
+        
+        # if self.frame_name is None:
+        #     return None, None
+        # if self.frame_name.casefold() == 'primary':
+        #     self.frame_name = self.hdu_name_list[1]
+        
         try:
             field_hdu = hdul[self.frame_name]
         except KeyError as e:
             try:
-                field_hdu = hdul[self.in_name]
+                field_hdu = hdul[self.frame_name.split('(')[0]]
             except KeyError as e2:
-                if not quiet:
-                    print("Oh No! Can't Find {}".format(self.frame_name))
-                if fail:
-                    raise e
+                try:
+                    field_hdu = hdul[self.in_name]
+                except KeyError as e:
+                    if not quiet:
+                        print("Oh No! Can't Find {}".format(self.frame_name))
+                    if fail:
+                        raise e
                 name = self.pick_from_list(self.params.master_frame_list_newest)
                 field_hdu = hdul[name]
                 # found = False
@@ -1351,7 +1398,7 @@ class Processor:
     def list_hdus(self, hdul):
         if hdul is not None:
             hdul.verify('silentfix+ignore')  # Verify
-            self.remove_blank_frames(hdul)  # This might not work
+            self.rename_initial_frames(hdul)  # This might not work
             self.hdu_name_list = [frame.name.casefold() for frame in hdul]
             hdul.verify('silentfix+ignore')  # Verify
         return self.hdu_name_list
@@ -1368,7 +1415,6 @@ class Processor:
         self.list_hdus(hdul)
         return self.hdu_name_list[-1]
     
-
     def determine_requested_in_frame_name(self):
         # Determine the called-for input out_array NAME
         if type(self.in_name) is str:
@@ -1621,8 +1667,9 @@ class Processor:
         # if self.vignette_mask is None:
         self.init_radius_array()
         
-        self.params.modified_image[self.vignette_mask] = np.nan
-        self.params.raw_image[self.vignette_mask] = np.nan
+        self.params.modified_image.astype(np.float16)[self.vignette_mask] = np.nan
+        self.params.raw_image.astype(np.float16)[self.vignette_mask] = np.nan
+        
         if self.params.quantile_image is not None:
             self.params.quantile_image[self.vignette_mask] = np.nan
         if self.params.rbg_image is not None:

@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*4, frames=None):
+def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*1, frames=None):
     """Download a single image and time-integrate it, then apply QRN
         :type wave: strings
         :type tstart: string
@@ -31,7 +31,7 @@ def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*4,
     # Set the Processes
     get_images = True and master
     if get_images:
-        # p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
+        p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
         p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
         # p.processors([NoiseGateProcessor],     rp=True)
         p.processors([AIA_PREP_Processor],     rp=True)   # Do Sunpy Things

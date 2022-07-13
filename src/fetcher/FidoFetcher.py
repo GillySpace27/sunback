@@ -72,6 +72,9 @@ class FidoFetcher(Fetcher):
     def cleanup(self):
         # self.fido_download_fits_ensured(hold=False, temp=True)
         # self.delete_temp_folder_items(delete_folder_too=True)
+        del self.fido_search_result
+        del self.needed_files
+        del self.results
         pass
     
     def enumerate(self):
@@ -85,7 +88,7 @@ class FidoFetcher(Fetcher):
         # vprint("\r          ")
         time_integrator = type(self) is not FidoFetcher
         
-        out_string = " v Fetching Fits Files: {}  ---------------------------------------------------  v"
+        out_string = "\r v Fetching Fits Files: {}  ---------------------------------------------------  v"
         vprint(out_string.format(self.params.current_wave()), self.verb)
         
         need_file = (self.params.download_files() and not have_file)
@@ -183,7 +186,6 @@ class FidoFetcher(Fetcher):
                                    overwrite=False)
         
         self.out_path = self.params.temp_directory() if temp else self.params.fits_directory()
-        
         self.store_requests()
         
         main_stdout = sys.stdout
@@ -210,6 +212,7 @@ class FidoFetcher(Fetcher):
             # self.params.save_to_txt()
             
             sys.stdout = main_stdout
+            
             return self.results
     
     def fido_multi_download(self):
@@ -234,12 +237,15 @@ class FidoFetcher(Fetcher):
             
         start_time_list = []
         # end_time_list = []
+        if len(all_times) == 1:
+            all_times = all_times[0]
+            
         for result in all_times:
             try:
                 try:
-                    start_time_list.append(result["T_REC"][0])
-                except Exception as e:
                     start_time_list.append(result["T_REC"])
+                except Exception as e:
+                    start_time_list.append(result["T_REC"][0])
                     raise e
             except KeyError:
                 start_time_list.append(result["Start Time"].value)
@@ -280,6 +286,7 @@ class FidoFetcher(Fetcher):
     # Validation
     def validate_download(self):
         if self.params.do_prep:
+            print("prepping")
             self.params.speak_save=False
             AIA_PREP_Processor(params=self.params, rp=True).process()
 
@@ -302,7 +309,7 @@ class FidoFetcher(Fetcher):
             
             with fits.open(local_fits_path, ignore_missing_end=True) as hdul:
                 hdul.verify('silentfix+warn')
-                self.remove_blank_frames(hdul) # This might not work
+                # self.rename_initial_frames(hdul) # This might not work
                 #TEST 1 - IS IT A DARK FRAME?
                 img_type = hdul[1].header['IMG_TYPE']
                 if img_type.casefold() == 'dark'.casefold():

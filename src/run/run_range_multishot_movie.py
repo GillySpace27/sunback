@@ -30,33 +30,42 @@ plt.ioff()
 # dostring = "Beautiful 304_l"
 all_wavelengths = ['0193', '0211', '0131', '0335', '0094','0304','0171', ]
 do_wavelengths = all_wavelengths  # ['0211']
-do_wavelengths = ['0304']
+do_wavelengths = ['0193']
 PNG_FRAME_NAME = -1
 # wave_to_use = '0211'
 
-def run_range_multishot_movie(batch_name= "Test2", wave=None, config=None, wave_to_use=None, alpha=0.35):
+def run_range_multishot_movie(batch_name= "Single_Search", wave=None, config=None, wave_to_use=None, alpha=0.35):
     # Set the Parameters
     p = make_params(batch_name, wave, config, wave_to_use)
     p.do_recent(False)
     p.do_prep = False # Won't do AIA prep upon download of each frame
     p.alpha=alpha
     p.destroy=True
-    # p.do_parallel=True
-    p.init_pool(10)
+    p.do_parallel=False
+    # p.init_pool(6)
     # Set the Processes
     
     p.fetchers(FidoFetcher,                 rp=True)  # Gets Fits FIDO
-    # p.processors([FidoTimeIntProcessor],    rp=True)   # Integrate several frames for S/N
-    p.processors([AIA_PREP_Processor],      rp=True)   # Do Sunpy Things
-    p.processors([QRNProcessor],            rp=True)  # Applies the QRN Processor
-    # p.processors([ImageProcessorCV],        rp=True)  # Makes the PNGs from Fits
-    # p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
+    # p.processors([FidoTimeIntProcessor],    rp=False)   # Integrate several frames for S/N
+    # This happens in the fetcher now p.processors([AIA_PREP_Processor],      rp=False)   # Do Sunpy Things
+    # p.processors([QRNProcessor],            rp=False)  # Applies the QRN Processor
+    p.processors([ImageProcessorCV],        rp=True)  # Makes the PNGs from Fits
+    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
 
     # Run the Code
     # print(p.do_one())
     run.Runner(p).start()
 
 def make_configs(wave_to_use):
+    
+    c100 = {
+        "name": "Single_Search",
+        "debug": True, "do_one": wave_to_use, "stop": True, #"tend": '2013/09/30 23:59:59',
+        "tstart": '2022/02/15 21:00:00', "tend": '2022/02/16 00:00:00',
+        "cadence_minutes": 6, "fps": None, "exposure_time": None,
+        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
+    }
+    
     c8 = {
         "name": "Liftoff",
         "debug": True, "do_one": wave_to_use, "stop": True, #"tend": '2013/09/30 23:59:59',
@@ -68,10 +77,16 @@ def make_configs(wave_to_use):
         "name": "Test2",
         "debug": True, "do_one": wave_to_use, "stop": True,
         "tstart": "2022/01/01 00:00:01", "tend": "2022/01/03 00:00:00",
-        "cadence_minutes": 60, "fps": 3, "exposure_time": 12,
+        "cadence_minutes": 60, "fps": 12, "exposure_time": 60,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": None
     }
-    
+    c00 = {
+        "name": "Quizzical2",
+        "debug": True, "do_one": wave_to_use, "stop": True,
+        "tstart": "2022/04/01 00:00:01", "tend": "2022/04/01 03:00:00",
+        "cadence_minutes": 60, "fps": 1, "exposure_time": 24,
+        "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": None
+    }
     c1 = {
         "name": "Decadal",
         "debug": True, "do_one": wave_to_use, "stop": True,
@@ -163,6 +178,7 @@ def make_configs(wave_to_use):
     
     ConfigDict = {
         c0["name"]:   c0,
+        c00["name"]:   c00,
         c1["name"]:   c1,
         c2["name"]:   c2,
         c3["name"]:   c3,
@@ -176,6 +192,7 @@ def make_configs(wave_to_use):
         c11["name"]: c11,
         c12["name"]: c12,
         c14["name"]: c14,
+        c100["name"]: c100,
                   }
     return ConfigDict
 
@@ -201,7 +218,7 @@ def make_params(batch_name=None, wave=None, config=None, wave_to_use=None):
     p.is_debug(config["debug"])
     p.do_cat = True
     p.png_frame_name = PNG_FRAME_NAME
-    p.do_recent(True)
+    # p.do_recent(True)
     p.currently_local = True
     p.use_drive = "G"
     

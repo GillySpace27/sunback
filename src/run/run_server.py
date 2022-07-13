@@ -24,7 +24,7 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
     p.speak_save = False
     p.use_drive = "G"
     p.do_parallel = True
-    p.init_pool(10)
+    p.init_pool(3)
     # Run Flags
     p.download_files(True)
     p.get_fits = True
@@ -36,10 +36,10 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
     # # p.delete_old(True)
 
     p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
-    p.processors([AIA_PREP_Processor],           rp=True   )  # Do Sunpy Things
+    # p.processors([AIA_PREP_Processor],      rp=True   )  # Do Sunpy Things
     p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
-    p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-    p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
     p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
     p.putters([AwsPutter])  # Uploads the PNGs to AWS

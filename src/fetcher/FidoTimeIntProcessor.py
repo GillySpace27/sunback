@@ -55,6 +55,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.hold = False
         self.verb = False
         self.params.do_temp = True
+        self.params.do_parallel = False
     
     def should_get_files(self):
         return self.params.download_files() or self.reprocess_mode() or not self.verb

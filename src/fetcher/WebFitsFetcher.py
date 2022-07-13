@@ -71,18 +71,18 @@ class WebFitsFetcher(Fetcher):
             
             img_links = self.__get_fits_links(self.base_url)
             pbar_iter = tqdm(img_links, desc=" * Downloading Fits")
-            iter = pbar_iter
             if self.params.do_parallel:
                 # Run in Parallel
-                results = self.params.multi_pool.imap_unordered(self.grab, iter)
+                results = self.params.multi_pool.imap_unordered(self.grab, img_links)
             else:
                 # Run in Serial
-                results = [self.grab(path) for path in iter]
+                results = [self.grab(path) for path in pbar_iter]
             
             paths = []
             for res in results:
-                # pbar_iter.update()
                 paths.append(res)
+                self.rename_primary(res)
+                pbar_iter.update()
             
             print("\r ^  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
             return paths
@@ -92,21 +92,17 @@ class WebFitsFetcher(Fetcher):
         self.print_once = False
         self.prep_for_jpeg_fetch()
         pbar_iter = tqdm(self.j_paths, desc=" * Downloading JPEGs")
-        iter = self.j_paths
-        paths = []
         if self.params.do_parallel:
             # Run in Parallel
-            results = self.params.multi_pool.imap_unordered(self.grab_jpeg, iter)
+            results = self.params.multi_pool.imap_unordered(self.grab_jpeg, self.j_paths)
         else:
             # Run in Serial
             results = [self.grab_jpeg(j_path) for j_path in pbar_iter]
-        
+        paths = []
         for res in results:
-            pbar_iter.update()
             paths.append(res)
+            pbar_iter.update()
             sys.stderr.flush()
-        import time
-        time.sleep(0.1)
         print("\r ^  DONE!")
         
         return paths

@@ -2,7 +2,7 @@ from fetcher.FidoFetcher import FidoFetcher
 from processor.ImageProcessor import ImageProcessor
 # from processor.SRNProcessor import SRNProcessor, SRNSingleShotProcessor
 from processor.ImageProcessorCV import ImageProcessorCV
-from processor.SRNProcessor import SRNSingleShotProcessor, SRNpreProcessor, SRNradialFiltProcessor
+from processor.SRNProcessor import SRNSingleShotProcessor #, SRNpreProcessor, SRNradialFiltProcessor
 
 from processor.VideoProcessor import VideoProcessor
 from science.parameters import Parameters
@@ -25,7 +25,7 @@ def run_recent_movie(delay=10, debug=True, do_one="0211", stop=True, cadence_min
     p.is_debug(debug)
     p.do_recent(True)
     
-    p.download_files(False)
+    p.download_files(True)
     # p.overwrite_pngs(True)
     # p.delete_old(True)
     
@@ -40,7 +40,6 @@ def run_recent_movie(delay=10, debug=True, do_one="0211", stop=True, cadence_min
     # # if p.download_files():
     # p.fetchers(FidoFetcher())      # Gets Fits FIDO
     #
-    # p.processors([SRNSingleShotProcessor])
     #
     # p.putters([ImageProcessor])
     # p.putters([VideoProcessor])
@@ -49,8 +48,9 @@ def run_recent_movie(delay=10, debug=True, do_one="0211", stop=True, cadence_min
     p.fetchers(FidoFetcher, rp=None)                                     # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N
     
-    p.processors([SRNpreProcessor],     rp=True)  # Learns the bounds of the dataset for SRN
-    p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
+    p.processors([SRNSingleShotProcessor])
+    # p.processors([SRNpreProcessor],     rp=True)  # Learns the bounds of the dataset for SRN
+    # p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
     #
     p.putters([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie

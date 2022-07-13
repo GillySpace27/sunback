@@ -334,7 +334,7 @@ class ImageProcessor(Processor):
         wave = "{:04}".format(int(wave))
         
         wave_list = [{"wave": "0094", "aL": 0.50, "aH": 0.35},
-                     {"wave": "0131", "aL": 0.50, "aH": 0.20},
+                     {"wave": "0131", "aL": 0.50, "aH": 0.30},
                      {"wave": "0171", "aL": 0.50, "aH": 0.40},
                      {"wave": "0193", "aL": 0.50, "aH": 0.45},
                      {"wave": "0211", "aL": 0.50, "aH": 0.40},

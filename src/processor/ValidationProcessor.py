@@ -90,7 +90,7 @@ class ValidationProcessor(Processor):
     #
     #         with fits.open(local_fits_path, ignore_missing_end=True) as hdul:
     #             hdul.verify('silentfix+warn')
-    #             self.remove_blank_frames(hdul) # This might not work
+    #             self.rename_initial_frames(hdul) # This might not work
     #             #TEST 1 - IS IT A DARK FRAME?
     #             img_type = hdul[1].header['IMG_TYPE']
     #             if img_type.casefold() == 'dark'.casefold():

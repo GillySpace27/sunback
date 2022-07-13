@@ -488,9 +488,12 @@ class QRNProcessor(Processor):
         good_coord = [coord[x] for x in keep]
         
         if len(bin_array) > 0:
-            quantileized = stats.rankdata(bin_array, "average") / len(bin_array)
+            quantileized = self.quantile_func(bin_array)
             self.params.mod_flat[good_coord] = quantileized
 
+    def quantile_func(self, bin_array):
+        return stats.rankdata(bin_array, "average") / len(bin_array)
+    
     
     @staticmethod
     def get_bin_items(bin_list):
