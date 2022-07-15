@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*1, frames=None):
+def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*20, frames=None):
     """Download a single image and time-integrate it, then apply QRN
         :type wave: strings
         :type tstart: string
@@ -29,9 +29,9 @@ def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*1,
     master = True
     
     # Set the Processes
-    get_images = True and master
+    get_images = False and master
     if get_images:
-        p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
+        # p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
         p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
         # p.processors([NoiseGateProcessor],     rp=True)
         p.processors([AIA_PREP_Processor],     rp=True)   # Do Sunpy Things
@@ -39,18 +39,20 @@ def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*1,
     radial_norms = False and master
     if radial_norms:
         p.processors([QRNProcessor],            rp=True)  # Applies the QRN Filter
-        p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
-        p.processors([IntEnhanceProcessor],     rp=True)  # Applies the Sunpy IntEnhance Filter
+        # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
+        # p.processors([IntEnhanceProcessor],     rp=True)  # Applies the Sunpy IntEnhance Filter
     
     p.aftereffects_in_name = "qrn"
     aftereffects = False and master
     if aftereffects:
         p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
+        # p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform+
     
-    p.putters(MultiImageProcessorCv,            rp=True)  # Makes the PNGs from Fits
-    
+    use_putters = True and master
+    if use_putters:
+        p.putters(MultiImageProcessorCv,            rp=True)  # Makes the PNGs from Fits
+        
     # Run the Code
     runner = SingleRunner(p)
     runner.start()
@@ -61,7 +63,7 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
     p = Parameters()
     
     # Parse Inputs
-    p.do_one(wave, True)
+    p.do_one(wave, stop=True)
     p.set_time_range_duration(tstart)
     if frames is not None:
         duration_seconds = frames*12
@@ -73,6 +75,7 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
     p.fetchers(LocalSingleFetcher)
     # Set Flags
     p.do_single = True
+    p.doing_jpeg = False
     p.config = None
     p.destroy = False
     p.is_debug(True)
@@ -82,6 +85,7 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
     p.download_files(True)
     p.do_prep = False # Won't do AIA prep upon download of each frame
     p.use_drive = "G"
+    # p.do_one(wave, stop=True)
 
     # p.processors([FNRGFProcessor],            rp=True)  # Applies the Sunpy FNRGF Filter
     # p.processors([SRNSingleShotProcessor],           rp=True)  # Applies the SRN Filter
@@ -94,7 +98,8 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     
-    all_wavelengths = ['0304', '0171', '0211', '0193', '0131', '0335', '0094', ]
+    all_wavelengths = ['0094', '0131'] #, '0304', '0171', '0211', '0193' ]
+    # all_wavelengths = ['211', '0094', '0335']
     # all_wavelengths = ['0171', '0304'] #,  "0304"]
     
     for wave_to_use in all_wavelengths:

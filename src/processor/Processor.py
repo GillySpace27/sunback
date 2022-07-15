@@ -306,7 +306,7 @@ class Processor:
             self.params.image_data = self.image_data
             return True
         else:
-            # print("Skipped Fits!")
+            print("Skipped Fits!")
             # if img_type.casefold() == 'dark':
             #     self.delete_fits_and_png(fits_path)
             return False
@@ -620,10 +620,16 @@ class Processor:
                 self.save_frame_to_fits_file(fits_path, frame, dtype=self.out_dtype)
     
     def select_single_image(self):
+        self.load_fits_paths()
         path1 = self.params.use_image_path()
         path2 = self.fits_path
-        all_fits_paths = self.params.local_fits_paths()
-        wavestr = self.params.current_wave()[1:]
+        all_fits_paths = self.all_file_paths
+        try:
+            wavestr = self.params.current_wave()[1:]
+            if "94" in wavestr:
+                wavestr = wavestr[1:]
+        except TypeError:
+            wavestr = str(self.params.current_wave())
         wave_paths = [x for x in all_fits_paths if wavestr in x]
         if len(wave_paths) == 1:
             self.img_path = wave_paths[0]
@@ -793,7 +799,7 @@ class Processor:
     ## M4: Save Frame to Fits ##
     ############################
     
-
+    
     
     def save_frame_to_fits_file(self, fits_path, frame, out_name=None, dtype=None, shrink=True):
         """Save a fits file to disk"""
@@ -883,7 +889,7 @@ class Processor:
         if fields[0] is None:
             fields = self.load_this_fits_frame(fits_path, 1)
         return fields
-
+    
     def rename_primary(self, fits_path):
         with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True) as hdul:
             # hdul.verify('silentfix+ignore')  # Then Verify
@@ -893,7 +899,7 @@ class Processor:
         # print("After")
         # [print(tt.name) for tt in hdul]
         # print("<>")
-            # hdul.close(output_verify='fix')
+        # hdul.close(output_verify='fix')
     
     @staticmethod
     def rename_initial_frames(hdul):
@@ -920,18 +926,18 @@ class Processor:
                         # else:
                         level = item.header['LVL_NUM']
                         level_string = 'lev' + str(level).replace('.', 'p')
-                       
-                       
-                       
+                        
+                        
+                        
                         newitem.name = level_string
                         hdul.append(newitem)
                         del hdul[item.name]
                         break
                 # break
-                        #
-                        # item.data = np.empty(0)
-                        # item.name = to_replace
-                        
+                #
+                # item.data = np.empty(0)
+                # item.name = to_replace
+    
     def remove_unprocessed_frames(self, fits_path=None):
         # vprint("Blank Frame Ran")
         fits_path = fits_path or self.fits_path
@@ -1268,7 +1274,7 @@ class Processor:
             else:
                 raise NotImplementedError
         else:
-            self.in_name = requested_input_name
+            self.in_name = requested_input_name or self.in_name
         hdul.verify('silentfix+ignore')
         return self.in_name
     
@@ -1341,11 +1347,13 @@ class Processor:
         # self.rename_initial_frames(hdul)
         self.frame_name = frame_name or self.frame_name
         self.hdu_name_list = self.list_hdus(hdul)
-        
+        if self.frame_name is None:
+            print('asdf')
         # if self.frame_name is None:
         #     return None, None
         # if self.frame_name.casefold() == 'primary':
         #     self.frame_name = self.hdu_name_list[1]
+        name = self.pick_from_list(self.params.master_frame_list_newest)
         
         try:
             field_hdu = hdul[self.frame_name]
@@ -1360,7 +1368,6 @@ class Processor:
                         print("Oh No! Can't Find {}".format(self.frame_name))
                     if fail:
                         raise e
-                name = self.pick_from_list(self.params.master_frame_list_newest)
                 field_hdu = hdul[name]
                 # found = False
                 # for name in self.params.master_frame_list_newest:
@@ -1380,7 +1387,9 @@ class Processor:
         data = None
         header = None
         field_hdu = None or field_hdu
-        
+        if field_hdu.data is None:
+            if name == "primary":
+                field_hdu = hdul['lev1p0']
         try:
             data = field_hdu.data + 0
             header = hdul[1].header

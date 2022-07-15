@@ -292,8 +292,8 @@ class ImageProcessor(Processor):
         for name in ["lev1p5", "_mod", "nrgf"]:  # , "int_enhance"]:
             if name in frame_name2:
                 frame = self.power_mod(frame)
-                break
-                
+
+        
         # Maxima Stretching
         do_maxima_scrunch = True
         if do_maxima_scrunch:
@@ -302,11 +302,17 @@ class ImageProcessor(Processor):
             elif "msgn(qrn)" in frame_name:
                 frame = self.maxima_scrunch(frame, num=0.95, num2=0.1)
                 # frame *= 1.05
-            elif "lev1p5(primary)" in frame_name:
-                num = 0.88
-                num2 = 0.075
-                frame = self.maxima_scrunch(frame, num=num, num2=num2)
-                # frame *= 1.05
+            elif "lev1p5" in frame_name:
+                if self.params.current_wave() in ['94', '0094', '0131', '131']:
+                    frame = np.sqrt(np.abs(frame))
+                    frame = self.maxima_scrunch(frame, num=np.nanmin(frame.flatten()), num2=np.nanmax(frame.flatten()))
+                    
+                    pass
+                else:
+                    num = 0.88
+                    num2 = 0.075
+                    frame = self.maxima_scrunch(frame, num=num, num2=num2)
+                    # frame *= 1.05
             
             else:
                 frame = self.maxima_scrunch(frame)

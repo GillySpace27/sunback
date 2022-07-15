@@ -1,5 +1,7 @@
 import sys
 import os
+
+from astropy.io import fits
 from numpy import where, power
 import numpy as np
 
@@ -56,16 +58,22 @@ class LocalSingleFetcher(Fetcher):
         print(" v Loading Local File...")
         self.duration = ''
         self.load(params)
-        self.determine_image_path()
-        for self.params.hdu_name in self.params.list_of_default_hdus:
-            try:
-                self.load_fits_image(self.params.use_image_path(), self.params.hdu_name)
-                print(" *   Loaded the '{}' HDU from".format(self.params.hdu_name))
-                print(" *     ", path.basename(self.params.use_image_path()))
-                print(" *    in\n *     ", path.dirname(self.params.use_image_path()))
-                print(" ^ Success!")
-                break
-            except Exception as e:
+        fits_path = self.determine_image_path()
+        hdul = fits.open(fits_path, cache=False, ignore_missing_end=True)
+        self.list_hdus(hdul)
+        
+        for self.params.hdu_name in self.params.master_frame_list_newest:
+
+            if self.params.hdu_name in self.hdu_name_list:
+                try:
+                    self.load_fits_image(self.params.use_image_path(), self.params.hdu_name)
+                    print(" *   Loaded the '{}' HDU from".format(self.params.hdu_name))
+                    print(" *     ", path.basename(self.params.use_image_path()))
+                    print(" *    in\n *     ", path.dirname(self.params.use_image_path()))
+                    print(" ^ Success!")
+                    break
+                except KeyError as e:
+                    continue
                 print("LocalSingleFetcher")
                 raise e
                 

@@ -403,7 +403,7 @@ class _IDs(object):
     """
     Convert IDs to string; used for debugging
     """
-    rv = "Current count: %d\nTranslation:\n" % self._next_id
+    rv = "Current count_frames: %d\nTranslation:\n" % self._next_id
     for k in sorted(self._translation):
       rv += "  %d -> %s\n" % (k, self._translation[k])
 
@@ -1493,7 +1493,7 @@ class GitUtils(object):
     """
     Return the number of objects (both packed and unpacked)
     """
-    p1 = subproc.Popen(["git", "count-objects", "-v"],
+    p1 = subproc.Popen(["git", "count_frames-objects", "-v"],
                           stdout=subprocess.PIPE, cwd=repo)
     lines = p1.stdout.read().splitlines()
     # Return unpacked objects + packed-objects
@@ -2809,10 +2809,10 @@ class RepoFilter(object):
           "To override, use --force.") % reason)
 
     # Make sure repo is fully packed, just like a fresh clone would be
-    output = subproc.check_output('git count-objects -v'.split())
+    output = subproc.check_output('git count_frames-objects -v'.split())
     stats = dict(x.split(b': ') for x in output.splitlines())
     num_packs = int(stats[b'packs'])
-    if stats[b'count'] != b'0' or num_packs > 1:
+    if stats[b'count_frames'] != b'0' or num_packs > 1:
       abort(_("expected freshly packed repo"))
 
     # Make sure there is precisely one remote, named "origin"...or that this

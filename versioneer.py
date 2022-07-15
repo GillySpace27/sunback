@@ -713,7 +713,7 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
     else:
         # HEX: no tags
         pieces["closest-tag"] = None
-        count_out, rc = run_command(GITS, ["rev-list", "HEAD", "--count"],
+        count_out, rc = run_command(GITS, ["rev-list", "HEAD", "--count_frames"],
                                     cwd=root)
         pieces["distance"] = int(count_out)  # total number of commits
 
@@ -1105,7 +1105,7 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
     else:
         # HEX: no tags
         pieces["closest-tag"] = None
-        count_out, rc = run_command(GITS, ["rev-list", "HEAD", "--count"],
+        count_out, rc = run_command(GITS, ["rev-list", "HEAD", "--count_frames"],
                                     cwd=root)
         pieces["distance"] = int(count_out)  # total number of commits
 

@@ -367,7 +367,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.n_cols = None
         self.n_rows = None
         self.init = False
-        self.count = 1
+        self.count_frames = 0
         self.frame_names = []
         self.frames = []
         self.good_frames = []
@@ -391,12 +391,14 @@ class MultiImageProcessorCv(ImageProcessorCV):
     def collect_frames(self, fits_path, doBar):
         self.max_width = np.max([len(x) for x in self.good_frames])
         iterable = tqdm(self.good_frames, desc="") if doBar else self.good_frames
-        for self.count, frame_name in enumerate(iterable):
+        for frame_name in reversed(iterable):
             if self.image_is_plottable(frame_name):
                 if frame_name == "jpeg":
                     self.plot_jpeg(fits_path, frame_name, doBar, iterable)
                 else:
                     self.handle_one_frame(fits_path, frame_name, doBar, iterable)
+                self.count_frames += 1
+                
         if doBar: iterable.set_description(" *    Plots Complete", refresh=True)
     
     def image_is_plottable(self, frame_name):
@@ -405,7 +407,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         
     @staticmethod
     def doesnt_have_wrong_string(frame_name, wrong_string=None):
-        bads = wrong_string or ["primary", "lev1p0"]
+        bads = wrong_string or ["primary", "lev1p0", "t_int(lev1p0)", "t_int(primary)", "lev1p5(lev1p0)"]
         for nam in bads:
             # if nam in frame_name:
             if nam.casefold() == frame_name:
@@ -416,7 +418,13 @@ class MultiImageProcessorCv(ImageProcessorCV):
         import PIL
         from PIL import Image
         j_directory = os.path.join(self.params.imgs_top_directory(), "jpeg")
-        paths = os.listdir(j_directory)
+        try:
+            paths = os.listdir(j_directory)
+        except FileNotFoundError as e:
+            print("No JPEG Image Found")
+            self.params.doing_jpeg = False
+            return
+            # paths = []
         full_paths = [os.path.join(j_directory, pat) for pat in paths]
         wavenum = int(''.join(i for i in fits_path if i.isdigit()))
         wave_path = [x for x in full_paths if str(wavenum) in x]
@@ -483,13 +491,15 @@ class MultiImageProcessorCv(ImageProcessorCV):
         #
         # self.good_frames.insert(repeat_frame, self.good_frames[repeat_frame])
         # self.good_frames.pop(0)
-        self.good_frames.insert(0, "jpeg")
+        self.params.doing_jpeg = self.params.doing_jpeg
+        if self.params.doing_jpeg:
+            self.good_frames.insert(0, "jpeg")
         
         self.good_frame_stems = [x.split('(')[0] for x in self.good_frames]
         
         self.n_plots = len(self.good_frames)
-        self.n_rows = 2
-        self.n_cols = max((self.n_plots // self.n_rows, 1))
+        self.n_rows = 2 if self.n_plots > 2 else 1
+        self.n_cols = max((self.n_plots // self.n_rows, 1)) if self.n_plots > 2 else 2
         self.n_slots = self.n_rows * self.n_cols
         while self.n_slots < self.n_plots:
             self.n_cols += 1
@@ -505,7 +515,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.fig.suptitle("{}  at  {}".format(self.wave, t_rec))
         self.axArray = self.axArray.flatten()
         
-        blank = np.zeros_like(self.params.raw_image)
+        blank = np.zeros_like(self.params.modified_image)
         
         for ax in self.axArray:
             ax.imshow(blank, interpolation="None")
@@ -522,10 +532,10 @@ class MultiImageProcessorCv(ImageProcessorCV):
         frame = self.frame_touchup(frame_name, frame)
         vmin = None if self.dont_vminmax else 0.
         vmax = None if self.dont_vminmax else 1.
-        self.axArray[self.count].imshow(frame, origin="lower", vmin=vmin, vmax=vmax,
-                                        cmap=self.params.cmap, interpolation="None")
-        self.axArray[self.count].set_title(frame_name)
-        self.axArray[self.count].patch.set_alpha(0)
+        self.axArray[self.count_frames].imshow(frame, origin="lower", vmin=vmin, vmax=vmax,
+                                               cmap=self.params.cmap, interpolation="None")
+        self.axArray[self.count_frames].set_title(frame_name)
+        self.axArray[self.count_frames].patch.set_alpha(0)
         
         frame = self.vignette(frame)
         self.frame_names.append(frame_name)
@@ -571,7 +581,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         # print("Done - Files Saved in {}".format(self.params.imgs_top_directory()))
     
     def reinit_constants(self):
-        self.count = 1
+        self.count_frames = 0
         self.last_frame_name = None
         plt.close(self.fig)
     

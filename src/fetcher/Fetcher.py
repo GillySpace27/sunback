@@ -53,7 +53,7 @@ class Fetcher(Processor):
                 # Do Stuff
                 possible = [fits_files[x] for x in locs]
                 wave = self.params.current_wave()
-                if wave[0] == "0":
+                while wave[0] == "0":
                     wave=wave[1:]
                 right_wave = [wave in x for x in possible]
                 loc2 = np.where(right_wave)[0]
