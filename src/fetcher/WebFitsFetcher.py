@@ -45,6 +45,7 @@ class WebFitsFetcher(Fetcher):
             return jpaths
         else:
             print("Skipping download!")
+        self.toc()
         return self.params.local_fits_paths()
     
     def prep_for_jpeg_fetch(self):
@@ -77,12 +78,10 @@ class WebFitsFetcher(Fetcher):
             else:
                 # Run in Serial
                 results = [self.grab(path) for path in pbar_iter]
-            
             paths = []
             for res in results:
                 paths.append(res)
-                self.rename_primary(res)
-                pbar_iter.update()
+                self.rename_start_frames(res)
             
             print("\r ^  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
             return paths
@@ -103,8 +102,8 @@ class WebFitsFetcher(Fetcher):
             paths.append(res)
             pbar_iter.update()
             sys.stderr.flush()
-        print("\r ^  DONE!")
-        
+        # print("\r ^  DONE!")
+        self.params.got_JPEG = True
         return paths
     
     def grab_jpeg(self, link):

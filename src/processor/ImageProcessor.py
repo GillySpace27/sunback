@@ -21,7 +21,7 @@ from utils.stretch_intensity_module import norm_stretch
 class ImageProcessor(Processor):
     filt_name = 'Image Writer'
     out_name = ""
-    save_to_fits = False
+    save_to_fits = True
     wave = None
     # progress_stem = "    Exporting Pngs {}"
     progress_text = ""
@@ -52,6 +52,8 @@ class ImageProcessor(Processor):
         self.skipped = 0
         self.frame = None
         self.load_curves()
+        self.save_to_fits = True
+        
         
         try:
             pass
@@ -259,7 +261,7 @@ class ImageProcessor(Processor):
     
     def frame_touchup(self, frame_name, frame):
         # print("Touchup on {}".format(frame_name))
-        
+        # print("I RAN on {}, {}".format(frame_name, self.params.current_wave()))
         # maxmax = np.nanpercentile(frame, 99)
         # minmin = np.nanpercentile(frame, 1)
         # themax = np.nanmax(frame)

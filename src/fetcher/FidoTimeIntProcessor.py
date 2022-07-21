@@ -89,7 +89,8 @@ class FidoTimeIntProcessor(FidoFetcher):
         if self.should_do_exposure(fits_path):
             # self.params.do_temp = True
             # Get the Images
-            self.gather_subframes(fits_path)
+            if self.params.download_files():
+                self.gather_subframes(fits_path)
             # Sum them
             if not self.hold:
                 self.sum_subframes()

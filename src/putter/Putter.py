@@ -14,6 +14,7 @@ class Putter(Processor):
     
     def process(self, params=None):
         self.put(params)
+        self.toc()
         
     def sleep_until_delay_elapsed(self):
         """ Make sure that the loop takes the right amount of time """

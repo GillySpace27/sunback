@@ -14,8 +14,9 @@ import matplotlib.pyplot as plt
 
 plt.ioff()
 
-
-def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*20, frames=None):
+# My favorite prominance: "2013-09-29T13:35:00"
+# Awesome Plumes: "2019-01-01T00:00:00"
+def run_single(wave="0304", tstart="2019-01-01T00:00:00", duration_seconds=60*20, frames=None):
     """Download a single image and time-integrate it, then apply QRN
         :type wave: strings
         :type tstart: string
@@ -26,28 +27,36 @@ def run_single(wave="0304", tstart="2013-09-29T13:35:00", duration_seconds=60*20
     name = "Single_Test"
     p = default_run_single_params(wave, tstart, duration_seconds, frames, name)
     
+    p.download_files(False)
+    # p.multiplot_all = True
     master = True
     
     # Set the Processes
     get_images = False and master
     if get_images:
-        # p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
+        pass
+        p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
         p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
         # p.processors([NoiseGateProcessor],     rp=True)
         p.processors([AIA_PREP_Processor],     rp=True)   # Do Sunpy Things
     
+    p.png_frame_name = "qrn" ## I want to be able to call final, but it is made in the processor that save images, so I have to split it out into the touchup processor.
     radial_norms = False and master
     if radial_norms:
-        p.processors([QRNProcessor],            rp=True)  # Applies the QRN Filter
+        pass
+        # p.processors([QRNProcessor],            rp=True)  # Applies the QRN Filter
         # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
         # p.processors([IntEnhanceProcessor],     rp=True)  # Applies the Sunpy IntEnhance Filter
+        p.processors([ImageProcessorCV])
     
-    p.aftereffects_in_name = "qrn"
-    aftereffects = False and master
+    p.aftereffects_in_name = ["final","lev1p5",]
+    aftereffects = True and master
     if aftereffects:
-        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        # p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform+
+        pass
+        # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        p.processors([RHTProcessor],            rp='redo')  # Applies the Rolling Hough Transform+
+        p.processors([RHTProcessor],            rp="redo")  # Applies the Rolling Hough Transform+
     
     use_putters = True and master
     if use_putters:
@@ -98,8 +107,8 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     
-    all_wavelengths = ['0094', '0131'] #, '0304', '0171', '0211', '0193' ]
-    # all_wavelengths = ['211', '0094', '0335']
+    all_wavelengths = ['0171']  # , '0304', ]  #, '0211', '0193' ]
+    # all_wavelengths = ['211', '0094', '0335'] ['0094', '0131'] #,
     # all_wavelengths = ['0171', '0304'] #,  "0304"]
     
     for wave_to_use in all_wavelengths:

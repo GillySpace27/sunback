@@ -59,6 +59,8 @@ class Parameters:
         self.selection = None
         self.paper_out = []
         self.png_frame_name = None
+        self.multiplot_all = False
+        
         self.int_tm_tot = 0
         self.do_temp = False
         self.do_prep = False
@@ -158,6 +160,7 @@ class Parameters:
         self.alpha_high = 0.35
         self.do_cat = False
         self.do_single = False
+        self.got_JPEG = False
         
         self._fetchers = [LocalFetcher]
         self._processors = []
@@ -173,9 +176,16 @@ class Parameters:
         
         # self.multi_pool = self.init_pool(self.n_pool)
         
+        self._msgn_targets = ['primary', 'qrn(primary)']
         
         # self.set_default_values()
 
+    def msgn_targets(self, _targets=None):
+        if _targets is not None:
+            assert type(_targets) in [tuple, list]
+            self._msgn_targets = _targets
+        return self._msgn_targets
+    
     def __getstate__(self):
         self_dict = self.__dict__.copy()
         try:

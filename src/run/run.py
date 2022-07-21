@@ -121,27 +121,30 @@ class Runner:
         print("\n", self.wall_1, "\n\n")
     
     def print_plan(self, end=False):
-        print("     Run Name: {}".format(self.params.batch_name()))
-        print("     Run Type: {}\n".format(self.params.run_type()))
+
         if end:
             print("   Summery of Job:")
         else:
             print("   Here's the Plan:")
+            
+        durList = self.params.durList
         if len(self.params.fetchers()) > 0:
             for fet in self.params.fetchers():
-                fet.plan(fet, end=end)
+                fet.plan(fet, durList=durList)
         
         if len(self.params.processors()) > 0:
             for proc in self.params.processors():
-                proc.plan(proc, end=end)
+                proc.plan(proc, durList=durList)
         
         if len(self.params.putters()) > 0:
             for put in self.params.putters():
-                put.plan(put, end=end)
+                put.plan(put, durList=durList)
         
         print("   And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
         # print("\n")
-    
+        print(" Run Name: {}".format(self.params.batch_name()))
+        print(" Run Type: {}\n".format(self.params.run_type()))
+        
     def print_end_banner(self):
         mode_string = "" if self.params.stop_after_one() else ", Restarting Loop"
         print("\n" + self.wall_2)
@@ -150,7 +153,7 @@ class Runner:
         self.start_timestamp = time()
         print("Ended  at  {}".format(asctime(localtime(self.start_timestamp))))
         minutes = int(np.floor(self.elapsed / 60))
-        seconds = int(self.elapsed - minutes * 60)
+        seconds = round(self.elapsed - minutes * 60, 3)
         print("  Program Complete in {} minutes and {} seconds. {}".format(minutes, seconds, mode_string))
         self.print_plan(end=True)
         print(self.wall_2 + "\n")

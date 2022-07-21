@@ -43,6 +43,7 @@ class AwsPutter(Putter):
         self.empty_the_bucket()
         self.__save_times()
         self.__upload_files()
+        self.toc()
     
     
     def empty_the_bucket(self):
@@ -63,18 +64,29 @@ class AwsPutter(Putter):
             comp_dir = self.params.orig_directory.replace('orig', 'compare')
             for file in os.listdir(comp_dir):
                 to_upload.append(os.path.join(comp_dir, file))
-        
-        pbar = tqdm(to_upload, desc=" * Uploading Files...")
+        print(" V Uploading Files")
+        pbar = tqdm(to_upload, desc="\r * Uploading Files")
         return to_upload, pbar
     
     def __upload_files(self):
     
         to_upload, pbar = self.get_file_list()
-        results = self.params.multi_pool.imap(self.do_upload, to_upload)
-        for res in results:
-            pbar.update()
+        if self.params.multi_pool is not None:
+            results = self.params.multi_pool.imap(self.do_upload, to_upload)
+            for res in results:
+                pbar.update()
+        else:
+            self.upload_serial()
+
     
         print("\r ^ Success! Uploaded {} PNGs\n".format(len(self.params.local_imgs_paths())))
+
+    def upload_serial(self):
+        to_upload, pbar = self.get_file_list()
+        
+        for upload in to_upload:
+            self.do_upload(upload)
+            pbar.update()
 
     @staticmethod
     def do_upload(root_path):

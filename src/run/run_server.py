@@ -19,29 +19,30 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
     # p.stop_after_one(True)
     p.batch_name("background_server")
     p.run_type("Web Server Daemon")
-    p.png_frame_name = ['QRN', "lev1p5"]
     p.do_orig = True
     p.speak_save = False
     p.use_drive = "G"
-    p.do_parallel = True
+    p.do_parallel = False
     p.init_pool(4)
     # Run Flags
     p.download_files(True)
     p.get_fits = True
+    p.multiplot_all = False
     # p.set_waves_to_do('0171')
     p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
     # p.overwrite_pngs(True)
     # p.write_video(False)
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
-
-    # p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
-    # p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
-    # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-    # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-    # p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
+    p.png_frame_name = ['QRN', "lev1p5"]
+    p.msgn_targets(['primary', 'qrn(primary)'])
+    p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
+    p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
+    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
     p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
-    # p.putters([AwsPutter])  # Uploads the PNGs to AWS
+    p.putters([AwsPutter])  # Uploads the PNGs to AWS
     # p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
     
 

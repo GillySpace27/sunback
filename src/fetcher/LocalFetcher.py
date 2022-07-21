@@ -35,7 +35,6 @@ class LocalFetcher(Fetcher):
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
         
-    
     def fetch(self, params=None):
         print(" v Loading Local Files...")
         self.load(params)
@@ -49,6 +48,7 @@ class LocalFetcher(Fetcher):
             print("Fits: ", self.params.fits_directory())
             
             sys.exit(1)
+        self.toc()
 
 class LocalSingleFetcher(Fetcher):
     description = "Load the image_path from Disk"
@@ -59,7 +59,11 @@ class LocalSingleFetcher(Fetcher):
         self.duration = ''
         self.load(params)
         fits_path = self.determine_image_path()
-        hdul = fits.open(fits_path, cache=False, ignore_missing_end=True)
+        try:
+            hdul = fits.open(fits_path, cache=False, ignore_missing_end=True)
+        except ValueError as e:
+            print("No Local File Found!")
+            raise e
         self.list_hdus(hdul)
         
         for self.params.hdu_name in self.params.master_frame_list_newest:
@@ -67,7 +71,8 @@ class LocalSingleFetcher(Fetcher):
             if self.params.hdu_name in self.hdu_name_list:
                 try:
                     self.load_fits_image(self.params.use_image_path(), self.params.hdu_name)
-                    print(" *   Loaded the '{}' HDU from".format(self.params.hdu_name))
+                    # print(" *   Loaded the '{}' HDU from".format(self.params.hdu_name))
+                    print(" *   Loaded".format(self.params.hdu_name))
                     print(" *     ", path.basename(self.params.use_image_path()))
                     print(" *    in\n *     ", path.dirname(self.params.use_image_path()))
                     print(" ^ Success!")
@@ -76,6 +81,7 @@ class LocalSingleFetcher(Fetcher):
                     continue
                 print("LocalSingleFetcher")
                 raise e
+        self.toc()
                 
                 # self.view_raw()
 

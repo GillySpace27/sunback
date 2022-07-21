@@ -143,6 +143,7 @@ class AIA_PREP_Processor(SunPyProcessor):
             out = map_normalized if doNorm else map_degraded
             # map_double_normed = map_normalized / np.nanmax(map_normalized.data)
             # out = map_double_normed if 'q' in self.out_name.casefold() else map_degradation
+            
             self.level_15_maps.append(out)
             
         done_map = self.level_15_maps[0]
@@ -275,11 +276,13 @@ class MSGNProcessor(SunPyProcessor):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
         # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
-        if MSGNProcessor.first:
-            self.in_name = "primary"  #"lev1p5(lev1p0)"
-        else:
-            self.in_name = "qrn(primary)" #"qrn(lev1p5)"
-            #TODO make sure this works the same in all versions
+        self.in_name = self.params.msgn_targets().pop(0)
+        print(" --- Running MSGN on {} ---".format(self.in_name))
+        # if MSGNProcessor.first:
+        #     self.in_name = "primary"  #"lev1p5(lev1p0)"
+        # else:
+        #     self.in_name = "qrn(primary)" #"qrn(lev1p5)"
+        #     #TODO make sure this works the same in all versions
             
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""

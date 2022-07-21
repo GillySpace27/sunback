@@ -9,6 +9,7 @@ class NullPutter(Putter):
         self.load(params)
         # n_files = len(self.params.local_imgs_paths()) + len(self.params.local_fits_paths())
         print(" {}\n".format(self.params.base_directory()))
+        self.toc()
         # print("   No Output Selected\n")
         
         

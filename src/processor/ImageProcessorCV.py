@@ -14,11 +14,24 @@ from science.color_tables import aia_color_table
 from utils.stretch_intensity_module import norm_stretch
 
 
+
+"""This class holds the code for the Quantile Radial Norm Processor"""
+name = filt_name = "Quantile Norm"
+description = "Apply the single-shot Quantile Norm to images"
+progress_verb = 'Filtering'
+finished_verb = "Radially Filtered"
+out_name = "QRN"
+
+
+
+
 class ImageProcessorCV(ImageProcessor):
     filt_name = 'CV Image Writer'
     description = "Turn all the fits files into png files"
     progress_verb = "Writing"
     progress_unit = "Images"
+    finished_verb = "Written to Disk"
+    out_name = "FINAL"
     
     frame_name = None
     img_frame = None
@@ -34,6 +47,8 @@ class ImageProcessorCV(ImageProcessor):
         """ Main Call on the Fits Path """
         self.init_frame(fits_path, self.params.png_frame_name)
         self.render_all(reference=True)
+        self.toc()
+     
         return self
     
     # def do_img_function(self):
@@ -126,6 +141,7 @@ class ImageProcessorCV(ImageProcessor):
         self.vignette()
         self.prep_save()
         self.img_save(self.out_path)
+        
 
     #     """Plot the modified_image data from AIA"""
     #     # Get the Frame and Path
@@ -155,6 +171,8 @@ class ImageProcessorCV(ImageProcessor):
         # print("Saving to {}".format(self.out_path))
         
         self.do_save()
+        self.save_frame(self.frame, self.fits_path)
+        
 
     
     # def plot_aia_changed(self):
@@ -380,18 +398,20 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.init_frame_from_fits(fits_path)
         self.init_quad_figure()
         self.init_radius_array()
+        
         self.collect_frames(fits_path, doBar)
+        
         self.finalize_and_save_plots()
         self.reinit_constants()
         
-        # self.toc()
+        self.toc()
         # self.open_folder(self.main_save_path)
         return None
 
     def collect_frames(self, fits_path, doBar):
         self.max_width = np.max([len(x) for x in self.good_frames])
         iterable = tqdm(self.good_frames, desc="") if doBar else self.good_frames
-        for frame_name in reversed(iterable):
+        for frame_name in iterable:
             if self.image_is_plottable(frame_name):
                 if frame_name == "jpeg":
                     self.plot_jpeg(fits_path, frame_name, doBar, iterable)
@@ -403,11 +423,28 @@ class MultiImageProcessorCv(ImageProcessorCV):
     
     def image_is_plottable(self, frame_name):
         # return True
-        return self.doesnt_have_wrong_string(frame_name)
+        # return self.doesnt_have_wrong_string(frame_name)
+        return self.does_have_right_string(frame_name)
         
-    @staticmethod
-    def doesnt_have_wrong_string(frame_name, wrong_string=None):
-        bads = wrong_string or ["primary", "lev1p0", "t_int(lev1p0)", "t_int(primary)", "lev1p5(lev1p0)"]
+    
+    def does_have_right_string(self, frame_name, right_string=None):
+        
+        right_string = right_string or ["lev1p5(t_int)", "final(qrn)", "rht(lev1p5)", "rht(final)"]
+        
+        for goods in right_string:
+            if frame_name.casefold() == goods:
+                return True
+        return False
+        
+        
+    def doesnt_have_wrong_string(self, frame_name, wrong_string=None):
+        bads = wrong_string or ["lev1p0", "t_int(lev1p0)", "t_int(primary)", "lev1p5(lev1p0)"]
+        if True:
+            bads.append("primary")
+        
+        if self.params.multiplot_all:
+            bads = []
+            
         for nam in bads:
             # if nam in frame_name:
             if nam.casefold() == frame_name:
@@ -438,7 +475,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         # image = block_reduce(image, self.shrink_factor/2)
         # image=  image.rotate(180)
         image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
-        ax = self.axArray[0]
+        ax = self.axArray[self.count_frames]
         ax.imshow(image, origin='lower', interpolation="None")
         ax.set_title('"The Sun Today"')
         
@@ -448,7 +485,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
     def handle_one_frame(self, fits_path, frame_name, doBar, iterable):
         if doBar: iterable.set_description(" *     Plotting {}".format(frame_name.ljust(self.max_width)), refresh=True)
         frame1, wave1, t_rec1, center1, int_time, name = self.load_this_fits_frame(fits_path, frame_name)
-        frame1[self.vignette_mask] = np.nan
+        # frame1[self.vignette_mask] = np.nan
         self.add_to_plot(name, frame1)
     
     def init_frame_from_fits(self, fits_path=None, in_name=-1):
@@ -529,7 +566,15 @@ class MultiImageProcessorCv(ImageProcessorCV):
         suffix = ""
         frame_name = frame_name_in + suffix
         self.last_frame_name = frame_name_in
+        
+        
+        
+        
         frame = self.frame_touchup(frame_name, frame)
+        
+        
+        
+        
         vmin = None if self.dont_vminmax else 0.
         vmax = None if self.dont_vminmax else 1.
         self.axArray[self.count_frames].imshow(frame, origin="lower", vmin=vmin, vmax=vmax,
