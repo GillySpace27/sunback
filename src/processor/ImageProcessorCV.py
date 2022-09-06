@@ -42,12 +42,13 @@ class ImageProcessorCV(ImageProcessor):
         self.shrink_factor = 1
         super().__init__(params, quick, rp)
         self.frame_name = self.params.png_frame_name
+        self.save_to_fits = False
+        
     
     def do_fits_function(self, fits_path, in_name=None):
         """ Main Call on the Fits Path """
         self.init_frame(fits_path, self.params.png_frame_name)
         self.render_all(reference=True)
-        self.toc()
      
         return self
     
@@ -113,13 +114,14 @@ class ImageProcessorCV(ImageProcessor):
     def plot_aia_orig(self):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
-        self.frame_name = self.params.master_frame_list_oldest
-        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
-        self.params.raw_image = self.frame = np.flipud(frame)
-
-        self.out_path = self.get_orig_path(mod='mod')
-        os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
-        
+        if True: #self.params.raw_image is None:
+            self.frame_name = self.params.master_frame_list_oldest
+            frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
+            self.params.raw_image = self.frame = np.flipud(frame)
+    
+            self.out_path = self.get_orig_path(mod='orig')
+            os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
+        # self.out_path = self.params.orig_path
         self.do_save()
 
     def plot_aia_log(self):
@@ -162,12 +164,15 @@ class ImageProcessorCV(ImageProcessor):
         # self.frame_name = "t_int"
         self.frame_name = self.params.png_frame_name  # .hdu_name_list[-1]
         
-        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
-        
+        if True: #self.params.modified_image is None:
+            frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
+            self.out_path = self.get_changed_path()
+            os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
+        else:
+            frame = self.params.modified_image
+            self.out_path = self.params.mod_path
+            
         self.frame = np.flipud(frame)
-        
-        self.out_path = self.get_changed_path()
-        os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
         # print("Saving to {}".format(self.out_path))
         
         self.do_save()
@@ -423,7 +428,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
     
     def image_is_plottable(self, frame_name):
         # return True
-        # return self.doesnt_have_wrong_string(frame_name)
+        return self.doesnt_have_wrong_string(frame_name)
         return self.does_have_right_string(frame_name)
         
     
@@ -441,6 +446,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         bads = wrong_string or ["lev1p0", "t_int(lev1p0)", "t_int(primary)", "lev1p5(lev1p0)"]
         if True:
             bads.append("primary")
+            bads.append("lev1p5")
         
         if self.params.multiplot_all:
             bads = []
@@ -458,7 +464,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         try:
             paths = os.listdir(j_directory)
         except FileNotFoundError as e:
-            print("No JPEG Image Found")
+            print("\nNo JPEG Image Found")
             self.params.doing_jpeg = False
             return
             # paths = []
@@ -567,18 +573,17 @@ class MultiImageProcessorCv(ImageProcessorCV):
         frame_name = frame_name_in + suffix
         self.last_frame_name = frame_name_in
         
-        
-        
-        
         frame = self.frame_touchup(frame_name, frame)
         
         
-        
-        
-        vmin = None if self.dont_vminmax else 0.
-        vmax = None if self.dont_vminmax else 1.
-        self.axArray[self.count_frames].imshow(frame, origin="lower", vmin=vmin, vmax=vmax,
-                                               cmap=self.params.cmap, interpolation="None")
+        if "rht" in frame_name:
+            self.axArray[self.count_frames].imshow(frame, cmap='hsv', origin='lower', interpolation="None")
+        else:
+            vmin = None if self.dont_vminmax else 0.
+            vmax = None if self.dont_vminmax else 1.
+            self.axArray[self.count_frames].imshow(frame, origin="lower", vmin=vmin, vmax=vmax,
+                                                   cmap=self.params.cmap, interpolation="None")
+            
         self.axArray[self.count_frames].set_title(frame_name)
         self.axArray[self.count_frames].patch.set_alpha(0)
         
@@ -586,7 +591,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.frame_names.append(frame_name)
         self.frames.append(frame)
     
-    def finalize_and_save_plots(self, dpi=500):
+    def finalize_and_save_plots(self, dpi=200):
     
         inches = 4
         colWid = self.n_cols * inches

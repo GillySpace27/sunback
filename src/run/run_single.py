@@ -5,7 +5,7 @@ from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
 from processor.NoiseGateProcessor import NoiseGateProcessor
 from processor.QRNProcessor import QRNProcessor
 from processor.RHTProcessor import RHTProcessor
-from processor.SRNProcessor import SRNProcessor
+from processor.SRNProcessor import SRNProcessor, SRNSingleShotProcessor
 # from processor.SRNSubProcessors import SRNSingleShotProcessor
 from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor
 from science.parameters import Parameters
@@ -16,7 +16,8 @@ plt.ioff()
 
 # My favorite prominance: "2013-09-29T13:35:00"
 # Awesome Plumes: "2019-01-01T00:00:00"
-def run_single(wave="0304", tstart="2019-01-01T00:00:00", duration_seconds=60*20, frames=None):
+# MC Paper: "2014-11-10T16:00:00"
+def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20, frames=None):
     """Download a single image and time-integrate it, then apply QRN
         :type wave: strings
         :type tstart: string
@@ -27,7 +28,7 @@ def run_single(wave="0304", tstart="2019-01-01T00:00:00", duration_seconds=60*20
     name = "Single_Test"
     p = default_run_single_params(wave, tstart, duration_seconds, frames, name)
     
-    p.download_files(False)
+    # p.download_files(False)
     # p.multiplot_all = True
     master = True
     
@@ -41,24 +42,25 @@ def run_single(wave="0304", tstart="2019-01-01T00:00:00", duration_seconds=60*20
         p.processors([AIA_PREP_Processor],     rp=True)   # Do Sunpy Things
     
     p.png_frame_name = "qrn" ## I want to be able to call final, but it is made in the processor that save images, so I have to split it out into the touchup processor.
-    radial_norms = False and master
+    radial_norms = True and master
     if radial_norms:
         pass
         # p.processors([QRNProcessor],            rp=True)  # Applies the QRN Filter
+        p.processors([SRNSingleShotProcessor], rp=True)
         # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
         # p.processors([IntEnhanceProcessor],     rp=True)  # Applies the Sunpy IntEnhance Filter
         p.processors([ImageProcessorCV])
     
-    p.aftereffects_in_name = ["final","lev1p5",]
-    aftereffects = True and master
+    p.aftereffects_in_name = ["final", "lev1p5",]
+    aftereffects = False and master
     if aftereffects:
         pass
         # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         p.processors([RHTProcessor],            rp='redo')  # Applies the Rolling Hough Transform+
-        p.processors([RHTProcessor],            rp="redo")  # Applies the Rolling Hough Transform+
+        # p.processors([RHTProcessor],            rp="redo")  # Applies the Rolling Hough Transform+
     
-    use_putters = True and master
+    use_putters = False and master
     if use_putters:
         p.putters(MultiImageProcessorCv,            rp=True)  # Makes the PNGs from Fits
         

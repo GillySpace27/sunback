@@ -33,7 +33,12 @@ class AwsPutter(Putter):
     progress_verb = "Uploading"
     progress_verb = "Uploaded"
     progress_unit = "Images"
-    
+
+    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        super().__init__(params, quick, rp, in_name)
+        self.pbar = None
+        self.to_upload = None
+
     def put(self, params=None):
         if params is not None:
             self.__init__(params)
@@ -51,22 +56,24 @@ class AwsPutter(Putter):
         bucket.objects.all().delete()
         
     
-    def get_file_list(self):
+    def get_file_list(self, force=False):
         # to_upload = self.params.local_imgs_paths()
         
-        to_upload = [file for file in self.params.local_imgs_paths() if ("aH" not in file and "aL" not in file)]
-        
-        if self.params.do_orig and False:
-            for file in os.listdir(self.params.orig_directory):
-                to_upload.append(os.path.join(self.params.orig_directory, file))
+        if self.to_upload is None or force:
+            self.to_upload = [file for file in self.params.local_imgs_paths() if ("aH" not in file and "aL" not in file and "_orig" not in file)]
+            
+            if self.params.do_orig and False:
+                for file in os.listdir(self.params.orig_directory):
+                    self.to_upload.append(os.path.join(self.params.orig_directory, file))
+    
+            if self.params.do_compare:
+                comp_dir = self.params.orig_directory.replace('orig', 'compare')
+                for file in os.listdir(comp_dir):
+                    self.to_upload.append(os.path.join(comp_dir, file))
+            # print(" V Uploading Files")
+            self.pbar = tqdm(self.to_upload, desc="\r * Uploading Files")
 
-        if self.params.do_compare:
-            comp_dir = self.params.orig_directory.replace('orig', 'compare')
-            for file in os.listdir(comp_dir):
-                to_upload.append(os.path.join(comp_dir, file))
-        print(" V Uploading Files")
-        pbar = tqdm(to_upload, desc="\r * Uploading Files")
-        return to_upload, pbar
+        return self.to_upload, self.pbar
     
     def __upload_files(self):
     
@@ -104,7 +111,7 @@ class AwsPutter(Putter):
             
     def __save_times(self):
         """Saves the Time file to S3 so we know when images were taken"""
-        print(" * Uploading Time File...",flush=True)
+        print(" * Uploading Time File",flush=True)
         path = self.params.time_path()
         path2 = path.replace(".txt", "_readable.txt")
         
@@ -145,7 +152,7 @@ class AwsPutter(Putter):
         bucket.upload_file(path, path,   ExtraArgs=txt_args)
         bucket.upload_file(path2, path2, ExtraArgs=txt_args)
 
-        print("\r - > Done with Time! ")
+        # print("\r - > Done with Time! ")
 
     # def put_ultimate(self):
     #     """uploads all imgs in input to the s3 bucket"""

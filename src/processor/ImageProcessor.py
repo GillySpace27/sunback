@@ -21,7 +21,6 @@ from utils.stretch_intensity_module import norm_stretch
 class ImageProcessor(Processor):
     filt_name = 'Image Writer'
     out_name = ""
-    save_to_fits = True
     wave = None
     # progress_stem = "    Exporting Pngs {}"
     progress_text = ""
@@ -41,6 +40,7 @@ class ImageProcessor(Processor):
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
+        self.save_to_fits = False
         self.mod_name = None
         self.raw_name = None
         self.frame_name0 = None
@@ -268,7 +268,6 @@ class ImageProcessor(Processor):
         # if themax > 100 or themax < 0.8:
         #     # out = (self.frame - minmin) / (maxmax - minmin)
         #     pass
-        A = 1
         # self.params.short_circuit=True
         if self.params.short_circuit or "legacy" in frame_name:
             return frame
@@ -283,7 +282,7 @@ class ImageProcessor(Processor):
             frame_name2 = frame_name
             
         if "primary" in frame_name2:
-            frame *= 2
+            frame = np.sqrt(frame)
     
         basic_scrunch = True
         if basic_scrunch:
@@ -291,7 +290,7 @@ class ImageProcessor(Processor):
     
         ## Perform Nonlinear Transforms
         # Power
-        for name in ["lev1p5", "_mod", "nrgf"]:  # , "int_enhance"]:
+        for name in ["lev1p5", "_mod", "nrgf", "primary"]:  # , "int_enhance"]:
             if name in frame_name2:
                 frame = self.power_mod(frame)
 
@@ -395,15 +394,17 @@ class ImageProcessor(Processor):
         
         return frame
     
-    def scrunch(self, frame, n_exclude=50):
+    def scrunch(self, frame, n_exclude=50, perc_exclude=0.01):
         # lowlow = np.nanmin(frame)
         # highigh = np.nanmax(frame)
         
-        total = self.params.rez ** 2
-        perc = n_exclude / total
+        # total = self.params.rez ** 2
+        # perc_exclude = n_exclude / total
+        
     
-        low = np.nanpercentile(frame, perc)
-        high = np.nanpercentile(frame, 100-perc)
+    
+        low = np.nanpercentile(frame, perc_exclude)
+        high = np.nanpercentile(frame, 100-perc_exclude)
     
         frame = self.norm_formula(frame, low, high)
         return frame

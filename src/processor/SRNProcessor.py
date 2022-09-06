@@ -74,11 +74,12 @@ class SRNProcessor(Processor):
         """Initialize the main class"""
         super().__init__(params=params, quick=quick, rp=rp)
         # Parse Inputs
+        self.hist_absiss = None
         self.flat_im = None
         self.in_name = in_name or self.params.master_frame_list_newest
         
         self.RN = None
-        self.binfactor = 1
+        self.binfactor = 4
         self.this_index = 0
         self.norm_curve_max_top_name = None
         self.norm_curve_min_top_name = None
@@ -232,6 +233,7 @@ class SRNProcessor(Processor):
         """Perform the actual analysis"""
         self.bin_radially()  # Create a cloud of intesity values for each radial bin
         self.radial_statistics()  # Find mean and percentiles vs height
+        self.vignette()
     
     def update_keyframe_counters(self, n=1):
         """Keep track of how many items have been added to keyframes"""
@@ -437,69 +439,63 @@ class SRNProcessor(Processor):
     
     def do_compare_histogramplot(self):
         self.params.percentile_image = self.params.quantile_image.reshape(self.params.modified_image.shape)
+        self.skip_points = 10 if self.params.rez < 3000 else 300
+        self.hist_absiss = self.n2r(self.get_radial_points(self.rad_flat))
+
         fig, axArray = plt.subplots(2, 3, sharex='row', sharey="row")
         ((axA, axB, axC), (ax1, ax2, ax3)) = (top_axes, bot_axes) = axArray
         self.plot_percentilize_points(bot_axes)
         self.plot_percentilize_images(top_axes)
         plt.show(block=True)
     
+    def get_radial_points(self, radial):
+        return radial[::self.skip_points]
+    
+    def plot_frame_hist(self, ax, use_image, title="Default", blk_alpha=0.4):
+        # Gather Points to Display
+        # flat_sunback = self.params.modified_image.flatten() + 0
+        if len(use_image.shape) > 1:
+            use_image = use_image.flatten()
+        ax.scatter(self.hist_absiss, self.get_radial_points(use_image), c='k', s=4, alpha=blk_alpha, edgecolors='none')
+        
+        # Formatting the Plot
+        ax.set_title(title)
+        ax.axhline(0)
+        ax.axhline(1)
+        ax.axvline(1, c='grey')
+        ax.set_ylim((-0.25, 1.25))
+        ax.set_xlim((-0.05, 1.75))
+        ax.set_xlabel("Distance from Sun Center")
+        
+    
     def plot_percentilize_points(self, axes):
         axA, axB, axC = axes
         ## Row 2, Distribution of points
-        self.skip_points = 10 if self.params.rez < 3000 else 300
         
         # Gather Points to Display
-        flat_raw = self.params.raw_image2.flatten() + 0
-        flat_sunback = self.params.modified_image.flatten() + 0
-        flat_percentilize = self.params.percentile_image.flatten() + 0
+        flat_raw =          self.params.raw_image2
+        flat_sunback =      self.params.modified_image
+        flat_percentilize = self.params.percentile_image
         
-        # Take a short subset of the points
-        absiss = self.n2r(self.rad_flat[::self.skip_points])
         
-        raw_short_points = self.orig_smasher(flat_raw[::self.skip_points])
-        sunback_short_points = flat_sunback[::self.skip_points]
-        percentile_short_points = flat_percentilize[::self.skip_points]
+        # rraw = flat_raw
+        # themin = np.nanmin(rraw)
+        # rlog = np.log10(rraw+themin)/2
+        tmin, tmax = np.percentile(flat_raw, [0.1,99.9])
+        flat_norm = (flat_raw - tmin)/(tmax-tmin)
+
+        flat_log = np.log10(flat_norm)
+        is_finite = flat_log[np.isfinite(flat_log)]
+        # tmin, tmax = np.min(is_finite), np.max(is_finite)
+        tmin, tmax = np.percentile(is_finite, [0.1, 99.99])
+        flat_log_norm = (flat_log - tmin)/(tmax-tmin)
+        flat_log_norm[~np.isfinite(flat_log)]=np.nan
         
-        # Plot Scatter Plots
-        blk_alpha = 0.4
-        axA.set_title("log10(raw)/2")
-        axA.scatter(absiss, raw_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
-        
-        axB.set_title("Sunback")
-        axB.scatter(absiss, sunback_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
-        
-        axC.set_title("Quantilize")
-        axC.scatter(absiss, percentile_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
-        
-        # ## Plot Formatting
-        
-        # Horizontal Lines
-        axA.axhline(0)
-        axB.axhline(0)
-        axC.axhline(0)
-        
-        axA.axhline(1)
-        axB.axhline(1)
-        axC.axhline(1)
-        
-        # Plot Limits
-        # axA.set_ylim((-2, 300))
-        axA.set_ylim((-0.25, 1.25))
-        axB.set_ylim((-0.25, 1.25))
-        axC.set_ylim((-0.25, 1.25))
-        
-        axA.set_xlim((-0.05, 1.75))
-        axB.set_xlim((-0.05, 1.75))
-        axC.set_xlim((-0.05, 1.75))
-        
-        # Plot Scales
-        # axA.set_yscale('symlog')
-        
-        # Plot Labels
+        self.plot_frame_hist(axA, flat_log_norm, "Log10 (Normalized)")
+        self.plot_frame_hist(axB, flat_sunback, "SRN")
+        self.plot_frame_hist(axC, flat_percentilize, "QRN")
         axA.set_ylabel("Intensity")
-        axA.set_xlabel("Distance from Sun Center")
-        axB.set_xlabel("Distance from Sun Center")
-        axC.set_xlabel("Distance from Sun Center")
+        
     
     def orig_smasher(self, orig):
         return np.log10(orig) / 2
@@ -677,27 +673,12 @@ class SRNProcessor(Processor):
         for binI in params_list:
             self.do_this_bin(binI)
             
-            
-        # for binI, dat, xx, yy, ind in zip(self.binInds[::self.cut_pixels],
-        #                   self.params.modified_image.flatten()[::self.cut_pixels],
-        #                   self.binXX[::self.cut_pixels], self.binYY[::self.cut_pixels], self.binII[::self.cut_pixels]):
-        # self.radBins[binI].append(dat)
-        # self.radBins_xy[binI].append((xx, yy))
-        # self.radBins_ind[binI].append(ind)
         # import multiprocessing
         # pool_obj = multiprocessing.Pool(6)
         # pool_obj.map(self.do_this_bin, params_list)
 
 
     def do_this_bin(self, binI):
-        # self.radBins[binI]      = self.flat_im[the_inds].tolist()
-        # self.radBins_ind[binI]  = self.binII[the_inds].tolist()
-        # bin_list = self.radBins[binI]
-
-        # bin_list = self.flat_im[the_inds].tolist()
-        # keep, bin_array = self.get_bin_items(bin_list)
-        # coord = self.radBins_ind[binI]
-        # self.radBins_xy[binI] = [[x,y] for x,y in zip(self.binXX[the_inds], self.binYY[the_inds])]
         
         the_inds = np.where(self.binInds == binI)
         keep, bin_array = self.get_bin_items(self.flat_im[the_inds])
@@ -781,8 +762,6 @@ class SRNProcessor(Processor):
     
     def radial_statistics(self):  # TODO Make this much faster
         """ Find the statistics in each radial bin"""
-        # for ii, bin_list in enumerate(self.radBins):
-        #     self.store_bin_array(ii)
         self.finalize_radial_statistics()
     
     def store_bin_array(self, ii):
@@ -824,14 +803,7 @@ class SRNProcessor(Processor):
         self.frame_abs_max[n_index] = self.binAbsMax[idx]
         self.frame_abs_min[n_index] = self.binAbsMin[idx]
         
-        
-        # self.params.quantile_image = np.nans_like(self.params.raw_image.flatten())
-        # self.params.quantile_image = self.params.quantile_image.reshape(self.params.modified_image.shape)
-        
-        # from utils.stretch_intensity_module import norm_stretch
-        # self.params.quantile_image = norm_stretch(self.params.quantile_image, alpha=self.params.alpha)
-        
-        self.vignette()
+
     
     def find_limb_radius(self):
         self.load_curves()
@@ -1975,7 +1947,7 @@ class SRNSingleShotProcessor(SRNProcessor):
         """Run the program on a single loaded frame"""
         self.image_learn()  # Analyze the input to help make normalization curves
         self.image_modify()  # Actually Normalize This Image
-        self.image_plot()
+        # self.image_plot()
         self.first = False
         # self.plot_full_normalization(save=True, show=False, do=True)
         # self.percentilize()

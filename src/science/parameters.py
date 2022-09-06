@@ -736,7 +736,7 @@ class Parameters:
         makedirs(self.orig_directory,       exist_ok=True)
         makedirs(self.mods_directory(),     exist_ok=True)
         makedirs(self.movs_directory(),     exist_ok=True)
-        makedirs(self.cat_directory,        exist_ok=True)
+        # makedirs(self.cat_directory,        exist_ok=True)
         # Save Parameters
         # self.save_to_txt()
         
@@ -746,7 +746,11 @@ class Parameters:
         png_name =  fits_name.replace('fits', 'png')
         self.mod_path = join(self.mods_directory(), png_name)
         self.cat_path = self.mod_path.replace("mod", "cat")
-        self.orig_path = self.mod_path.replace("mod", "orig")
+        self.orig_path = self.mod_path
+        os.makedirs(os.path.dirname(self.mod_path), exist_ok=True)
+        # os.makedirs(os.path.dirname(self.cat_path), exist_ok=True)
+        # os.makedirs(os.path.dirname(self.orig_path), exist_ok=True)
+        
         return self.mod_path, self.cat_path, self.orig_path
 
 

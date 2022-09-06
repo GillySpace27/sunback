@@ -56,6 +56,7 @@ class FidoFetcher(Fetcher):
         # Initialize class variables
         super().__init__(params, quick, rp)
 
+        self.SubDownloader = None
         self.reprocess_mode(rp)
         self.params.load_preset_time_settings()
         # self.fetch()
@@ -179,12 +180,11 @@ class FidoFetcher(Fetcher):
         self.needed_files = response
         self.num_files_needed = len(self.needed_files)
     
-    def fido_download_fits_ensured(self, temp=False, hold=False):
+    def fido_download_fits_ensured(self, temp=False, hold=False, ensured=True):
         """Download the files from fido_search_result"""
         
-        SubDownloader = Downloader(progress=True, file_progress=False, max_conn=20,
-                                   overwrite=False)
-        
+        self.SubDownloader = Downloader(progress=True, file_progress=False, max_conn=20, overwrite=False)
+
         self.out_path = self.params.temp_directory() if temp else self.params.fits_directory()
         self.store_requests()
         
@@ -197,16 +197,16 @@ class FidoFetcher(Fetcher):
             print(" **       Fido Fetching...")
             print("\r \n   [/~~~~~~~~~~~~~~~~~~~~~~~~~~~FIDO~~~~~~~~~~~~~~~~~~~~~~~~~~~\\]")
             try:
-                results = Fido.fetch(self.needed_files, path=self.out_path, downloader=SubDownloader)
+                self.results = Fido.fetch(self.needed_files, path=self.out_path, downloader=self.SubDownloader)
             except DrmsExportError as e:
                 print(e)
-                results = []
+                self.results = []
                 
-            self.n_fits = len(results)+0
+            self.n_fits = len(self.results)
             # if ensured:
-            #     results = self.fido_multi_download()
+            #     self.results = self.fido_multi_download()
             self.multi_banner()
-            self.results = copy.copy(results)
+            # self.results = copy.copy(results)
             
             # self.params.params_path()
             # self.params.save_to_txt()
@@ -219,7 +219,7 @@ class FidoFetcher(Fetcher):
         self.n_fits = len(self.results)
         
         while self.n_fits != self.fido_search_found_num:
-            self.results = Fido.fetch(self.results, path=self.out_path)
+            self.results = Fido.fetch(self.results, path=self.out_path, downloader=self.SubDownloader)
             self.n_fits = len(self.results)
         self.n_fits = len(self.results)
         if self.params.do_single:

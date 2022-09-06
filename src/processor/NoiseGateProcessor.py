@@ -147,20 +147,20 @@ class NoiseGateProcessor(Processor):
 # for ii in tqdm(np.arange(n_chunks)):
 #     start = (ii) * max_use
 #     end = (ii + 1) * max_use
-#     cubie = self.cube[start:end]
+#     cubie = self.H_XY[start:end]
 #     self.gated_cube[start:end] = out
 #     break
 #     if ii * max_use > small_fill:
 #         break
 #     # for jj in np.arange(start_timestamp=start_timestamp, stop=pointing_end):
 #     #     # fig, (ax1, ax2) = plt.subplots(1,2, sharex=True, sharey=True)
-#     #     # ax1.imshow(norm(self.cube[jj]))
+#     #     # ax1.imshow(norm(self.H_XY[jj]))
 #     #     # ax2.imshow(norm(self.gated_cube[jj]))
 #     #     # plt.show(block=True)
 #     #
 #     #     fig, (ax) = plt.subplots(1, 1)
 #     #     plt.title(jj)
-#     #     ax.imshow(self.gated_cube[jj] - self.cube[jj])
+#     #     ax.imshow(self.gated_cube[jj] - self.H_XY[jj])
 #     #     plt.show(block=True)
 
 
@@ -197,26 +197,26 @@ class NoiseGateProcessor(Processor):
 #
 # def allocate_cubes(self):
 #     try:
-#         self.cube
+#         self.H_XY
 #         self.gated_cube
 #     except AttributeError:
-#         self.cube = np.empty((self.number, self.width, self.height), dtype=type(self.sample_frame[0, 0]))
-#         self.gated_cube = self.cube + 0
-#     self.cube.fill(np.nan)
+#         self.H_XY = np.empty((self.number, self.width, self.height), dtype=type(self.sample_frame[0, 0]))
+#         self.gated_cube = self.H_XY + 0
+#     self.H_XY.fill(np.nan)
 #     self.gated_cube.fill(np.nan)
 #
 # def fill_cubes(self):
 #     for ii, img in enumerate(tqdm(self.im_paths)):
 #         frame = self.load_file(img)
 #         if frame is not None and frame.shape == self.sample_frame.shape:
-#             self.cube[ii] = frame
+#             self.H_XY[ii] = frame
 #
 #         if ii > small_fill:
 #             break
 #
 # def save_cubes(self):
 #     for ii, img in enumerate(tqdm(self.im_paths)):
-#         self.save_file(img, self.cube[ii])
+#         self.save_file(img, self.H_XY[ii])
 #         # self.load_file(img)
 #         if ii > small_fill:
 #             break
@@ -228,7 +228,7 @@ class NoiseGateProcessor(Processor):
 #     for ii in tqdm(np.arange(n_chunks)):
 #         start = (ii) * max_use
 #         end = (ii + 1) * max_use
-#         cubie = self.cube[start:end]
+#         cubie = self.H_XY[start:end]
 #         out = ngt.noise_gate_batch(cubie, cubesize=12, model='hybrid', factor=2.0)
 #         self.gated_cube[start:end] = out
 #         break
@@ -236,13 +236,13 @@ class NoiseGateProcessor(Processor):
 #             break
 #         # for jj in np.arange(start_timestamp=start_timestamp, stop=pointing_end):
 #         #     # fig, (ax1, ax2) = plt.subplots(1,2, sharex=True, sharey=True)
-#         #     # ax1.imshow(norm(self.cube[jj]))
+#         #     # ax1.imshow(norm(self.H_XY[jj]))
 #         #     # ax2.imshow(norm(self.gated_cube[jj]))
 #         #     # plt.show(block=True)
 #         #
 #         #     fig, (ax) = plt.subplots(1, 1)
 #         #     plt.title(jj)
-#         #     ax.imshow(self.gated_cube[jj] - self.cube[jj])
+#         #     ax.imshow(self.gated_cube[jj] - self.H_XY[jj])
 #         #     plt.show(block=True)
 #     print("Noise Gating Complete")
 #

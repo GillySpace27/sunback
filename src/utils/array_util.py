@@ -3,14 +3,14 @@ from PIL import Image
 from os.path import dirname, abspath, join, isdir, split
 from os import makedirs, getcwd, listdir
 from time import time, localtime, strftime
+import numpy as np
 
-
-def reduce_array(frame, center, desired):
+def reduce_array(frame, center, desired, func=np.sum):
     # Reduce the size of the array
     resolution = frame.shape[0]
     if resolution > desired:
         reduce_amount = int(resolution / desired)
-        frame = block_reduce(frame, reduce_amount)
+        frame = block_reduce(frame, reduce_amount, func=func)
         center[0] /= reduce_amount
         center[1] /= reduce_amount
     return frame, center

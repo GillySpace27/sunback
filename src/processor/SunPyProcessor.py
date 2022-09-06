@@ -122,6 +122,14 @@ class AIA_PREP_Processor(SunPyProcessor):
             return self.params.modified_image
         return None
     
+    def ensure_endian(self, the_map):
+        if the_map.dtype.byteorder == '>':
+            data = the_map.data.byteswap().newbyteorder()
+            head = the_map.fits_header
+            import sunpy.map.sources as srcs
+            the_map = srcs.AIAMap(data, head)
+        return the_map
+    
     def do_AIA_PREP(self):
         self.level_15_maps = []
         for a_map in self.level_1_maps:
@@ -132,6 +140,9 @@ class AIA_PREP_Processor(SunPyProcessor):
             # Execute AIA_PREP
             if self.params.pointing_table is not None:
                 map_updated_pointing = self.get_updated_pointing(a_map)
+                
+                map_updated_pointing = self.ensure_endian(map_updated_pointing)
+
                 map_registered = register(map_updated_pointing)
             else:
                 map_registered = register(a_map)

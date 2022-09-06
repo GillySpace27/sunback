@@ -179,6 +179,10 @@ class FidoTimeIntProcessor(FidoFetcher):
             try:
                 if not os.path.isdir(path) and ".fits" in path:
                     frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(path, frameNames, quiet=True)
+                    if frame is None:
+                        print("A frame was skipped")
+                        self.skipped += 1
+                        continue
                     self.orig_t_int = self.orig_t_int or int_time
                     self.params.modified_image += frame
                     self.params.int_tm_tot += int_time

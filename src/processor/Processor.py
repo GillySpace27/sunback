@@ -16,6 +16,7 @@ import sunpy
 import sunpy.map
 
 # from run import SingleRunner
+# from processor.SRNProcessor import SRNProcessor
 from science.color_tables import aia_color_table
 
 # import cv2
@@ -102,6 +103,8 @@ class Processor:
     frame_name = None
     
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        self.fit_limb_radius = None
+        self.radius = None
         self.do_split = False
         self.loud_tic = False
         self.duration = 0.0
@@ -313,18 +316,19 @@ class Processor:
             #     self.delete_fits_and_png(fits_path)
             return False
     
-    def delete_fits_and_png(self, fits_path):
+    def delete_fits_and_png(self, fits_path, dopng=True):
         # fitsPath = join(self.fits_folder, filename[:-5] + '.fits')
         pngPath = fits_path.replace("fits", "png")
         try:
             os.remove(fits_path)
         except PermissionError as e:
             print(e)
-        try:
-            os.remove(pngPath)
-        except FileNotFoundError as e:
-            print(e)
-            pass
+        if dopng:
+            try:
+                os.remove(pngPath)
+            except FileNotFoundError as e:
+                print(e)
+                pass
     
     def plot_two(self, name="Algorithm Result", bounds=None):
         fig, (ax0, ax1) = plt.subplots(1, 2, sharex=True, sharey=True, num=name)
@@ -490,7 +494,7 @@ class Processor:
         raise NotImplementedError
     
     def cleanup(self):
-        # self.toc()
+        self.toc()
         pass
     
     def setup(self):
@@ -729,16 +733,32 @@ class Processor:
         self.determine_shrink_factor()
         self.make_radius()
         self.make_vignette(vignette_radius)
-        self.init_bin_array()
+        if True: #type(self) is SRNProcessor:
+            self.init_bin_array()
         
         self.s_radius = s_radius
         self.tRadius = self.s_radius * t_factor
     
     def init_image_frames(self):
-        if self.params.modified_image is None:
-            self.params.modified_image = np.float16(self.params.raw_image)
+        mdi = self.params.modified_image
+        do = False
+        if mdi is None:
+            do = True
+        if type(mdi) in [list, tuple]:
+            if len(mdi) == 0:
+                do = True
+        if type(mdi) == np.ndarray:
+            if mdi.size == 1:
+                do=True
+        if do:
+            mdi = np.float16(self.params.raw_image)
+            self.params.modified_image = mdi
+        return self.params.modified_image
     
     def determine_shrink_factor(self):
+        
+        self.binfactor = 4
+        
         rez = self.params.rez = self.header["NAXIS1"]
         if rez == 4096:
             self.shrink_factor = 1
@@ -754,13 +774,21 @@ class Processor:
     def parse_shrink_args(self, shrink_needed=True):
         nn = self.shrink_factor if shrink_needed else 1
         self.params.center = [self.header["X0_MP"] / (nn), self.header["Y0_MP"] / (nn)]
-        self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]
+        self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]/nn
         self.output_abscissa = np.arange(self.params.rez)
+
+    def parse_resize_args(self, factor=4):
+        self.params.center = [self.header["X0_MP"] / (factor), self.header["Y0_MP"] / (factor)]
+        self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]/factor
+        self.output_abscissa = np.arange(self.params.rez)
+        
     
     def make_radius(self):
+        
         self.xx, self.yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
         xc, yc = self.xx - self.params.center[0], self.yy - self.params.center[1]
         self.radius = np.sqrt(xc * xc + yc * yc)
+        self.theta_array = np.arctan2(yc, xc)
         self.rad_flat = self.radius.flatten()
     
     def make_vignette(self, vignette_radius=1.19):
@@ -769,15 +797,22 @@ class Processor:
         self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
     
     def init_bin_array(self):
-        self.binfactor = binfactor = 2
-        self.binInds = np.asarray(binfactor * np.floor(self.rad_flat // binfactor), dtype=np.int32)
+        self.rad_flat /= self.binfactor
+        self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
         self.binXX = self.xx.flatten()
         self.binYY = self.yy.flatten()
         self.binII = np.arange(len(self.rad_flat))
         
-    def mask_out_sun(self, image, radius=1.0, mask=None):
-        self.init_radius_array()
-        image[self.radius/self.found_limb_radius < radius] = mask or np.nan
+    def mask_out_sun(self, image, radius=1.01, mask=None):
+        if self.radius is None:
+            self.init_radius_array()
+            
+        mask = mask or np.nan if "float" in str(image.dtype) else 0
+        
+        if len(image.shape)>2:
+            image[:, self.radius/self.found_limb_radius < radius] = mask
+        else:
+            image[self.radius/self.found_limb_radius < radius] = mask
         return image
     # def plot_aia_changed(self):
     
@@ -832,21 +867,22 @@ class Processor:
                 # frame2 = np.abs(frame2)
                 frame2 = frame2.astype(np.float32)
                 # frame2[0] = 2**16 - 3
-            
-            with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True) as hdul:
-                hdul.verify('silentfix+ignore')  # Then Verify
-                # self.rename_initial_frames(hdul)  # THis might not work
-                
-                fit_frame = fits.ImageHDU(frame2, name=field, header=self.header)
-                
-                if field not in hdul:
-                    hdul.append(fit_frame)  # Write
-                else:
-                    hdul[field] = fit_frame  # Write
-                
-                # hdul = self.delete_further_hdus(hdul, in_name)
-                
-                try:
+            try:
+                # with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True, memmap=False) as hdul:
+                with fits.open(fits_path, mode="update", memmap=False) as hdul:
+                    hdul.verify('silentfix+ignore')  # Then Verify
+                    # self.rename_initial_frames(hdul)  # THis might not work
+                    
+                    fit_frame = fits.ImageHDU(frame2, name=field, header=self.header)
+                    
+                    if field not in hdul:
+                        hdul.append(fit_frame)  # Write
+                    else:
+                        hdul[field] = fit_frame  # Write
+                    
+                    # hdul = self.delete_further_hdus(hdul, in_name)
+                    
+                    
                     hdul.close(output_verify='fix')
                     if self.params.speak_save and False:
                         middle = "        ** >> Saved Frame {} << **".format(field)
@@ -854,10 +890,10 @@ class Processor:
                         print("        ** " + "V" * midlen + " **")
                         print(middle)
                         print("        ** " + "^" * midlen + " **\n")
-                
-                except PermissionError as e:
-                    print("\n        !! No Permission to save the file: \n         {}".format(fits_path))
-                    self.skipped += 1
+                    
+            except PermissionError as e:
+                print("\n        !! No Permission to save the file: \n         {}".format(fits_path))
+                self.skipped += 1
     
     def make_shortcut(self, file_in_path=None, shortcut_out_path=None, doAppend=True):
         path = self.params.shortcut_directory(shortcut_out_path)
@@ -1192,13 +1228,25 @@ class Processor:
     
     def load_this_fits_frame(self, fits_path=None, in_name=None, quiet=False):
         """Load a fits file from disk"""
-        with fits.open(fits_path, cache=False, ignore_missing_end=True, ignore_missing_simple=True) as hdul:
-            self.in_name = self.set_in_frame_name(in_name=in_name, fits_path=fits_path, hdul=hdul)
-            # print("\r", self.in_name, self.frame_name, "\n")
-            frame, self.header = self.open_fits_hdul(hdul=hdul, quiet=quiet, frame_name=self.in_name)
-            wave, t_rec, center, int_time, self.found_limb_radius = self.get_fits_info(hdul)
-            frame = None if self.in_name is None else frame
-        return frame, wave, t_rec, center, int_time, self.in_name
+        try:
+            with fits.open(fits_path, cache=False, ignore_missing_end=True, ignore_missing_simple=True) as hdul:
+                self.in_name = self.set_in_frame_name(in_name=in_name, fits_path=fits_path, hdul=hdul)
+                # print("\r", self.in_name, self.frame_name, "\n")
+                frame, self.header = self.open_fits_hdul(hdul=hdul, quiet=quiet, frame_name=self.in_name)
+                wave, t_rec, center, int_time, self.found_limb_radius = self.get_fits_info(hdul)
+                frame = None if self.in_name is None else frame
+            return frame, wave, t_rec, center, int_time, self.in_name
+        except (OSError, RuntimeError) as e:
+            print(e)
+            print("One of the Fits Files was Corrupt")
+            try:
+                self.delete_fits_and_png(fits_path, False   )
+            except FileNotFoundError:
+                pass
+    
+        return None, None, None, None, None, None
+        
+        
     
     def set_in_frame_name(self, in_name=None, fits_path=None, hdul=None):
         """Determine the right in_name given any kind of input"""
@@ -1807,10 +1855,16 @@ class Processor:
     def vignette(self, frame=None):
         """Truncate the in_object above a certain radis"""
         # if self.vignette_mask is None:
-        self.init_radius_array()
+        if self.radius is None:
+            self.init_radius_array()
+            
         if frame is not None:
-            frame = frame.astype(np.float16)
-            frame[self.vignette_mask] = np.nan
+            # frame = frame.astype(np.float16)
+            mask = np.nan if "float" in str(frame.dtype) else 0
+            if len(frame.shape) > 2:
+                frame[:, self.vignette_mask] = mask
+            else:
+                frame[self.vignette_mask] = mask
             return frame
         
         else:
