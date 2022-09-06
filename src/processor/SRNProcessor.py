@@ -74,6 +74,7 @@ class SRNProcessor(Processor):
         """Initialize the main class"""
         super().__init__(params=params, quick=quick, rp=rp)
         # Parse Inputs
+        self.flat_im = None
         self.in_name = in_name or self.params.master_frame_list_newest
         
         self.RN = None
@@ -308,11 +309,12 @@ class SRNProcessor(Processor):
     def init_frame_curves(self):
         """These are the main frame_level curves"""
         dprint("init_frame_curves")
-        self.frame_maximum = np.empty(self.params.rez)
-        self.frame_minimum = np.empty(self.params.rez)
-        self.frame_abs_max = np.empty(self.params.rez)
-        self.frame_abs_min = np.empty(self.params.rez)
-        self.frame_abss = np.empty(self.params.rez)
+        nn = np.max(self.binInds)+2
+        self.frame_maximum = np.empty(nn)
+        self.frame_minimum = np.empty(nn)
+        self.frame_abs_max = np.empty(nn)
+        self.frame_abs_min = np.empty(nn)
+        self.frame_abss =    np.empty(nn)
         
         self.frame_maximum.fill(np.nan)
         self.frame_minimum.fill(np.nan)
@@ -405,35 +407,36 @@ class SRNProcessor(Processor):
     
     def percentilize(self):
         """Another way of looking at the data"""
-        self.do_percentile_norm()
-        self.do_percentile_plot()
+        # self.do_percentile_norm()
+        self.do_compare_histogramplot()
     
-    def do_percentile_norm(self):
-        # Make Percentile Image
-        from scipy import stats
-        # plt.show()
-        # plt.figure()
-        
-        # image_shape = self.params.raw_image2.shape
-        # flat_raw = self.params.raw_image2.flatten() + 0
-        
-        # top_half =
-        # bot_half =
-        # percentile_image_flat = stats.rankdata(flat_raw, "average")/len(flat_raw)
-        # plt.imshow(self.params.quantile_image, origin="lower")
-        # plt.show()
-        
-        # percentile_image_flat = stats.rankdata(flat_raw, "average")/len(flat_raw)
-        # self.params.percentile_image = percentile_image_flat.reshape(image_shape)
-        
-        self.params.percentile_image = self.params.quantile_image
-        
-        # raw = flat_raw.reshape(image_shape)
-        # plt.imshow(self.orig_smasher(raw), vmin=0, vmax=1)
-        # plt.imshow(self.params.modified_image,origin='lower', vmin=0, vmax=1)
-        # plt.show(block=True)
+    # def do_percentile_norm(self):
+    #     # Make Percentile Image
+    #     from scipy import stats
+    #     # plt.show()
+    #     # plt.figure()
+    #
+    #     # image_shape = self.params.raw_image2.shape
+    #     # flat_raw = self.params.raw_image2.flatten() + 0
+    #
+    #     # top_half =
+    #     # bot_half =
+    #     # percentile_image_flat = stats.rankdata(flat_raw, "average")/len(flat_raw)
+    #     # plt.imshow(self.params.quantile_image, origin="lower")
+    #     # plt.show()
+    #
+    #     # percentile_image_flat = stats.rankdata(flat_raw, "average")/len(flat_raw)
+    #     # self.params.percentile_image = percentile_image_flat.reshape(image_shape)
+    #
+    #
+    #
+    #     # raw = flat_raw.reshape(image_shape)
+    #     # plt.imshow(self.orig_smasher(raw), vmin=0, vmax=1)
+    #     # plt.imshow(self.params.modified_image,origin='lower', vmin=0, vmax=1)
+    #     # plt.show(block=True)
     
-    def do_percentile_plot(self):
+    def do_compare_histogramplot(self):
+        self.params.percentile_image = self.params.quantile_image.reshape(self.params.modified_image.shape)
         fig, axArray = plt.subplots(2, 3, sharex='row', sharey="row")
         ((axA, axB, axC), (ax1, ax2, ax3)) = (top_axes, bot_axes) = axArray
         self.plot_percentilize_points(bot_axes)
@@ -662,16 +665,51 @@ class SRNProcessor(Processor):
     
     def do_bin(self, skip=1):  # Bin the intensities by radius
         self.cut_pixels = skip
+
+        self.flat_im = self.params.modified_image.flatten()
+        self.params.quantile_image = np.empty_like(self.params.raw_image.flatten())
+        self.params.quantile_image.fill(np.nan)
         
-        for binI, dat, xx, yy, ind in zip(self.binInds[::self.cut_pixels],
-                                          self.params.modified_image.flatten()[::self.cut_pixels],
-                                          self.binXX[::self.cut_pixels], self.binYY[::self.cut_pixels], self.binII[::self.cut_pixels]):
-            # for each dat,
+        from tqdm import tqdm
+        n_inds = np.max(self.binInds)
+        params_list = tqdm(np.arange(n_inds), desc=" * Sorting Pixels")
+        
+        for binI in params_list:
+            self.do_this_bin(binI)
             
-            self.radBins[binI].append(dat)
-            self.radBins_xy[binI].append((xx, yy))
-            self.radBins_ind[binI].append(ind)
-    
+            
+        # for binI, dat, xx, yy, ind in zip(self.binInds[::self.cut_pixels],
+        #                   self.params.modified_image.flatten()[::self.cut_pixels],
+        #                   self.binXX[::self.cut_pixels], self.binYY[::self.cut_pixels], self.binII[::self.cut_pixels]):
+        # self.radBins[binI].append(dat)
+        # self.radBins_xy[binI].append((xx, yy))
+        # self.radBins_ind[binI].append(ind)
+        # import multiprocessing
+        # pool_obj = multiprocessing.Pool(6)
+        # pool_obj.map(self.do_this_bin, params_list)
+
+
+    def do_this_bin(self, binI):
+        # self.radBins[binI]      = self.flat_im[the_inds].tolist()
+        # self.radBins_ind[binI]  = self.binII[the_inds].tolist()
+        # bin_list = self.radBins[binI]
+
+        # bin_list = self.flat_im[the_inds].tolist()
+        # keep, bin_array = self.get_bin_items(bin_list)
+        # coord = self.radBins_ind[binI]
+        # self.radBins_xy[binI] = [[x,y] for x,y in zip(self.binXX[the_inds], self.binYY[the_inds])]
+        
+        the_inds = np.where(self.binInds == binI)
+        keep, bin_array = self.get_bin_items(self.flat_im[the_inds])
+        coord = self.binII[the_inds].tolist()
+        good_coord = [coord[x] for x in keep]
+        
+        if len(bin_array) > 0:
+            quantileized = stats.rankdata(bin_array, "average") / len(bin_array)
+            self.params.quantile_image[good_coord] = quantileized
+            self.binAbsMax[binI], self.binMax[binI], self.binMin[binI], self.binAbsMin[binI] = np.percentile(bin_array, [98.5, 90, 3, 0.5])
+        
+        
     def make_annular_rings(self, R1=32):
         
         RLast = self.params.rez
@@ -743,9 +781,8 @@ class SRNProcessor(Processor):
     
     def radial_statistics(self):  # TODO Make this much faster
         """ Find the statistics in each radial bin"""
-        self.params.quantile_image = copy(self.params.raw_image.flatten())
-        for ii, bin_list in enumerate(self.radBins):
-            self.store_bin_array(ii)
+        # for ii, bin_list in enumerate(self.radBins):
+        #     self.store_bin_array(ii)
         self.finalize_radial_statistics()
     
     def store_bin_array(self, ii):
@@ -760,12 +797,8 @@ class SRNProcessor(Processor):
             quantileized = stats.rankdata(bin_array, "average") / len(bin_array)
             self.params.quantile_image[good_coord] = quantileized
             
-            # a, b, c, d = np.percentile(bin_array, [98.5, 90, 3, 0.5])
-            # self.binAbsMax[ii] = a  # np.percentile(bin_array, 99.999)
-            # self.binMax[ii] = b  # np.percentile(bin_array, 96)
-            # self.binMin[ii] = c  # np.percentile(bin_array, 2)
-            # self.binAbsMin[ii] = d  # np.percentile(bin_array, 0.001)
-            
+            self.binAbsMax[ii], self.binMax[ii], self.binMin[ii], self.binAbsMin[ii] = np.percentile(bin_array, [98.5, 90, 3, 0.5])
+
             ## TODO make this be percentilized
     
     @staticmethod
@@ -782,14 +815,18 @@ class SRNProcessor(Processor):
         """Clean up the radial statistics to be used"""
         idx = np.isfinite(self.binMax) & np.isfinite(self.binMin)
         n_index = self.binAbss[idx]
+        assert len(n_index) > 0
+        
         #         import pdb; pdb.set_trace()
-        self.frame_abss[n_index] = n_index
+        # self.frame_abss[n_index] = n_index
         self.frame_maximum[n_index] = self.binMax[idx]
         self.frame_minimum[n_index] = self.binMin[idx]
         self.frame_abs_max[n_index] = self.binAbsMax[idx]
         self.frame_abs_min[n_index] = self.binAbsMin[idx]
         
-        self.params.quantile_image = self.params.quantile_image.reshape(self.params.modified_image.shape)
+        
+        # self.params.quantile_image = np.nans_like(self.params.raw_image.flatten())
+        # self.params.quantile_image = self.params.quantile_image.reshape(self.params.modified_image.shape)
         
         # from utils.stretch_intensity_module import norm_stretch
         # self.params.quantile_image = norm_stretch(self.params.quantile_image, alpha=self.params.alpha)
@@ -800,7 +837,7 @@ class SRNProcessor(Processor):
         self.load_curves()
         
         # self.found_limb_radius = 400 # self.params.found_limb_radius or 1600
-        self.found_limb_radius = self.params.found_limb_radius or 1600
+        self.found_limb_radius = int((self.params.found_limb_radius or 1600) // self.binfactor)
         self.lCut = int(self.found_limb_radius - 0.01 * self.params.rez)
         self.hCut = int(self.found_limb_radius + 0.01 * self.params.rez)
         
@@ -829,7 +866,7 @@ class SRNProcessor(Processor):
             self.fit_limb_radius = self.found_limb_radius
         
         self.lCut = int(self.fit_limb_radius - 0.01 * self.params.rez)
-        self.hCut = int(self.fit_limb_radius + 0.00 * self.params.rez)
+        self.hCut = int(self.fit_limb_radius + 0.01 * self.params.rez)
     
     ###################################
     ## Smoothed Normalization Curve Stuff ##
@@ -881,16 +918,17 @@ class SRNProcessor(Processor):
         # Split the domain into three regions
         self.find_limb_radius()
         
-        if self.frame_abss is None:
-            self.frame_abss = np.arange(self.params.rez)
+        # Split outer curves into three regions
+        use_max = self.outer_max + 0
+        use_min = self.outer_min + 0
+        
+        # if self.frame_abss is None or np.isnan(self.frame_abss):
+        self.frame_abss = np.arange(len(use_max))
         
         self.smidge = smidge = 2
         
-        # Split outer curves into three regions
-        abss = self.frame_abss
-        use_max = self.outer_max + 0
-        use_min = self.outer_min + 0
         #
+        abss = self.frame_abss
         self.outer_low_abs = abss[:self.lCut + smidge]
         self.outer_low_max = use_max[:self.lCut + smidge]
         self.outer_low_min = use_min[:self.lCut + smidge]
@@ -1510,7 +1548,7 @@ class SRNProcessor(Processor):
         
         skip = 1000
         self.skip_points = 100 if self.params.rez < 3000 else skip
-        blk_skip = 100
+        blk_skip = 1000
         
         ########################
         ##  Plot 0: Absolute  ##
@@ -1939,8 +1977,9 @@ class SRNSingleShotProcessor(SRNProcessor):
         self.image_modify()  # Actually Normalize This Image
         self.image_plot()
         self.first = False
-        self.plot_full_normalization(save=True, show=False, do=True)
-        self.percentilize()
+        # self.plot_full_normalization(save=True, show=False, do=True)
+        # self.percentilize()
+        self.do_compare_histogramplot()
         print(" ^ Success!\n")
         return self.params.modified_image
     
