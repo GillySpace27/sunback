@@ -176,7 +176,7 @@ class Parameters:
         
         # self.multi_pool = self.init_pool(self.n_pool)
         
-        self._msgn_targets = ['primary', 'qrn(primary)']
+        self._msgn_targets = [] #['primary', 'qrn(primary)']
         
         # self.set_default_values()
 

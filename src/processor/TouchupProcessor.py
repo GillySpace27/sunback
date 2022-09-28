@@ -78,7 +78,7 @@ class TouchupProcessor(Processor):
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
-        self.tm = 0
+        # self.tm = time.time()
         self.in_name = self.params.aftereffects_in_name or "lev1p5"
         
     def do_work(self):

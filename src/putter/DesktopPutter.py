@@ -18,7 +18,7 @@ class DesktopPutter(Putter):
     def put(self, params=None):
         self.load(params)
         sys.stdout.flush()
-        print("\r  *Setting Desktop Background to...", flush=True)
+        print("\r  * Setting Desktop Background to...(ctrl-c to skip)", flush=True)
         self.super_flush()
 
         to_display = [file for file in self.params.local_imgs_paths() if ("aH" not in file and "aL" not in file)]

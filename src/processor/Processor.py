@@ -5,6 +5,9 @@ from datetime import datetime
 from os import listdir, getcwd, makedirs
 from os.path import join, dirname, abspath, isdir, basename
 from pickle import PicklingError
+from random import choices
+
+from scipy.stats import stats
 
 import astropy.units as u
 from time import sleep, strptime, mktime
@@ -23,6 +26,8 @@ from science.color_tables import aia_color_table
 from astropy.io import fits
 from tqdm import tqdm
 
+import matplotlib
+# matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
 
 # %matplotlib notebook
@@ -80,7 +85,7 @@ class Processor:
     paper_out = []
     
     load_print_latch = True
-    found_limb_radius = None
+    limb_radius_original = None
     fits_folder = None
     abs_min_scalar = None
     curve_out_array = None
@@ -103,12 +108,26 @@ class Processor:
     frame_name = None
     
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
-        self.fit_limb_radius = None
+        self.wave=None
+        self.binfactor = 1
+        self.binInds = None
+        self.bin_rez = None
+        self.radBins = None
+        self.radBins_xy = None
+        self.radBins_ind = None
+        self.binMax = None
+        self.binMin = None
+        self.binAbsMax = None
+        self.binAbsMin = None
+        self.binAbsMin = None
+        self.binBox = []
+        
+        self.limb_radius_shrunken = None
         self.radius = None
         self.do_split = False
         self.loud_tic = False
         self.duration = 0.0
-        self.tm = 0
+        self.tm = time.time()
         self.raw_map = None
         self.img_path = None
         self.vignette_mask = None
@@ -234,7 +253,7 @@ class Processor:
         if self.params.do_single and img_path:
             temp_top_dir = os.path.dirname(self.params.temp_directory())
             this_name = os.path.basename(img_path)[:-5]
-            self.params.temp_directory(os.path.join(temp_top_dir, this_name))
+            self.params.temp_directory(os.path.join(temp_top_dir, this_name, "RHT"))
         os.makedirs(self.params.temp_directory(), exist_ok=True)
         self.params.do_temp = True
         return self.params.temp_directory()
@@ -294,6 +313,8 @@ class Processor:
         if self.params.fits_path is None:
             self.params.fits_path = self.fits_path
         
+        
+        in_name = in_name.casefold()
         frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, in_name)
         if frame is not None and self.header['IMG_TYPE'].casefold() != 'dark':
             self.params.raw_name = self.frame_name
@@ -436,6 +457,27 @@ class Processor:
         
         return self.short_list
     
+    def init_statistics(self):
+        """Initialize the statistical arrays"""
+        # dprint("init_statistics")
+        
+        self.bin_rez = np.max(self.binInds) + 10
+        self.radBins = [[] for x in np.arange(self.bin_rez)]
+        self.radBins_xy = [[] for x in np.arange(self.bin_rez)]
+        self.radBins_ind = [[] for x in np.arange(self.bin_rez)]
+        
+        self.binMax = np.empty(self.bin_rez)
+        self.binMin = np.empty(self.bin_rez)
+        self.binAbsMax = np.empty(self.bin_rez)
+        self.binAbsMin = np.empty(self.bin_rez)
+        self.binAbss = np.arange(self.bin_rez)
+        
+        self.binMax.fill(np.nan)
+        self.binMin.fill(np.nan)
+        self.binAbsMax.fill(np.nan)
+        self.binAbsMin.fill(np.nan)
+    
+    
     def print_keyframes(self):
         if self.can_use_keyframes:
             if self.params.fixed_cadence_keyframes():
@@ -542,8 +584,7 @@ class Processor:
                 if n_success <= 0:
                     print("\r X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(self.skipped))
                 else:
-                    print("\r ^ ^ ^Successfully {} {} Files ({} skipped) in {} seconds\n".format(self.finished_verb, max(n_success, 0), self.skipped,
-                                                                                                 str(self.duration)),
+                    print("\r ^ ^ ^Successfully {} {} Files ({} skipped) in {:0.4} seconds\n".format(self.finished_verb, max(n_success, 0), self.skipped, self.duration),
                           flush=True)
                     print(" ^ ---------------------------------------------------------------  ^\n")
             else:
@@ -577,10 +618,10 @@ class Processor:
             print("Parallel Run Failed: ", e)
             self.serial_fits_series()
     
-    def init_pbar_now(self):
+    def init_pbar_now(self, position=0):
         pbar = tqdm(self.keyframes,
                     unit=self.progress_unit,
-                    desc=self.progress_string)
+                    desc=self.progress_string, position=position, leave=True)
         return pbar
     
     def init_pool_if_needed(self):
@@ -624,7 +665,7 @@ class Processor:
         return frame
     
     def save_frame(self, frame, fits_path):
-        if frame is not None:
+        if frame is not None and frame is not False:
             if self.save_to_fits:
                 self.save_frame_to_fits_file(fits_path, frame, dtype=self.out_dtype)
     
@@ -645,7 +686,7 @@ class Processor:
         elif path1 is not None or path2 is not None:
             self.img_path = path1 or path2
         else:
-            raise FileNotFoundError("No image found for wavelength: {}".format(wavestr))
+            raise FileNotFoundError("No frame found for wavelength: {}".format(wavestr))
     
     def modify_one_image(self, ):
         """Apply the given funtion to the given fits path"""
@@ -695,10 +736,10 @@ class Processor:
     def find_limb_radius(self):
         # self.load_curves()
         
-        # self.found_limb_radius = 400 # self.params.found_limb_radius or 1600
-        self.found_limb_radius = self.params.found_limb_radius or 1600
-        self.lCut = int(self.found_limb_radius - 0.01 * self.params.rez)
-        self.hCut = int(self.found_limb_radius + 0.01 * self.params.rez)
+        # self.limb_radius_original = 400 # self.params.limb_radius_original or 1600
+        self.limb_radius_original = self.params.limb_radius_original or 1600
+        self.lCut = int(self.limb_radius_original - 0.01 * self.params.rez)
+        self.hCut = int(self.limb_radius_original + 0.01 * self.params.rez)
         
         try:
             # abss = self.frame_abss
@@ -719,13 +760,13 @@ class Processor:
             
             self.peak_indList = [outer_mid_max_maxInd, inner_mid_max_maxInd,
                                  inner_mid_min_maxInd, outer_mid_min_maxInd]
-            self.fit_limb_radius = int(np.round(np.mean(self.peak_indList), 0))
+            self.limb_radius_shrunken = int(np.round(np.mean(self.peak_indList), 0))
         except TypeError as e:
             # print("\r        find_limb_radius failed: ", e)
-            self.fit_limb_radius = self.found_limb_radius
+            self.limb_radius_shrunken = self.limb_radius_original
         
-        self.lCut = int(self.fit_limb_radius - 0.01 * self.params.rez)
-        self.hCut = int(self.fit_limb_radius + 0.00 * self.params.rez)
+        self.lCut = int(self.limb_radius_shrunken - 0.01 * self.params.rez)
+        self.hCut = int(self.limb_radius_shrunken + 0.00 * self.params.rez)
     
     def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
@@ -738,6 +779,33 @@ class Processor:
         
         self.s_radius = s_radius
         self.tRadius = self.s_radius * t_factor
+    
+    def double_smash(self, raw_arr, log=True, prerun=True):
+        if prerun:
+            tmin, tmax = np.nanpercentile(raw_arr, [0.1, 99.9])
+            flat_norm = (raw_arr - tmin) / (tmax - tmin)
+        else:
+            flat_norm = raw_arr
+        flat_arr = np.log10(flat_norm) if log else flat_norm
+        is_finite = flat_arr[np.isfinite(flat_arr)]
+        tmin, tmax = np.nanpercentile(is_finite, [0.1, 99.99])
+        flat_arr_norm = (flat_arr - tmin) / (tmax - tmin)
+        flat_arr_norm[~np.isfinite(flat_arr)] = np.nan
+        return flat_arr_norm
+    
+    def resize_image(self, img=None, want_rez=1024, prnt=True):
+        if prnt: print("   * Shrinking Rez to {}...".format(want_rez))
+        img = img if img is not None else self.params.raw_image
+        from utils.array_util import reduce_array
+        self.params.raw_image, self.params.center = reduce_array(img, self.params.center, want_rez)
+        self.params.rez = self.header["NAXIS1"] = want_rez
+        self.init_image_frames()
+        self.shrink_F = 4 if want_rez == 1024 else 2 if want_rez == 2048 else 1
+        self.parse_resize_args(self.shrink_F)
+        self.make_radius()
+        self.make_vignette()
+        self.smol = True
+        return self.params.raw_image
     
     def init_image_frames(self):
         mdi = self.params.modified_image
@@ -757,7 +825,7 @@ class Processor:
     
     def determine_shrink_factor(self):
         
-        self.binfactor = 4
+        # self.binfactor = 4
         
         rez = self.params.rez = self.header["NAXIS1"]
         if rez == 4096:
@@ -774,24 +842,23 @@ class Processor:
     def parse_shrink_args(self, shrink_needed=True):
         nn = self.shrink_factor if shrink_needed else 1
         self.params.center = [self.header["X0_MP"] / (nn), self.header["Y0_MP"] / (nn)]
-        self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]/nn
+        self.limb_radius_original = self.limb_radius_shrunken = self.header["R_SUN"] / nn
         self.output_abscissa = np.arange(self.params.rez)
 
     def parse_resize_args(self, factor=4):
         self.params.center = [self.header["X0_MP"] / (factor), self.header["Y0_MP"] / (factor)]
-        self.found_limb_radius = self.fit_limb_radius = self.header["R_SUN"]/factor
+        self.limb_radius_original = self.limb_radius_shrunken = self.header["R_SUN"] / factor
         self.output_abscissa = np.arange(self.params.rez)
         
     
     def make_radius(self):
-        
         self.xx, self.yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
         xc, yc = self.xx - self.params.center[0], self.yy - self.params.center[1]
         self.radius = np.sqrt(xc * xc + yc * yc)
         self.theta_array = np.arctan2(yc, xc)
         self.rad_flat = self.radius.flatten()
     
-    def make_vignette(self, vignette_radius=1.19):
+    def make_vignette(self, vignette_radius=1.6):
         self.vcut = int(vignette_radius * self.params.rez // 2)
         self.vrad = self.n2r(self.vcut)
         self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
@@ -803,6 +870,94 @@ class Processor:
         self.binYY = self.yy.flatten()
         self.binII = np.arange(len(self.rad_flat))
         
+    @staticmethod
+    def get_bin_items(bin_list):
+        """Retrieve finite values from a bin_list"""
+        bin_array = np.asarray(bin_list)
+        finite = np.isfinite(bin_array)
+        filled = bin_array != 0
+        keep = list(np.nonzero(finite & filled)[0])
+        finite_out = bin_array[keep]
+        return keep, finite_out
+    
+    def bin_radially(self):  # TODO Make the save to fits work
+        """Bin the intensities by radius """
+
+        do_cache = False
+        if do_cache:
+            if not self.there_is_cached_data:
+                self.do_bin(fast=False)
+                self.save_cached_data(self.radBins)
+                self.there_is_cached_data = True
+            else:
+                self.load_cached_data(self.radBins)
+        else:
+            self.do_bin(fast=False)
+    
+    def do_bin(self, use_im=None, fast=True, binBoxSize=100):  # Bin the intensities by radius
+        flat_im = self.params.modified_image if use_im is None else use_im
+        flat_im = flat_im.flatten()
+        sz = (self.params.rez, self.params.rez)
+        self.params.quantile_image = np.empty(sz[0]**2)
+        self.params.quantile_image.fill(np.nan)
+        n_inds = np.max(self.binInds)
+        self.equal_intensity_array = np.empty((n_inds, binBoxSize))
+        self.equal_radius_array = np.empty((n_inds, binBoxSize))
+        self.equal_mean_array = np.empty((n_inds))
+        self.equal_std_array = np.empty((n_inds))
+        
+        self.equal_intensity_array.fill(np.nan)
+        self.equal_radius_array.fill(np.nan)
+        self.equal_mean_array.fill(np.nan)
+        self.equal_std_array.fill(np.nan)
+        
+        params_list = tqdm(np.arange(n_inds), desc=" *    Sorting Pixels", position=0, leave=True)
+        
+        skip = 10 #if "QRN" in self.out_name else 10 if fast else 1
+        # from numpy.random import Generator as Gen
+        for binI in params_list:
+            if not np.mod(binI, skip):
+                if fast:
+                    entries, the_mean, the_std = self.get_bin_entries(binI, flat_im)
+                    limit = entries.shape[0]
+                    if limit:
+                        indices = np.random.choice(limit, binBoxSize, replace=True)
+                        (good_coord, self.equal_intensity_array[binI, :], self.equal_radius_array[binI, :]), self.equal_mean_array[binI], self.equal_std_array[binI]  = entries[indices].T, the_mean, the_std
+                else:
+                    self.do_this_bin(binI, flat_im, fast=fast, skip=skip)
+        return self.equal_radius_array, self.equal_intensity_array
+        
+        
+        # print('')
+        # pass
+        # import multiprocessing
+        # pool_obj = multiprocessing.Pool(6)
+        # pool_obj.map(self.do_this_bin, params_list)
+    
+    def do_this_bin(self, binI, image, fast=False, skip=1):
+        # if binI > 300:
+        #     return
+        entries, mean, std = self.get_bin_entries(binI, image)
+        (good_coord, bin_array, radii) = entries.T
+        if len(bin_array) > 0:
+            self.binBox.append(np.asarray([good_coord, radii, bin_array]).T.tolist())
+            self.params.quantile_image[good_coord.astype(int)] = stats.rankdata(bin_array, "average") / len(bin_array)
+            if not fast:
+                # print("Dont")
+                A,B,C,D = np.percentile(bin_array, [98.5, 90, 7, 4])
+                array = np.arange(binI, np.min((binI+skip, self.bin_rez)))
+                self.binAbsMax[array], self.binMax[array], self.binMin[array], self.binAbsMin[array] = A, B, C, D
+        return good_coord, radii, bin_array
+    
+    def get_bin_entries(self, binI, image=None):
+        # frame = self.flat_im if frame is None else frame
+        the_inds =          np.where(self.binInds == binI)
+        keep, bin_array =   self.get_bin_items(image[the_inds])
+        coord =             self.binII[the_inds].tolist()
+        good_coord =        [coord[x] for x in keep]
+        radii = [self.n2r(self.rad_flat[int(x)]) for x in good_coord]
+        return np.asarray([good_coord, bin_array, radii]).T, np.mean(bin_array), np.std(bin_array)
+    
     def mask_out_sun(self, image, radius=1.01, mask=None):
         if self.radius is None:
             self.init_radius_array()
@@ -810,10 +965,247 @@ class Processor:
         mask = mask or np.nan if "float" in str(image.dtype) else 0
         
         if len(image.shape)>2:
-            image[:, self.radius/self.found_limb_radius < radius] = mask
+            image[:, self.radius / self.limb_radius_shrunken < radius] = mask
         else:
-            image[self.radius/self.found_limb_radius < radius] = mask
+            image[self.radius / self.limb_radius_shrunken < radius] = mask
         return image
+
+
+    def get_even_points_in_radius(self, binBoxSize=100, image=None): # equally spaced points
+        # Get an even number of items vs radius
+        binRad = []
+        binInts = []
+    
+        self.do_bin(use_im=image, fast=True, binBoxSize=binBoxSize)
+        return self.equal_radius_array, self.equal_intensity_array
+    
+        # if image is not None:
+        #     self.binBox = []
+        #
+        # elif self.binBox is None:
+        #     self.binBox = []
+        #     self.do_bin(use_im=image, fast=True)
+        #
+        # for box in self.binBox:
+        #     try:
+        #         subset = choices(box, k=binBoxSize)
+        #         for (radInd, radius, intensity) in subset:
+        #             binRad.append(radius)
+        #             binInts.append(intensity)
+        #     except ValueError as e:
+        #         print(e)
+        # binRad, binInts = np.asarray(binRad), np.asarray(binInts)
+        # # choices(tup, k=self.binBoxSize)
+        # return binRad, binInts
+
+    def do_compare_histogramplot(self, frames=None, names=None, even_points=100, use_cmap=False):
+
+        
+        # self.prep_histograms()
+        frames = frames if frames is not None else [self.params.raw_image2.reshape(self.params.modified_image.shape),
+                                                    self.params.modified_image.reshape(self.params.modified_image.shape),
+                                                    self.params.quantile_image.reshape(self.params.modified_image.shape)]
+        
+        names = names if names is not None else ["Log10 (Normalized)", "SRN (Normalized)", "QRN"]
+        
+        
+        
+        fig, axArray = plt.subplots(3, len(frames), sharex='row', sharey="row", gridspec_kw = {'height_ratios':[2,1.5,2.5]})
+        (top_axes, mid_axes, bot_axes) = axArray
+        try:
+            t_rec = self.header["T_REC"]
+        except KeyError as e:
+            t_rec = self.header["T_OBS"]
+        fig.suptitle("{}  at  {}".format(self.wave, t_rec))
+
+        # import copy
+        # frames2 = copy.deepcopy(frames)
+        self.plot_histogram_images(top_axes, frames, names)
+        self.plot_histogram_points(bot_axes, frames, names, even_points, axes2=mid_axes )
+
+        
+        mid_axes[0].legend(frameon=False)
+        bot_axes[0].set_ylabel("Intensity")
+        bot_axes[1].legend(frameon=False, loc='lower left')
+        fig.set_size_inches((14,8))
+        plt.tight_layout()
+        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.png", dpi=400)
+        # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.pdf", dpi=400)
+        plt.show()
+        self.maximizePlot()
+        plt.tight_layout()
+        plt.show(block=True)
+        asdf = 1
+
+
+    def do_compare_histogramplot_qrnonly(self, frames=None, names=None, even_points=150, use_cmap=False):
+
+        has_qrn = np.where(['qrn' in nam for nam in names])[0]
+        framesq = [frames[int(x)] for x in has_qrn]
+        namesq = [names[int(x)] for x in has_qrn]
+        namesqq = [names[int(x)]+"_raw" for x in has_qrn]
+        
+        fram = [framesq[0], framesq[1], framesq[1]]
+        name = [namesq[0], namesqq[1], namesq[1]]
+        
+        
+        fig, axArray = plt.subplots(2, len(fram), sharex='row', sharey="row", gridspec_kw = {'height_ratios':[3,2]})
+        (top_axes, bot_axes) = axArray
+        try:
+            t_rec = self.header["T_REC"]
+        except KeyError as e:
+            t_rec = self.header["T_OBS"]
+        fig.suptitle("{}  at  {}".format(self.wave, t_rec))
+
+        # import copy
+        # frames2 = copy.deepcopy(frames)
+        self.plot_histogram_images(top_axes, fram, name)
+        self.plot_histogram_points(bot_axes, fram, name, even_points, axes2=None)
+
+        
+        # mid_axes[0].legend(frameon=False)
+        bot_axes[0].set_ylabel("Intensity")
+        bot_axes[0].legend(frameon=False) #, loc='lower left')
+        fig.set_size_inches((14,8))
+        plt.tight_layout()
+        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_qrn.png", dpi=400)
+        # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.pdf", dpi=400)
+        # plt.show()
+        # self.maximizePlot()
+        # plt.tight_layout()
+        plt.show(block=True)
+        asdf = 1
+    
+    def plot_histogram_images(self, axes, frames, names, donorm=True, dosmash=True):
+        ## Plot Images
+        print(" *    Plotting Images")
+        for ax, frame, nam in zip(axes, frames, names):
+            frame = self.histNorm(frame, donorm=donorm, dosmash=dosmash, name=nam)
+            self.plot_one_histimage(ax, frame, title=nam)
+            
+    def plot_histogram_points(self, axes, frames, names, even_points, donorm=True, dosmash=True, axes2=None):
+        # Plot the Histograms
+        print(" *    Plotting Histograms")
+        if axes2 is None:
+            axes2 = [None] * len(axes)
+        for ax, ax2, frame, nam in zip(axes, axes2, frames, names):
+            frame = self.histNorm(frame, donorm=donorm, dosmash=dosmash, name=nam)
+            # ax.set_title(nam)
+            self.plot_one_histogram(ax, ax2, frame, nam, even_points=even_points)
+            # return
+
+    def histNorm(self, frame, hi=99.0, lo=0.5, donorm=True, dosmash=True, name='default'):
+        skiplist = ['raw']
+        for item in skiplist:
+            if item in name:
+                return frame
+        if donorm:
+            frame = self.normalize(frame, hi, lo)
+        # if dosmash and False:
+        #     frame = self.double_smash(frame)
+        return frame
+
+    def plot_one_histimage(self, ax, frame, title=None):
+        sz = (self.params.rez // self.shrink_factor, self.params.rez // self.shrink_factor)
+        frame = frame.reshape(sz)
+        ax.imshow(frame, origin='lower', cmap='gray', vmin=0, vmax=1)
+        ax.set_title(title)
+        
+    def plot_one_histogram(self, ax, ax2, frame, title=None, even_points=100):
+        absiss, frame = self.get_even_points_in_radius(even_points, frame)
+        self.plot_frame_hist(ax, ax2, frame, title, hist_absiss=absiss)
+        # ax.set_title(title)
+        
+        
+    def plot_frame_hist(self, ax1, ax2, use_image, title="Default", blk_alpha=0.2, hist_absiss=None):
+        # Gather Points to Display
+        # flat_sunback = self.params.modified_image.flatten() + 0
+        hist_absiss = hist_absiss if hist_absiss is not None else self.hist_absiss
+        if len(use_image.shape) > 1:
+            use_image = use_image.flatten()
+        ax1.scatter(hist_absiss, use_image, c='k', s=4, alpha=blk_alpha, edgecolors='none')
+        lo, hi, num = np.nanmin(hist_absiss), np.nanmax(hist_absiss), len(self.equal_mean_array)
+        absiss = np.linspace(lo, hi, num)
+    
+        inds = (~np.isnan(self.equal_mean_array) & np.isfinite(self.equal_mean_array))
+        if ax2 is not None:
+            ax2.plot(absiss[inds], self.equal_mean_array[inds], c='k', ls="-", label="Mean")
+            ax2.plot(absiss[inds], self.equal_std_array[inds] , c='grey', ls=(0, (5,1)), label="Std")
+            ax2.set_ylim((-0.2, 1.2))
+            
+    
+    
+        # Formatting the Plot
+        vloc = self.n2r(self.params.rez // 2 // self.binfactor)
+        do_legend = '1p5' in title
+    
+        # ax1.set_title(title)
+        use_axes = (ax1, ax2) if ax2 is not None else [ax1]
+        for ax in use_axes:
+            ax.axhline(0,           c="lightgrey",          ls="-")
+            ax.axhline(1,           c="lightgrey",          ls="-")
+            ax.axvline(1,           c='grey',               label="Solar Limb"    if do_legend else None)
+            ax.axvline(vloc,        c="grey",       ls=":", label="Detector Edge" if do_legend else None)
+            ax.axvline(self.vrad,   c="lightgrey", ls=":",  label="Optical Edge"  if do_legend else None)
+            ax.set_xlim((-0.05, 1.9))
+        ax1.set_ylim((-0.3, 1.5))
+        ax1.set_xlabel("Distance from Sun Center")
+        # plt.show(block=True)
+        
+        
+    
+    def prep_histograms(self):
+        # self.params.quantile_image = self.params.quantile_image.reshape(self.params.modified_image.shape)
+        
+        skip_points = 10 if self.params.rez < 3000 else 300
+        self.hist_absiss = self.n2r(self.rad_flat[::skip_points])
+        self.hist_argsort = np.argsort(self.hist_absiss)
+        self.hist_absiss_sorted = self.hist_absiss[self.hist_argsort]
+        
+    @staticmethod
+    def maximizePlot():
+        try:
+            mng = plt.get_current_fig_manager()
+            backend = plt.get_backend()
+            if backend == 'TkAgg':
+                try:
+                    mng.window.state('zoomed')
+                except:
+                    mng.resize(*mng.window.maxsize())
+            elif backend == 'wxAgg':
+                mng.frame.Maximize(True)
+            elif backend[:2].upper() == 'QT':
+                mng.window.showMaximized()
+            else:
+                return False
+            return True
+        except:
+            return False
+        
+        
+        # top_axes[ii].imshow( fram.reshape(self.params.raw_image2.shape),  origin='lower', cmap='gray', vmin=0, vmax=1)
+        
+    # self.plot_one_histogram(bot_axes[1], img2, lab2, donorm=False, even_points=even_points)
+    # self.plot_one_histogram(bot_axes[2], img3, lab3, donorm=False, dosmash=False, even_points=even_points)
+    
+    # if use_cmap:
+    #     self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
+    # else:
+    #     from matplotlib import cm
+    #     self.params.cmap = cm.gray
+    
+
+    
+    # if "log10" in lab1:
+    #     img1 = self.orig_smasher(img1)
+    
+    ## Plot Images
+    # top_axes[1].imshow( img2,  origin='lower', cmap='gray', vmin=0, vmax=1)
+    # top_axes[2].imshow( img3,  origin='lower', cmap='gray', vmin=0, vmax=1)
+        # goal = np.sqrt(self.binInds.max())
+        # basis = np.linspace(1, goal, len(self.hist_absiss))
+        # # basis = np.logspace(0,2)
+        # # wantInds = basis
     # def plot_aia_changed(self):
     
     ########################################
@@ -884,7 +1276,7 @@ class Processor:
                     
                     
                     hdul.close(output_verify='fix')
-                    if self.params.speak_save and False:
+                    if self.params.speak_save:
                         middle = "        ** >> Saved Frame {} << **".format(field)
                         midlen = len(middle) - 14
                         print("        ** " + "V" * midlen + " **")
@@ -1034,8 +1426,8 @@ class Processor:
         if self.outer_min is None:
             return None
         self.scalar_out_curve = np.zeros(len(self.outer_min))
-        if self.found_limb_radius:
-            self.scalar_out_curve[0] = self.fit_limb_radius
+        if self.limb_radius_original:
+            self.scalar_out_curve[0] = self.limb_radius_shrunken
         if self.abs_min_scalar:
             self.scalar_out_curve[1] = self.abs_min_scalar
             self.scalar_out_curve[2] = self.abs_max_scalar
@@ -1052,7 +1444,7 @@ class Processor:
                          ])
         # out_list.append([self.savgol_filtered_absol_maximum, self.savgol_filtered_absol_minimum])
         self.curve_descriptions = ["outer_min", "inner_min", "inner_max", "outer_max",
-                                   ["scalar_out_curve", "fit_limb_radius", "abs_min", "abs_max"], "output_abscissa",
+                                   ["scalar_out_curve", "limb_radius_shrunken", "abs_min", "abs_max"], "output_abscissa",
                                    "savgol_filtered_outer_maximum", "savgol_filtered_inner_maximum",
                                    "savgol_filtered_inner_minimum", "savgol_filtered_outer_minimum", 'smooth_abs_max', 'smooth_abs_min']
         
@@ -1069,7 +1461,7 @@ class Processor:
         self.savgol_filtered_inner_minimum, self.savgol_filtered_outer_minimum, \
         self.abs_max, self.abs_min, = np.loadtxt(self.params.curve_path())
         
-        self.fit_limb_radius = self.scalar_in_curve[0]
+        self.limb_radius_shrunken = self.scalar_in_curve[0]
         self.abs_min_scalar = self.scalar_in_curve[1]
         self.abs_max_scalar = self.scalar_in_curve[2]
     
@@ -1219,7 +1611,7 @@ class Processor:
             except KeyError as e:
                 continue
         self.first_hIndex = ii
-        self.params.found_limb_radius = found_limb_radius
+        self.params.limb_radius_original = found_limb_radius
         self.params.header = self.header
         self.params.bunit = data_unit
         return wave, t_rec, center, int_time, found_limb_radius
@@ -1233,14 +1625,15 @@ class Processor:
                 self.in_name = self.set_in_frame_name(in_name=in_name, fits_path=fits_path, hdul=hdul)
                 # print("\r", self.in_name, self.frame_name, "\n")
                 frame, self.header = self.open_fits_hdul(hdul=hdul, quiet=quiet, frame_name=self.in_name)
-                wave, t_rec, center, int_time, self.found_limb_radius = self.get_fits_info(hdul)
+                wave, t_rec, center, int_time, self.limb_radius_original = self.get_fits_info(hdul)
                 frame = None if self.in_name is None else frame
             return frame, wave, t_rec, center, int_time, self.in_name
         except (OSError, RuntimeError) as e:
             print(e)
             print("One of the Fits Files was Corrupt")
             try:
-                self.delete_fits_and_png(fits_path, False   )
+                pass
+                # self.delete_fits_and_png(fits_path, False   )
             except FileNotFoundError:
                 pass
     
@@ -1249,9 +1642,9 @@ class Processor:
         
     
     def set_in_frame_name(self, in_name=None, fits_path=None, hdul=None):
-        """Determine the right in_name given any kind of input"""
+        """Determine the right in_name given any kind of in_array"""
         
-        # Short-circuit if the input is a string
+        # Short-circuit if the in_array is a string
         if in_name is not None and type(in_name) in [str]:
             self.in_name = self.frame_name = in_name
             return self.in_name
@@ -1286,7 +1679,7 @@ class Processor:
         return first_name, second_name, penultimate_name, last_name, prev_name, all_names
     
     def find_correct_in_name(self, hdul, name):
-        """Determine which out_array of the input file to use on redo"""
+        """Determine which out_array of the in_array file to use on redo"""
         repo = self.reprocess_mode()
         reprocess_mode = self.params.reprocess_mode(repo)
         
@@ -1329,7 +1722,7 @@ class Processor:
         return self.in_name
     
     def determine_in_frame_name(self, hdul, name, quiet=True):
-        """Parses an input variable to determine the frame it's talking about"""
+        """Parses an in_array variable to determine the frame it's talking about"""
         self.frame_name = None
         self.hdu_name_list = self.list_hdus(hdul)
         
@@ -1411,7 +1804,7 @@ class Processor:
             field_hdu = hdul[self.frame_name]
         except KeyError as e:
             try:
-                # Try shortening the input name
+                # Try shortening the in_array name
                 field_hdu = hdul[self.frame_name.split('(')[0]]
             except KeyError as e2:
                 try:
@@ -1587,7 +1980,7 @@ class Processor:
         return self.hdu_name_list[-1]
     
     def determine_requested_in_frame_name(self):
-        # Determine the called-for input out_array NAME
+        # Determine the called-for in_array out_array NAME
         if type(self.in_name) is str:
             # if self.in_name in self.hdu_name_list:
             input_frame_name = self.in_name.casefold()
@@ -1855,6 +2248,8 @@ class Processor:
     def vignette(self, frame=None):
         """Truncate the in_object above a certain radis"""
         # if self.vignette_mask is None:
+        return frame
+        
         if self.radius is None:
             self.init_radius_array()
             
@@ -1880,28 +2275,30 @@ class Processor:
     ## Static Methods ##
     def n2r(self, n):
         """Convert index to solar radius"""
-        if not self.fit_limb_radius:
+        if not self.limb_radius_shrunken:
             self.find_limb_radius()
         if n is None:
             n = 0
-        r = n / self.fit_limb_radius
+        r = n / self.limb_radius_shrunken
         return r
     
     def r2n(self, r):
         """Convert index to solar radius"""
-        if not self.fit_limb_radius:
+        if not self.limb_radius_shrunken:
             self.find_limb_radius()
-        n = r * self.fit_limb_radius
+        n = r * self.limb_radius_shrunken
         return n
     
     @staticmethod
-    def normalize(image, high=98, low=15):
+    def normalize(image, high=98., low=15.):
         """Normalize the Array"""
-        if low is None:
-            lowP = 0
-        else:
-            lowP = np.nanpercentile(image, low)
-        highP = np.nanpercentile(image, high)
+        lowP, highP = np.nanpercentile(image, [low, high])
+        
+        # if low is None:
+        #     lowP = 0
+        # else:
+        #     lowP = np.nanpercentile(image, low)
+        # highP = np.nanpercentile(image, high)
         import warnings
         with warnings.catch_warnings():
             warnings.filterwarnings('error')

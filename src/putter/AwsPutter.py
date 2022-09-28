@@ -17,7 +17,7 @@ txt_args = copy(S3_UPLOAD_ARGS)
 txt_args["ContentType"] = "text/plain"
 
 png_args = copy(S3_UPLOAD_ARGS)
-png_args["ContentType"] = "image/png"
+png_args["ContentType"] = "frame/png"
 
 s3 = boto3.resource('s3')
 # bucket = s3.Bucket('gillyspace27-test-billboard')
@@ -42,7 +42,7 @@ class AwsPutter(Putter):
     def put(self, params=None):
         if params is not None:
             self.__init__(params)
-        """uploads all imgs in input to the s3 bucket"""
+        """uploads all imgs in in_array to the s3 bucket"""
         print(" V Uploading PNGs to {}...".format(bucket), flush=True)
         # sleep(0.1)
         self.empty_the_bucket()
@@ -71,7 +71,7 @@ class AwsPutter(Putter):
                 for file in os.listdir(comp_dir):
                     self.to_upload.append(os.path.join(comp_dir, file))
             # print(" V Uploading Files")
-            self.pbar = tqdm(self.to_upload, desc="\r * Uploading Files")
+            self.pbar = tqdm(self.to_upload, desc="\r *    Uploading Files")
 
         return self.to_upload, self.pbar
     
@@ -155,7 +155,7 @@ class AwsPutter(Putter):
         # print("\r - > Done with Time! ")
 
     # def put_ultimate(self):
-    #     """uploads all imgs in input to the s3 bucket"""
+    #     """uploads all imgs in in_array to the s3 bucket"""
     #     print("   Uploading files to {}...".format(bucket), flush=True)
     #     sleep(0.1)
     #     for local, remote in tqdm(self.params.local_imgs_paths()):

@@ -19,6 +19,12 @@ class Putter(Processor):
     def sleep_until_delay_elapsed(self):
         """ Make sure that the loop takes the right amount of time """
         delay = self.params.delay_seconds()
-        for ii in tqdm((range(int(delay))),
-                       desc="    {}, Waiting for {:0.0f} seconds".format(self.png_name, delay)):
-            sleep(1)
+        try:
+            for ii in tqdm((range(int(delay))), desc="    {}, Waiting for {:0.0f} seconds".format(self.png_name, delay)):
+                sleep(1)
+        except KeyboardInterrupt:
+            # print("\rSkipping!")
+            pass
+                
+            # if brk:
+            #     break

@@ -14,6 +14,8 @@ import warnings
 from science.color_tables import aia_color_table
 import astropy.units as u
 
+from utils.stretch_intensity_module import norm_stretch
+
 warnings.filterwarnings("ignore")
 # import matplotlib as mpl
 
@@ -54,7 +56,7 @@ class QRNProcessor(Processor):
     can_initialize = True
     
     # Parse Inputs
-    def __init__(self, fits_path=None, in_name=None, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
+    def __init__(self, fits_path=None, in_name="LEV1P5(T_INT)", orig=False, show=False, verb=False, quick=False, rp=None, params=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
 
@@ -183,7 +185,9 @@ class QRNProcessor(Processor):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
             self.image_learn()
-        self.plot_full_normalization()
+        # self.plot_full_normalization()
+        # self.params.modified_image = norm_stretch(self.params.modified_image, alpha=0.35) #TODO This
+        
         return self.params.modified_image
     
     def cleanup(self):
@@ -209,14 +213,7 @@ class QRNProcessor(Processor):
             print("Skipping because the file is {}".format(problem))
         return self.go_ahead
     
-    # def delete_temp_folder(self, folder):
-    #     if os.path.isdir(folder):
-    #         shutil.rmtree(folder)
-    #
-    # def delete_temp_folder_items(self, folder):
-    #     for root, dirs, files in os.walk(folder):
-    #         for file in files:
-    #             self.force_delete(file, root)
+
     
     @staticmethod
     def force_delete(file, root='', do=True):
@@ -225,7 +222,14 @@ class QRNProcessor(Processor):
                 os.remove(os.path.join(root, file))
             else:
                 shutil.rmtree(file)
-    
+    # def delete_temp_folder(self, folder):
+    #     if os.path.isdir(folder):
+    #         shutil.rmtree(folder)
+    #
+    # def delete_temp_folder_items(self, folder):
+    #     for root, dirs, files in os.walk(folder):
+    #         for file in files:
+    #             self.force_delete(file, root)
     ###################
     ##   Main Calls  ##
     ###################
@@ -240,7 +244,7 @@ class QRNProcessor(Processor):
     ###################
     
     def image_learn(self):
-        """Analyze the input image_path to help make normalization curves"""
+        """Analyze the in_array image_path to help make normalization curves"""
         if not self.skip_bad_frame():
             self.init_for_learn()
             self.coronaLearn()
@@ -259,7 +263,7 @@ class QRNProcessor(Processor):
     def coronaLearn(self):
         """Perform the actual analysis"""
         self.bin_radially()  # Create a cloud of intesity values for each radial bin
-        self.radial_statistics()  # Find mean and percentiles vs height
+        # self.radial_statistics()  # Find mean and quantiles vs height
     
     def update_keyframe_counters(self, n=1):
         """Keep track of how many items have been added to keyframes"""
@@ -284,7 +288,7 @@ class QRNProcessor(Processor):
     def init_modified_image(self): ## TODO POTENTIAL BREAK POINT
         # mod = self.params.modified_image
         # if mod is None or not mod:
-        self.params.modified_image = np.zeros_like(self.params.raw_image)
+        self.params.modified_image = self.params.raw_image + 0
 
     def init_statistics(self):
         """Initialize the statistical arrays"""
@@ -295,14 +299,14 @@ class QRNProcessor(Processor):
         self.radBins_xy = [[] for x in np.arange(self.bin_rez)]
         self.radBins_ind = [[] for x in np.arange(self.bin_rez)]
     
-    def do_percentile_plot(self):
+    def do_quantile_plot(self):
         fig, axArray = plt.subplots(2, 3, sharex='row', sharey="row")
         ((axA, axB, axC), (ax1, ax2, ax3)) = (top_axes, bot_axes) = axArray
-        self.plot_percentilize_points(bot_axes)
-        self.plot_percentilize_images(top_axes)
+        self.plot_quantilize_points(bot_axes)
+        self.plot_quantilize_images(top_axes)
         plt.show(block=True)
     
-    def plot_percentilize_points(self, axes):
+    def plot_quantilize_points(self, axes):
         axA, axB, axC = axes
         ## Row 2, Distribution of points
         self.skip_points = 10 if self.params.rez < 3000 else 300
@@ -310,14 +314,14 @@ class QRNProcessor(Processor):
         # Gather Points to Display
         flat_raw = self.params.raw_image2.Fflatten() + 0
         flat_sunback = self.params.modified_image.flatten() + 0
-        flat_percentilize = self.params.percentile_image.flatten() + 0
+        flat_quantilize = self.params.quantile_image.flatten() + 0
         
         # Take a short subset of the points
         absiss = self.n2r(self.rad_flat[::self.skip_points])
         
         raw_short_points = self.orig_smasher(flat_raw[::self.skip_points])
         sunback_short_points = flat_sunback[::self.skip_points]
-        percentile_short_points = flat_percentilize[::self.skip_points]
+        quantile_short_points = flat_quantilize[::self.skip_points]
         
         # Plot Scatter Plots
         blk_alpha = 0.4
@@ -328,7 +332,7 @@ class QRNProcessor(Processor):
         axB.scatter(absiss, sunback_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
         
         axC.set_title("Quantilize")
-        axC.scatter(absiss, percentile_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
+        axC.scatter(absiss, quantile_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
         
         # ## Plot Formatting
         
@@ -363,13 +367,13 @@ class QRNProcessor(Processor):
     def orig_smasher(self, orig):
         return np.log10(orig) / 2
     
-    def plot_percentilize_images(self, axes):
+    def plot_quantilize_images(self, axes):
         ## Plot Images
         ax1, ax2, ax3 = axes
         
         ax1.imshow(self.orig_smasher(self.params.raw_image2), origin='lower', cmap='gray', vmin=0, vmax=1)
         ax2.imshow(self.params.modified_image, origin='lower', cmap='gray', vmin=0, vmax=1)
-        ax3.imshow(self.params.percentile_image, origin='lower', cmap='gray', vmin=0, vmax=1)
+        ax3.imshow(self.params.quantile_image, origin='lower', cmap='gray', vmin=0, vmax=1)
 
     ###################################
     ## Raw Normalization Curve Stuff ##
@@ -386,22 +390,27 @@ class QRNProcessor(Processor):
             else:
                 self.load_cached_data(self.radBins)
         else:
-            self.do_bin()
+            self.do_bin(fast=True)
     
-    def do_bin(self, skip=1):  # Bin the intensities by radius
-        self.cut_pixels = skip
+        sz = (self.params.rez, self.params.rez)
         
-        for binI, dat, xx, yy, ind in zip(self.binInds[::self.cut_pixels],
-                                          self.params.raw_image.flatten()[::self.cut_pixels],
-                                          self.binXX[::self.cut_pixels],
-                                          self.binYY[::self.cut_pixels],
-                                          self.binII[::self.cut_pixels]):
-            # for each dat,
-            
-            self.radBins[binI].append(dat)
-            self.radBins_xy[binI].append((xx, yy))
-            self.radBins_ind[binI].append(ind)
+        self.modified_image = self.params.modified_image = self.params.quantile_image = self.params.quantile_image.reshape(sz)
+        
     
+    # def do_bin(self, skip=1):  # Bin the intensities by radius
+    #     self.cut_pixels = skip
+    #
+    #     for binI, dat, xx, yy, ind in zip(self.binInds[::self.cut_pixels],
+    #                                       self.params.raw_image.flatten()[::self.cut_pixels],
+    #                                       self.binXX[::self.cut_pixels],
+    #                                       self.binYY[::self.cut_pixels],
+    #                                       self.binII[::self.cut_pixels]):
+    #         # for each dat,
+    #
+    #         self.radBins[binI].append(dat)
+    #         self.radBins_xy[binI].append((xx, yy))
+    #         self.radBins_ind[binI].append(ind)
+    #
     def make_annular_rings(self, R1=32):
         
         RLast = self.params.rez
@@ -494,16 +503,6 @@ class QRNProcessor(Processor):
     def quantile_func(self, bin_array):
         return stats.rankdata(bin_array, "average") / len(bin_array)
     
-    
-    @staticmethod
-    def get_bin_items(bin_list):
-        """Retrieve finite values from a bin_list"""
-        bin_array = np.asarray(bin_list)
-        finite = np.isfinite(bin_array)
-        filled = bin_array != 0
-        keep = list(np.nonzero(finite & filled)[0])
-        finite_out = bin_array[keep]
-        return keep, finite_out
     
     def finalize_radial_statistics(self):
         """Clean up the radial statistics to be used"""

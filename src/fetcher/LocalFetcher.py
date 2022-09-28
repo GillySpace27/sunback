@@ -59,11 +59,21 @@ class LocalSingleFetcher(Fetcher):
         self.duration = ''
         self.load(params)
         fits_path = self.determine_image_path()
+        # if not fits_path:
+        #     self.params.fits_directory(path.join(self.params.fits_directory(), "raw"))
+        #     raw_path = self.determine_image_path()
+        #     self.params.fits_directory(path.join(self.params.fits_directory(), "..", path.basename(fits_path)))
+        #     fits_path = self.determine_image_path()
+        #     shutil.copy(raw_path, fits_path)
+            # # raise e
+            # self.fetch()
+            # return
         try:
             hdul = fits.open(fits_path, cache=False, ignore_missing_end=True)
         except ValueError as e:
             print("No Local File Found!")
             raise e
+
         self.list_hdus(hdul)
         
         for self.params.hdu_name in self.params.master_frame_list_newest:
@@ -240,7 +250,7 @@ class LocalCdfFetcher(Fetcher):
         plt.show()
         
     def peek_cdf(self, path):
-        print("\n\n          Plotting the frames on input from CDF")
+        print("\n\n          Plotting the frames on in_array from CDF")
         # Open the Image
         dss = xr.open_dataset(path)
 
@@ -255,7 +265,7 @@ class LocalCdfFetcher(Fetcher):
 
         fig.set_size_inches((4,20))
         plt.tight_layout()
-        plt.show(block=Trues)
+        plt.show(block=True)
 
     def selection_logic(self, get_ind=None, get_wave=None, gen=False):
         """Select which frame to use

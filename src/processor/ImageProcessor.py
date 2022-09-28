@@ -362,7 +362,7 @@ class ImageProcessor(Processor):
     # if frame_name == "nrgf":
     #     # Replace the Disk
     #     self.init_radius_array()
-    #     mask = self.radius < self.found_limb_radius*0.5
+    #     mask = self.radius < self.limb_radius_original*0.5
     #     frame[mask] = 0.5 #self.base_image[mask]
     
     # darken_rfilt = 1.2

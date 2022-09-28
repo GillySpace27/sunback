@@ -64,10 +64,10 @@ class SunPyProcessor(Processor):
     raw_map = None
     
     # Parse Inputs
-    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+    def __init__(self, params=None, quick=False, rp=None, in_name="LEV1P5(t_int)"):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
-        self.tm = 0
+        # self.tm = time.time()
         self.radial_bin_edges = None
         self.in_name = in_name or self.params.master_frame_list_newest
 
@@ -283,18 +283,24 @@ class MSGNProcessor(SunPyProcessor):
     out_name = "MSGN"
     first = True
     
-    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+    def __init__(self, params=None, quick=False, rp=None, in_name="LEV1P5(T_INT)"):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
-        # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
-        self.in_name = self.params.msgn_targets().pop(0)
+        self.select_input_frame(in_name)
         print(" --- Running MSGN on {} ---".format(self.in_name))
+
+    def select_input_frame(self, in_name):
+        self.in_name = in_name
+        # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
+        if self.params.msgn_targets() is not None and len(self.params.msgn_targets()):
+            self.in_name = self.params.msgn_targets().pop(0)
         # if MSGNProcessor.first:
         #     self.in_name = "primary"  #"lev1p5(lev1p0)"
         # else:
         #     self.in_name = "qrn(primary)" #"qrn(lev1p5)"
         #     #TODO make sure this works the same in all versions
-            
+    
+    
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         import sunkit_image.enhance as enhance

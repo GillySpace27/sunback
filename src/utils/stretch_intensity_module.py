@@ -8,7 +8,7 @@ CurveString = "Multi-Root"
 ## Main Function --------------------------------------------------------------
 
 def make_one_curve(alpha=0.35, xprime=None, alpha_high=None, eq_num=1):
-    """Given an exponent alpha and an input array, return a single curve
+    """Given an exponent alpha and an in_array array, return a single curve
     :param alpha: scalar
     :param xprime: array of length N
     :return: norm curve of length N

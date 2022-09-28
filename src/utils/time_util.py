@@ -26,7 +26,7 @@ def define_time_range(start, end):
     return get_time_lists(start_struct, end_struct)
 
 # def define_duration_range(start_timestamp, duration): ## THIS IS NOT IMPLEMENTED
-#     """Given a short and a long cadence, make an input to fido that gets that"""
+#     """Given a short and a long cadence, make an in_array to fido that gets that"""
 #     start_struct = datetime.datetime.strptime(start_timestamp, '%Y/%m/%d %H:%M:%S')
 #     end_struct = datetime.datetime.strptime(start_timestamp + duration, '%Y/%m/%d %H:%M:%S')
 #     return get_time_lists(start_struct, end_struct) #something that makes fido do the right thing by itself

@@ -4,6 +4,7 @@ import time
 from os import makedirs
 from os.path import join, dirname, basename
 # from astropy.convolution import convolve, convolve_fft, Box2DKernel, CustomKernel, Gaussian2DKernel
+from astropy.convolution import interpolate_replace_nans, convolve_fft, Gaussian2DKernel
 
 import cv2
 import h5py
@@ -15,6 +16,8 @@ import sunpy.map
 
 import sunkit_image.radial as radial
 from astropy.io import fits
+from matplotlib.collections import LineCollection
+from matplotlib.colors import LinearSegmentedColormap
 from scipy import ndimage, signal
 from sunkit_image.utils import equally_spaced_bins
 import aiapy
@@ -39,6 +42,8 @@ import warnings
 from utils.RHT.rht import rht
 from utils.RHT.rht.convRHT import unsharp_mask
 
+from utils.stretch_intensity_module import norm_stretch
+
 warnings.filterwarnings("ignore")
 import matplotlib.pyplot as plt
 
@@ -47,6 +52,9 @@ plt.ioff()
 do_dprint = False
 verb = False
 
+# Make a colormap
+colors = [(0, 0, 0), (144 /255, 99 /255, 205 /255)] # first color is black, last is red
+cm_purp = LinearSegmentedColormap.from_list("Custom", colors, N=255)
 
 def dprint(txt, **kwargs):
     if do_dprint:
@@ -78,18 +86,31 @@ class RHTProcessor(Processor):
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
+        self.r_vec_3d = None
+        self.edg = None
+        self.inv = None
+        self.reg = None
+        self.from_radial_theta = None
+        self.theta_map = None
+        self.nan = None
+        self.fudge_level = None
+        self.window_factors = []
+        self.index = 0
+        self.W_RHT_1024 = 31
+        self.current_w_rht = None
+        self.count_fraction_threshold = 0.7586
         self.nan_map = None
         self.r_bar = None
         self.h_xy = None
         self.smol = False
         self.shrink_F = 1
         self.thresholded = None
-        self.tm = 0
+        # self.tm = time.time()
         self.radial_bin_edges = equally_spaced_bins(inner_value=0.0, nbins=300) * u.R_sun
         self.RHT_out_list = []
         self.rht_cube = None
         self.theta = None
-        self.in_name = in_name or "lev1p5"
+        self.in_name = in_name or "qrn"
         self.params.modified_image = None
         
         if len(self.params.aftereffects_in_name) > 0:
@@ -100,10 +121,25 @@ class RHTProcessor(Processor):
     
     def do_work(self):
         print("")
+        shrink = True
+        force = True
+    
+        if 'rht' in self.hdu_name_list_trimmed and not force:
+            self.prep_inputs(shrink=shrink, prnt=False)
+            self.params.modified_image, wave, t_rec, center, int_time, name = \
+                self.load_this_fits_frame(self.fits_path, 'rht')
+            self.modified_image = self.theta_map = self.params.modified_image
+            self.make_radius()
+            self.doplots()
+            return None
+        else:
+            self.prep_inputs(shrink=shrink, prnt=True)
+            self.run_RHT()
+            self.doplots()
+            
+            return np.transpose(self.params.modified_image)
         
-        self.run_RHT()
-        
-        return np.transpose(self.params.modified_image)
+    
     
     def load_last_run(self, h5_files):
         file_name = h5_files[0]
@@ -132,14 +168,7 @@ class RHTProcessor(Processor):
         else:
             self.make_RHT_cube()
     
-    def get_angles_from_bitmap(self, image, outroot=None, thresh=0.95, w_factor=1.0):
-        outroot = outroot or self.outroot
-        cube, theta, r_bar = self.run_RHT_algorithm(image, outroot=outroot, w_factor=w_factor)
-        if self.rht_cube is None:
-            self.rht_cube = cube
-        else:
-            self.rht_cube += cube
-        
+    def get_angles_from_cube(self, theta, cube, r_bar, thresh):
         weighted_thetas = theta[:, None, None] * cube
         summed_weights = np.sum(cube, axis=0)
         summed_weights_theta = np.sum(weighted_thetas, axis=0)
@@ -151,56 +180,194 @@ class RHTProcessor(Processor):
         too_low = r_bar < thresh
         r_bar[too_low] = np.nan
         weighted_theta[too_low] = np.nan
-        
         return weighted_theta, r_bar
-    
-    def combine_RHT_runs(self, runs):
-        theta_map = self.combine_runs(runs)
         
-        # Find Nans and nan angles
-        theta_map1, runs = self.do_nan_run(theta_map, runs, 0.8)
-        theta_map2, runs = self.do_nan_run(theta_map, runs, 1.2)
-        return theta_map, runs
+    def compare_angle_methods(self, theta_bar, weighted_theta):
+        # tbar[tbar>180] -= 180
+        # weight = self.wrap_angles(weighted_theta)
+        # tbar = np.abs(self.wrap_angles(tbar))
+
+        # weighted_theta = self.wrap_angles(weighted_theta)
+        # theta_bar = self.wrap_angles(theta_bar, bounce=False)
+
+        # rad_tbar = self.change_to_angle_from_radial(theta_bar)
+        # rad_weight = self.change_to_angle_from_radial(weighted_theta)
+        
+        fig, axes = plt.subplots(1,3, sharex="all", sharey="all")
+        for ax in axes:
+            # for aa in ax:
+            ax.imshow(np.zeros_like(weighted_theta), cmap='gray')
+            
+        axes[0].imshow(weighted_theta, cmap='hsv', vmin=0, vmax=180)
+        axes[0].set_title("Weighted")
+        axes[1].imshow(theta_bar, cmap='hsv', vmin=0, vmax=180)
+        axes[1].set_title("Algorithm")
+        diff = np.abs(weighted_theta - theta_bar)
+        throw = np.nanmax([np.abs(np.nanmax(diff)), np.abs(np.nanmin(diff))])
+        
+        axes[2].imshow(diff, cmap='bwr', vmin=-throw, vmax=throw)
+        axes[2].set_title("Diff")
+
+        # axes[1,0].imshow(rad_weight, cmap='hsv', vmin=-90, vmax=90)
+        # axes[1,0].set_title("Radial, Weighted")
+        # axes[1,1].imshow(rad_tbar, cmap='hsv', vmin=-90, vmax=90)
+        # axes[1,1].set_title("Radial, Algorithm")
+        # axes[1,2].imshow(np.abs(rad_weight - rad_tbar), cmap='bwr', vmin=-180, vmax=180)
+        # axes[1,2].set_title("Radial, Diff")
+        
+        plt.show(block=True)
+        
+    def get_angles_from_bitmap(self, image, outroot=None, thresh=0.95, w_factor=1.0):
+        outroot = outroot or self.outroot
+        self.thresh = thresh
+        cube, theta_list, theta_bar, r_bar = self.run_RHT_algorithm(image, outroot=outroot, w_factor=w_factor)
+        
+        if self.rht_cube is None:
+            self.rht_cube = cube
+        else:
+            self.rht_cube += cube
+
+        too_low = r_bar < thresh
+        r_bar[too_low] = np.nan
+        theta_bar[too_low] = np.nan
+
+        # weighted_theta, r_bar = self.get_angles_from_cube(theta_list, cube, r_bar, thresh)
+        
+        # self.compare_angle_methods(theta_bar, weighted_theta)
+        # self.peek_rht(frame, r_bar, weighted_theta)
+        # self.fudge_level = "theta_bar"
+        return theta_bar, r_bar
+
+    def peek_rht(self, binary_image, r_bar, theta_image):
+        fig, axes = plt.subplots(3, 1, sharex=True, sharey=True)
+        
+        axes[0].imshow(binary_image, origin="lower", interpolation="None", cmap="gray")
+        axes[0].set_title("Binary")
+        axes[1].imshow(theta_image, origin="lower", interpolation="None", cmap="hsv", vmin=0, vmax=180)
+        axes[1].imshow(binary_image, origin="lower", interpolation="None", cmap="gray", alpha=0.2)
+        axes[1].set_title("Theta")
+        ma = axes[2].imshow(r_bar, origin="lower", interpolation="None", cmap="RdYlGn", vmin=self.thresh, vmax=1.0)
+        plt.colorbar(mappable =ma, ax=axes[2])
+        
+        
+        axes[2].imshow(binary_image, origin="lower", interpolation="None", cmap="gray", alpha=0.2)
+        checksum = np.nansum(r_bar)
+        items = np.sum(np.isfinite(r_bar))
+        checkquotient = checksum / items
+        found = checksum/len(r_bar.flatten())
+        axes[2].set_title("Found= {:0.4},  Avg Conf= {:0.4}".format(found, checkquotient))
+        # axes[0].imshow(origin="lower", interpolation="None", cmap="grey")
+        
+        # location = (2200, 3900) // self.shrink_F
+        
+        
+        from matplotlib.patches import Rectangle, Circle
+        
+        fig.suptitle("window size: {}, frac = {:0.4}".format(self.current_w_rht, self.count_fraction_threshold))
+        
+        for ax in axes:
+            # ax.add_patch(Rectangle([500, 900], self.current_w_rht, self.current_w_rht, zorder=1000, fill=False, edgecolor='b'))
+            ax.add_patch(Circle([500, 950], self.current_w_rht//2, zorder=1000, fill=False, edgecolor='b', lw=3))
+            ax.add_patch(Circle([600, 940], self.current_w_rht//2, zorder=1000, fill=False, edgecolor='b', lw=3))
+            
+            
+        
+        
+        plt.subplots_adjust(
+                top=0.959,
+                bottom=0.001,
+                left=0.044,
+                right=0.98,
+                hspace=0.0,
+                wspace=0.18)
+        axes[0].set_xlim((450,640))
+        axes[0].set_ylim((900,1024))
+        
+        saveloc = r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22\W_RHT\{}_{:0.04}.png"
+        fig.set_size_inches((8,15))
+        plt.savefig(saveloc.format(self.index, self.count_fraction_threshold))
+        self.index += 1
+        plt.close(fig)
+        # plt.show(block=True)
+        # ax2.add_patch(Rectangle(location, hp_wind, hp_wind, zorder=1000, fill=False, edgecolor='r'))
+        
+        # ax3.add_patch(Rectangle(location, hp_wind, hp_wind, zorder=1000, fill=False, edgecolor='r'))
+
     
-    def combine_runs(self, runs, weighted=True):
+    def combine_runs(self, runs, weighted=False):
         if weighted:
             theta_map, runs = self.combine_runs_weighted(runs)
         else:
             theta_map, runs = self.combine_runs_maxima(runs)
         return theta_map, runs
+    
+    def combine_RHT_runs_withnan(self, runs):
+        theta_map, runs = self.combine_runs(runs)
+        # 1/0
+        # Find Nans and nan angles
+        # self.count_fraction_threshold = 0.8
+        self.count_fraction_threshold = 0.65
+        self.window_factors = [1.0, 0.6, 1.4]
+        theta_map, runs = self.do_nan_run(theta_map,  runs, self.window_factors[0])
+        # theta_map, runs = self.do_nan_run(theta_map, runs,  self.window_factors[1])
+        theta_map, runs = self.do_nan_run(theta_map, runs,  self.window_factors[2])
+        
+        
+        
 
+        
+        # smoothed = theta_map3 #self.sgolay2d(df, 31, 2)
+        
+        
+        
+        theta_map[self.radius < 1.03 * (self.limb_radius_shrunken)] = np.nan
+        
+        
+        # import despike
+        # print(" V Aftereffects")
+        # print(" *   Despiking...")
+        # spikes = despike.spikes(theta_map3)
+        # print(" *   Cleaning...")
+        # clean_img = despike.clean(theta_map3)
+        
+        return theta_map, runs
+    
     def combine_runs_maxima(self, runs):
         # This Doesnt Work
         thetas, r_maps = zip(*runs)
         stack_theta = np.dstack(thetas)
         stack_r = np.dstack(r_maps)
+        ones = np.ones_like(thetas[0]) * 0.1
+        nans = np.ones_like(ones) * np.nan
         
+        stack_r_buffered = np.dstack((stack_r, ones))
+        stack_theta_buffered = np.dstack((stack_theta, nans))
         
-        # nan_array = np.ones_like(stack_r[:,:,0]) * np.nan
-        
-        no_data = np.nansum(stack_r, axis=2)==0
-        best_ind = np.argmax(stack_r, axis=2)
-        theta_map = np.zeros_like(r_maps[0])
+        theta_map = np.zeros_like(thetas[0])
+        best_ind = np.nanargmax(stack_r_buffered, axis=2)
         
         shape = theta_map.shape
         for ii in np.arange(shape[0]):
             for jj in np.arange(shape[1]):
-                best = best_ind[ii,jj]
-                theta_map[ii, jj] = stack_theta[ii, jj, best]
-        theta_map[no_data] = np.nan
+                theta_map[ii, jj] = stack_theta_buffered[ii, jj, best_ind[ii, jj]]
+        
+        # nan_array = np.ones_like(stack_r[:,:,0]) * np.nan
+        # no_data = np.nansum(stack_r, axis=2)==0
+        # theta_map = stack_theta_buffered[best_ind.flatten()]
+        # for ii, ind in enumerate(best_ind.flatten()):
+        #     theta_map[ii] = stack_theta_buffered
+        # theta_map[no_data] = np.nan
         
         # for index, argmax in enumerate(best_ind):
         #     theta_map[index] = stack_r argmax
         
-        
-        
-        theta_map = stack_theta[best_ind]
-        # best_ind[no_data] = -1
-        
-        stack_mult = stack_theta * stack_r
-        numerator = np.nansum(stack_mult, axis=2)
-        denominator = np.nansum(stack_r, axis=2)
-        theta_map = np.divide(numerator, denominator)
+        # theta_map = stack_theta[best_ind]
+        # # best_ind[no_data] = -1
+        #
+        # stack_mult = stack_theta * stack_r
+        # numerator = np.nansum(stack_mult, axis=2)
+        # denominator = np.nansum(stack_r, axis=2)
+        # theta_map = np.divide(numerator, denominator)
         return theta_map, runs
     
     def combine_runs_weighted(self, runs):
@@ -214,15 +381,29 @@ class RHTProcessor(Processor):
         theta_map = np.divide(numerator, denominator)
         return theta_map, runs
     
-    def do_nan_run(self, theta_map, runs, w_factor=1.0):
-        nan_map = np.isnan(theta_map)
+    def do_nan_run(self, theta_map, runs, w_factor=1.0, highfrac=True):
+        nan_map = np.isnan(theta_map).astype(np.uint8)
+        
+        # kernel=np.ones((3,3),np.uint8)
+        # closing_op = cv2.morphologyEx(nan_map,cv2.MORPH_CLOSE,kernel)
+        # opening_op = cv2.morphologyEx(nan_map,cv2.MORPH_OPEN,kernel)
+        # erosion_op = cv2.erode(nan_map,kernel,iterations=1)
+        # dilation_op= cv2.dilate(nan_map,kernel,iterations=1)
+        # blurred = cv2.GaussianBlur(nan_map, (0,0), 0.5)
+        #
+        # fig, (ax1, ax2, ax3) = plt.subplots(1, 3, sharex="all", sharey='all')
+        # ax1.imshow(nan_map, origin='lower', interpolation="none", cmap="gray")
+        # ax2.imshow(blurred, origin='lower', interpolation="none", cmap="gray")
+        # ax3.imshow(blurred, origin='lower', interpolation="none", cmap="gray")
+        # plt.show(block=True)
+        
         self.nan_map = nan_map
         theta_nan, r_bar_nan = self.get_angles_from_bitmap(nan_map, w_factor=w_factor)
-        r_bar_nan[self.radius <= 1] = 0
+        # r_bar_nan[self.radius <= 1] = 0
         runs.append((theta_nan, r_bar_nan))
         
         # Combine the Maps Again
-        theta_map = self.combine_runs(runs)
+        theta_map, runs = self.combine_runs(runs)
         return theta_map, runs
         
         # TODO
@@ -261,10 +442,12 @@ class RHTProcessor(Processor):
     def change_to_angle_from_radial(self, theta_map):
         coord_theta = (self.theta_array * 180 / np.pi)
         shift_theta = 180 - np.mod(coord_theta, 180).T
-        from_radial_theta = np.abs(theta_map - shift_theta)
+        from_radial_theta = theta_map - shift_theta
         
-        plt.imshow(from_radial_theta, cmap='hsv', origin="lower")
-        plt.show(block=True)
+        # plt.imshow(np.zeros_like(theta_map), cmap='gray')
+        # plt.imshow(from_radial_theta, cmap='hsv', origin="lower")
+        # plt.show(block=True)
+        return from_radial_theta
     
     def make_sobel(self, thresholded_image):
         sobel_64 = cv2.Sobel(thresholded_image, cv2.CV_64F, 1, 0, ksize=1)
@@ -274,37 +457,52 @@ class RHTProcessor(Processor):
     
     def make_RHT_cube(self):
         print(" * Making Cube...", flush=True)
-        
+    
         # Get Inputs in Line
-        self.prep_inputs(shrink=True)
-        
+    
         # Make the thresholded images
         thresholded_image = self.segmentation_jing11()
         inv_thresholded_image = self.donut_the_sun(255 - thresholded_image)
         sobel_8u = self.make_sobel(thresholded_image)
-        
+    
         # Run RHT on all of them
-        thresh = 0.95
-        reg = self.get_angles_from_bitmap(thresholded_image, thresh=thresh)
-        inv = self.get_angles_from_bitmap(inv_thresholded_image, outroot=self.outroot + "_inv", thresh=thresh)
-        edg = self.get_angles_from_bitmap(sobel_8u, outroot=self.outroot + "_sobel", thresh=thresh)
-        
+        self.count_fraction_threshold = thresh = 0.7586
+        self.rht_cube = None
+        self.index = 0
+        self.reg = self.get_angles_from_bitmap(thresholded_image, outroot=os.path.join(self.outroot, "reg"), thresh=thresh)
+        self.inv = self.get_angles_from_bitmap(inv_thresholded_image, outroot=os.path.join(self.outroot, "inv"), thresh=thresh)
+        self.edg = self.get_angles_from_bitmap(sobel_8u, outroot=os.path.join(self.outroot, "edg"), thresh=thresh)
+    
         # Combine the RHT runs
-        runs = [reg, inv, edg]
-        theta_map, runs = self.combine_RHT_runs(runs)
-        nan = runs[-1]
-        
-        # Add those together to get full coverage
-        self.suptitle = "Regular + Inv"
-        
-        from_radial_theta = self.change_to_angle_from_radial(theta_map)
-        
+        runs = [self.reg, self.inv, self.edg]
+        theta_map, runs = self.combine_RHT_runs_withnan(runs)
+        thetas, r_maps = zip(*runs)
+       
+        # Extract out the NANmasked component
+        self.nan = (np.nanmean(thetas[3:], axis=0), np.nanmean(r_maps[3:], axis=0))
+    
+        # Modify the Angle to be radial based
+        # from_radial_theta = self.change_to_angle_from_radial(theta_map)
+    
+        # Set the output of this filter
         # self.params.modified_image = theta_map
-        self.params.modified_image = from_radial_theta
+        self.modified_image = self.params.modified_image = theta_map.T
+        self.theta_map = theta_map
         
-        r_vec_3d = np.dstack((reg[1], inv[1], edg[1]))
+        ## Plotting
+    
+        # slc = self.params.rez//2 + int(self.r2n(1.1))
+    
+        # absiss = self.n2r(np.arange(self.params.rez))
+        # theta_curve = np.asarray(theta_map)[:, slc]
+        # frmrad_curve = np.asarray(from_radial_theta)[:, slc]
+    
+        # plt.scatter(absiss, frmrad_curve)
+        # plt.scatter(absiss, theta_curve), plt.show(block=True)
+    
+    
         # plt.imshow(r_vec_3d); plt.show(block=True)
-        
+    
         # plt.imshow(weighted_theta_reg, interpolation="none", cmap="brg")
         # plt.show(block=True)
         # output = np.zeros_like(thresholded_image)
@@ -314,143 +512,778 @@ class RHTProcessor(Processor):
         #     if doplot:
         #         plt.imshow(weights)
         #         plt.show(block=True)
-        
+    
         #########################
-        
+    
         # plt.imshow(inv_thresholded_image, interpolation="None"); plt.show(block=True)
-        
+    
         # # print("Edge")
         # t1, t2 = 35, 95
         # canny_image = cv2.Canny(thresholded_image, t1, t2)
         #
         # kernel = np.ones((2,2), 'uint8')
         #
-        # kernal = 1/5 * np.array([[0, 1, 0],          #Compute the gradient of an image by 2D convolution with a complex Scharr operator. (Horizontal operator is real, vertical is imaginary.) Use symmetric boundary condition to avoid creating edges at the image boundaries.
+        # kernal = 1/5 * np.array([[0, 1, 0],          #Compute the gradient of an frame by 2D convolution with a complex Scharr operator. (Horizontal operator is real, vertical is imaginary.) Use symmetric boundary condition to avoid creating edges at the frame boundaries.
         #                          [1, 1, 1],
         #                          [0, 1, 0]]) # Gx + j*Gy
         #
         # canny_image_dialated = cv2.dilate(canny_image, kernel, iterations=1)
         # mag, direct = self.compute_scharr_image_gradient
-        
+    
         # Output dtype = cv2.CV_8U
         # Output dtype = cv2.CV_64F. Then take its absolute and convert to cv2.CV_8U
+        self.r_vec_3d = np.dstack((self.reg[1], self.inv[1], self.edg[1]))
+
+    def doplots(self):
+    
+        self.from_radial_theta = self.change_to_angle_from_radial(self.modified_image.T)
+        # plt.imshow(self.donut_the_sun(self.theta_map),                   origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
         
-        asdf = 1
+        # plt.imshow(self.donut_the_sun(self.theta_map), interpolation='none', cmap='PuOr', origin='lower', aspect='auto', vmin=-90, vmax=90)
+        # plt.show(block=True)
+        if False:
+        
+            self.projected_angle_plot3(False)
+            self.projected_angle_plot3(True)
+            
+        if True:
+            self.angle_plot2_triplot(self.r_vec_3d, self.theta_map, self.from_radial_theta, self.nan, show=True)
+    
+        if False:
+            self.big_angle_plot(self.reg, self.inv, self.edg, self.nan, self.theta_map, self.from_radial_theta, self.thresholded_image, self.inv_thresholded_image, self.sobel_8u)
+    
+        if False:
+            self.plot_angles()
+
+    def projected_angle_plot(self, r_vec_3D, theta_map, from_radial_theta, nan_r):
+        """Vertical Plot"""
+        unwrapped_rvec = np.asarray([self.unwrap_polar(item).T for item in r_vec_3D.T]).T
+        fig = self.angle_plot(unwrapped_rvec, self.unwrap_polar(theta_map), self.unwrap_polar(from_radial_theta), self.unwrap_polar(nan_r))
+        plt.ylim((600, theta_map.shape[1]))
+        # plt.xlim((512, 1024))
+        fig.set_size_inches((10, 14))
+        plt.tight_layout()
+        plt.savefig("{}\\7_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        plt.show(block=True)
+        # plt.imshow(self.unwrap_polar(reg[0]),        origin="lower", cmap='hsv', interpolation="None"), , plt.show(block=True)
+        
+    def projected_angle_plot2(self, r_vec_3D, theta_map, from_radial_theta, nan_r):
+        """Wide Plot"""
+        unwrapped_rvec = np.asarray([self.unwrap_polar(item).T for item in r_vec_3D.T]).T
+        fig = self.angle_plot(unwrapped_rvec, self.unwrap_polar(theta_map), self.unwrap_polar(from_radial_theta), self.unwrap_polar(nan_r))
+        plt.ylim((610, 780))
+        # plt.xlim((512, 1024))
+        fig.set_size_inches((18,10))
+        plt.tight_layout()
+        plt.savefig("{}\\8_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        plt.show(block=True)
+        # plt.imshow(self.unwrap_polar(reg[0]),        origin="lower", cmap='hsv', interpolation="None"), , plt.show(block=True)
+ 
+    def wrap_angles(self, unwrapped, bounce=True, abs=False):
+        if bounce:
+            unwrapped[unwrapped>90] = 180 - unwrapped[unwrapped>90]
+            unwrapped[unwrapped<-90] = -180 - unwrapped[unwrapped<-90]
+        else:
+            unwrapped[unwrapped>90] = unwrapped[unwrapped>90] - 180
+            unwrapped[unwrapped<-90] = unwrapped[unwrapped<-90] + 180
+        
+        unwrapped[:] = np.abs(unwrapped[:]) if abs else unwrapped[:]
+        return unwrapped
+ 
+    def roll_half_array(self, arr):
+        return np.roll(arr, len(arr)//2)
+        
+ 
+    def projected_angle_plot3(self, one_sided=False):
+        """from radial only"""
+
+        # Make the figure
+        fig, axes = plt.subplots(2, 1, sharex=True) #, sharey="all")
+        (ax0, ax1) = axes
+        # for ax in axes:
+        # ax0.set_axis_off()
+        radius, thetas = self.unwrap_coords()
+        radius /= self.limb_radius_shrunken
+        
+        rad_absiss = radius[:,0]
+        theta_absiss = thetas[self.params.rez//2]
+        rmin, rmax = np.nanmin(radius), np.nanmax(radius)
+        tmin, tmax = np.nanmin(theta_absiss), np.nanmax(theta_absiss)
+        extents = (0, 360, rmin, rmax)
+        fake_theta_ax = np.linspace(0, 360, self.params.rez)
+        # Transform the Array
+        unwrapped_from_radial = self.unwrap_polar(self.from_radial_theta)
+    
+        # Interpolate the missing components
+        interpolated = interpolate_replace_nans(unwrapped_from_radial, Gaussian2DKernel(x_stddev=2), convolve=convolve_fft)
+        masked = interpolated + 0
+        # masked = unwrapped_from_radial + 0
+        masked[radius > 1.6] = np.nan
+        masked[radius < 1.01] = np.nan
+
+        angle_image = self.wrap_angles(masked, abs=one_sided)
+
+        # Plot Interpolated Array
+        # ax0.set_title('Angle From Radial, {}'.format(64))
+        
+        # img = ax0.imshow(self.wrap_angles(masked),          interpolation='none', cmap='PuOr', origin='lower', aspect='auto', vmin=-90, vmax=90) #, extent=extents)
+        # img = ax0.pcolormesh(rad_absiss, theta_absiss, angle_image[:-1,:-1]) #, cmap='PuOr', vmin=-90, vmax=90,)
+        ax0.imshow(np.ones_like(angle_image),          interpolation='none', cmap='gray', origin='lower', aspect='auto', vmin=-90, vmax=90, extent=extents)
+        img = ax0.imshow(angle_image,          interpolation='none', cmap='PuOr', origin='lower', aspect='auto', vmin=-90, vmax=90, extent=extents)
+        ax0.set_xlim((0, 360))
+        ax0.set_ylim((rmin, rmax))
+
+        ax0.set_ylim((1.025, 1.275))
+        # plt.show(block=True)
+        
+        # plt.show(block=True)
         
         if True:
-            print(" ** Plot")
-            # , (ax6, ax7, ax8)
-            fig, ((ax0, ax1, ax2, ax3, ax4), (axw, axx, axy, axz, axa), (ax6, ax7, ax8, ax9, ax10)) = plt.subplots(3, 5, sharex=True,
-                                                                                                                   sharey=True)  # , figsize=(6, 15))
+            # Make a colormap
+            from matplotlib import cm
+            average_rows = 20
+            bott, topp = int(1.04 * self.params.rez / rmax), int(1.26 * self.params.rez / rmax)
+            rows = np.arange(bott, topp, average_rows)
+            n_rows = len(rows)
+            viridis = cm.get_cmap('viridis', n_rows)
             
-            # Row 1 : Binary Images
-            ax0.imshow(thresholded_image, cmap='gray', interpolation="None")
-            ax0.set_title('thresholded_image')
-            ax0.set_axis_off()
+            # Make Averaging Choic
+            half_rows = average_rows//2
             
-            ax1.imshow(inv_thresholded_image, cmap='gray', interpolation="None")
-            ax1.set_title('inv_thresholded_image')
-            ax1.set_axis_off()
+            wraplist = []
+            # Plot Array Slices
+            # print(self.limb_radius_original, self.limb_radius_shrunken)
+            for ind, row_ii in enumerate(rows):
+                c = viridis(ind)
+                
+                rrr = row_ii / self.params.rez * rmax
+                # print(rrr)
+                ax0.axhline(rrr, ls="--", c=c, lw=2.5)
+                
+                bot, top = row_ii-half_rows, row_ii+half_rows
+                band = angle_image[bot:top, :]
+                toplot = np.nanmean(band, axis=0)
+                # unwrapped = self.wrap_angles(toplot)
+                
+                # ax1.plot(savgol_filter(unwrapped, 21, 2), c=c, zorder=1000+ind) # label="Row: {}".format(row_ii))
+                
+                cc = list(c)
+                cc[-1] = 0.6
+                ax1.plot(fake_theta_ax, toplot, 'o', markerfacecolor=cc, markeredgewidth=0) #, c=(0,0,0,0)) # label="Row: {}".format(row_ii))
+                # ax1.plot(theta_absiss, toplot, 'o', markerfacecolor=cc, markeredgewidth=0) #, c=(0,0,0,0)) # label="Row: {}".format(row_ii))
+                # wraplist.append(unwrapped)
+                # ax1.plot(unwrapped, c=c, label="Row: {}".format(row_ii))
+                
+            # wraparray = np.asarray(wraplist)
             
-            ax2.imshow(sobel_8u, cmap='gray', interpolation="None")
-            ax2.set_title('sobel_8u')
-            ax2.set_axis_off()
             
-            ax3.imshow(self.nan_map, cmap='gray', interpolation="None")
-            ax3.set_title('nan_map')
-            ax3.set_axis_off()
+            ax1.set_xlabel("Position Angle")
+            ax1.set_ylabel("Deviation from radial in degrees")
+            # ax1.set_title("Slices of Constant Radii")
+            # ax1.legend(loc="lower left", frameon=False)
+                # toplot = np.nanmean(band, axis=0)
+                # unwrapped = np.unwrap_polar(2*toplot)/2
+                # ax1.plot(unwrapped, c=c, ls="--")
+                # ax1.plot(np.unwrap_polar(toplot), c=c)
             
-            # ax4.imshow(self.nan_map, cmap='gray', interpolation="None")
-            # ax4.set_title('nan_map')
-            # ax4.set_axis_off()
+            fig.set_size_inches((18,10))
+            plt.colorbar(img, ax=axes[0], orientation='horizontal', aspect=60, location="top")
+            plt.tight_layout()
+            plt.grid(True, which='both')
+            plt.minorticks_on()
+            ax1.axhline(0, c='k', lw=2.5    ) #, label="datalim")
+            ax1.axhline(90, c='k', lw=1.5   ) #, label="datalim")
+            ax1.axhline(-90, c='k', lw=1.5  ) #, label="datalim")
             
-            # Row 2: Weighted Theta Maps
-            axw.imshow(reg[0], cmap='hsv', interpolation="None", vmin=0, vmax=180)  # hsv is cyclic, like angles
-            axw.set_title('weighted_theta_reg')
-            axw.set_axis_off()
+            ax1.axvline(0,   c='k', lw=2., ls=':'    ) #, label="datalim")
+            ax1.axvline(90,  c='k', lw=2., ls=':'   ) #, label="datalim")
+            ax1.axvline(180, c='k', lw=2., ls=':'  ) #, label="datalim")
+            ax1.axvline(270, c='k', lw=2., ls=':'  ) #, label="datalim")
+            ax1.axvline(360, c='k', lw=2., ls=':'  ) #, label="datalim")
             
-            axx.imshow(inv[0], cmap='hsv', interpolation="None", vmin=0, vmax=180)  # hsv is cyclic, like angles
-            axx.set_title('weighted_theta_inv')
-            axx.set_axis_off()
+            ax0.axvline(0,   c='k', lw=2., ls=':'    ) #, label="datalim")
+            ax0.axvline(90,  c='k', lw=2., ls=':'   ) #, label="datalim")
+            ax0.axvline(180, c='k', lw=2., ls=':'  ) #, label="datalim")
+            ax0.axvline(270, c='k', lw=2., ls=':'  ) #, label="datalim")
+            ax0.axvline(360, c='k', lw=2., ls=':'  ) #, label="datalim")
             
-            axy.imshow(edg[0], cmap='hsv', interpolation="None", vmin=0, vmax=180)  # hsv is cyclic, like angles
-            axy.set_title('weighted_theta_edg')
-            axy.set_axis_off()
-            
-            axz.imshow(nan[0], cmap='hsv', interpolation="None", vmin=0, vmax=180)  # hsv is cyclic, like angles
-            axz.set_title('theta_nan')
-            axz.set_axis_off()
-            
-            axa.imshow(np.zeros_like(theta_map), cmap='gray')
-            axa.imshow(theta_map, cmap='hsv', interpolation="None", vmin=0, vmax=180)
-            axa.set_title('theta_all')
-            axa.set_axis_off()
-            
-            # Row 3: R_bar confidence
-            ax6.imshow(reg[1], cmap='brg', interpolation="None", vmin=thresh, vmax=1.)
-            ax6.set_title('r_bar_reg')
-            ax6.set_axis_off()
-            
-            ax7.imshow(inv[1], cmap='brg', interpolation="None", vmin=thresh, vmax=1.)
-            ax7.set_title('r_bar_inv')
-            ax7.set_axis_off()
-            
-            ax8.imshow(edg[1], cmap='brg', interpolation="None", vmin=thresh, vmax=1.)
-            ax8.set_title('r_bar_edg')
-            ax8.set_axis_off()
-            
-            ax9.imshow(nan[1], cmap='brg', interpolation="None", vmin=thresh, vmax=1.)
-            ax9.set_title('r_bar_nan')
-            ax9.set_axis_off()
-            
-            # ax10.imshow(nan[1], cmap='brg', interpolation="None", vmin=thresh, vmax=1.)
-            #
-            ax10.imshow(r_vec_3d, interpolation="None")
-            ax10.patch.set(hatch='x', edgecolor='lightgrey')
-            ax10.set_title('r_vec_3d')
-            ax10.set_axis_off()
-            
-            # # New Figure
-            # fig1, ((axA, axB), (axC, axD)) = plt.subplots(2,2)
-            # axA.imshow(np.zeros_like(theta_map), cmap='gray')
-            # axA.imshow(theta_map, cmap='hsv', interpolation="None", vmin=0, vmax=180)
-            # axA.set_title('theta_map')
-            # axA.set_axis_off()
-            #
-            # axB.imshow(np.zeros_like(theta_map), cmap='gray')
-            # axB.imshow(from_radial_theta, cmap='hsv', interpolation="None", vmin=0, vmax=180)
-            # axB.set_title('theta_map')
-            # axB.set_axis_off()
-            #
-            # # ax9.imshow(from_radial_theta, cmap='hsv', interpolation="None", vmin=0, vmax=180) # hsv is cyclic, like angles
-            # # ax9.set_title('from_radial_theta')
-            # # ax9.set_axis_off()
-            
-            self.adjust_rht_plot(fig, zoom=False, shrink=self.shrink_F)
-            # self.adjust_rht_plot(fig1, zoom=False, shrink=self.shrink_F)
-            plt.show(block=True)
-            # plt.savefig("{}\\angles.png".format(r"C:\Users\chgi7364\Dropbox\AB_Interesting_Stuff\Projects\sunback_proj\src\run\renders"))
-            # plt.close(fig)
-        # plt.imshow(self.theta_array*180/np.pi); plt.show(block=True)
+            ax1.set_ylim((-95, 95))
+        #Make the plot obey the frame
+        # ax1.set_aspect('equal', share=True, adjustable="box")
         
-        plot_angles = False
-        if plot_angles:
-            self.plot_angles()
+        # ax1.imshow(masked,          interpolation='none', cmap='hsv', origin='lower') #, extent=extents)
+        # ax1.pcolormesh(theta_absiss, rad_absiss, masked, cmap='hsv')
         
-        print("Cube Completed!")
+        
+        # axes[0].imshow(np.zeros_like(from_radial_theta), origin="lower", cmap='gray', interpolation="None")
+        # ax0.imshow(interpolated,    interpolation='none', cmap='hsv', origin='lower')
+        
+        # ax1.set_title('Angle From Radial')
+        # axes[0].pcolorfast(rad_absiss, theta_absiss, interpolated, cmap='hsv')
+        
+        # axes[0].imshow(unwrapped_from_radial,                                                                                 interpolation='none', cmap='hsv', origin='lower')
+        # axes[1].imshow(interpolate_replace_nans(unwrapped_from_radial, Gaussian2DKernel(x_stddev=1), convolve=convolve_fft),  interpolation='none', cmap='hsv', origin='lower')
+        # axes[3].imshow(interpolate_replace_nans(unwrapped_from_radial, Gaussian2DKernel(x_stddev=3), convolve=convolve_fft),  interpolation='none', cmap='hsv', origin='lower')
+        plt.tight_layout()
+        vibe="ABS" if one_sided else "BOTH"
+        # plt.show(block=True)
+        plt.savefig("{}\\9_slices_{}_{}rows.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22", vibe, average_rows))
+        
+        # plt.show(block=True)
+        #
+        # a=1
+        #
     
-    def find_h_xy(self, H_XY=None, fudge=0.25):
+        # # unwrapped_from_radial
+        #
+        # # ax2.plot()
+        #
+        #
+        # # from astropy.nddata import block_reduce
+        # # r_factor = 4
+        # # reduced_from_radial = block_reduce(unwrapped_from_radial, 2, np.nansum)
+        # # # upscaled_from_radial = cv2.resize(reduced_from_radial, (1024, 1024))
+        # # ax2.set_title('Reduced From Radial')
+        # # ax2.imshow(np.zeros_like(reduced_from_radial), origin="lower", cmap='gray', interpolation="None")
+        # # ax2.imshow(reduced_from_radial,        origin="lower", cmap='hsv', interpolation="None")
+        #
+        # # ax2.set_title('Waterfall')
+        # # x = np.arange(self.params.rez)
+        # # y = np.arange(self.params.rez//r_factor)
+        # # X,Y = np.meshgrid(x,y)
+        # # self.waterfall_plot(fig,ax, X=X,  Y=Y, Z=unwrapped_from_radial)
+        # # ax2.imshow(np.zeros_like(unwrapped_from_radial), origin="lower", cmap='gray', interpolation="None")
+        # # # ax3.imshow(unwrapped_from_radial,        origin="lower", cmap='hsv', interpolation="None")
+        #
+        # # fig = self.angle_plot(unwrapped_rvec, self.unwrap_polar(theta_map),, self.unwrap_polar(nan_r))
+        # plt.ylim((610, 780))
+        # # plt.xlim((512, 1024))
+        # fig.set_size_inches((18,10))
+        # plt.tight_layout()
+        # plt.savefig("{}\\9_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        # # plt.show(block=True)
+        # # plt.imshow(self.unwrap_polar(reg[0]),        origin="lower", cmap='hsv', interpolation="None"), , plt.show(block=True)
+        #
+    @staticmethod
+    def waterfall_plot(fig,ax,X,Y,Z):
+        '''
+        Make a waterfall plot
+        Input:
+            fig,ax : matplotlib figure and axes to populate
+            Z : n,m numpy array. Must be a 2d array even if only one line should be plotted
+            X,Y : n,m array
+        '''
+        # Set normalization to the same values for all plots
+        norm = plt.Normalize(Z.min().min(), Z.max().max())
+        # Check sizes to loop always over the smallest dimension
+        n,m = Z.shape
+        if n>m:
+            X=X.T; Y=Y.T; Z=Z.T
+            m,n = n,m
+    
+        for j in range(n):
+            # reshape the X,Z into pairs
+            points = np.array([X[j,:], Z[j,:]]).T.reshape(-1, 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            lc = LineCollection(segments, cmap='plasma', norm=norm)
+            # Set the values used for colormapping
+            lc.set_array((Z[j,1:]+Z[j,:-1])/2)
+            lc.set_linewidth(2) # set linewidth a little larger to see properly the colormap variation
+            line = ax.add_collection3d(lc,zs=(Y[j,1:]+Y[j,:-1])/2, zdir='y') # add line to axes
+    
+        fig.colorbar(lc) # add colorbar, as the normalization is the same for all, it doesent matter which of the lc objects we use
+
+    def unwrap_polar(self, in_array, maxRadius = 700):
+        out_array = cv2.warpPolar(src=in_array, dsize=in_array.shape, center=self.params.center, maxRadius=maxRadius, flags=cv2.WARP_POLAR_LINEAR)
+        out_array[out_array==0.0] = np.nan
+        out_array = out_array.T
+        return out_array
+        
+    def unwrap_coords(self, maxRadius = 700):
+        unwrapped_radius = cv2.warpPolar(src=self.radius, dsize=self.radius.shape, center=self.params.center, maxRadius=maxRadius, flags=cv2.WARP_POLAR_LINEAR)
+        unwrapped_thetas = cv2.warpPolar(src=self.theta_array, dsize=self.theta_array.shape, center=self.params.center, maxRadius=maxRadius, flags=cv2.WARP_POLAR_LINEAR)
+        # unwrapped_radius[unwrapped_radius==0.0] = np.nan
+        # unwrapped_thetas[unwrapped_thetas==0.0] = np.nan
+        unwrapped_radius = unwrapped_radius.T
+        unwrapped_thetas = unwrapped_thetas.T
+        return unwrapped_radius, unwrapped_thetas
+    
+    def autoLabelPanels(self, axArray, loc=(0.045, 0.05), messages=None):
+        for ii, ax in enumerate(axArray.flatten()):
+            message = '' if messages is None else messages[ii]
+            ax.annotate('({})  {}'.format(chr(97+ii), message), loc,color='r', xycoords='axes fraction')
+        
+    # def angle_plot(self, r_vec_3d, theta_map, from_radial_theta, nan_r, show=False):
+    #     # Mat the figure
+    #     fig, axes = plt.subplots(3, 1, sharex="all", sharey="all")
+    #     (ax1, ax2, ax3) = axes
+    #     for ax in axes:
+    #         ax.set_axis_off()
+    #     self.autoLabelPanels(axes)
+    #
+    #     # Plot
+    #     # ax1.set_title('Angle Confidence')
+    #     ax1.imshow(r_vec_3d,    origin="lower", interpolation="None")
+    #     ax1.imshow(nan_r, origin="lower", interpolation="None", cmap=cm_purp, alpha=0.9)
+    #
+    #     # ax2.set_title('Angle Map: {}'.format(self.fudge_level))
+    #     ax2.imshow(np.zeros_like(theta_map),    origin="lower", cmap='gray', interpolation="None")
+    #     ax2.imshow(theta_map,                   origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
+    #
+    #     interpolated_from_radial_theta = interpolate_replace_nans(from_radial_theta, Gaussian2DKernel(x_stddev=2), convolve=convolve_fft)
+    #     # Interpolate the missing components
+    #     masked = from_radial_theta #interpolated_from_radial_theta + 0
+    #     radius, thetas = self.unwrap_coords()
+    #     radius /= self.limb_radius_shrunken
+    #     masked[radius > 1.6] = np.nan
+    #     masked[radius < 1.03] = np.nan
+    #     ax3.set_title('Angle From Radial')
+    #     ax3.imshow(np.zeros_like(theta_map), origin="lower", cmap='gray', interpolation="None")
+    #     ax3.imshow(masked,        origin="lower", cmap='PuOr', interpolation="None")
+    #
+    #
+    #     # Add the circles showing the rht window
+    #     window = self.current_w_rht//2
+    #     from matplotlib.patches import Circle
+    #     radius = (window + 0)
+    #     radius1 = window * self.window_factors[1]
+    #     radius2 = window * self.window_factors[2]
+    #     ax1.add_patch(Circle((730, 920), radius1, zorder=1000, fill=False, edgecolor='r',      lw=3))
+    #     ax1.add_patch(Circle((730, 920), radius2, zorder=1000, fill=False, edgecolor='yellow', lw=3))
+    #     ax1.add_patch(Circle((730, 920), radius , zorder=1000, fill=False, edgecolor="orange", lw=3))
+    #
+    #
+    #     # Plot the different zoom levels
+    #     fig.set_size_inches((20, 10))
+    #     plt.rcParams['figure.dpi'] = 300
+    #     if show:
+    #         plt.show(block=True)
+    #     # self.save3(fig)
+    #     return fig
+ 
+    
+    def angle_plot2_triplot(self, r_vec_3d, theta_map, from_radial_theta, nan, show=False):
+        # This is the 2 plots only version
+        nan_r = nan[1]
+        # Just the Found Angle and the R_Vec plotted side by side
+        fig, axes = plt.subplots(1, 3, sharex="all", sharey="all")
+        (ax1, ax2, ax3) = axes
+        for ax in axes:
+            ax.set_axis_off()
+        self.autoLabelPanels(axes, loc=(0.045, 0.05))
+        
+        # nan_r[nan_r<0.5]=np.nan
+    
+        # Plot
+        # ax1.set_title('Angle Confidence')
+        
+        r_vec_3d[:,:,0] = self.donut_the_sun(r_vec_3d[:,:,0])
+        r_vec_3d[:,:,1] = self.donut_the_sun(r_vec_3d[:,:,1])
+        r_vec_3d[:,:,2] = self.donut_the_sun(r_vec_3d[:,:,2])
+        
+        ax1.imshow(np.zeros_like(theta_map),    origin="lower", cmap='gray', interpolation="None")
+        ax1.imshow(r_vec_3d,    origin="lower", interpolation="None")
+        ax1.imshow(self.donut_the_sun(nan_r), origin="lower", interpolation="None", cmap=cm_purp, alpha=0.9)
+    
+        # ax2.set_title('Angle Map: {}'.format(self.fudge_level))
+        ax2.imshow(np.zeros_like(theta_map),    origin="lower", cmap='gray', interpolation="None")
+        ax2.imshow(self.donut_the_sun(theta_map), origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
+        # ax2.imshow(self.donut_the_sun(theta_map), origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
+        
+        
+        # interpolated = interpolate_replace_nans(self.from_radial_theta, Gaussian2DKernel(x_stddev=2), convolve=convolve_fft)
+        interpolated = self.from_radial_theta
+        # masked = interpolated + 0
+        # radius = self.radius
+        # masked = unwrapped_from_radial + 0
+        # masked[radius > 1.6] = np.nan
+        # masked[radius < 1.01] = np.nan
+        angle_image = self.wrap_angles(interpolated, abs=True)
+        # ax3.imshow(self.donut_the_sun(angle_image), interpolation='none', cmap='PuOr', origin='lower', vmin=-90, vmax=90)
+        ax3.imshow(np.ones_like(theta_map),    origin="lower", cmap='copper', interpolation="None", vmin=0, vmax=1)
+        ax3.imshow(self.donut_the_sun(angle_image), interpolation='none', cmap='binary_r', origin='lower', vmin=0, vmax=90)
+    
+        fi2, ax4 = plt.subplots()
+        ax4.imshow(np.ones_like(theta_map),    origin="lower", cmap='copper', interpolation="None", vmin=0, vmax=1)
+        ax4.imshow(self.donut_the_sun(angle_image), interpolation='none', cmap='binary_r', origin='lower', vmin=0, vmax=90)
+
+    
+        # ax1.set_ylim((700, 1000))
+        # ax1.set_xlim((600, 900))
+    
+        # interpolated_from_radial_theta = interpolate_replace_nans(from_radial_theta, Gaussian2DKernel(x_stddev=2), convolve=convolve_fft)
+        # # Interpolate the missing components
+        # masked = from_radial_theta #interpolated_from_radial_theta + 0
+        # radius, thetas = self.unwrap_coords()
+        # radius /= self.limb_radius_shrunken
+        # masked[radius > 1.6] = np.nan
+        # masked[radius < 1.03] = np.nan
+    
+    
+    
+        # Add the circles showing the rht window
+        window = self.current_w_rht//2
+        from matplotlib.patches import Circle
+        radius = (window + 0)
+        radius1 = window * self.window_factors[1]
+        radius2 = window * self.window_factors[2]
+        ax1.add_patch(Circle((780, 940), radius1, zorder=1000, fill=False, edgecolor='r',      lw=3))
+        ax1.add_patch(Circle((780, 940), radius2, zorder=1000, fill=False, edgecolor='yellow', lw=3))
+        ax1.add_patch(Circle((780, 940), radius , zorder=1000, fill=False, edgecolor="orange", lw=3))
+    
+    
+        # Plot the different zoom levels
+        fig.set_size_inches((19, 10))
+        plt.tight_layout()
+        plt.rcParams['figure.dpi'] = 300
+        self.autoLabelPanels(axes)
+        plt.show(block=True)
+        
+        if show:
+            plt.xlim((0,1024))
+            plt.ylim((0,1024))
+            plt.tight_layout()
+            plt.savefig("{}\\4_angles_allb.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+            plt.show(block=True)
+            plt.close(fig)
+        return fig
+    
+ 
+        
+    def angle_plot2(self, r_vec_3d, theta_map, from_radial_theta, nan, show=False):
+        # This is the 2 plots only version
+        nan_r = nan[1]
+        # Just the Found Angle and the R_Vec plotted side by side
+        fig, axes = plt.subplots(1, 2, sharex="all", sharey="all")
+        (ax1, ax2) = axes
+        for ax in axes:
+            ax.set_axis_off()
+        self.autoLabelPanels(axes)
+        
+        # nan_r[nan_r<0.5]=np.nan
+    
+        # Plot
+        # ax1.set_title('Angle Confidence')
+        
+        r_vec_3d[:,:,0] = self.donut_the_sun(r_vec_3d[:,:,0])
+        r_vec_3d[:,:,1] = self.donut_the_sun(r_vec_3d[:,:,1])
+        r_vec_3d[:,:,2] = self.donut_the_sun(r_vec_3d[:,:,2])
+        
+        ax1.imshow(np.zeros_like(theta_map),    origin="lower", cmap='gray', interpolation="None")
+        ax1.imshow(r_vec_3d,    origin="lower", interpolation="None")
+        ax1.imshow(self.donut_the_sun(nan_r), origin="lower", interpolation="None", cmap=cm_purp, alpha=0.9)
+    
+        # ax2.set_title('Angle Map: {}'.format(self.fudge_level))
+        ax2.imshow(np.zeros_like(theta_map),    origin="lower", cmap='gray', interpolation="None")
+        ax2.imshow(self.donut_the_sun(theta_map),                   origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
+        # ax2.imshow(self.donut_the_sun(self.from_radial_theta), interpolation='none', cmap='PuOr', origin='lower', aspect='auto', vmin=-90, vmax=90)
+    
+        # ax1.set_ylim((700, 1000))
+        # ax1.set_xlim((600, 900))
+    
+        # interpolated_from_radial_theta = interpolate_replace_nans(from_radial_theta, Gaussian2DKernel(x_stddev=2), convolve=convolve_fft)
+        # # Interpolate the missing components
+        # masked = from_radial_theta #interpolated_from_radial_theta + 0
+        # radius, thetas = self.unwrap_coords()
+        # radius /= self.limb_radius_shrunken
+        # masked[radius > 1.6] = np.nan
+        # masked[radius < 1.03] = np.nan
+    
+    
+    
+        # Add the circles showing the rht window
+        window = self.current_w_rht//2
+        from matplotlib.patches import Circle
+        radius = (window + 0)
+        radius1 = window * self.window_factors[1]
+        radius2 = window * self.window_factors[2]
+        ax1.add_patch(Circle((780, 940), radius1, zorder=1000, fill=False, edgecolor='r',      lw=3))
+        ax1.add_patch(Circle((780, 940), radius2, zorder=1000, fill=False, edgecolor='yellow', lw=3))
+        ax1.add_patch(Circle((780, 940), radius , zorder=1000, fill=False, edgecolor="orange", lw=3))
+    
+    
+        # Plot the different zoom levels
+        fig.set_size_inches((20, 10))
+        plt.tight_layout()
+        plt.rcParams['figure.dpi'] = 300
+        self.autoLabelPanels(axes)
+        if show:
+            plt.xlim((0,1024))
+            plt.ylim((0,1024))
+            plt.tight_layout()
+            plt.savefig("{}\\4_angles_allb.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+            # plt.show(block=True)
+            plt.close(fig)
+        return fig
+    
+    
+        
+
+    def save3(self, fig):
+        plt.xlim((0,1024))
+        plt.ylim((0,1024))
+        plt.tight_layout()
+        plt.savefig("{}\\7_angles_all.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+    
+        plt.xlim((640,800))
+        plt.ylim((870,1000))
+        plt.tight_layout()
+        plt.savefig("{}\\8_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+    
+        plt.xlim((700,765))
+        plt.ylim((885,950))
+        plt.tight_layout()
+        plt.savefig("{}\\9_angles_zoom.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+    
+        plt.close(fig)
+        
+    def big_angle_plot(self, reg, inv, edg, nan, theta_map, from_radial_theta, thresholded_image, inv_thresholded_image, sobel_8u):
+        print(" ** Plot")
+    
+        # , (ax6, ax7, ax8)
+        fig, axes  = plt.subplots(3, 5, sharex=True, sharey=True)  # , figsize=(6, 15))
+        
+        ((ax0, ax1, ax2, ax3, ax4), (axw, axx, axy, axz, axa), (ax6, ax7, ax8, ax9, ax10)) = axes
+        # Row 1 : Binary Images
+        ax0.imshow(thresholded_image, cmap='gray', interpolation="None")
+        ax0.set_title('Thresholded Image')
+        ax0.set_axis_off()
+    
+        ax1.imshow(inv_thresholded_image, cmap='gray', interpolation="None")
+        ax1.set_title('Inverse( Thresholded frame )')
+        ax1.set_axis_off()
+    
+        ax2.imshow(sobel_8u, cmap='gray', interpolation="None")
+        ax2.set_title('Canny Edges')
+        ax2.set_axis_off()
+    
+        ax3.imshow(self.nan_map, cmap='gray', interpolation="None")
+        ax3.set_title('Remainders')
+        ax3.set_axis_off()
+    
+        # ax4.imshow(np.ones_like(theta_map), cmap='gray')
+        ax4.set_axis_off()
+        # ax4.imshow(from_radial_theta, cmap='hsv', interpolation="None")
+        # ax4.set_title('From Radial Theta')
+    
+        # Row 2: Weighted Theta Maps
+        axw.imshow(reg[0], cmap='hsv', interpolation="None", vmin=0, vmax=180)  # hsv is cyclic, like angles
+        # axw.set_title('weighted_theta_reg')
+        axw.set_axis_off()
+    
+        axx.imshow(inv[0], cmap='hsv', interpolation="None", vmin=0, vmax=180)  # hsv is cyclic, like angles
+        # axx.set_title('weighted_theta_inv')
+        axx.set_axis_off()
+    
+        axy.imshow(edg[0], cmap='hsv', interpolation="None", vmin=0, vmax=180)  # hsv is cyclic, like angles
+        # axy.set_title('weighted_theta_edg')
+        axy.set_axis_off()
+    
+        axz.imshow(nan[0], cmap='hsv', interpolation="None", vmin=0, vmax=180)  # hsv is cyclic, like angles
+        # axz.set_title('theta_nan')
+        axz.set_axis_off()
+    
+        axa.imshow(np.ones_like(theta_map), cmap='gray')
+        axa.imshow(theta_map, cmap='hsv', interpolation="None", vmin=0, vmax=180)
+        # axa.set_title('theta_all')
+        axa.set_axis_off()
+    
+    
+    
+        # Row 3: R_bar confidence
+        # ax6.imshow(reg[1], cmap='brg', interpolation="None", vmin=thresh, vmax=1.)
+        ax6.imshow(reg[1], origin="lower", interpolation="None", cmap="RdYlGn", vmin=self.thresh, vmax=1.0)
+        # ax6.set_title('r_bar_reg')
+        ax6.set_axis_off()
+    
+        ax7.imshow(inv[1], origin="lower", interpolation="None", cmap="RdYlGn", vmin=self.thresh, vmax=1.0)
+        # ax7.set_title('r_bar_inv')
+        ax7.set_axis_off()
+    
+        ax8.imshow(edg[1], origin="lower", interpolation="None", cmap="RdYlGn", vmin=self.thresh, vmax=1.0)
+        # ax8.set_title('r_bar_edg')
+        ax8.set_axis_off()
+    
+        ax9.imshow(nan[1], origin="lower", interpolation="None", cmap="RdYlGn", vmin=self.thresh, vmax=1.0)
+        # ax9.set_title('r_bar_nan')
+        ax9.set_axis_off()
+    
+        # Add the circles showing the rht window
+        window = self.current_w_rht//2 + 0
+        from matplotlib.patches import Rectangle, Circle
+        for ii, axbox in enumerate(axes):
+            for jj, ax in enumerate(axbox):
+                radius = (window + 0)
+                if jj == 3:
+                    radius1 = window * self.window_factors[1]
+                    radius2 = window * self.window_factors[2]
+                    ax.add_patch(Circle((730, 920), radius1, zorder=1000, fill=False, edgecolor='r',      lw=3))
+                    ax.add_patch(Circle((730, 920), radius2, zorder=1000, fill=False, edgecolor='yellow', lw=3))
+                if jj == 4 and ii == 0:
+                    continue
+                ax.add_patch(    Circle((730, 920), radius , zorder=1000, fill=False, edgecolor="orange", lw=3))
+    
+        # Background Thresh Images
+        axw.imshow(thresholded_image,       origin="lower", interpolation="None", cmap="gray", alpha=0.2)
+        ax6.imshow(thresholded_image,       origin="lower", interpolation="None", cmap="gray", alpha=0.2)
+        axx.imshow(inv_thresholded_image,   origin="lower", interpolation="None", cmap="gray", alpha=0.2)
+        ax7.imshow(inv_thresholded_image,   origin="lower", interpolation="None", cmap="gray", alpha=0.2)
+        axy.imshow(sobel_8u,                origin="lower", interpolation="None", cmap="gray", alpha=0.2)
+        ax8.imshow(sobel_8u,                origin="lower", interpolation="None", cmap="gray", alpha=0.2)
+        axz.imshow(self.nan_map,            origin="lower", interpolation="None", cmap="gray", alpha=0.2)
+        ax9.imshow(self.nan_map,            origin="lower", interpolation="None", cmap="gray", alpha=0.2)
+    
+    
+    
+        r_vec_3d = np.dstack((reg[1], inv[1], edg[1]))
+        ax10.imshow(r_vec_3d, origin="lower", interpolation="None")
+        ax10.imshow(nan[1], origin="lower", interpolation="None", cmap=cm_purp, alpha=0.9)
+        ax10.patch.set(hatch='x', edgecolor='lightgrey')
+        # ax10.set_title('Mean Resultant Length')
+        ax10.set_axis_off()
+    
+        # # New Figure
+        # fig1, ((axA, axB), (axC, axD)) = plt.subplots(2,2)
+        # axA.imshow(np.zeros_like(theta_map), cmap='gray')
+        # axA.imshow(theta_map, cmap='hsv', interpolation="None", vmin=0, vmax=180)
+        # axA.set_title('theta_map')
+        # axA.set_axis_off()
+        #
+        # axB.imshow(np.zeros_like(theta_map), cmap='gray')
+        # axB.imshow(from_radial_theta, cmap='hsv', interpolation="None", vmin=0, vmax=180)
+        # axB.set_title('theta_map')
+        # axB.set_axis_off()
+        #
+        # # ax9.imshow(from_radial_theta, cmap='hsv', interpolation="None", vmin=0, vmax=180) # hsv is cyclic, like angles
+        # # ax9.set_title('from_radial_theta')
+        # # ax9.set_axis_off()
+    
+        self.adjust_rht_plot(fig, zoom=False, shrink=self.shrink_F)
+        self.autoLabelPanels(axes)
+        
+        fig.set_size_inches((20, 10))
+        # fig.suptitle("Building the theta map with the RHT")
+    
+        #
+        # plt.xlim((0,1024))
+        # plt.ylim((0,1024))
+        # plt.tight_layout()
+        # plt.savefig("{}\\1_angles_all.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        #
+        plt.xlim((640,800))
+        plt.ylim((870,1000))
+        plt.tight_layout()
+        
+        plt.savefig("{}\\2_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        
+        plt.xlim((700,765))
+        plt.ylim((885,950))
+        plt.tight_layout()
+        plt.savefig("{}\\3_angles_zoom.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+
+        plt.close(fig)
+        # plt.show(block=True)
+    
+        # plt.close(fig)
+        # plt.imshow(self.theta_array*180/np.pi); plt.show(block=True)
+
+
+    #!python numbers=enable
+    @staticmethod
+    def sgolay2d(z, window_size, order, derivative=None):
+        """
+        """
+        # number of terms in the polynomial expression
+        n_terms = ( order + 1 ) * ( order + 2)  / 2.0
+    
+        if  window_size % 2 == 0:
+            raise ValueError('window_size must be odd')
+    
+        if window_size**2 < n_terms:
+            raise ValueError('order is too high for the window size')
+    
+        half_size = window_size // 2
+    
+        # exponents of the polynomial.
+        # p(x,y) = a0 + a1*x + a2*y + a3*x^2 + a4*y^2 + a5*x*y + ...
+        # this line gives a list of two item tuple. Each tuple contains
+        # the exponents of the k-th term. First element of tuple is for x
+        # second element for y.
+        # Ex. exps = [(0,0), (1,0), (0,1), (2,0), (1,1), (0,2), ...]
+        exps = [ (k-n, n) for k in range(order+1) for n in range(k+1) ]
+    
+        # coordinates of points
+        ind = np.arange(-half_size, half_size+1, dtype=np.float64)
+        dx = np.repeat( ind, window_size )
+        dy = np.tile( ind, [window_size, 1]).reshape(window_size**2, )
+    
+        # build matrix of system of equation
+        A = np.empty( (window_size**2, len(exps)) )
+        for i, exp in enumerate( exps ):
+            A[:,i] = (dx**exp[0]) * (dy**exp[1])
+    
+        # pad in_array array with appropriate values at the four borders
+        new_shape = z.shape[0] + 2*half_size, z.shape[1] + 2*half_size
+        Z = np.zeros( (new_shape) )
+        # top band
+        band = z[0, :]
+        Z[:half_size, half_size:-half_size] =  band -  np.abs( np.flipud( z[1:half_size+1, :] ) - band )
+        # bottom band
+        band = z[-1, :]
+        Z[-half_size:, half_size:-half_size] = band  + np.abs( np.flipud( z[-half_size-1:-1, :] )  -band )
+        # left band
+        band = np.tile( z[:,0].reshape(-1,1), [1,half_size])
+        Z[half_size:-half_size, :half_size] = band - np.abs( np.fliplr( z[:, 1:half_size+1] ) - band )
+        # right band
+        band = np.tile( z[:,-1].reshape(-1,1), [1,half_size] )
+        Z[half_size:-half_size, -half_size:] =  band + np.abs( np.fliplr( z[:, -half_size-1:-1] ) - band )
+        # central band
+        Z[half_size:-half_size, half_size:-half_size] = z
+    
+        # top left corner
+        band = z[0,0]
+        Z[:half_size,:half_size] = band - np.abs( np.flipud(np.fliplr(z[1:half_size+1,1:half_size+1]) ) - band )
+        # bottom right corner
+        band = z[-1,-1]
+        Z[-half_size:,-half_size:] = band + np.abs( np.flipud(np.fliplr(z[-half_size-1:-1,-half_size-1:-1]) ) - band )
+    
+        # top right corner
+        band = Z[half_size,-half_size:]
+        Z[:half_size,-half_size:] = band - np.abs( np.flipud(Z[half_size+1:2*half_size+1,-half_size:]) - band )
+        # bottom left corner
+        band = Z[-half_size:,half_size].reshape(-1,1)
+        Z[-half_size:,:half_size] = band - np.abs( np.fliplr(Z[-half_size:, half_size+1:2*half_size+1]) - band )
+        import scipy
+        import scipy.signal
+        
+        # solve system and convolve
+        if derivative == None:
+            m = np.linalg.pinv(A)[0].reshape((window_size, -1))
+            return scipy.signal.fftconvolve(Z, m, mode='valid')
+        elif derivative == 'col':
+            c = np.linalg.pinv(A)[1].reshape((window_size, -1))
+            return scipy.signal.fftconvolve(Z, -c, mode='valid')
+        elif derivative == 'row':
+            r = np.linalg.pinv(A)[2].reshape((window_size, -1))
+            return scipy.signal.fftconvolve(Z, -r, mode='valid')
+        elif derivative == 'both':
+            c = np.linalg.pinv(A)[1].reshape((window_size, -1))
+            r = np.linalg.pinv(A)[2].reshape((window_size, -1))
+            return scipy.signal.fftconvolve(Z, -r, mode='valid'), scipy.signal.fftconvolve(Z, -c, mode='valid')
+    
+    def find_h_xy(self, H_XY=None, fudge=0.275, thresh=True):
         """find the reduced hxy matrix, which is set to 0 below a thresh"""
         H_XY = H_XY if H_XY is not None else self.rht_cube
         h_xy = H_XY + 0
-        
-        thresh = np.max(H_XY) - fudge
-        h_xy[H_XY < thresh] = 0
+        # self.fudge_level = fudge
+        if thresh:
+            threshold = np.max(H_XY) - fudge
+            h_xy[H_XY < threshold] = 0
         return h_xy
     
     def find_weighted_sums(self, h_xy=None):
         # theta_map = np.nanmean(np.dstack((weighted_theta_reg, weighted_theta_inv)), axis=2)
-        h_xy = h_xy if h_xy is not None else self.h_xy
+        # h_xy = h_xy if h_xy is not None else self.h_xy
         
         # Find the normalizing factor
         sum_of_hxy = np.nansum(h_xy, axis=0)
@@ -469,44 +1302,38 @@ class RHTProcessor(Processor):
         # Find thetaBar
         theta_bar = 0.5 * np.arctan2(s_bar, c_bar)
         theta_bar[c_bar < 0] += np.pi
+        theta_bar *= 180/np.pi
+        tb = theta_bar+0
+        theta_bar[tb > 180] -= 180
+        theta_bar[tb < 0] += 180
         
         # Find RBar
         r_bar = np.sqrt(c_bar ** 2 + s_bar ** 2)
         
         stdev_circ = np.sqrt(-2 * np.log(r_bar))
         
-        return r_bar, stdev_circ
+        return theta_bar, r_bar, stdev_circ
     
     def find_RHT_error(self, H_XY=None):
         h_xy = self.find_h_xy(H_XY=H_XY)
-        r_bar, stdev_circ = self.find_weighted_sums(h_xy)
-        return r_bar
+        theta_bar, r_bar, stdev_circ = self.find_weighted_sums(h_xy)
+        return theta_bar, r_bar
     
-    def prep_inputs(self, shrink=False):
-        print("   * Conditioning Inputs...")
-        if shrink: self.resize_image()
+    def prep_inputs(self, shrink=False, prnt=True):
+        # print("   * Conditioning Inputs...")
+        if shrink: self.resize_image(prnt=prnt)
         self.init_image_frames()
+        # if "qrn" in self.in_name:   ######################################################################
+        #     self.params.modified_image = norm_stretch(self.params.modified_image)
         mdi = self.mask_out_sun(self.params.modified_image)
         self.params.modified_image = self.vignette(mdi)
     
-    def resize_image(self, img=None, want_rez=1024):
-        print("   * Shrinking Rez to {}...".format(want_rez))
-        img = img or self.params.raw_image
-        from utils.array_util import reduce_array
-        self.params.raw_image, self.params.center = reduce_array(img, self.params.center, want_rez)
-        self.params.rez = self.header["NAXIS1"] = want_rez
-        self.init_image_frames()
-        self.shrink_F = 4 if want_rez == 1024 else 2 if want_rez == 2048 else 1
-        self.parse_resize_args(self.shrink_F)
-        self.make_radius()
-        self.make_vignette(vignette_radius=1.19)
-        self.smol = True
     
     def segmentation_jing11(self, use_image=None, doplot=False):
-        """Use a series of filters to segment the image into a binary map that
+        """Use a series of filters to segment the frame into a binary map that
             actually matches the fine structure in the corona.
         """
-        print("   * Segmenting Image...")
+        # print("   * Segmenting Image...")
         use_image = use_image or self.params.modified_image
         use_image_int8 = self.smsh_img_255(use_image)
         
@@ -576,14 +1403,14 @@ class RHTProcessor(Processor):
         return self.thresholded
     
     def threshold_the_image(self, image, mu=7 / 8):
-        print("   * Threshold")
+        # print("   * Threshold")
         # Threshold the Image
         thresh = mu * np.nanmedian(image)
         th, thresh_img = cv2.threshold(image, thresh, 255, cv2.THRESH_BINARY)
         return thresh_img, th
     
     def adaptive_threshold_the_image(self, image):
-        print("   * Threshold")
+        # print("   * Threshold")
         # Threshold the Image
         th3 = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, \
                                     cv2.THRESH_BINARY, 11, 0)
@@ -605,20 +1432,21 @@ class RHTProcessor(Processor):
         # W_RHT = np.round(0.08 * r_sun_pixels).astype(np.uint8)//2
         
         ff = 5 - self.shrink_F
-        W_RHT = 31 * ff * w_factor
-        
+        W_RHT = self.W_RHT_1024 * ff * w_factor
+
         W_RHT = self.ensure_odd(int(W_RHT))
-        print(W_RHT)
+        self.current_w_rht = W_RHT + 0
+        # print(W_RHT)
         # W_RHT = 55.
         
         #############################################################
         # Set the amount of radial smear in the algorithm
         # Boe 2020 says 0.02 to 0.4 Rs
-        smear = 3  # np.round(0.02 * r_sun_pixels).astype(np.uint8)
+        smear = 2  # np.round(0.02 * r_sun_pixels).astype(np.uint8)
         # smear = 11.
         
         #############################################################
-        frac = 0.6
+        frac = self.count_fraction_threshold
         
         ## Run RHT Algorithm
         print("\n V V Starting RHT V V")
@@ -632,10 +1460,14 @@ class RHTProcessor(Processor):
                                       frac=frac,
                                       )
         
-        r_bar = self.find_RHT_error(H_XY)
+        theta_bar, r_bar = self.find_RHT_error(H_XY)
         
         print(" ^  ^  Success!  ^  ^ ")
-        return H_XY, self.theta, r_bar
+        return H_XY, self.theta, theta_bar, r_bar
+    
+    
+
+    
     
     ##############################
     # Plotting Angles
@@ -701,7 +1533,6 @@ class RHTProcessor(Processor):
             x2 = 3526 // ff
             y2 = 4096 // ff
         
-        fig.suptitle("{}, x1= {}, x2 = {}".format(self.in_name, lp_wind, hp_wind))
         plt.xlim((x1, x2))
         plt.ylim((y1, y2))
         self.maximizePlot()
@@ -724,13 +1555,13 @@ class RHTProcessor(Processor):
         return number
     
     def highpass_filt(self, image, kern_in=41, sigma_in=18, blur_f=1.0):
-        print("   * Highpass")
+        # print("   * Highpass")
         gaussian_blur = self.lowpass_filt(image, kern_in, sigma_in)
         highpass_img = image - blur_f * gaussian_blur
         return highpass_img, gaussian_blur
     
     def lowpass_filt(self, image, kern_in=11, sigma_in=1.0):
-        print("   * Lowpass")
+        # print("   * Lowpass")
         # LowPass the Input
         ff = self.shrink_F
         kern2 = kern_in // ff
@@ -758,7 +1589,7 @@ class RHTProcessor(Processor):
         # https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.convolve2d.html
         from scipy import signal
         scharr = np.array([[-3 - 3j, 0 - 10j, +3 - 3j],
-                           # Compute the gradient of an image by 2D convolution with a complex Scharr operator. (Horizontal operator is real, vertical is imaginary.) Use symmetric boundary condition to avoid creating edges at the image boundaries.
+                           # Compute the gradient of an frame by 2D convolution with a complex Scharr operator. (Horizontal operator is real, vertical is imaginary.) Use symmetric boundary condition to avoid creating edges at the frame boundaries.
                            [-10 + 0j, 0 + 0j, +10 + 0j],
                            [-3 + 3j, 0 + 10j, +3 + 3j]])  # Gx + j*Gy
         
@@ -789,7 +1620,7 @@ class RHTProcessor(Processor):
         
         from astropy.convolution import convolve, convolve_fft, Box2DKernel, CustomKernel
         
-        lp_wind = 9  # Options are 3, 5, 7, 9, 11 and different for each image
+        lp_wind = 9  # Options are 3, 5, 7, 9, 11 and different for each frame
         hp_wind = 9
         
         low_pass_window = Box2DKernel(lp_wind) * (1 / (lp_wind ** 2))
@@ -821,7 +1652,7 @@ class RHTProcessor(Processor):
         print("Plotting...")
         
         # input_image = Image.fromarray(use_image)
-        # image = cv2.cvtColor(use_image, cv2.COLOR_BGR2GRAY )
+        # frame = cv2.cvtColor(use_image, cv2.COLOR_BGR2GRAY )
         a = 1
         # output_image= Image.fromarray(use_image)
         # img = cv2.imdecode(use_image, flags=cv2.IMREAD_GRAYSCALE)

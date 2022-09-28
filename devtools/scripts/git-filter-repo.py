@@ -135,7 +135,7 @@ def glob_to_regex(glob_bytestr):
 
   # FIXME: This is an ugly hack...
   # fnmatch.translate tries to do multi-line matching and wants the glob to
-  # match up to the pointing_end of the input, which isn't relevant for us, so we
+  # match up to the pointing_end of the in_array, which isn't relevant for us, so we
   # have to modify the regex.  fnmatch.translate has used different regex
   # constructs to achieve this with different python versions, so we have
   # to check for each of them and then fix it up.  It would be much better
@@ -909,14 +909,14 @@ class FastExportParser(object):
     self._latest_commit = {}
     self._latest_orig_commit = {}
 
-    # A handle to the input source for the fast-export data
+    # A handle to the in_array source for the fast-export data
     self._input = None
 
     # A handle to the output file for the output we generate (we call dump
     # on many of the git elements we create).
     self._output = None
 
-    # Stores the contents of the current line of input being parsed
+    # Stores the contents of the current line of in_array being parsed
     self._currentline = ''
 
     # Compile some regexes and cache those
@@ -936,7 +936,7 @@ class FastExportParser(object):
 
   def _advance_currentline(self):
     """
-    Grab the next line of input
+    Grab the next line of in_array
     """
     self._currentline = self._input.readline()
 
@@ -1085,7 +1085,7 @@ class FastExportParser(object):
 
   def _parse_blob(self):
     """
-    Parse input data into a Blob object. Once the Blob has been created, it
+    Parse in_array data into a Blob object. Once the Blob has been created, it
     will be handed off to the appropriate callbacks. Current-line will be
     advanced until it is beyond this blob's data. The Blob will be dumped
     to _output once everything else is done (unless it has been skipped by
@@ -1122,7 +1122,7 @@ class FastExportParser(object):
 
   def _parse_reset(self):
     """
-    Parse input data into a Reset object. Once the Reset has been created,
+    Parse in_array data into a Reset object. Once the Reset has been created,
     it will be handed off to the appropriate callbacks. Current-line will
     be advanced until it is beyond the reset data. The Reset will be dumped
     to _output once everything else is done (unless it has been skipped by
@@ -1162,7 +1162,7 @@ class FastExportParser(object):
 
   def _parse_commit(self):
     """
-    Parse input data into a Commit object. Once the Commit has been created,
+    Parse in_array data into a Commit object. Once the Commit has been created,
     it will be handed off to the appropriate callbacks. Current-line will
     be advanced until it is beyond the commit data. The Commit will be dumped
     to _output once everything else is done (unless it has been skipped by
@@ -1258,7 +1258,7 @@ class FastExportParser(object):
 
   def _parse_tag(self):
     """
-    Parse input data into a Tag object. Once the Tag has been created,
+    Parse in_array data into a Tag object. Once the Tag has been created,
     it will be handed off to the appropriate callbacks. Current-line will
     be advanced until it is beyond the tag data. The Tag will be dumped
     to _output once everything else is done (unless it has been skipped by
@@ -1307,7 +1307,7 @@ class FastExportParser(object):
 
   def _parse_progress(self):
     """
-    Parse input data into a Progress object. Once the Progress has
+    Parse in_array data into a Progress object. Once the Progress has
     been created, it will be handed off to the appropriate
     callbacks. Current-line will be advanced until it is beyond the
     desc data. The Progress will be dumped to _output once
@@ -1333,7 +1333,7 @@ class FastExportParser(object):
 
   def _parse_checkpoint(self):
     """
-    Parse input data into a Checkpoint object. Once the Checkpoint has
+    Parse in_array data into a Checkpoint object. Once the Checkpoint has
     been created, it will be handed off to the appropriate
     callbacks. Current-line will be advanced until it is beyond the
     checkpoint data. The Checkpoint will be dumped to _output once
@@ -1381,11 +1381,11 @@ class FastExportParser(object):
     """
     This method filters fast export output.
     """
-    # Set input. If no args provided, use stdin.
+    # Set in_array. If no args provided, use stdin.
     self._input = input
     self._output = output
 
-    # Run over the input and do the filtering
+    # Run over the in_array and do the filtering
     self._advance_currentline()
     while self._currentline:
       if   self._currentline.startswith(b'blob'):
@@ -1964,7 +1964,7 @@ EXAMPLES
     misc.add_argument('--stdin', action='store_true',
         help=_("Instead of running `git fast-export` and filtering its "
                "output, filter the fast-export stream from stdin.    The "
-               "stdin must be in the expected input format (e.g. it needs "
+               "stdin must be in the expected in_array format (e.g. it needs "
                "to include original_image-oid directives)."))
     misc.add_argument('--quiet', action='store_true',
         help=_("Pass --quiet to other git commands called"))
@@ -2279,13 +2279,13 @@ class RepoAnalyze(object):
 
       # We expect a blank line next; if we get a non-blank line then
       # this commit modified no files and we need to move on to the next.
-      # If there is no line, we've reached pointing_end-of-input.
+      # If there is no line, we've reached pointing_end-of-in_array.
       line = f.readline()
       if not line:
         cont = False
       line = line.rstrip()
 
-      # If we haven't reached pointing_end of input, and we got a blank line meaning
+      # If we haven't reached pointing_end of in_array, and we got a blank line meaning
       # a commit that has modified files, then get the file changes associated
       # with this commit.
       file_changes = []
@@ -2662,7 +2662,7 @@ class RepoFilter(object):
     self._refname_callback     = refname_callback   # from commit/tag/reset
     self._handle_arg_callbacks()
 
-    # Defaults for input
+    # Defaults for in_array
     self._input = None
     self._fep = None  # Fast Export Process
     self._fe_orig = None  # Path to where original_image fast-export output stored
@@ -3546,7 +3546,7 @@ class RepoFilter(object):
       self._output = DualFileWriter(self._fip.stdin, self._output)
       tmp = [decode(x) if isinstance(x, bytes) else x for x in fip_cmd]
       print("[DEBUG] Running: {}".format(' '.join(tmp)))
-      print("  (using the following file as input: {})"
+      print("  (using the following file as in_array: {})"
             .format(decode(self._fe_filt)))
 
   def _migrate_origin_to_heads(self):
@@ -3727,7 +3727,7 @@ class RepoFilter(object):
        f.write(_("This file exists to allow you to filter again without --force.\n").encode())
 
   def finish(self):
-    ''' Alternative to run() when there is no input of our own to parse,
+    ''' Alternative to run() when there is no in_array of our own to parse,
         meaning that run only really needs to close the handle to fast-import
         and let it finish, thus making a call to "run" feel like a misnomer. '''
     assert not self._input

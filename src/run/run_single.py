@@ -1,7 +1,7 @@
 from fetcher.FidoFetcher import FidoFetcher
 from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from fetcher.LocalFetcher import LocalSingleFetcher
-from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
+from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv, MultiHistogramProcessorCv
 from processor.NoiseGateProcessor import NoiseGateProcessor
 from processor.QRNProcessor import QRNProcessor
 from processor.RHTProcessor import RHTProcessor
@@ -18,7 +18,7 @@ plt.ioff()
 # Awesome Plumes: "2019-01-01T00:00:00"
 # MC Paper: "2014-11-10T16:00:00"
 def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20, frames=None):
-    """Download a single image and time-integrate it, then apply QRN
+    """Download a single frame and time-integrate it, then apply QRN
         :type wave: strings
         :type tstart: string
         :type duration_seconds: int or float
@@ -36,22 +36,25 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
     get_images = False and master
     if get_images:
         pass
-        p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
+        # p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
         p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
         # p.processors([NoiseGateProcessor],     rp=True)
         p.processors([AIA_PREP_Processor],     rp=True)   # Do Sunpy Things
     
     p.png_frame_name = "qrn" ## I want to be able to call final, but it is made in the processor that save images, so I have to split it out into the touchup processor.
-    radial_norms = True and master
+    p.msgn_targets(["lev1p5"])
+    radial_norms = False and master
     if radial_norms:
         pass
+        # p.processors([SRNSingleShotProcessor], rp=True)
         # p.processors([QRNProcessor],            rp=True)  # Applies the QRN Filter
-        p.processors([SRNSingleShotProcessor], rp=True)
         # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
         # p.processors([IntEnhanceProcessor],     rp=True)  # Applies the Sunpy IntEnhance Filter
+        # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        
         p.processors([ImageProcessorCV])
     
-    p.aftereffects_in_name = ["final", "lev1p5",]
+    p.aftereffects_in_name = ["qrn",]
     aftereffects = False and master
     if aftereffects:
         pass
@@ -60,9 +63,10 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
         p.processors([RHTProcessor],            rp='redo')  # Applies the Rolling Hough Transform+
         # p.processors([RHTProcessor],            rp="redo")  # Applies the Rolling Hough Transform+
     
-    use_putters = False and master
+    use_putters = True and master
     if use_putters:
-        p.putters(MultiImageProcessorCv,            rp=True)  # Makes the PNGs from Fits
+        # p.putters(MultiImageProcessorCv,            rp=True)  # Makes the PNGs from Fits
+        p.putters(MultiHistogramProcessorCv,            rp=True)  # Makes the PNGs from Fits
         
     # Run the Code
     runner = SingleRunner(p)
