@@ -110,7 +110,7 @@ class RHTProcessor(Processor):
         self.RHT_out_list = []
         self.rht_cube = None
         self.theta = None
-        self.in_name = in_name or "qrn"
+        self.in_name = in_name or "rhe"
         self.params.modified_image = None
         
         if len(self.params.aftereffects_in_name) > 0:
@@ -1323,7 +1323,7 @@ class RHTProcessor(Processor):
         # print("   * Conditioning Inputs...")
         if shrink: self.resize_image(prnt=prnt)
         self.init_image_frames()
-        # if "qrn" in self.in_name:   ######################################################################
+        # if "rhe" in self.in_name:   ######################################################################
         #     self.params.modified_image = norm_stretch(self.params.modified_image)
         mdi = self.mask_out_sun(self.params.modified_image)
         self.params.modified_image = self.vignette(mdi)

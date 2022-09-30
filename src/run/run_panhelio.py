@@ -35,7 +35,7 @@ os.chdir(new_path)
 # Import
 from fetcher.LocalFetcher import LocalSingleFetcher, LocalCdfFetcher
 from processor.ImageProcessorCV import ImageProcessorCV #, ImageProcessorNetCDF
-from processor.SRNProcessor import SRNSingleShotProcessor
+from processor.QRNProcessor import QRNSingleShotProcessor
 from science.parameters import Parameters
 from run import Runner, SingleRunner
 
@@ -57,7 +57,7 @@ def run(img_path, verb=False, confirm=True):
     p.confirm_save = confirm
     # Set the Processesors
     p.fetchers(LocalCdfFetcher,          rp=True)  # Get the desired file
-    p.processors([SRNSingleShotProcessor],  rp=True)  # Apply the SRN Filter
+    p.processors([QRNSingleShotProcessor],  rp=True)  # Apply the QRN Filter
 
     if True:
         SingleRunner(p).start(verb=verb)

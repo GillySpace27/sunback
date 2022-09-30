@@ -21,8 +21,8 @@ class WebFitsFetcher(Fetcher):
     jpg_url_stem = "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_{:04}_{:04}.jpg" + "?x=" + str(round(time()))
     description = "Get Fits Files from {}".format(base_url)
     filt_name = "WebFitsFetcher"
-    # out_name = 'SRN'
-    # name = filt_name = 'SRN Single Shot Processor'
+    # out_name = 'QRN'
+    # name = filt_name = 'QRN Single Shot Processor'
     progress_verb = 'Downloading'
     finished_verb = "Aquired"
     

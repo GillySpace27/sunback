@@ -69,12 +69,13 @@ class LocalSingleFetcher(Fetcher):
             # self.fetch()
             # return
         try:
-            hdul = fits.open(fits_path, cache=False, ignore_missing_end=True)
+            with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
+                self.list_hdus(hdul)
         except ValueError as e:
             print("No Local File Found!")
             raise e
 
-        self.list_hdus(hdul)
+        
         
         for self.params.hdu_name in self.params.master_frame_list_newest:
 

@@ -4,8 +4,8 @@ from fetcher.FidoFetcher import FidoFetcher
 from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from fetcher.LocalFetcher import LocalFetcher
 from processor.ImageProcessorCV import ImageProcessorCV
-from processor.QRNProcessor import QRNProcessor
-# from processor.SRNProcessor import SRNradialFiltProcessor, SRNpreProcessor
+from processor.RHEProcessor import RHEProcessor
+# from processor.QRNProcessor import QRNradialFiltProcessor, QRNpreProcessor
 from processor.SunPyProcessor import AIA_PREP_Processor
 from processor.ValidationProcessor import ValidationProcessor
 from processor.VideoProcessor import VideoProcessor
@@ -48,7 +48,7 @@ def run_range_multishot_movie(batch_name= "Single_Search", wave=None, config=Non
     p.fetchers(FidoFetcher,                 rp=True)  # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor],    rp=False)   # Integrate several frames for S/N
     # This happens in the fetcher now p.processors([AIA_PREP_Processor],      rp=False)   # Do Sunpy Things
-    # p.processors([QRNProcessor],            rp=False)  # Applies the QRN Processor
+    # p.processors([RHEProcessor],            rp=False)  # Applies the RHE Processor
     p.processors([ImageProcessorCV],        rp=True)  # Makes the PNGs from Fits
     p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
 
@@ -305,8 +305,8 @@ if __name__ == "__main__":
 #     # p.fetchers(FidoFetcher)                                     # Gets Fits FIDO
 #     # p.processors([FidoTimeIntProcessor])                        # Integrate several frames for S/N
 #
-#     p.processors([SRNpreProcessor], rp=True)  # Learns the bounds of the dataset for SRN
-#     p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
+#     p.processors([QRNpreProcessor], rp=True)  # Learns the bounds of the dataset for QRN
+#     p.processors([QRNradialFiltProcessor], rp=True)  # Applies the QRN Filter
 #
 #     p.putters([ImageProcessor], rp=True)  # Makes the PNGs from Fits
 #     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie

@@ -71,13 +71,17 @@ class ImageProcessor(Processor):
     def init_frame(self, fits_path=None, in_name=None):
         """Load the fits file from disk and get a in_name or two"""
         # self.load_curves()
+        if in_name is not None:
+            self.frame_name = in_name
         self.fits_path = fits_path or self.fits_path
         self.params.fits_path = self.fits_path
         if True: #self.params.raw_image is None:
             list_of_inputs = self.params.master_frame_list_oldest
             frame0, _, _, _, _, name0 = self.load_this_fits_frame(fits_path, list_of_inputs)
             self.raw_name = self.frame_name + ''
-            frame1, self.wave1, self.t_rec1, center1, int_time, name1 = self.load_this_fits_frame(fits_path, in_name)
+            frame1, wave1, t_rec1, center1, int_time, name1 = self.load_this_fits_frame(fits_path, in_name)
+            self.wave1 = wave1
+            self.t_rec1 = t_rec1
             self.mod_name = self.frame_name + ''
             self.params.raw_image, self.params.modified_image = frame0, frame1
             self.frame = np.zeros_like(self.params.raw_image)
@@ -94,7 +98,36 @@ class ImageProcessor(Processor):
         else:
             from matplotlib import cm
             self.params.cmap = cm.gray
-
+    def image_is_plottable(self, frame_name):
+        # return True
+        return self.doesnt_have_wrong_string(frame_name)
+        return self.does_have_right_string(frame_name)
+        
+    
+    def does_have_right_string(self, frame_name, right_string=None):
+        
+        right_string = right_string or ["lev1p5(t_int)", "final(rhe)", "rht(lev1p5)", "rht(final)"]
+        
+        for goods in right_string:
+            if frame_name.casefold() == goods:
+                return True
+        return False
+        
+        
+    def doesnt_have_wrong_string(self, frame_name, wrong_string=None):
+        bads = wrong_string or ["lev1p0", "t_int(lev1p0)", "t_int(primary)", "lev1p5(lev1p0)"]
+        if True:
+            bads.append("primary")
+            bads.append("lev1p5")
+        
+        if self.params.multiplot_all:
+            bads = []
+            
+        for nam in bads:
+            # if nam in frame_name:
+            if nam.casefold() == frame_name:
+                return False
+        return True
     def init_image_frame(self):
         """Load the fits file from disk and get a in_name or two"""
 
@@ -208,7 +241,7 @@ class ImageProcessor(Processor):
         if self.params.do_single:
             return self.params.mod_path.replace("mod\\","").replace("image_lev1p0", "mod")
         else:
-            return self.params.mod_path
+            return self.params.mod_path + ''
 
         
     @staticmethod
@@ -298,9 +331,9 @@ class ImageProcessor(Processor):
         # Maxima Stretching
         do_maxima_scrunch = True
         if do_maxima_scrunch:
-            if 'qrn' in frame_name2:
+            if 'rhe' in frame_name2:
                 frame = self.maxima_scrunch(frame, num2=0.)
-            elif "msgn(qrn)" in frame_name:
+            elif "msgn(rhe)" in frame_name:
                 frame = self.maxima_scrunch(frame, num=0.95, num2=0.1)
                 # frame *= 1.05
             elif "lev1p5" in frame_name:
@@ -315,23 +348,30 @@ class ImageProcessor(Processor):
                     frame = self.maxima_scrunch(frame, num=num, num2=num2)
                     # frame *= 1.05
             
-            else:
-                frame = self.maxima_scrunch(frame)
+            # else:
+            #     pass
+            #     frame = self.maxima_scrunch(frame)
  
-        # Norm Stretching
+        # Norm Stretching (only runs on rhe)
         frame = self.do_norm_stretch(frame, frame_name)
+        
+
         
         dont_vminmax = False
         for name in ["RHT", 'legacy']:
             if name in frame_name:
                 dont_vminmax = True
 
+        if not dont_vminmax:
+            frame[frame>1.0] = 1.0
+            frame[frame<0.0] = 0.0
+            
         self.dont_vminmax = dont_vminmax
         return frame
     
     
     def do_norm_stretch(self, frame, frame_name, do=True):
-        if do and "qrn" in frame_name:
+        if do and "rhe" in frame_name:
             aL, aH = self.get_alphas()
             frame = norm_stretch(frame, alpha=aL, alpha_high=aH)
         return frame
@@ -377,7 +417,7 @@ class ImageProcessor(Processor):
     #     frame = (frame - minx) / (maxx - minx)
     #     frame /= darken_rfilt
     #
-    # if frame_name == "quantile":
+    # if frame_name == "rhe":
     #     frame /= darken_quant
     
     # self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)

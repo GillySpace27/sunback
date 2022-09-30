@@ -3,10 +3,10 @@ from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from fetcher.LocalFetcher import LocalSingleFetcher
 from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv, MultiHistogramProcessorCv
 from processor.NoiseGateProcessor import NoiseGateProcessor
-from processor.QRNProcessor import QRNProcessor
+from processor.RHEProcessor import RHEProcessor
 from processor.RHTProcessor import RHTProcessor
-from processor.SRNProcessor import SRNProcessor, SRNSingleShotProcessor
-# from processor.SRNSubProcessors import SRNSingleShotProcessor
+from processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
+# from processor.QRNSubProcessors import QRNSingleShotProcessor
 from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor
 from science.parameters import Parameters
 from run import SingleRunner
@@ -18,7 +18,7 @@ plt.ioff()
 # Awesome Plumes: "2019-01-01T00:00:00"
 # MC Paper: "2014-11-10T16:00:00"
 def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20, frames=None):
-    """Download a single frame and time-integrate it, then apply QRN
+    """Download a single frame and time-integrate it, then apply RHE
         :type wave: strings
         :type tstart: string
         :type duration_seconds: int or float
@@ -41,20 +41,21 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
         # p.processors([NoiseGateProcessor],     rp=True)
         p.processors([AIA_PREP_Processor],     rp=True)   # Do Sunpy Things
     
-    p.png_frame_name = "qrn" ## I want to be able to call final, but it is made in the processor that save images, so I have to split it out into the touchup processor.
-    p.msgn_targets(["lev1p5"])
-    radial_norms = False and master
+    p.png_frame_name = 'rhe(lev1p5)' #'rhe(lev1p5)' #"msgn(rhe)" #'all' #['rhe', "msgn(rhe)", "rhe(msgn)"] ## I want to be able to call final, but it is made in the processor that save images, so I have to split it out into the touchup processor.
+    p.msgn_targets(["lev1p5", 'rhe' ]) #
+    p.rhe_targets(["lev1p5", 'msgn(lev1p5)']) #"lev1p5",
+    radial_norms = True and master
     if radial_norms:
         pass
-        # p.processors([SRNSingleShotProcessor], rp=True)
-        # p.processors([QRNProcessor],            rp=True)  # Applies the QRN Filter
-        # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
-        # p.processors([IntEnhanceProcessor],     rp=True)  # Applies the Sunpy IntEnhance Filter
-        # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        
+        p.processors([QRNSingleShotProcessor], rp=True)
+        p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
+        p.processors([RHEProcessor],            rp=True)  # Applies the RHE Filter
+        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        p.processors([RHEProcessor],            rp=True)  # Applies the RHE Filter
         p.processors([ImageProcessorCV])
     
-    p.aftereffects_in_name = ["qrn",]
+    p.aftereffects_in_name = ["rhe",]
     aftereffects = False and master
     if aftereffects:
         pass
@@ -103,8 +104,8 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
     # p.do_one(wave, stop=True)
 
     # p.processors([FNRGFProcessor],            rp=True)  # Applies the Sunpy FNRGF Filter
-    # p.processors([SRNSingleShotProcessor],           rp=True)  # Applies the SRN Filter
-    # p.png_frame_name = ['lev1P5_Q', 'Quantile']
+    # p.processors([QRNSingleShotProcessor],           rp=True)  # Applies the QRN Filter
+    # p.png_frame_name = ['lev1P5_Q', 'RHE']
     # p.putters(ImageProcessorCV,            rp=True)  # Makes the PNGs from Fits
 
     
@@ -152,7 +153,7 @@ if __name__ == "__main__":
     # p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
 
 
-    # p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
+    # p.processors([QRNradialFiltProcessor],  rp=True)  # Applies the QRN Filter
 
 
 
@@ -185,8 +186,8 @@ if __name__ == "__main__":
 #     # p.fetchers(FidoFetcher)                                     # Gets Fits FIDO
 #     # p.processors([FidoTimeIntProcessor])                        # Integrate several frames for S/N
 #
-#     p.processors([SRNpreProcessor], rp=True)  # Learns the bounds of the dataset for SRN
-#     p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
+#     p.processors([QRNpreProcessor], rp=True)  # Learns the bounds of the dataset for QRN
+#     p.processors([QRNradialFiltProcessor], rp=True)  # Applies the QRN Filter
 #
 #     p.putters([ImageProcessor], rp=True)  # Makes the PNGs from Fits
 #     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie

@@ -1,7 +1,7 @@
 """This is the script to test all the run cases"""
 
 # from fetcher.WebFitsFetcher import WebFitsFetcher
-# from processor.RadialFiltProcessor import SRNradialFiltProcessor
+# from processor.RadialFiltProcessor import QRNradialFiltProcessor
 # from putter.AwsPutter import AwsPutter
 # from putter.DesktopPutter import DesktopPutter
 from run_background import run_background

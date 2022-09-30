@@ -2,8 +2,8 @@
 
 from fetcher.WebFitsFetcher import WebFitsFetcher
 from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
-from processor.QRNProcessor import QRNProcessor
-from processor.SRNProcessor import SRNSingleShotProcessor_Legacy
+from processor.RHEProcessor import RHEProcessor
+from processor.QRNProcessor import QRNSingleShotProcessor_Legacy
 from processor.SunPyProcessor import AIA_PREP_Processor, NRGFProcessor, MSGNProcessor
 from putter.AwsPutter import AwsPutter
 from putter.DesktopPutter import DesktopPutter
@@ -34,10 +34,10 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
     # p.write_video(False)
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
-    p.png_frame_name = ['QRN', "lev1p5"]
-    p.msgn_targets(['lev1p5', 'qrn(lev1p5)'])
+    p.png_frame_name = ['RHE', "lev1p5"]
+    p.msgn_targets(['lev1p5', 'rhe(lev1p5)'])
     p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
-    p.processors([QRNProcessor],            rp=True)  # Applies the Radial Filtering
+    p.processors([RHEProcessor],            rp=True)  # Applies the Radial Filtering
     p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
@@ -48,20 +48,20 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
 
     
     # p.processors([AIA_PREP_Processor],      rp=True   )  # Do Sunpy Things
-    # p.processors([SRNSingleShotProcessor_Legacy],            rp=True)  # Applies the Radial Filtering
+    # p.processors([QRNSingleShotProcessor_Legacy],            rp=True)  # Applies the Radial Filtering
     
     
-    # p.processors([SRNSingleShotProcessor_Legacy])
+    # p.processors([QRNSingleShotProcessor_Legacy])
     # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
     # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-    # p.processors([SRNSingleShotProcessor], rp=True)  # Applies the Radial Filtering
+    # p.processors([QRNSingleShotProcessor], rp=True)  # Applies the Radial Filtering
     # p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
     #
 
 
     #
-    # p.processors(SRNpreProcessor, rp=True)  # Applies the Radial Filtering
-    # p.processors(SRNradialFiltProcessor, rp=True)  # Applies the Radial Filtering
+    # p.processors(QRNpreProcessor, rp=True)  # Applies the Radial Filtering
+    # p.processors(QRNradialFiltProcessor, rp=True)  # Applies the Radial Filtering
     # if p.is_debug():
     # else:
     
@@ -74,8 +74,8 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
     # Set the Processes
     # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N
     
-    # p.processors([SRNpreProcessor],     rp=True)  # Learns the bounds of the dataset for SRN
-    # p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
+    # p.processors([QRNpreProcessor],     rp=True)  # Learns the bounds of the dataset for QRN
+    # p.processors([QRNradialFiltProcessor], rp=True)  # Applies the QRN Filter
     # #
     # p.putters([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
     # p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie

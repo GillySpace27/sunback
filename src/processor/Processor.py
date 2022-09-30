@@ -19,7 +19,7 @@ import sunpy
 import sunpy.map
 
 # from run import SingleRunner
-# from processor.SRNProcessor import SRNProcessor
+# from processor.QRNProcessor import QRNProcessor
 from science.color_tables import aia_color_table
 
 # import cv2
@@ -185,6 +185,11 @@ class Processor:
     ##############################################################
     ## M1: Look for files in a directory and return their paths ##
     ##############################################################
+    def find_frames_at_path(self, fits_path):
+        with fits.open(fits_path, cache=False, reprocess_mode="update") as hdul:
+            self.hdu_name_list = self.list_hdus(hdul)
+        self.good_frames = [x for x in self.hdu_name_list if self.image_is_plottable(x)]
+        return self.good_frames
     
     def load(self, params=None, fits_directory=None, imgs_directory=None,
              absolute=True, in_name=None, out_name=None, batch_name=None,
@@ -587,6 +592,7 @@ class Processor:
                     print("\r ^ ^ ^Successfully {} {} Files ({} skipped) in {:0.4} seconds\n".format(self.finished_verb, max(n_success, 0), self.skipped, self.duration),
                           flush=True)
                     print(" ^ ---------------------------------------------------------------  ^\n")
+                sleep(1)
             else:
                 print(" ^    No Files Found\n")
         except ValueError as e:
@@ -651,7 +657,7 @@ class Processor:
             output = self.do_fits_function(fits_path, self.in_name)
             # output=None
         except np.linalg.LinAlgError as e:
-            print("Legacy_SRN_Kernal one fits :: ", e, "\n")
+            print("Legacy_QRN_Kernal one fits :: ", e, "\n")
             output = 0.5 * np.ones_like(self.params.raw_image)
             output[0] = 0.
             output[1] = 1.
@@ -664,10 +670,10 @@ class Processor:
         self.save_frame(frame, fits_path)
         return frame
     
-    def save_frame(self, frame, fits_path):
+    def save_frame(self, frame, fits_path, out_name=None, force=False):
         if frame is not None and frame is not False:
-            if self.save_to_fits:
-                self.save_frame_to_fits_file(fits_path, frame, dtype=self.out_dtype)
+            if self.save_to_fits or force:
+                self.save_frame_to_fits_file(fits_path, frame, out_name, dtype=self.out_dtype)
     
     def select_single_image(self):
         self.load_fits_paths()
@@ -774,7 +780,7 @@ class Processor:
         self.determine_shrink_factor()
         self.make_radius()
         self.make_vignette(vignette_radius)
-        if True: #type(self) is SRNProcessor:
+        if True: #type(self) is QRNProcessor:
             self.init_bin_array()
         
         self.s_radius = s_radius
@@ -886,67 +892,64 @@ class Processor:
         do_cache = False
         if do_cache:
             if not self.there_is_cached_data:
-                self.do_bin(fast=False)
+                self.do_binning(fast=False)
                 self.save_cached_data(self.radBins)
                 self.there_is_cached_data = True
             else:
                 self.load_cached_data(self.radBins)
         else:
-            self.do_bin(fast=False)
+            self.do_binning(fast=False)
     
-    def do_bin(self, use_im=None, fast=True, binBoxSize=100):  # Bin the intensities by radius
+    def initialize_binning(self, use_im, binBoxSize):
         flat_im = self.params.modified_image if use_im is None else use_im
         flat_im = flat_im.flatten()
         sz = (self.params.rez, self.params.rez)
-        self.params.quantile_image = np.empty(sz[0]**2)
-        self.params.quantile_image.fill(np.nan)
-        n_inds = np.max(self.binInds)
-        self.equal_intensity_array = np.empty((n_inds, binBoxSize))
-        self.equal_radius_array = np.empty((n_inds, binBoxSize))
-        self.equal_mean_array = np.empty((n_inds))
-        self.equal_std_array = np.empty((n_inds))
+        self.params.rhe_image = np.empty(sz[0]**2)
+        self.params.rhe_image.fill(np.nan)
+        self.n_inds = np.max(self.binInds)
+        self.equal_intensity_array =np.empty((self.n_inds, binBoxSize))
+        self.equal_radius_array =   np.empty((self.n_inds, binBoxSize))
+        self.equal_mean_array =     np.empty((self.n_inds))
+        self.equal_std_array =      np.empty((self.n_inds))
         
         self.equal_intensity_array.fill(np.nan)
         self.equal_radius_array.fill(np.nan)
         self.equal_mean_array.fill(np.nan)
         self.equal_std_array.fill(np.nan)
+        return flat_im
+    
+    def do_binning(self, use_im=None, fast=False, binBoxSize=100):  # Bin the intensities by radius
+
+        flat_im = self.initialize_binning(use_im, binBoxSize)
+        params_list = tqdm(np.arange(self.n_inds), desc=" *    Sorting Pixels", position=0, leave=True)
         
-        params_list = tqdm(np.arange(n_inds), desc=" *    Sorting Pixels", position=0, leave=True)
+        skip = 1 if "RHE" in self.out_name else 15 if fast else 1
         
-        skip = 10 #if "QRN" in self.out_name else 10 if fast else 1
-        # from numpy.random import Generator as Gen
         for binI in params_list:
             if not np.mod(binI, skip):
                 if fast:
-                    entries, the_mean, the_std = self.get_bin_entries(binI, flat_im)
-                    limit = entries.shape[0]
-                    if limit:
-                        indices = np.random.choice(limit, binBoxSize, replace=True)
-                        (good_coord, self.equal_intensity_array[binI, :], self.equal_radius_array[binI, :]), self.equal_mean_array[binI], self.equal_std_array[binI]  = entries[indices].T, the_mean, the_std
+                    self.fast_binning(binI, flat_im, binBoxSize)
                 else:
-                    self.do_this_bin(binI, flat_im, fast=fast, skip=skip)
+                    self.full_binning(binI, flat_im, skip=skip)
         return self.equal_radius_array, self.equal_intensity_array
         
-        
-        # print('')
-        # pass
-        # import multiprocessing
-        # pool_obj = multiprocessing.Pool(6)
-        # pool_obj.map(self.do_this_bin, params_list)
+    def fast_binning(self, binI, flat_im, binBoxSize):
+        entries, the_mean, the_std = self.get_bin_entries(binI, flat_im)
+        limit = entries.shape[0]
+        if limit:
+            indices = np.random.choice(limit, binBoxSize, replace=True)
+            (good_coord, self.equal_intensity_array[binI, :], self.equal_radius_array[binI, :]), self.equal_mean_array[binI], self.equal_std_array[binI]  =\
+                entries[indices].T, the_mean, the_std
     
-    def do_this_bin(self, binI, image, fast=False, skip=1):
-        # if binI > 300:
-        #     return
+    def full_binning(self, binI, image, skip=1):
         entries, mean, std = self.get_bin_entries(binI, image)
         (good_coord, bin_array, radii) = entries.T
         if len(bin_array) > 0:
-            self.binBox.append(np.asarray([good_coord, radii, bin_array]).T.tolist())
-            self.params.quantile_image[good_coord.astype(int)] = stats.rankdata(bin_array, "average") / len(bin_array)
-            if not fast:
-                # print("Dont")
-                A,B,C,D = np.percentile(bin_array, [98.5, 90, 7, 4])
-                array = np.arange(binI, np.min((binI+skip, self.bin_rez)))
-                self.binAbsMax[array], self.binMax[array], self.binMin[array], self.binAbsMin[array] = A, B, C, D
+            # self.binBox.append(np.asarray([good_coord, radii, bin_array]).T.tolist())
+            self.params.rhe_image[good_coord.astype(int)] = stats.rankdata(bin_array, "average") / len(bin_array) #This is RHE
+            A,B,C,D = np.percentile(bin_array, [98.5, 90, 7, 4])
+            array = np.arange(binI, np.min((binI+skip, self.bin_rez)))
+            self.binAbsMax[array], self.binMax[array], self.binMin[array], self.binAbsMin[array] = A, B, C, D
         return good_coord, radii, bin_array
     
     def get_bin_entries(self, binI, image=None):
@@ -976,7 +979,7 @@ class Processor:
         binRad = []
         binInts = []
     
-        self.do_bin(use_im=image, fast=True, binBoxSize=binBoxSize)
+        self.do_binning(use_im=image, fast=True, binBoxSize=binBoxSize)
         return self.equal_radius_array, self.equal_intensity_array
     
         # if image is not None:
@@ -984,7 +987,7 @@ class Processor:
         #
         # elif self.binBox is None:
         #     self.binBox = []
-        #     self.do_bin(use_im=image, fast=True)
+        #     self.do_binning(use_im=image, fast=True)
         #
         # for box in self.binBox:
         #     try:
@@ -1004,9 +1007,9 @@ class Processor:
         # self.prep_histograms()
         frames = frames if frames is not None else [self.params.raw_image2.reshape(self.params.modified_image.shape),
                                                     self.params.modified_image.reshape(self.params.modified_image.shape),
-                                                    self.params.quantile_image.reshape(self.params.modified_image.shape)]
+                                                    self.params.rhe_image.reshape(self.params.modified_image.shape)]
         
-        names = names if names is not None else ["Log10 (Normalized)", "SRN (Normalized)", "QRN"]
+        names = names if names is not None else ["Log10 (Normalized)", "QRN (Normalized)", "RHE"]
         
         
         
@@ -1024,26 +1027,35 @@ class Processor:
         self.plot_histogram_points(bot_axes, frames, names, even_points, axes2=mid_axes )
 
         
-        mid_axes[0].legend(frameon=False)
+        mid_axes[0].legend(frameon=False, fontsize=7)
         bot_axes[0].set_ylabel("Intensity")
-        bot_axes[1].legend(frameon=False, loc='lower left')
-        fig.set_size_inches((14,8))
-        plt.tight_layout()
-        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.png", dpi=400)
+        bot_axes[1].legend(frameon=False, fontsize=7)
+        fig.set_size_inches((16,8))
+        # plt.tight_layout()
+        plt.subplots_adjust(top=0.944,
+        bottom=0.073,
+        left=0.04,
+        right=0.985,
+        hspace=0.218,
+        wspace=0.1)
+        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_all_hq.png", dpi=600)
+        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_all_lq.png", dpi=400)
+        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_all_vlq.png", dpi=300)
+        plt.close(fig)
         # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.pdf", dpi=400)
-        plt.show()
-        self.maximizePlot()
-        plt.tight_layout()
-        plt.show(block=True)
-        asdf = 1
+        # plt.show()
+        # self.maximizePlot()
+        # plt.tight_layout()
+        # plt.show(block=True)
+        # asdf = 1
 
 
-    def do_compare_histogramplot_qrnonly(self, frames=None, names=None, even_points=150, use_cmap=False):
+    def do_compare_histogramplot_rheonly(self, frames=None, names=None, even_points=150, use_cmap=False):
 
-        has_qrn = np.where(['qrn' in nam for nam in names])[0]
-        framesq = [frames[int(x)] for x in has_qrn]
-        namesq = [names[int(x)] for x in has_qrn]
-        namesqq = [names[int(x)]+"_raw" for x in has_qrn]
+        has_rhe = np.where(['rhe' in nam for nam in names if 'msgn' not in nam])[0]
+        framesq = [frames[int(x)] for x in has_rhe]
+        namesq = [names[int(x)] for x in has_rhe]
+        namesqq = [names[int(x)]+"_raw" for x in has_rhe]
         
         fram = [framesq[0], framesq[1], framesq[1]]
         name = [namesq[0], namesqq[1], namesq[1]]
@@ -1068,13 +1080,76 @@ class Processor:
         bot_axes[0].legend(frameon=False) #, loc='lower left')
         fig.set_size_inches((14,8))
         plt.tight_layout()
-        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_qrn.png", dpi=400)
+        
+        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_rhe_hq.png", dpi=600)
+        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_rhe_lq.png", dpi=400)
+        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_rhe_vlq.png", dpi=300)
+        
+        # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_rhe.png", dpi=400)
+        # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.pdf", dpi=400)
+        # plt.show()
+        # self.maximizePlot()
+        # plt.tight_layout()
+        plt.close(fig)
+        # plt.show(block=True)
+        # asdf = 1
+
+
+    def do_compare_histogramplot_images(self, frames=None, names=None, even_points=150, use_cmap=False):
+
+        has_rhe = np.where(['rhe' in nam for nam in names])[0]
+        framesq = [frames[int(x)] for x in has_rhe]
+        namesq = [names[int(x)] for x in has_rhe]
+        namesqq = [names[int(x)]+"_raw" for x in has_rhe]
+        
+        fram = frames[2:] #[framesq[0], framesq[1], framesq[1]]
+        name = names[ 2:] #[namesq[0], namesqq[1], namesq[1]]
+        
+        
+        fig, axArray = plt.subplots(4, len(fram), sharex='row', sharey="row")
+        (top_axes, mid_axes, low_mid_axes,  bot_axes) = axArray
+        try:
+            t_rec = self.header["T_REC"]
+        except KeyError as e:
+            t_rec = self.header["T_OBS"]
+        fig.suptitle("{}  at  {}".format(self.wave, t_rec))
+
+        # import copy
+        # frames2 = copy.deepcopy(frames)
+        nan_names = [None for x in names]
+        self.plot_histogram_images(top_axes, fram, name)
+        self.plot_histogram_images(mid_axes, fram, nan_names)
+        self.plot_histogram_images(low_mid_axes, fram, nan_names)
+        self.plot_histogram_images(bot_axes, fram, nan_names)
+        # self.plot_histogram_points(bot_axes, fram, name, even_points, axes2=None)
+        fig.set_size_inches((16,10))
+
+        top_axes[0].set_xlim((1393, 2703))
+        top_axes[0].set_ylim((0,        1000))
+        
+        mid_axes[0].set_xlim((2200, 4096))
+        mid_axes[0].set_ylim((1612,      3013))
+
+        low_mid_axes[0].set_xlim((3013, 4096))
+        low_mid_axes[0].set_ylim((650,      1426))
+        
+        bot_axes[0].set_xlim((0,        1200))
+        bot_axes[0].set_ylim((477,      1413))
+        # mid_axes[0].legend(frameon=False)
+        # bot_axes[0].set_ylabel("Intensity")
+        # bot_axes[0].legend(frameon=False) #, loc='lower left')
+        plt.tight_layout()
+        plt.tight_layout()
+        plt.subplots_adjust(wspace=0, hspace=0)
+        
+        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_images.png", dpi=400)
         # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.pdf", dpi=400)
         # plt.show()
         # self.maximizePlot()
         # plt.tight_layout()
         plt.show(block=True)
         asdf = 1
+
     
     def plot_histogram_images(self, axes, frames, names, donorm=True, dosmash=True):
         ## Plot Images
@@ -1096,20 +1171,20 @@ class Processor:
 
     def histNorm(self, frame, hi=99.0, lo=0.5, donorm=True, dosmash=True, name='default'):
         skiplist = ['raw']
-        for item in skiplist:
-            if item in name:
-                return frame
+        if name is not None:
+            for item in skiplist:
+                if item in name:
+                    return frame
         if donorm:
             frame = self.normalize(frame, hi, lo)
-        # if dosmash and False:
-        #     frame = self.double_smash(frame)
         return frame
 
     def plot_one_histimage(self, ax, frame, title=None):
         sz = (self.params.rez // self.shrink_factor, self.params.rez // self.shrink_factor)
         frame = frame.reshape(sz)
         ax.imshow(frame, origin='lower', cmap='gray', vmin=0, vmax=1)
-        ax.set_title(title)
+        if title is not None:
+            ax.set_title(title)
         
     def plot_one_histogram(self, ax, ax2, frame, title=None, even_points=100):
         absiss, frame = self.get_even_points_in_radius(even_points, frame)
@@ -1137,7 +1212,7 @@ class Processor:
     
         # Formatting the Plot
         vloc = self.n2r(self.params.rez // 2 // self.binfactor)
-        do_legend = '1p5' in title
+        do_legend = 'rhe(lev1p5)' in title
     
         # ax1.set_title(title)
         use_axes = (ax1, ax2) if ax2 is not None else [ax1]
@@ -1155,7 +1230,7 @@ class Processor:
         
     
     def prep_histograms(self):
-        # self.params.quantile_image = self.params.quantile_image.reshape(self.params.modified_image.shape)
+        # self.params.rhe_image = self.params.rhe_image.reshape(self.params.modified_image.shape)
         
         skip_points = 10 if self.params.rez < 3000 else 300
         self.hist_absiss = self.n2r(self.rad_flat[::skip_points])
@@ -1277,11 +1352,11 @@ class Processor:
                     
                     hdul.close(output_verify='fix')
                     if self.params.speak_save:
-                        middle = "        ** >> Saved Frame {} << **".format(field)
+                        middle = " *         ** >> Saved Frame {} << **".format(field)
                         midlen = len(middle) - 14
-                        print("        ** " + "V" * midlen + " **")
+                        print(" * \n *         ** " + "V" * midlen + " **")
                         print(middle)
-                        print("        ** " + "^" * midlen + " **\n")
+                        print(" *         ** " + "^" * midlen + " **\n * ")
                     
             except PermissionError as e:
                 print("\n        !! No Permission to save the file: \n         {}".format(fits_path))
@@ -1621,7 +1696,7 @@ class Processor:
     def load_this_fits_frame(self, fits_path=None, in_name=None, quiet=False):
         """Load a fits file from disk"""
         try:
-            with fits.open(fits_path, cache=False, ignore_missing_end=True, ignore_missing_simple=True) as hdul:
+            with fits.open(fits_path, cache=False, ignore_missing_end=True, ignore_missing_simple=True, memmap=False) as hdul:
                 self.in_name = self.set_in_frame_name(in_name=in_name, fits_path=fits_path, hdul=hdul)
                 # print("\r", self.in_name, self.frame_name, "\n")
                 frame, self.header = self.open_fits_hdul(hdul=hdul, quiet=quiet, frame_name=self.in_name)
@@ -1650,11 +1725,13 @@ class Processor:
             return self.in_name
         
         # Get the Hdul
-        hdul = hdul or fits.open(fits_path, cache=False, ignore_missing_end=True)
-        
-        # Pick the Name
-        self.in_name = self.find_correct_in_name(hdul, name=in_name)
-        
+        if hdul is None:
+            with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
+                # Pick the Name
+                self.in_name = self.find_correct_in_name(hdul, name=in_name)
+        else:
+            self.in_name = self.find_correct_in_name(hdul, name=in_name)
+            
         return self.in_name
     
     def outer(self, name, do=False):
@@ -2266,8 +2343,8 @@ class Processor:
             self.params.modified_image.astype(np.float16)[self.vignette_mask] = np.nan
             self.params.raw_image.astype(np.float16)[self.vignette_mask] = np.nan
             
-            if self.params.quantile_image is not None:
-                self.params.quantile_image[self.vignette_mask] = np.nan
+            if self.params.rhe_image is not None:
+                self.params.rhe_image[self.vignette_mask] = np.nan
             if self.params.rbg_image is not None:
                 self.params.rbg_image[self.vignette_mask] = 1
             return None

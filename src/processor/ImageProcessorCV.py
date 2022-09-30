@@ -4,6 +4,7 @@ import time
 
 import cv2
 from astropy.io import fits
+from astropy.nddata import block_reduce
 from tqdm import tqdm
 
 from processor.ImageProcessor import ImageProcessor
@@ -16,12 +17,12 @@ from utils.stretch_intensity_module import norm_stretch
 
 
 
-"""This class holds the code for the Quantile Radial Norm Processor"""
-name = filt_name = "Quantile Norm"
-description = "Apply the single-shot Quantile Norm to images"
+"""This class holds the code for the Radial Histogram Equalization Processor"""
+name = filt_name = "RHE Processor"
+description = "Apply the single-shot RHE to images"
 progress_verb = 'Filtering'
 finished_verb = "Radially Filtered"
-out_name = "QRN"
+out_name = "RHE"
 
 
 
@@ -48,9 +49,24 @@ class ImageProcessorCV(ImageProcessor):
     
     def do_fits_function(self, fits_path, in_name=None):
         """ Main Call on the Fits Path """
-        self.init_frame(fits_path, self.params.png_frame_name)
-        self.render_all(reference=True)
+        self.params.double_rhe = False
+        if self.params.png_frame_name == 'all':
+            self.params.png_frame_name = self.find_frames_at_path(fits_path)
+            target = "rhe(lev1p5)"
+            if target in self.params.png_frame_name:
+                self.params.png_frame_name.append(target)
+                self.params.double_rhe = True
+        if type(self.params.png_frame_name) in [list]:
+            for name in self.params.png_frame_name:
+                self.frame_name = name
+                self.init_frame(fits_path, name)
+                out = self.render_all(reference=False)
+        else:
+            self.init_frame(fits_path, self.params.png_frame_name)
+            out = self.render_all(reference=False)
      
+        if out is not None:
+            return out
         return self
     
     # def do_img_function(self):
@@ -90,7 +106,7 @@ class ImageProcessorCV(ImageProcessor):
             self.plot_aia_orig()
             # self.plot_aia_log()
         
-        self.plot_aia_changed()
+        return self.plot_aia_changed()
         # self.save_concatinated()
         
         # self.do_shortcut()
@@ -140,9 +156,12 @@ class ImageProcessorCV(ImageProcessor):
 
         self.do_save()
         
-    def do_save(self):
+    def do_save(self, do_small=False):
         self.vignette()
-        self.prep_save()
+        self.prep_save(do_small=do_small)
+
+            
+        
         self.img_save(self.out_path)
         
 
@@ -159,14 +178,16 @@ class ImageProcessorCV(ImageProcessor):
     #     self.prep_save()
     #     self.img_save(self.out_path)
     #
-    def plot_aia_changed(self):
+    def plot_aia_changed(self, frame_name=None):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
         # self.frame_name = "t_int"
-        self.frame_name = self.params.png_frame_name  # .hdu_name_list[-1]
+        if frame_name is None:
+            frame_name = self.frame_name
+        # self.frame_name =   # .hdu_name_list[-1]
         
         if True: #self.params.modified_image is None:
-            frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
+            frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, frame_name)
             self.out_path = self.get_changed_path()
             os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
         else:
@@ -174,14 +195,55 @@ class ImageProcessorCV(ImageProcessor):
             self.out_path = self.params.mod_path
             
         self.frame = np.flipud(frame)
-        
+        alpha = None
+        if False:
+            self.params.alpha_high = self.params.alpha_low = alpha = 1.1
+            self.frame = norm_stretch(self.frame, alpha=alpha)
+            
+            
+        frame_label = self.frame_name
+        if alpha is not None:
+            frame_label += "_{}".format(alpha)
+            
+        do_combine = self.params.double_rhe
+        if do_combine:
+            # This lets me plot the linear combination of two frames which is awesome
+            self.params.double_rhe = False
+            target = 'rhe(lev1p5)'
+            product = 'rhe(msgn)'
+            prod = "mean"
+            if frame_name == target:
+                frame2, wave2, t_rec2, center2, int_time2, name2 = self.load_this_fits_frame(self.fits_path, product)
+                frame2 = np.flipud(frame2)
+                self.save_to_fits = True
+                # self.frame = self.geo_mean([self.frame, frame2])
+                blend = 0.5
+                self.frame = np.nanmean(np.array([blend * self.frame, (1-blend)*frame2]), axis=0)
+                frame_label += "-fxd-_{}_{}_{:02}".format(prod, product, blend)
+                self.out_name = "mgn_rhe"
+                self.frame_name = ''
+                for name in self.hdu_name_list:
+                    if self.out_name in name:
+                        do_combine = False
+                self.frame = np.flipud(self.frame)
+                # self.save_frame(self.frame, self.fits_path, self.out_name, force=True)
 
-        # print("Saving to {}".format(self.out_path))
-        
-        self.do_save()
-        # self.save_frame(self.frame, self.fits_path)
-        
+            
+        self.out_path = self.get_changed_path()
+        self.out_path=self.out_path.replace("image_lev1", frame_label)
+        print(" *       Save_path = {}".format(self.out_path))
+        print(" *           Saving...".format(self.out_path), end='')
+        self.do_save(do_small=True)
+        print("Done!")
+        if do_combine:
+            return self.frame
+        return None
+        #
 
+    @staticmethod
+    def geo_mean(iterable, axis=0):
+        a = np.array(iterable)
+        return a.prod(axis=axis)**(1.0/len(a))
     
     # def plot_aia_changed(self):
     #     """Plot the modified_image data from AIA"""
@@ -197,39 +259,64 @@ class ImageProcessorCV(ImageProcessor):
     #     self.prep_save()
     #     self.img_save(self.out_path)
     
-    def prep_save(self):
-        self.make_image()
-        self.label_plot()
+    def prep_save(self, do_small=False):
+        self.make_image(do_small)
         self.path_box.append(self.out_path)
     
-    def make_image(self):
+    def make_image(self, do_small=False):
         out = self.frame_touchup(self.frame_name, self.frame + 0)
         
-        self.img_frame = (self.params.cmap(out)[:, :, :3] * 255).astype(np.uint8)
-        b, g, r = cv2.split(self.img_frame)  # get b,g,r
-        rgb_img = cv2.merge([r, g, b])  # switch it to rgb
-        self.params.rbg_image = rgb_img
+        self.params.rbg_image = []
+        self.params.rbg_labels = ["hq"]
+        frames = [out]
+        # frame = self.label_plot(frame)
+        
+        if do_small:
+            first = block_reduce(out, 2, np.nanmean)
+            frames.append(first)
+            self.params.rbg_labels.append('lq')
+            second = block_reduce(out, 4, np.nanmean)
+            frames.append(second)
+            self.params.rbg_labels.append('vlq')
+            
+        for frame in frames:
+            self.img_frame = (self.params.cmap(frame)[:, :, :3] * 255).astype(np.uint8)
+            fff = self.label_plot(self.img_frame)
+            
+            b, g, r = cv2.split(fff)  # get b,g,r
+            rgb_img = cv2.merge([r, g, b])  # switch it to rgb
+            # plt.imshow(rgb_img)
+            # plt.show(block=True)
+            self.params.rbg_image.append(rgb_img)
         self.vignette()
     
     def img_save(self, path, save=True, stamp=False):
-        
-        if stamp:
-            aH = self.params.alpha_high
-            aL = self.params.alpha_low
-            path = path.replace(".png", "_ah-{:0.2f}_aL-{:0.2f}.png".format(aH, aL))
+        if "rhe" in self.frame_name:
+            if stamp:
+                aH = self.params.alpha_high
+                aL = self.params.alpha_low
+                path = path.replace(".png", "_ah-{:0.2f}_aL-{:0.2f}.png".format(aH, aL))
+        master_path = path + ''
         if save:
-            cv2.imwrite(path, self.params.rbg_image)
+            for img, rez in zip(self.params.rbg_image, self.params.rbg_labels):
+                path = master_path.replace(".png", "_{}.png".format(rez))
+                
+                cv2.imwrite(path, img)
         else:
             # cv2.imshow(mat=self.params.rbg_image)
             plt.imshow(self.params.rbg_image)
             plt.show()
     
-    def label_plot(self):
+    def label_plot(self, img_in=None):
+        # return img_in
         """Annotate with Text"""
         ## GET LABELS
         # Get frame
         # img = self.img_frame
-        img = self.params.rbg_image
+        if img_in is None:
+            img = self.params.rbg_image[0]
+        else:
+            img = img_in + 0
         
         # Get Time
         full_name, fits_path, time_string_raw, shape = self.image_data
@@ -258,54 +345,58 @@ class ImageProcessorCV(ImageProcessor):
         if len(name_split)>1:
             prev = name_split[1][:-1]
         else:
-            prev = '-'
+            prev = '- '
         
         # Scale to Image Size
-        if self.shrink_factor == 1:
+        if img.shape[0] == 4096:
             # Rez is 4k
-            scale = 4
-            siz = 4
-            h_spacing = 100
-            thickness = 3
-            h0 = 25 * scale
-            rez = img.shape[0]-25*scale
+            scale = 6
+            h_spacing = 120
+            thickness = 4
+            h0 = 100
+            rez = img.shape[0]
+            wid_of_char = 60
             
-        elif self.shrink_factor == 2:
+        elif img.shape[0] == 2048:
+        
             # rez is 2k
             scale = 3
-            siz = 2
-            h_spacing = 70
+            h_spacing = 60
             thickness = 2
-            h0 = 25 * scale
-            rez = img.shape[0]-25*scale
+            h0 = 50
+            rez = img.shape[0]
+            wid_of_char = 30
+            
             
         else:
             # rez is 1K
-            scale = 2
-            siz = 1
+            scale = 1.5
             thickness = 1
             h_spacing = 30
             h0 = 25
             rez = img.shape[0]
+            wid_of_char = 15
+            
             
         # Calculate Locations of Labels
         h1 = h0 + h_spacing
         h2 = h1 + h_spacing
         h3 = h2 + h_spacing
 
-        wid_of_char = 18
-        x0  = rez - wid_of_char*len(name) - 5
+        x0  = rez - wid_of_char*len(name)
         x1  = rez - wid_of_char*len(prev)
-        x2  = rez - wid_of_char*len(inst) + 2
-        x3  = rez - wid_of_char*len(wave) - 7
+        x2  = rez - wid_of_char*len(inst)
+        x3  = rez - wid_of_char*len(wave)
         
         ## APPLY LABELS
         font = 1
         # Right Side
-        cv2.putText(img, name, (x0, h0-5), font, scale, (255, 255, 255), thickness)
-        cv2.putText(img, prev, (x1, h1-5), font, scale, (255, 255, 255), thickness)
-        cv2.putText(img, inst, (x2, h2-5), font, scale, (255, 255, 255), thickness)
-        cv2.putText(img, wave, (x3, h3-5), font, scale, (255, 255, 255), thickness)
+        # brightest = np.nanmax(img)
+        
+        cv2.putText(img, name, (x0, h0), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, prev, (x1, h1), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, inst, (x2, h2), font, scale, (255, 255, 255), thickness)
+        cv2.putText(img, wave, (x3, h3), font, scale, (255, 255, 255), thickness)
         
         # Left Side
         cv2.putText(img, clock, (0, h0), font, scale, (255, 255, 255), thickness)
@@ -315,13 +406,13 @@ class ImageProcessorCV(ImageProcessor):
 
 
         # Bottom Corners
-        try:
-            aH = "aH: {}".format(self.params.alpha_high)
-            aL = "aL: {}".format(self.params.alpha_low)
-            cv2.putText(img, aH, (0, 990*siz), font, scale, (255, 255, 255), thickness)
-            cv2.putText(img, aL, (0, 1015*siz), font, scale, (255, 255, 255), thickness)
-        except SystemError as e:
-            print(e)
+        # try:
+        #     aH = "aH: {}".format(self.params.alpha_high)
+        #     aL = "aL: {}".format(self.params.alpha_low)
+        #     cv2.putText(img, aH, (0, 990*siz), font, scale, (255, 255, 255), thickness)
+        #     cv2.putText(img, aL, (0, 1015*siz), font, scale, (255, 255, 255), thickness)
+        # except SystemError as e:
+        #     print(e)
             
         reticle = False
         if reticle:
@@ -329,7 +420,7 @@ class ImageProcessorCV(ImageProcessor):
  
         # if self.params.alpha is not None:
         #     cv2.putText(img, "a={:0.3f}".format(self.params.alpha), (int(x0*0.95), h3), 0,   scale, (255, 255, 255), 3)
- 
+        return img
  
     def draw_reticle(self, img):
         cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
@@ -430,36 +521,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
                 
         if doBar: iterable.set_description(" *    Plots Complete", refresh=True)
     
-    def image_is_plottable(self, frame_name):
-        # return True
-        return self.doesnt_have_wrong_string(frame_name)
-        return self.does_have_right_string(frame_name)
-        
-    
-    def does_have_right_string(self, frame_name, right_string=None):
-        
-        right_string = right_string or ["lev1p5(t_int)", "final(qrn)", "rht(lev1p5)", "rht(final)"]
-        
-        for goods in right_string:
-            if frame_name.casefold() == goods:
-                return True
-        return False
-        
-        
-    def doesnt_have_wrong_string(self, frame_name, wrong_string=None):
-        bads = wrong_string or ["lev1p0", "t_int(lev1p0)", "t_int(primary)", "lev1p5(lev1p0)"]
-        if True:
-            bads.append("primary")
-            bads.append("lev1p5")
-        
-        if self.params.multiplot_all:
-            bads = []
-            
-        for nam in bads:
-            # if nam in frame_name:
-            if nam.casefold() == frame_name:
-                return False
-        return True
+
     
     def plot_jpeg(self, fits_path, frame_name, doBar, iterable):
         import PIL
@@ -694,11 +756,13 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         # self.open_folder(self.main_save_path)
         return None
 
+
+
     def collect_frames(self, fits_path, doBar=False):
         # with open(fits_path) as fp:
-        with fits.open(fits_path, cache=False, reprocess_mode="update") as hdul:
-            self.hdu_name_list = self.list_hdus(hdul)
-        self.good_frames = [x for x in self.hdu_name_list if self.image_is_plottable(x)]
+        # with fits.open(fits_path, cache=False, reprocess_mode="update") as hdul:
+        #     self.hdu_name_list = self.list_hdus(hdul)
+        self.good_frames = self.find_frames_at_path(fits_path)
         
         self.max_width = np.max([len(x) for x in self.good_frames])
         iterable = tqdm(self.good_frames, desc="") if doBar else self.good_frames
@@ -710,15 +774,18 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
             frame, wave1, t_rec1, _, _, mod_name = self.load_this_fits_frame(fits_path, frame_name)
             if False:
                 frame = self.resize_image(frame, prnt=False)
-            images.append(frame), names.append(frame_name)
+                
+            if "lev1p5(t_int)" in frame_name:
+                images.append(np.log(frame)), names.append("ln(lev1p5)")
+            else:
+                images.append(frame), names.append(frame_name)
             
-            # if "lev1p5(t_int)" in frame_name:
-            #     images.append(np.sqrt(frame)), names.append("sqrt(lev1p5)")
-            if "qrn(lev1p5)" in frame_name:
-                images.append(norm_stretch(frame)), names.append("upsilon(qrn)")
+            if "rhe(lev1p5)" in frame_name:
+                images.append(norm_stretch(frame)), names.append("upsilon(rhe)")
                 
         self.do_compare_histogramplot(images, names)
-        self.do_compare_histogramplot_qrnonly(images, names)
+        self.do_compare_histogramplot_rheonly(images, names)
+        self.do_compare_histogramplot_images(images, names)
         
         # for frame_name in iterable:
             
@@ -895,39 +962,39 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         self.last_frame_name = None
         plt.close(self.fig)
     
-    
-    def image_is_plottable(self, frame_name):
-        # return True
-        return self.doesnt_have_wrong_string(frame_name)
-        return self.does_have_right_string(frame_name)
-        
-    
-    def does_have_right_string(self, frame_name, right_string=None):
-        
-        right_string = right_string or ["lev1p5(t_int)", "final(qrn)", "rht(lev1p5)", "rht(final)"]
-        
-        for goods in right_string:
-            if frame_name.casefold() == goods:
-                return True
-        return False
-        
-        
-    def doesnt_have_wrong_string(self, frame_name, wrong_string=None):
-        bads = wrong_string or ["lev1p0", "t_int(lev1p0)", "t_int(primary)", "lev1p5(lev1p0)", "compressed_image",
-                                "final(qrn)"]
-        if True:
-            bads.append("primary")
-            bads.append("lev1p5")
-        
-        if self.params.multiplot_all:
-            bads = []
-            
-        for nam in bads:
-            # if nam in frame_name:
-            if nam.casefold() == frame_name:
-                return False
-        return True
-    
+    #
+    # def image_is_plottable(self, frame_name):
+    #     # return True
+    #     return self.doesnt_have_wrong_string(frame_name)
+    #     return self.does_have_right_string(frame_name)
+    #
+    #
+    # def does_have_right_string(self, frame_name, right_string=None):
+    #
+    #     right_string = right_string or ["lev1p5(t_int)", "final(rhe)", "rht(lev1p5)", "rht(final)"]
+    #
+    #     for goods in right_string:
+    #         if frame_name.casefold() == goods:
+    #             return True
+    #     return False
+    #
+    #
+    # def doesnt_have_wrong_string(self, frame_name, wrong_string=None):
+    #     bads = wrong_string or ["lev1p0", "t_int(lev1p0)", "t_int(primary)", "lev1p5(lev1p0)", "compressed_image",
+    #                             "final(rhe)"]
+    #     if True:
+    #         bads.append("primary")
+    #         bads.append("lev1p5")
+    #
+    #     if self.params.multiplot_all:
+    #         bads = []
+    #
+    #     for nam in bads:
+    #         # if nam in frame_name:
+    #         if nam.casefold() == frame_name:
+    #             return False
+    #     return True
+    #
     def plot_jpeg(self, fits_path, frame_name, doBar, iterable):
         import PIL
         from PIL import Image

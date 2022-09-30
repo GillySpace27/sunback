@@ -31,13 +31,14 @@ class Parameters:
         """Sets all the attributes to None"""
 
         # Initialize Variables
+        self._rhe_targets = []
         self.multi_pool = None
         self.do_parallel = True
-        self.master_frame_list_newest = ["msgn", "qrn", "lev1p5", "t_int", "lev1p0", "primary", '']
+        self.master_frame_list_newest = ["msgn", "rhe", "lev1p5", "t_int", "lev1p0", "primary", '']
         self.master_frame_list_oldest = [ x for x in reversed(self.master_frame_list_newest)]
         self.short_circuit = False
         self.durList = []
-        self.aftereffects_in_name = "qrn"
+        self.aftereffects_in_name = "rhe"
         self.get_fits = True
         self.do_archive = False
         self.doing_jpeg = True
@@ -102,7 +103,7 @@ class Parameters:
         self.list_of_default_hdus = ['t_int', "lev1p0", 0, 1]
         self.raw_image = None
         self.modified_image=None
-        self.quantile_image=None
+        self.rhe_image=None
         self.alpha=0.35
         self.hdu_name = None
         self.start_time = time()
@@ -176,7 +177,7 @@ class Parameters:
         
         # self.multi_pool = self.init_pool(self.n_pool)
         
-        self._msgn_targets = [] #['primary', 'qrn(primary)']
+        self._msgn_targets = [] #['primary', 'rhe(primary)']
         
         # self.set_default_values()
 
@@ -185,6 +186,12 @@ class Parameters:
             assert type(_targets) in [tuple, list]
             self._msgn_targets = _targets
         return self._msgn_targets
+    
+    def rhe_targets(self, _targets=None):
+        if _targets is not None:
+            assert type(_targets) in [tuple, list]
+            self._rhe_targets = _targets
+        return self._rhe_targets
     
     def __getstate__(self):
         self_dict = self.__dict__.copy()

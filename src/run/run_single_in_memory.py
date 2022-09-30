@@ -14,8 +14,8 @@ def run_single_in_memory(image=None):
     
     # Set the Processes
     p.fetchers(LocalSingleFetcher,                rp=True)  # Gets the desired file
-    # p.processors([SRNpreProcessor],  rp=True)  # Applies the SRN Filter
-    # p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
+    # p.processors([QRNpreProcessor],  rp=True)  # Applies the QRN Filter
+    # p.processors([QRNradialFiltProcessor],  rp=True)  # Applies the QRN Filter
     p.putters(ImageProcessorCV,           rp=True)  # Makes the PNGs from Fits
     
     # Run the Code
@@ -27,7 +27,7 @@ def make_params():
     p.config = None
     p.destroy = False
     p.batch_name("Single")
-    p.png_frame_name = 'SRN'
+    p.png_frame_name = 'QRN'
     p.run_type("Process a Single Image")
     p.do_single = True
     p.do_one(True, True)
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     # p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
 
 
-    # p.processors([SRNradialFiltProcessor],  rp=True)  # Applies the SRN Filter
+    # p.processors([QRNradialFiltProcessor],  rp=True)  # Applies the QRN Filter
 
 
 
@@ -107,8 +107,8 @@ if __name__ == "__main__":
 #     # p.fetchers(FidoFetcher)                                     # Gets Fits FIDO
 #     # p.processors([FidoTimeIntProcessor])                        # Integrate several frames for S/N
 #
-#     p.processors([SRNpreProcessor], rp=True)  # Learns the bounds of the dataset for SRN
-#     p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
+#     p.processors([QRNpreProcessor], rp=True)  # Learns the bounds of the dataset for QRN
+#     p.processors([QRNradialFiltProcessor], rp=True)  # Applies the QRN Filter
 #
 #     p.putters([ImageProcessor], rp=True)  # Makes the PNGs from Fits
 #     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie

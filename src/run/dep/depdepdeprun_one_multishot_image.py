@@ -4,8 +4,8 @@ from fetcher.FidoFetcher import FidoFetcher
 from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from fetcher.LocalFetcher import LocalFetcher
 from processor.ImageProcessorCV import ImageProcessorCV
-from processor.QRNProcessor import QRNProcessor
-from processor.SRNProcessor import SRNradialFiltProcessor, SRNpreProcessor
+from processor.RHEProcessor import RHEProcessor
+from processor.QRNProcessor import QRNradialFiltProcessor, QRNpreProcessor
 from processor.ValidationProcessor import ValidationProcessor
 from processor.VideoProcessor import VideoProcessor
 from processor.Processor import Processor
@@ -30,7 +30,7 @@ plt.ioff()
 all_wavelengths = ['0193', '0211', '0131', '0335', '0094','0304','0171', ]
 do_wavelengths = all_wavelengths  # ['0211']
 # do_wavelengths = ['0171']
-PNG_FRAME_NAME = 'quantile' #'SRN'
+PNG_FRAME_NAME = 'rhe' #'QRN'
 
 def run_one_multishot_image(batch_name= "Gonzalez", wave=None, config=None, wave_to_use=None, alpha=0.35):
     # Set the Parameters
@@ -41,7 +41,7 @@ def run_one_multishot_image(batch_name= "Gonzalez", wave=None, config=None, wave
     # Set the Processes
     p.fetchers(FidoFetcher,              rp=False)  # Gets Fits FIDO
     p.processors([FidoTimeIntProcessor], rp=False)   # Integrate several frames for S/N
-    p.processors([QRNProcessor],         rp=False)  # Applies the QRN Processor
+    p.processors([RHEProcessor],         rp=False)  # Applies the RHE Processor
     p.processors([ImageProcessorCV],           rp=False)  # Makes the PNGs from Fits
 
     # Run the Code
@@ -280,8 +280,8 @@ if __name__ == "__main__":
 #     # p.fetchers(FidoFetcher)                                     # Gets Fits FIDO
 #     # p.processors([FidoTimeIntProcessor])                        # Integrate several frames for S/N
 #
-#     p.processors([SRNpreProcessor], rp=True)  # Learns the bounds of the dataset for SRN
-#     p.processors([SRNradialFiltProcessor], rp=True)  # Applies the SRN Filter
+#     p.processors([QRNpreProcessor], rp=True)  # Learns the bounds of the dataset for QRN
+#     p.processors([QRNradialFiltProcessor], rp=True)  # Applies the QRN Filter
 #
 #     p.putters([ImageProcessor], rp=True)  # Makes the PNGs from Fits
 #     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie

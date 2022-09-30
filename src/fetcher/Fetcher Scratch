@@ -118,11 +118,11 @@
 #     #     print("Failed 2")
 #     #     return 1
 #
-#     # SRNradialFiltProcessor the data
+#     # QRNradialFiltProcessor the data
 #     # processed_image_stats = self.image_modify(raw_image)
 #     img_path = save_path[:-4]+'png'
 #     if not exists(img_path):
-#         # SRNradialFiltProcessor(raw_image, image_data)
+#         # QRNradialFiltProcessor(raw_image, image_data)
 #         Modify(save_path, resolution=self.params.resolution())
 #     # Sonify the data
 #     if False: #self.params.sonify_images():

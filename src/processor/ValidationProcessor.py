@@ -383,7 +383,7 @@ class ValidationProcessor(Processor):
 #     #     # self.plot_curves_2(do, False)
 #     #     # self.plot_curves(do, False)
 #     #     self.plot_full_normalization(do, False)
-#     #     # self.SRNPlot()
+#     #     # self.QRNPlot()
 #     #     pass
 #     #     # plt.show()
 #
@@ -468,7 +468,7 @@ class ValidationProcessor(Processor):
 #         #     # ax.axvline(self.n2r(self.noise_radii), c='r', ls='--', label="Scope Edge")
 #         #     # ax0.axvline(self.n2r(self.highCut))
 #         # except Exception as e:
-#         #     print("SRNProc1::", e)
+#         #     print("QRNProc1::", e)
 #         #     # raise e
 #
 #         ## Scatter Plot the intensities
@@ -524,7 +524,7 @@ class ValidationProcessor(Processor):
 #         #     ax0.plot(self.n2r(self.rendered_abss), self.outer_min, label="FinalMax", lw=4, c='blue')
 #         #     ax0.plot(self.n2r(self.rendered_abss), self.outer_max, label="FinalMin", lw=4, c='orange')
 #         # except Exception as e:
-#         #     print("SRNProc2::", e)
+#         #     print("QRNProc2::", e)
 #         #     # raise e
 #
 #         # try:

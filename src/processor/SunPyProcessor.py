@@ -285,8 +285,9 @@ class MSGNProcessor(SunPyProcessor):
     
     def __init__(self, params=None, quick=False, rp=None, in_name="LEV1P5(T_INT)"):
         """Initialize the main class"""
-        super().__init__(params, quick, rp, in_name)
+        self.load(params, quick=quick)
         self.select_input_frame(in_name)
+        super().__init__(params, quick, rp, self.in_name)
         print(" --- Running MSGN on {} ---".format(self.in_name))
 
     def select_input_frame(self, in_name):
@@ -304,8 +305,11 @@ class MSGNProcessor(SunPyProcessor):
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         import sunkit_image.enhance as enhance
+        if np.isnan(self.params.raw_image).any():
+            self.params.raw_image[np.isnan(self.params.raw_image)] = -1.
         self.params.modified_image = enhance.mgn(self.params.raw_image)
         return self.params.modified_image
+    
     
     def cleanup(self):
         MSGNProcessor.first = False
