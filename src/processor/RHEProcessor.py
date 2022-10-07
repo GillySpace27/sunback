@@ -135,7 +135,7 @@ class RHEProcessor(Processor):
         self.savgol_filtered_inner_maximum = None
         self.savgol_filtered_inner_minimum = None
         self.savgol_filtered_outer_minimum = None
-        self.binfactor = 1
+
         self.this_index = 0
         self.n_keyframes = 0
         self.firstIndex = 0
@@ -195,6 +195,7 @@ class RHEProcessor(Processor):
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
+            self.resize_image()
             self.image_learn()
         # self.plot_full_normalization()
         # self.params.modified_image = norm_stretch(self.params.modified_image, alpha=0.35) #TODO This
@@ -591,7 +592,7 @@ class RHEProcessor(Processor):
             ax0.set_ylim((0, 1000))
             ax0.set_xlim((0.85, 1.15))
         
-        ax0.axvline(self.vrad, ls=':', c='lightgrey', label='Vignette')
+        ax0.axvline(self.vig_radius_rr, ls=':', c='lightgrey', label='Vignette')
         
         if self.flatten_up:
             ax0.axvline(self.flatten_up, ls=':', c='grey', label='Flattening')
@@ -712,7 +713,7 @@ class RHEProcessor(Processor):
         ax0.set_ylim((-10 ** 1, 10 ** 4))
         ax0.set_xlim((0, 1.85))
         
-        ax0.axvline(self.vrad, ls=':', c='lightgrey')
+        ax0.axvline(self.vig_radius_rr, ls=':', c='lightgrey')
 
         ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
                      xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
@@ -824,7 +825,7 @@ class RHEProcessor(Processor):
         ax0.set_ylim((-10 ** 0, 10 ** 2.2))
         ax0.set_xlim((0, 1.85))
         
-        ax0.axvline(self.vrad, ls=':', c='lightgrey')
+        ax0.axvline(self.vig_radius_rr, ls=':', c='lightgrey')
         ax0.annotate("Top Curve:\n{}".format(self.norm_curve_max_name), (0.025, 0.3),
                      xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
         ax0.annotate("Bot Curve:\n{}".format(self.norm_curve_min_name), (0.025, 0.2),
@@ -905,7 +906,7 @@ class RHEProcessor(Processor):
         ax0.set_ylim((-10 ** 0, 10 ** 2.2))
         ax0.set_xlim((0, 1.85))
         
-        ax0.axvline(self.vrad, ls=':', c='lightgrey')
+        ax0.axvline(self.vig_radius_rr, ls=':', c='lightgrey')
         ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
                      xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
         ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.025, 0.2),

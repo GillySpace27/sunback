@@ -79,7 +79,7 @@ class ImageProcessor(Processor):
             list_of_inputs = self.params.master_frame_list_oldest
             frame0, _, _, _, _, name0 = self.load_this_fits_frame(fits_path, list_of_inputs)
             self.raw_name = self.frame_name + ''
-            frame1, wave1, t_rec1, center1, int_time, name1 = self.load_this_fits_frame(fits_path, in_name)
+            frame1, wave1, t_rec1, center1, int_time, name1 = self.load_this_fits_frame(fits_path, in_name.casefold())
             self.wave1 = wave1
             self.t_rec1 = t_rec1
             self.mod_name = self.frame_name + ''
@@ -87,13 +87,17 @@ class ImageProcessor(Processor):
             self.frame = np.zeros_like(self.params.raw_image)
             
         # self.peek_frames()
-        self.image_data = str(self.wave1), fits_path, self.t_rec1, frame1.shape
+        try:
+            shp = frame1.shape
+        except AttributeError:
+            shp = (self.params.rez, self.params.rez)
+        self.image_data = str(self.wave1), fits_path, self.t_rec1, shp
         self.params.make_file_paths(self.image_data)
         self.figure_box = []
         self.path_box = []
         self.name, self.wave = self.clean_name_string(self.image_data[0])
         use_cmap=True
-        if use_cmap:
+        if use_cmap and self.wave:
             self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
         else:
             from matplotlib import cm
@@ -267,7 +271,10 @@ class ImageProcessor(Processor):
         digits = ''.join(i for i in full_name if i.isdigit())
         # Make the name strings
         name = digits + ''
-        digits = "{:04d}".format(int(name))
+        if name:
+            digits = "{:04d}".format(int(name))
+        else:
+            digits = "none"
         # while name[0] == '0':
         #     name = name[1:]
         return digits, name
@@ -402,7 +409,7 @@ class ImageProcessor(Processor):
     # if frame_name == "nrgf":
     #     # Replace the Disk
     #     self.init_radius_array()
-    #     mask = self.radius < self.limb_radius_original*0.5
+    #     mask = self.radius < self.limb_radius_from_header*0.5
     #     frame[mask] = 0.5 #self.base_image[mask]
     
     # darken_rfilt = 1.2
@@ -420,7 +427,7 @@ class ImageProcessor(Processor):
     # if frame_name == "rhe":
     #     frame /= darken_quant
     
-    # self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
+    # self.vignette_mask = np.asarray(self.radius > self.vig_radius_pix, dtype=bool)
     # frame[self.vignette_mask] = np.nan
     
     def power_mod(self, frame):

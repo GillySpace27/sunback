@@ -4,10 +4,8 @@ from fetcher.FidoFetcher import FidoFetcher
 from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from fetcher.LocalFetcher import LocalFetcher
 from processor.ImageProcessorCV import ImageProcessorCV
-from processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor, QRNradialFiltProcessor, QRNpreProcessor
 from processor.RHEProcessor import RHEProcessor
 # from processor.QRNProcessor import QRNradialFiltProcessor, QRNpreProcessor
-from processor.ScienceProcessor import ScienceProcessor
 from processor.SunPyProcessor import AIA_PREP_Processor
 from processor.ValidationProcessor import ValidationProcessor
 from processor.VideoProcessor import VideoProcessor
@@ -33,7 +31,7 @@ plt.ioff()
 all_wavelengths = ['0193', '0211', '0131', '0335', '0094','0304','0171', ]
 do_wavelengths = all_wavelengths  # ['0211']
 do_wavelengths = ['0171']
-PNG_FRAME_NAME = "qrn"
+PNG_FRAME_NAME = -1
 # wave_to_use = '0211'
 
 def run_range_multishot_movie(batch_name= "The_Long_One", wave=None, config=None, wave_to_use=None, alpha=0.35):
@@ -47,43 +45,31 @@ def run_range_multishot_movie(batch_name= "The_Long_One", wave=None, config=None
     # p.init_pool(6)
     # Set the Processes
     
-    # p.fetchers(FidoFetcher,                 rp=True)  # Gets Fits FIDO
+    p.fetchers(FidoFetcher,                 rp=True)  # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor],    rp=False)   # Integrate several frames for S/N
-    # p.processors([AIA_PREP_Processor],      rp=False)   # Do Sunpy Things # This happens in the fetcher now
-    # p.rhe_targets([-1])
-    # p.qrn_targets(["lev1p5"])
-    p.processors([QRNpreProcessor],            rp=True)  # Applies the RHE Processor
-    p.processors([QRNradialFiltProcessor],     rp=True)  # Applies the RHE Processor
-    p.processors([ImageProcessorCV],        rp=True)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
-    # p.putters([ScienceProcessor],             rp=True)  # Makes the PNGs into a Movie
+    # This happens in the fetcher now p.processors([AIA_PREP_Processor],      rp=False)   # Do Sunpy Things
+    # p.processors([RHEProcessor],            rp=False)  # Applies the RHE Processor
+    # p.processors([ImageProcessorCV],        rp=True)  # Makes the PNGs from Fits
+    # p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
 
     # Run the Code
     # print(p.do_one())
     run.Runner(p).start()
 
 def make_configs(wave_to_use):
-    c13 = {
-        "name": "Short_Test",
-        "debug": True, "do_one": '0171', "stop": True,
-        "tstart": '2019/01/01 00:00:00', "tend": '2019/01/01 00:20:00',
-        "cadence_minutes": 24*60*27.5, "fps": 10, "exposure_time": 36,
-        "key_fixed_cadence": None, "key_fixed_number": 100, "time_preset": None
-    }
-    
     c11 = {
         "name": "The_Long_One",
         "debug": True, "do_one": '0171', "stop": True,
-        "tstart": '2017/01/01 00:00:00', "tend": '2018/01/01 00:00:00',
-        "cadence_minutes": 24*60*27, "fps": 3, "exposure_time": 36,
+        "tstart": '2016/01/01 00:00:00', "tend": '2021/01/01 00:00:00',
+        "cadence_minutes": 24*60*27.5, "fps": 3, "exposure_time": 36,
         "key_fixed_cadence": None, "key_fixed_number": 100, "time_preset": None
     }
     
     c100 = {
         "name": "Single_Search",
         "debug": True, "do_one": wave_to_use, "stop": True, #"tend": '2013/09/30 23:59:59',
-        "tstart": '2016/01/01 01:00:00', "tend": '2017/01/01 00:00:00',
-        "cadence_minutes": 24*60*27, "fps": 10, "exposure_time": None,
+        "tstart": '2022/02/15 21:00:00', "tend": '2022/02/16 00:00:00',
+        "cadence_minutes": 6, "fps": None, "exposure_time": None,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
     }
     
@@ -206,7 +192,6 @@ def make_configs(wave_to_use):
         c10["name"]: c10,
         c11["name"]: c11,
         c12["name"]: c12,
-        c13["name"]: c13,
         c14["name"]: c14,
         c100["name"]: c100,
                   }

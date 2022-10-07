@@ -20,6 +20,7 @@ import sunpy.map
 
 # from run import SingleRunner
 # from processor.QRNProcessor import QRNProcessor
+# from processor.QRNProcessor import QRNProcessor
 from science.color_tables import aia_color_table
 
 # import cv2
@@ -84,8 +85,8 @@ class Processor:
     this_file_name = os.path.basename(__file__)
     paper_out = []
     
-    load_print_latch = True
-    limb_radius_original = None
+    curves_have_been_loaded = False
+    limb_radius_from_header = None
     fits_folder = None
     abs_min_scalar = None
     curve_out_array = None
@@ -108,8 +109,19 @@ class Processor:
     frame_name = None
     
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        self.limb_radius_from_file_shrunken = None
+        self.binRR = None
+        self.binII = None
+        self.binYY = None
+        self.binXX = None
+        self.shrink_F = 1
+        self.limb_radius_from_fit_shrunken = None
+        self.limb_radius_from_header_shrunken = None
+        self.limb_radius_already_found = False
+        self.lCut = None
+        self.hCut = None
+        self.output_abscissa = None
         self.wave=None
-        self.binfactor = 1
         self.binInds = None
         self.bin_rez = None
         self.radBins = None
@@ -122,7 +134,7 @@ class Processor:
         self.binAbsMin = None
         self.binBox = []
         
-        self.limb_radius_shrunken = None
+        self.limb_radius_from_fit_shrunken = None
         self.radius = None
         self.do_split = False
         self.loud_tic = False
@@ -186,6 +198,7 @@ class Processor:
     ## M1: Look for files in a directory and return their paths ##
     ##############################################################
     def find_frames_at_path(self, fits_path):
+        """Determine which frames exist in a given fits file"""
         with fits.open(fits_path, cache=False, reprocess_mode="update") as hdul:
             self.hdu_name_list = self.list_hdus(hdul)
         self.good_frames = [x for x in self.hdu_name_list if self.image_is_plottable(x)]
@@ -318,16 +331,16 @@ class Processor:
         if self.params.fits_path is None:
             self.params.fits_path = self.fits_path
         
-        
-        in_name = in_name.casefold()
+        if type(in_name) in [str]:
+            in_name = in_name.casefold()
         frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, in_name)
         if frame is not None and self.header['IMG_TYPE'].casefold() != 'dark':
             self.params.raw_name = self.frame_name
             self.params.raw_image = np.asarray(frame, dtype=np.float32) + 0.0
             self.params.raw_image2 = np.asarray(frame, dtype=np.float32) + 0.0
             
-            # if self.params.modified_image is None or self.params.modified_image.size==1:
-            #     self.params.modified_image = copy(self.params.raw_image) + 0
+            if self.params.modified_image is None or self.params.modified_image.size==1 or self.params.do_single==False:
+                self.params.modified_image = copy(self.params.raw_image) + 0
             
             self.params.current_wave(wave)
             self.params.cmap = aia_color_table(int(wave) * u.angstrom)
@@ -740,51 +753,83 @@ class Processor:
         raise NotImplementedError()
     
     def find_limb_radius(self):
-        # self.load_curves()
+        spread = 0.02
+        self.limb_radius_from_fit_shrunken = self.limb_radius_from_header_shrunken
+        self.lCut = int(self.limb_radius_from_header_shrunken - spread * self.params.rez)
+        self.hCut = int(self.limb_radius_from_header_shrunken + spread * self.params.rez)
+        return
         
-        # self.limb_radius_original = 400 # self.params.limb_radius_original or 1600
-        self.limb_radius_original = self.params.limb_radius_original or 1600
-        self.lCut = int(self.limb_radius_original - 0.01 * self.params.rez)
-        self.hCut = int(self.limb_radius_original + 0.01 * self.params.rez)
+        # print("\n", self.limb_radius_from_header_shrunken, self.limb_radius_from_fit_shrunken)
+        # return
+        
+        # if self.limb_radius_already_found:
+        #     # print("Had~~~~~~~~~~~~~~")
+        #     return self.limb_radius_from_fit_shrunken
+        
+        # print("Needed ~~~~~~~~~~~~~~")
+        # if self.limb_radius_from_fit_shrunken is not None:
+        #     self.limb_radius_from_fit_shrunken = self.limb_radius_from_header_shrunken = self.limb_radius_from_fit_shrunken
+        #     self.lCut = int(self.limb_radius_from_fit_shrunken - spread * self.params.rez)
+        #     self.hCut = int(self.limb_radius_from_fit_shrunken + spread * self.params.rez)
+        #     return self.limb_radius_from_fit_shrunken
+
+        # if self.outer_max is None:
+        #     self.load_curves(verb=False)
+        
+        # self.limb_radius_from_header_shrunken = self.params.limb_radius_from_header or 1600
+        # self.limb_radius_from_header_shrunken = self.limb_radius_from_header_shrunken // self.binfactor #// self.shrink_F
+        # self.limb_radius_from_header   = self.limb_radius_from_header // self.shrink_F // self.binfactor
+        
+        self.limb_radius_from_fit_shrunken = self.limb_radius_from_header_shrunken
+        self.lCut = int(self.limb_radius_from_header_shrunken - spread * self.params.rez)
+        self.hCut = int(self.limb_radius_from_header_shrunken + spread * self.params.rez)
+        return
         
         try:
-            # abss = self.frame_abss
-            use_max = self.outer_max + 0
-            use_min = self.outer_min + 0
-            
-            # outer_mid_abs = abss[self.lCut:self.hCut]
-            
-            outer_mid_max = self.outer_max[self.lCut:self.hCut]
-            inner_mid_max = self.inner_max[self.lCut:self.hCut]
-            inner_mid_min = self.inner_min[self.lCut:self.hCut]
-            outer_mid_min = self.outer_min[self.lCut:self.hCut]
-            
-            outer_mid_max_maxInd = np.argmax(outer_mid_max) + self.lCut
-            inner_mid_max_maxInd = np.argmax(inner_mid_max) + self.lCut
-            inner_mid_min_maxInd = np.argmax(inner_mid_min) + self.lCut
-            outer_mid_min_maxInd = np.argmax(outer_mid_min) + self.lCut
-            
-            self.peak_indList = [outer_mid_max_maxInd, inner_mid_max_maxInd,
-                                 inner_mid_min_maxInd, outer_mid_min_maxInd]
-            self.limb_radius_shrunken = int(np.round(np.mean(self.peak_indList), 0))
+            do_on_running = False
+            if do_on_running and self.outer_max is not None:
+                outer_mid_max = self.outer_max[self.lCut:self.hCut]
+                inner_mid_max = self.inner_max[self.lCut:self.hCut]
+                inner_mid_min = self.inner_min[self.lCut:self.hCut]
+                outer_mid_min = self.outer_min[self.lCut:self.hCut]
+                
+                outer_mid_max_maxInd = np.argmax(outer_mid_max) + self.lCut
+                inner_mid_max_maxInd = np.argmax(inner_mid_max) + self.lCut
+                inner_mid_min_maxInd = np.argmax(inner_mid_min) + self.lCut
+                outer_mid_min_maxInd = np.argmax(outer_mid_min) + self.lCut
+                
+                self.peak_indList = [outer_mid_max_maxInd, inner_mid_max_maxInd,
+                                     inner_mid_min_maxInd, outer_mid_min_maxInd]
+            else:
+                max_curve = self.frame_maximum[self.lCut:self.hCut]
+                min_curve = self.frame_minimum[self.lCut:self.hCut]
+                max_ind = np.argmax(max_curve) + self.lCut
+                min_ind = np.argmax(min_curve) + self.lCut
+                self.peak_indList = [max_ind, min_ind]
+                
+            self.limb_radius_from_fit_shrunken = np.round(np.mean(self.peak_indList), 6)
         except TypeError as e:
             # print("\r        find_limb_radius failed: ", e)
-            self.limb_radius_shrunken = self.limb_radius_original
-        
-        self.lCut = int(self.limb_radius_shrunken - 0.01 * self.params.rez)
-        self.hCut = int(self.limb_radius_shrunken + 0.00 * self.params.rez)
+            self.limb_radius_from_fit_shrunken = self.limb_radius_from_header_shrunken
+            
+            
+            
+        spread = 0.005
+        self.lCut = int(self.limb_radius_from_fit_shrunken - spread * self.params.rez)
+        self.hCut = int(self.limb_radius_from_fit_shrunken + spread * self.params.rez)
+        self.limb_radius_already_found = True
     
-    def init_radius_array(self, vignette_radius=1.19, s_radius=400, t_factor=1.28, force=False):
+    def init_radius_array(self, vignette_radius=1.51, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
+        # self.params.rez = self.params.modified_image.shape[0]
         self.init_image_frames()
         self.determine_shrink_factor()
         self.make_radius()
-        self.make_vignette(vignette_radius)
+        self.find_limb_radius()
+        # self.make_vignette(vignette_radius)
         if True: #type(self) is QRNProcessor:
             self.init_bin_array()
-        
-        self.s_radius = s_radius
-        self.tRadius = self.s_radius * t_factor
+
     
     def double_smash(self, raw_arr, log=True, prerun=True):
         if prerun:
@@ -800,18 +845,31 @@ class Processor:
         return flat_arr_norm
     
     def resize_image(self, img=None, want_rez=1024, prnt=True):
-        if prnt: print("   * Shrinking Rez to {}...".format(want_rez))
+        # if prnt: print("   * Shrinking Rez to {}...".format(want_rez))
+        # if self.params.second_shape == want_rez:
+        #     return self.params.raw_image
         img = img if img is not None else self.params.raw_image
+        first_shape = img.shape[0]
         from utils.array_util import reduce_array
-        self.params.raw_image, self.params.center = reduce_array(img, self.params.center, want_rez)
-        self.params.rez = self.header["NAXIS1"] = want_rez
-        self.init_image_frames()
-        self.shrink_F = 4 if want_rez == 1024 else 2 if want_rez == 2048 else 1
-        self.parse_resize_args(self.shrink_F)
-        self.make_radius()
-        self.make_vignette()
+        self.params.raw_image, self.params.center, self.shrink_F = reduce_array(self.params.raw_image, self.params.center, want_rez)
+        self.params.modified_image, _, _ = reduce_array(self.params.modified_image, self.params.center, want_rez)
+        self.params.rez = want_rez
+        # if self.params.modified_image is not None and self.params.modified_image.shape != self.params.raw_image.shape:
+        # self.header["NAXIS1"] = want_rez
+        # second_shape = self.params.raw_image.shape[0]
+        # self.shrink_F = first_shape // second_shape #4 if second_shape == 1024 else 2 if second_shape == 2048 else 1
+        # self.init_image_frames()
+        # self.parse_resize_args(self.shrink_F)
+        # self.make_radius()
+        # self.make_vignette()
         self.smol = True
         return self.params.raw_image
+    
+    def ensure_odd(self, number):
+        number = int(np.round(number))
+        if ~number % 2:
+            number += 1
+        return number
     
     def init_image_frames(self):
         mdi = self.params.modified_image
@@ -827,13 +885,15 @@ class Processor:
         if do:
             mdi = np.float16(self.params.raw_image)
             self.params.modified_image = mdi
+            
         return self.params.modified_image
     
     def determine_shrink_factor(self):
         
         # self.binfactor = 4
+        # = self.header["NAXIS1"]
+        self.params.rez = rez = self.params.rez or self.header["NAXIS1"]
         
-        rez = self.params.rez = self.header["NAXIS1"]
         if rez == 4096:
             self.shrink_factor = 1
         elif rez == 2048:
@@ -844,38 +904,50 @@ class Processor:
             raise NotImplementedError
         
         self.parse_shrink_args()
+        self.find_limb_radius()
     
     def parse_shrink_args(self, shrink_needed=True):
         nn = self.shrink_factor if shrink_needed else 1
-        self.params.center = [self.header["X0_MP"] / (nn), self.header["Y0_MP"] / (nn)]
-        self.limb_radius_original = self.limb_radius_shrunken = self.header["R_SUN"] / nn
-        self.output_abscissa = np.arange(self.params.rez)
-
-    def parse_resize_args(self, factor=4):
-        self.params.center = [self.header["X0_MP"] / (factor), self.header["Y0_MP"] / (factor)]
-        self.limb_radius_original = self.limb_radius_shrunken = self.header["R_SUN"] / factor
-        self.output_abscissa = np.arange(self.params.rez)
+        if self.limb_radius_from_header_shrunken is None:
+            self.params.center = [self.header["X0_MP"] / (nn), self.header["Y0_MP"] / (nn)]
+            self.limb_radius_from_header = self.header["R_SUN"]
+            self.limb_radius_from_header_shrunken = self.header["R_SUN"] / nn
+            self.output_abscissa = np.arange(self.params.rez)
+        # print(self.limb_radius_from_header_shrunken)
         
-    
+    # def parse_resize_args(self, factor=4):
+    #     if self.limb_radius_from_header_shrunken is None:
+    #         self.params.center = [self.header["X0_MP"] / (factor), self.header["Y0_MP"] / (factor)]
+    #         self.limb_radius_from_header_shrunken = self.header["R_SUN"] / factor
+    #         self.output_abscissa = np.arange(self.params.rez)
+        # print(self.limb_radius_from_header_shrunken)
+
     def make_radius(self):
         self.xx, self.yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
-        xc, yc = self.xx - self.params.center[0], self.yy - self.params.center[1]
+        # if self.frame_name == "lev1p5":
+        #     self.params.center = [self.params.rez//2, self.params.rez//2]
+        self.xc, self.yc = xc, yc = self.xx - self.params.center[0], \
+                                    self.yy - self.params.center[1]
         self.radius = np.sqrt(xc * xc + yc * yc)
         self.theta_array = np.arctan2(yc, xc)
-        self.rad_flat = self.radius.flatten()
+        self.rad_flat = self.radius.flatten()+0
+
+        
     
-    def make_vignette(self, vignette_radius=1.6):
-        self.vcut = int(vignette_radius * self.params.rez // 2)
-        self.vrad = self.n2r(self.vcut)
-        self.vignette_mask = np.asarray(self.radius > self.vcut, dtype=bool)
+    def make_vignette(self, vignette_radius=1.51):
+        self.vig_radius_pix = self.r2n(vignette_radius)
+        self.vig_radius_rr = self.n2r(self.vig_radius_pix)
+        # self.detector_radius_rr = self.n2r(self.params.rez // 2)
+        
+        self.vignette_mask = np.asarray(self.radius > self.vig_radius_pix*2, dtype=bool)
     
     def init_bin_array(self):
-        self.rad_flat /= self.binfactor
         self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
-        self.binXX = self.xx.flatten()
-        self.binYY = self.yy.flatten()
-        self.binII = np.arange(len(self.rad_flat))
-        
+        self.binXX   = self.xx.flatten()
+        self.binYY   = self.yy.flatten()
+        self.binII   = np.arange(len(self.rad_flat))
+        self.binRR   = np.round(self.rad_flat / self.limb_radius_from_header_shrunken, 4)
+
     @staticmethod
     def get_bin_items(bin_list):
         """Retrieve finite values from a bin_list"""
@@ -888,20 +960,21 @@ class Processor:
     
     def bin_radially(self):  # TODO Make the save to fits work
         """Bin the intensities by radius """
-
-        do_cache = False
-        if do_cache:
-            if not self.there_is_cached_data:
-                self.do_binning(fast=False)
-                self.save_cached_data(self.radBins)
-                self.there_is_cached_data = True
-            else:
-                self.load_cached_data(self.radBins)
-        else:
-            self.do_binning(fast=False)
+        self.do_binning(fast=False)
+        # do_cache = False
+        # if do_cache:
+        #     if not self.there_is_cached_data:
+        #         self.do_binning(fast=False)
+        #         self.save_cached_data(self.radBins)
+        #         self.there_is_cached_data = True
+        #     else:
+        #         self.load_cached_data(self.radBins)
+        # else:
+        #     self.do_binning(fast=False)
     
     def initialize_binning(self, use_im, binBoxSize):
         flat_im = self.params.modified_image if use_im is None else use_im
+        self.params.rez = flat_im.shape[0]
         flat_im = flat_im.flatten()
         sz = (self.params.rez, self.params.rez)
         self.params.rhe_image = np.empty(sz[0]**2)
@@ -921,10 +994,15 @@ class Processor:
     def do_binning(self, use_im=None, fast=False, binBoxSize=100):  # Bin the intensities by radius
 
         flat_im = self.initialize_binning(use_im, binBoxSize)
-        params_list = tqdm(np.arange(self.n_inds), desc=" *    Sorting Pixels", position=0, leave=True)
-        
-        skip = 1 if "RHE" in self.out_name else 15 if fast else 1
-        
+        if False:
+            params_list = tqdm(np.arange(self.n_inds), desc=" *    Sorting Pixels", position=0, leave=True)
+        else:
+            params_list = np.arange(self.n_inds)
+        if self.out_name:
+            skip = 1 if "RHE" in self.out_name else 15 if fast else 1
+        else:
+            skip = 1
+            
         for binI in params_list:
             if not np.mod(binI, skip):
                 if fast:
@@ -941,36 +1019,64 @@ class Processor:
             (good_coord, self.equal_intensity_array[binI, :], self.equal_radius_array[binI, :]), self.equal_mean_array[binI], self.equal_std_array[binI]  =\
                 entries[indices].T, the_mean, the_std
     
+    @staticmethod
+    def squashfunc(array):
+        return array #np.sqrt(array+0)
+        # return np.log10(array)
+    
+    @staticmethod
+    def squashfunc_inv(array):
+        return array**2
+        # return 10**array
+    
     def full_binning(self, binI, image, skip=1):
         entries, mean, std = self.get_bin_entries(binI, image)
         (good_coord, bin_array, radii) = entries.T
         if len(bin_array) > 0:
             # self.binBox.append(np.asarray([good_coord, radii, bin_array]).T.tolist())
-            self.params.rhe_image[good_coord.astype(int)] = stats.rankdata(bin_array, "average") / len(bin_array) #This is RHE
-            A,B,C,D = np.percentile(bin_array, [98.5, 90, 7, 4])
-            array = np.arange(binI, np.min((binI+skip, self.bin_rez)))
-            self.binAbsMax[array], self.binMax[array], self.binMin[array], self.binAbsMin[array] = A, B, C, D
+            # from processor.QRNProcessor import QRNpreProcessor
+            if "qrn" in str(type(self)).casefold():
+                # use_percentiles = [98.5, 90, 7, 4]
+                # use_percentiles = [99, 95, 5, 1]
+                use_percentiles = [99, 96, 4, 1]
+                # A,B,C,D =
+                array = np.arange(binI, np.min((binI+skip, self.bin_rez)))
+                self.binAbsMax[array], self.binMax[array], self.binMin[array], self.binAbsMin[array] = np.nanpercentile(bin_array, use_percentiles)
+            else:
+                self.params.rhe_image[good_coord.astype(int)] = stats.rankdata(bin_array, "average") / len(bin_array) #This is RHE
         return good_coord, radii, bin_array
     
     def get_bin_entries(self, binI, image=None):
         # frame = self.flat_im if frame is None else frame
+        
+        # want_radius =       self.binRR[binI]
+        # the_inds =          np.where(self.binRR == want_radius)
+
         the_inds =          np.where(self.binInds == binI)
         keep, bin_array =   self.get_bin_items(image[the_inds])
         coord =             self.binII[the_inds].tolist()
         good_coord =        [coord[x] for x in keep]
-        radii = [self.n2r(self.rad_flat[int(x)]) for x in good_coord]
+        radii = [self.binRR[int(x)] for x in good_coord]
+        # radii = [self.binInds[int(x)] for x in good_coord]
         return np.asarray([good_coord, bin_array, radii]).T, np.mean(bin_array), np.std(bin_array)
     
-    def mask_out_sun(self, image, radius=1.01, mask=None):
+    def mask_out_sun(self, image, radius=None, mask=None, plug=None, radius2=0.9):
         if self.radius is None:
             self.init_radius_array()
             
-        mask = mask or np.nan if "float" in str(image.dtype) else 0
+        if radius is None:
+            radius = 1.01
+        mask = mask or np.nan if "f" in str(image.dtype) else 0
         
         if len(image.shape)>2:
-            image[:, self.radius / self.limb_radius_shrunken < radius] = mask
+            image[:, self.radius / self.limb_radius_from_fit_shrunken < radius] = mask
+            if plug is not None:
+                image[:, self.radius / self.limb_radius_from_fit_shrunken < radius2] = plug
+            
         else:
-            image[self.radius / self.limb_radius_shrunken < radius] = mask
+            image[self.radius / self.limb_radius_from_fit_shrunken < radius] = mask
+            if plug is not None:
+                image[self.radius / self.limb_radius_from_fit_shrunken < radius2] = plug
         return image
 
 
@@ -982,12 +1088,12 @@ class Processor:
         self.do_binning(use_im=image, fast=True, binBoxSize=binBoxSize)
         return self.equal_radius_array, self.equal_intensity_array
     
-        # if image is not None:
+        # if use_image is not None:
         #     self.binBox = []
         #
         # elif self.binBox is None:
         #     self.binBox = []
-        #     self.do_binning(use_im=image, fast=True)
+        #     self.do_binning(use_im=use_image, fast=True)
         #
         # for box in self.binBox:
         #     try:
@@ -1142,13 +1248,15 @@ class Processor:
         plt.tight_layout()
         plt.subplots_adjust(wspace=0, hspace=0)
         
-        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_images.png", dpi=400)
+        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_images_hq.png", dpi=400)
+        plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_images_lq.png", dpi=250)
+        plt.close(fig)
         # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.pdf", dpi=400)
         # plt.show()
         # self.maximizePlot()
         # plt.tight_layout()
-        plt.show(block=True)
-        asdf = 1
+        # plt.show(block=True)
+        # asdf = 1
 
     
     def plot_histogram_images(self, axes, frames, names, donorm=True, dosmash=True):
@@ -1211,7 +1319,7 @@ class Processor:
     
     
         # Formatting the Plot
-        vloc = self.n2r(self.params.rez // 2 // self.binfactor)
+        vloc = self.n2r(self.params.rez / 2)
         do_legend = 'rhe(lev1p5)' in title
     
         # ax1.set_title(title)
@@ -1221,7 +1329,7 @@ class Processor:
             ax.axhline(1,           c="lightgrey",          ls="-")
             ax.axvline(1,           c='grey',               label="Solar Limb"    if do_legend else None)
             ax.axvline(vloc,        c="grey",       ls=":", label="Detector Edge" if do_legend else None)
-            ax.axvline(self.vrad,   c="lightgrey", ls=":",  label="Optical Edge"  if do_legend else None)
+            ax.axvline(self.vig_radius_rr, c="lightgrey", ls=":", label="Optical Edge"  if do_legend else None)
             ax.set_xlim((-0.05, 1.9))
         ax1.set_ylim((-0.3, 1.5))
         ax1.set_xlabel("Distance from Sun Center")
@@ -1318,7 +1426,7 @@ class Processor:
             entries = in_name.split("(")
             previous_name = entries[-1].replace(")", "")
             last_name = entries[0]
-            this_filters_name = self.out_name
+            this_filters_name = str(self.out_name)
             the_original = "({})".format(last_name)
             field = this_filters_name + the_original
             field = field.casefold()
@@ -1501,27 +1609,27 @@ class Processor:
         if self.outer_min is None:
             return None
         self.scalar_out_curve = np.zeros(len(self.outer_min))
-        if self.limb_radius_original:
-            self.scalar_out_curve[0] = self.limb_radius_shrunken
+        if self.limb_radius_from_header:
+            self.scalar_out_curve[0] = self.limb_radius_from_fit_shrunken
         if self.abs_min_scalar:
             self.scalar_out_curve[1] = self.abs_min_scalar
             self.scalar_out_curve[2] = self.abs_max_scalar
-        if self.savgol_filtered_inner_maximum is None:
-            self.savgol_filtered_outer_maximum = np.empty_like(self.outer_min)
-            self.savgol_filtered_inner_minimum = np.empty_like(self.outer_min)
-            self.savgol_filtered_inner_maximum = np.empty_like(self.outer_min)
-            self.savgol_filtered_outer_minimum = np.empty_like(self.outer_min)
+        if self.tri_filtered_inner_maximum is None:
+            self.tri_filtered_outer_maximum = np.empty_like(self.outer_min)
+            self.tri_filtered_inner_minimum = np.empty_like(self.outer_min)
+            self.tri_filtered_inner_maximum = np.empty_like(self.outer_min)
+            self.tri_filtered_outer_minimum = np.empty_like(self.outer_min)
         
         out_list = [self.outer_min, self.inner_min, self.inner_max, self.outer_max, self.scalar_out_curve]
-        out_list.extend([self.output_abscissa, self.savgol_filtered_outer_maximum, self.savgol_filtered_inner_maximum,
-                         self.savgol_filtered_inner_minimum, self.savgol_filtered_outer_minimum,
+        out_list.extend([self.tri_filtered_outer_maximum, self.tri_filtered_inner_maximum,
+                         self.tri_filtered_inner_minimum, self.tri_filtered_outer_minimum,
                          self.abs_max, self.abs_min,
                          ])
-        # out_list.append([self.savgol_filtered_absol_maximum, self.savgol_filtered_absol_minimum])
+        # out_list.append([self.tri_filtered_absol_maximum, self.tii_filtered_absol_minimum])
         self.curve_descriptions = ["outer_min", "inner_min", "inner_max", "outer_max",
-                                   ["scalar_out_curve", "limb_radius_shrunken", "abs_min", "abs_max"], "output_abscissa",
-                                   "savgol_filtered_outer_maximum", "savgol_filtered_inner_maximum",
-                                   "savgol_filtered_inner_minimum", "savgol_filtered_outer_minimum", 'smooth_abs_max', 'smooth_abs_min']
+                                   ["scalar_out_curve", "limb_radius_from_fit_shrunken", "abs_min", "abs_max"],
+                                   "tri_filtered_outer_maximum", "tri_filtered_inner_maximum",
+                                   "tri_filtered_inner_minimum", "tri_filtered_outer_minimum", 'smooth_abs_max', 'smooth_abs_min']
         
         none_check = [item is not None for item in out_list]
         self.do_save = np.all(none_check)
@@ -1531,12 +1639,13 @@ class Processor:
     def unpack_save_ins(self):
         """Prepare the scalar_out_curve for writing"""
         self.outer_min, self.inner_min, self.inner_max, \
-        self.outer_max, self.scalar_in_curve, self.output_abscissa, \
-        self.savgol_filtered_outer_maximum, self.savgol_filtered_inner_maximum, \
-        self.savgol_filtered_inner_minimum, self.savgol_filtered_outer_minimum, \
+        self.outer_max, self.scalar_in_curve, \
+        self.tri_filtered_outer_maximum, self.tri_filtered_inner_maximum, \
+        self.tri_filtered_inner_minimum, self.tri_filtered_outer_minimum, \
         self.abs_max, self.abs_min, = np.loadtxt(self.params.curve_path())
         
-        self.limb_radius_shrunken = self.scalar_in_curve[0]
+        # self.limb_radius_from_file_shrunken = self.scalar_in_curve[0]
+        self.limb_radius_from_file_shrunken = self.scalar_in_curve[0]
         self.abs_min_scalar = self.scalar_in_curve[1]
         self.abs_max_scalar = self.scalar_in_curve[2]
     
@@ -1564,24 +1673,23 @@ class Processor:
         else:
             vprint("Skipping Save Curves!")
     
-    def load_curves(self, force=None, verb=False):
+    def load_curves(self, force=None, verb=True):
         """Load the curves so they don't have to be recalculated"""
-        lc = self.load_print_latch
-        lc = False
+        lc=verb
         if os.path.exists(self.params.curve_path()):
             if self.abs_min_scalar is None or force:
-                if lc: vprint("\r *    Loading Radial Curves...", end='')
+                if lc: print("\r *    Loading Radial Curves...", end='')
                 try:
                     self.unpack_save_ins()
                     # if verb: self.super_flush("Success!\n")
-                    if lc: vprint("Success!", flush=True)
+                    if lc: print("Success!", flush=True)
                     if False: print('', flush=True)
-                    self.load_print_latch = False
+                    self.curves_have_been_loaded = True
                 except ValueError as e:
                     print("Failed to load Radial Curves: {}".format(e))
                     raise e
         else:
-            if False:
+            if True:
                 print("No Curves to Load!")
                 print("Please place the curves file at:")
                 print(self.params.curve_path())
@@ -1686,7 +1794,7 @@ class Processor:
             except KeyError as e:
                 continue
         self.first_hIndex = ii
-        self.params.limb_radius_original = found_limb_radius
+        self.params.limb_radius_from_header = found_limb_radius
         self.params.header = self.header
         self.params.bunit = data_unit
         return wave, t_rec, center, int_time, found_limb_radius
@@ -1700,12 +1808,12 @@ class Processor:
                 self.in_name = self.set_in_frame_name(in_name=in_name, fits_path=fits_path, hdul=hdul)
                 # print("\r", self.in_name, self.frame_name, "\n")
                 frame, self.header = self.open_fits_hdul(hdul=hdul, quiet=quiet, frame_name=self.in_name)
-                wave, t_rec, center, int_time, self.limb_radius_original = self.get_fits_info(hdul)
+                wave, t_rec, center, int_time, self.limb_radius_from_header = self.get_fits_info(hdul)
                 frame = None if self.in_name is None else frame
             return frame, wave, t_rec, center, int_time, self.in_name
         except (OSError, RuntimeError) as e:
-            print(e)
-            print("One of the Fits Files was Corrupt")
+            print('\n', e)
+            print("Unable to load Frame!")
             try:
                 pass
                 # self.delete_fits_and_png(fits_path, False   )
@@ -2071,8 +2179,10 @@ class Processor:
         # Determine the called-for output out_array NAME
         if type(self.out_name) is str:
             output_frame_name = self.out_name.casefold()
-        else:
+        elif self.out_name is not None:
             output_frame_name = self.hdu_name_list[self.out_name].casefold()
+        else:
+            output_frame_name = "None"
         return output_frame_name
     
     def determine_first_hIndex(self, hdul):
@@ -2176,6 +2286,7 @@ class Processor:
         """Make a video out of whatever directory it's pointed at"""
         video_avi = None
         file_name = file_name or 'default_videoname.avi'
+        video_path = None
         try:
             if fullpath is not None:
                 folder = os.path.dirname(fullpath)
@@ -2192,25 +2303,26 @@ class Processor:
                 
                 if desc is None:
                     desc = " *    Writing Video {}".format(basename(directory))
-            
-            if pop:
-                filename = os.path.basename(video_path)
-                directory = os.path.dirname(video_path)
-                up_dir_1 = os.path.dirname(directory)
-                up_dir_2 = os.path.dirname(up_dir_1)
-                up_dir_3 = os.path.dirname(up_dir_2)
-                
-                if pop is True:
-                    up_dir = up_dir_1
-                if pop == 2:
-                    up_dir = up_dir_2
-                if pop == 3:
-                    up_dir = up_dir_3
-                
-                video_path = os.path.join(up_dir, "video", filename)
+            if video_path is None:
+                if pop:
+                    filename = os.path.basename(video_path)
+                    directory = os.path.dirname(video_path)
+                    up_dir_1 = os.path.dirname(directory)
+                    up_dir_2 = os.path.dirname(up_dir_1)
+                    up_dir_3 = os.path.dirname(up_dir_2)
+                    
+                    if pop is True:
+                        up_dir = up_dir_1
+                    if pop == 2:
+                        up_dir = up_dir_2
+                    if pop == 3:
+                        up_dir = up_dir_3
+                    
+                    video_path = os.path.join(up_dir, "video", filename)
             
             # Initialize the Machine
             if len(good_paths):
+                good_paths.sort()
                 first_path = good_paths[0]
                 height, width, _ = cv2.imread(first_path).shape
                 video_avi = cv2.VideoWriter(video_path, 0, fps, (width, height))
@@ -2352,18 +2464,18 @@ class Processor:
     ## Static Methods ##
     def n2r(self, n):
         """Convert index to solar radius"""
-        if not self.limb_radius_shrunken:
+        if not self.limb_radius_from_fit_shrunken:
             self.find_limb_radius()
         if n is None:
             n = 0
-        r = n / self.limb_radius_shrunken
+        r = n / self.limb_radius_from_fit_shrunken
         return r
     
     def r2n(self, r):
         """Convert index to solar radius"""
-        if not self.limb_radius_shrunken:
+        if not self.limb_radius_from_fit_shrunken:
             self.find_limb_radius()
-        n = r * self.limb_radius_shrunken
+        n = r * self.limb_radius_from_fit_shrunken
         return n
     
     @staticmethod
@@ -2374,8 +2486,8 @@ class Processor:
         # if low is None:
         #     lowP = 0
         # else:
-        #     lowP = np.nanpercentile(image, low)
-        # highP = np.nanpercentile(image, high)
+        #     lowP = np.nanpercentile(use_image, low)
+        # highP = np.nanpercentile(use_image, high)
         import warnings
         with warnings.catch_warnings():
             warnings.filterwarnings('error')

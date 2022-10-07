@@ -31,6 +31,7 @@ class Parameters:
         """Sets all the attributes to None"""
 
         # Initialize Variables
+        self.ii = 0
         self._rhe_targets = []
         self.multi_pool = None
         self.do_parallel = True
@@ -178,8 +179,15 @@ class Parameters:
         # self.multi_pool = self.init_pool(self.n_pool)
         
         self._msgn_targets = [] #['primary', 'rhe(primary)']
+        self._qrn_targets = [] #['primary', 'rhe(primary)']
         
         # self.set_default_values()
+
+    def qrn_targets(self, _targets=None):
+        if _targets is not None:
+            assert type(_targets) in [tuple, list]
+            self._qrn_targets = _targets
+        return self._qrn_targets
 
     def msgn_targets(self, _targets=None):
         if _targets is not None:
@@ -767,7 +775,7 @@ class Parameters:
         file_name = file_basename[:-5]
 
         bs = self.analysis_directory
-        folder_name = "radial_hist_post"
+        folder_name = "radial_hist_pre"
         file_name_1 = 'full_{}.png'.format(file_name)
         save_path_1 = join(bs, folder_name, file_name_1)
         
@@ -778,7 +786,24 @@ class Parameters:
         makedirs(dirname(save_path_2), exist_ok=True)
         
         return save_path_1, save_path_2
+
+    def get_post_radial_fig_paths(self):
         
+        file_basename = self.file_basename or os.path.basename(self.use_image_path(self.image_data[1]))
+        file_name = file_basename[:-5]
+        bs = self.analysis_directory
+        folder_name = "radial_hist_post"
+        file_name_1 = 'full_{}.png'.format(self.ii)
+        save_path_1 = join(bs, folder_name, file_name_1)
+        
+        file_name_2 = 'zoom\\full_zoom_{}.png'.format(file_name)
+        save_path_2 = join(bs, folder_name, file_name_2)
+        
+        makedirs(dirname(save_path_1), exist_ok=True)
+        # makedirs(dirname(save_path_2), exist_ok=True)
+        self.ii += 1
+        
+        return save_path_1, save_path_2
 
 
 

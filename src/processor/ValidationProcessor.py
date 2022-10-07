@@ -333,8 +333,8 @@ class ValidationProcessor(Processor):
 #         if self.outer_min is None:
 #             return None
 #         self.scalar_out_curve = np.zeros(len(self.outer_min))
-#         if self.limb_radius_original:
-#             self.scalar_out_curve[0] = self.limb_radius_original
+#         if self.limb_radius_from_header:
+#             self.scalar_out_curve[0] = self.limb_radius_from_header
 #         if self.abs_min_scalar:
 #             self.scalar_out_curve[1] = self.abs_min_scalar
 #             self.scalar_out_curve[2] = self.abs_max_scalar
@@ -351,7 +351,7 @@ class ValidationProcessor(Processor):
 #         self.outer_min, self.inner_min, self.inner_max, \
 #         self.outer_max, self.scalar_in_curve = np.loadtxt(self.params.curve_path())
 #
-#         self.limb_radius_original = self.scalar_in_curve[0]
+#         self.limb_radius_from_header = self.scalar_in_curve[0]
 #         self.abs_min_scalar = self.scalar_in_curve[1]
 #         self.abs_max_scalar = self.scalar_in_curve[2]
 #
@@ -435,7 +435,7 @@ class ValidationProcessor(Processor):
 #         ax.axvline(self.theMin)
 #         ax.axvline(self.theMax)
 #
-#         ax.axvline(self.limb_radius_original)
+#         ax.axvline(self.limb_radius_from_header)
 #         ax.axvline(self.lCut, ls=':')
 #         ax.axvline(self.hCut, ls=':')
 #         ax.set_xlim([self.lCut, self.hCut])
@@ -458,7 +458,7 @@ class ValidationProcessor(Processor):
 #         ax0.plot(self.n2r(self.output_abscissa), self.inner_max, label="InnerMax", lw=3, c='gold')
 #         ax0.plot(self.n2r(self.output_abscissa), self.inner_min, label="InnerMin", lw=3, c='cornflowerblue')
 #         ax0.plot(self.n2r(self.output_abscissa), self.outer_min, label="OuterMin", lw=3, c='b')
-#         ax0.axvspan(self.n2r(self.limb_radius_original), ls='-', label="Limb")
+#         ax0.axvspan(self.n2r(self.limb_radius_from_header), ls='-', label="Limb")
 #
 #         # try:
 #         #     ## Vertical Lines
@@ -616,7 +616,7 @@ class ValidationProcessor(Processor):
 #         """Convert index to solar radius"""
 #         if n is None:
 #             n = 0
-#         return n / self.limb_radius_original
+#         return n / self.limb_radius_from_header
 #
 #     @staticmethod
 #     def normalize(image_path, high=98, low=15):

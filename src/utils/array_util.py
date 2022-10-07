@@ -5,15 +5,16 @@ from os import makedirs, getcwd, listdir
 from time import time, localtime, strftime
 import numpy as np
 
-def reduce_array(frame, center, desired, func=np.sum):
+def reduce_array(frame, center, desired, func=np.nansum):
     # Reduce the size of the array
     resolution = frame.shape[0]
+    center = center + 0
     if resolution > desired:
         reduce_amount = int(resolution / desired)
         frame = block_reduce(frame, reduce_amount, func=func)
         center[0] /= reduce_amount
         center[1] /= reduce_amount
-    return frame, center
+    return frame, center, reduce_amount
 
 
 ##  THUMBNAILS

@@ -34,12 +34,16 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
     # p.write_video(False)
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
-    p.png_frame_name = ['RHE', "lev1p5"]
+    p.png_frame_name = ['RHE']
     p.msgn_targets(['lev1p5', 'rhe(lev1p5)'])
+    p.rhe_targets(["lev1p5",'msgn(lev1p5)']) #"lev1p5",
+    
     p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
     p.processors([RHEProcessor],            rp=True)  # Applies the Radial Filtering
     p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-    p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    p.processors([RHEProcessor],            rp=True)  # Applies the Radial Filtering
+
+    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
     p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
     p.putters([AwsPutter])  # Uploads the PNGs to AWS

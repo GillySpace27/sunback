@@ -108,6 +108,7 @@ class AIA_PREP_Processor(SunPyProcessor):
         self.pointing_start = None
         self.out_name = "lev1p5"
         self.params.modified_image = None
+        self.params.speak_save = False
         
     def setup(self):
         pass

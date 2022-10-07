@@ -122,12 +122,18 @@ class RHTProcessor(Processor):
     def do_work(self):
         print("")
         shrink = True
-        force = True
+        force = False
     
-        if 'rht' in self.hdu_name_list_trimmed and not force:
+        get='rht'
+        if get in self.hdu_name_list_trimmed and not force:
+            frames_possessed_trimmed = [x[4:-1] for x in self.hdu_name_list if 'rht' in x]
+            # frames_possessed = [x for x in self.hdu_name_list if 'rht' in x]
+            frame_requested = self.in_name.split('(')[0]
+            if frame_requested in frames_possessed_trimmed:
+                get += '(' + frame_requested + ')'
             self.prep_inputs(shrink=shrink, prnt=False)
             self.params.modified_image, wave, t_rec, center, int_time, name = \
-                self.load_this_fits_frame(self.fits_path, 'rht')
+                self.load_this_fits_frame(self.fits_path, get)
             self.modified_image = self.theta_map = self.params.modified_image
             self.make_radius()
             self.doplots()
@@ -283,7 +289,7 @@ class RHTProcessor(Processor):
         axes[0].set_xlim((450,640))
         axes[0].set_ylim((900,1024))
         
-        saveloc = r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22\W_RHT\{}_{:0.04}.png"
+        saveloc = r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22\W_RHT\{}_{:0.04}.png"
         fig.set_size_inches((8,15))
         plt.savefig(saveloc.format(self.index, self.count_fraction_threshold))
         self.index += 1
@@ -320,7 +326,7 @@ class RHTProcessor(Processor):
         
         
         
-        theta_map[self.radius < 1.03 * (self.limb_radius_shrunken)] = np.nan
+        theta_map[self.radius < 1.03 * (self.limb_radius_from_fit_shrunken)] = np.nan
         
         
         # import despike
@@ -441,8 +447,8 @@ class RHTProcessor(Processor):
     
     def change_to_angle_from_radial(self, theta_map):
         coord_theta = (self.theta_array * 180 / np.pi)
-        shift_theta = 180 - np.mod(coord_theta, 180).T
-        from_radial_theta = theta_map - shift_theta
+        self.shift_theta = 180 - np.mod(coord_theta, 180).T
+        from_radial_theta = theta_map - self.shift_theta
         
         # plt.imshow(np.zeros_like(theta_map), cmap='gray')
         # plt.imshow(from_radial_theta, cmap='hsv', origin="lower")
@@ -536,24 +542,209 @@ class RHTProcessor(Processor):
 
     def doplots(self):
     
-        self.from_radial_theta = self.change_to_angle_from_radial(self.modified_image.T)
+        self.from_radial_theta = self.change_to_angle_from_radial(self.modified_image)
         # plt.imshow(self.donut_the_sun(self.theta_map),                   origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
-        
+    
         # plt.imshow(self.donut_the_sun(self.theta_map), interpolation='none', cmap='PuOr', origin='lower', aspect='auto', vmin=-90, vmax=90)
         # plt.show(block=True)
         if False:
-        
-            self.projected_angle_plot3(False)
-            self.projected_angle_plot3(True)
-            
-        if True:
-            self.angle_plot2_triplot(self.r_vec_3d, self.theta_map, self.from_radial_theta, self.nan, show=True)
+            pass
+        # self.projected_angle_plot3_both()
+        # self.projected_angle_plot3(True)
+    
+        # if False:
+        # self.angle_plot2_rainbow(self.r_vec_3d, self.theta_map, self.from_radial_theta, self.nan)
+        # self.angle_plot2_biplot(True)
+    
+        self.plot_model_angular_data()
+    
+        # self.angle_plot2_biplot(False)
+    
+    
+        # self.angle_plot2_triplot(self.r_vec_3d, self.theta_map, self.from_radial_theta, self.nan, show=True)
     
         if False:
             self.big_angle_plot(self.reg, self.inv, self.edg, self.nan, self.theta_map, self.from_radial_theta, self.thresholded_image, self.inv_thresholded_image, self.sobel_8u)
     
         if False:
             self.plot_angles()
+
+    def plot_model_angular_data(self):
+    
+    
+    
+        import sunpy
+        import astropy.units as u
+        
+        # Load all the maps and set the base map
+        all_maps = sunpy.map.Map(self.params.use_image_path())
+        map_names = [x.fits_header['extname'] for x in all_maps[1:]]
+        map_names.insert(0, 'LEV1P0')
+        base_map, map_name = all_maps[3], map_names[3]
+    
+    
+        # Load the deltas from disk
+        ax, ay, steve_delta = self.load_model_angular_data()
+        steve_delta = steve_delta + 0
+        # steve_delta[steve_delta==91] = np.nan
+        
+        _, gilly_angles_interp = self.make_angle_arrays()
+        gilly_angles_interp = np.abs(gilly_angles_interp)
+        
+        from scipy.interpolate import RectBivariateSpline, interp2d
+        
+        # steve_interp = RectBivariateSpline(ax, ay, steve_delta+0)
+        steve_interp = interp2d(ax, ay, steve_delta+0, kind='cubic')
+        vx =  self.xc[0] / self.limb_radius_from_fit_shrunken
+        vy =  self.yc[:,0] / self.limb_radius_from_fit_shrunken
+        steve_resampled = steve_interp(vx, vy)
+        
+        extent = (np.nanmin(vx), np.nanmax(vx), np.nanmin(vy), np.nanmax(vy))
+        
+        
+        # #########################################################################################################
+        #
+        # # Attempt to make the arrays smart
+        # basemap_matched_to_steve = base_map.resample(steve_delta.shape*u.pixel)
+        # steve_delta_map = sunpy.map.Map((steve_delta, basemap_matched_to_steve.fits_header))
+        #
+        # basemap_matched_to_gilly = base_map.resample(gilly_angles_interp.shape*u.pixel)
+        # gilly_delta_map = sunpy.map.Map((np.abs(gilly_angles_interp), basemap_matched_to_gilly.fits_header))
+        # gilly_delta_matched_to_steve = gilly_delta_map.resample(steve_delta.shape*u.pixel)
+        # gilly_coords = sunpy.map.all_coordinates_from_map(gilly_delta_matched_to_steve)
+        #
+        # steve_resampled = sunpy.map.sample_at_coords(steve_delta_map, gilly_coords)
+        nk = 75
+        smoothing = 10
+        # gilly_filtered = self.lowpass_filt(gilly_angles_interp, nk, smoothing )
+
+        
+        
+        #########################################################################################################
+        ### Plotting ###
+        
+        # Select Plot items
+        gilly_toplot =  self.lowpass_filt(gilly_angles_interp, nk, smoothing )
+        
+        
+        # steve_toplot = adelta_map.data + 0
+        steve_toplot =  self.lowpass_filt(steve_resampled, nk, smoothing)
+        steve_toplot[np.isnan(gilly_toplot)]=np.nan
+        # steve_toplot = np.fliplr(np.flipud(steve_toplot))
+        
+        difference = np.abs(gilly_toplot - steve_toplot)
+        
+        # raw_toplot =  self.lowpass_filt(self.from_radial_theta, nk, smoothing)
+        
+        angle_image = self.projected_angle_plot3_both(vibe="xraw")
+        # smooth_angle_image = self.lowpass_filt(angle_image, nk, smoothing)
+        
+        self.projected_angle_plot3_oneside(angle_image, "rhef", False, do_smooth=smoothing)
+        self.projected_angle_plot3_oneside(angle_image, "rhef_unfiltered", False)
+        
+        
+        
+        self.projected_angle_plot3_oneside(difference, "difference", roll=True)
+        self.projected_angle_plot3_oneside(steve_toplot, "model-values", roll=True)
+        # self.lowpass_filt(gilly_angles_interp, nk, 10 )
+        
+        
+        
+        
+        # ade_coords = sunpy.map.all_coordinates_from_map(adelta_map)
+        
+        # gilly_delta_matched_to_steve.plot()
+        # fig, axes = plt.subplots(3,1, sharex='all', sharey='all')
+        # extents = (np.min(self.xx))
+        fig = plt.figure()
+        ax0 = fig.add_subplot(3, 1, 1,                       ) #  projection=gilly_delta_matched_to_steve)
+        ax1 = fig.add_subplot(3, 1, 2, sharex=ax0, sharey=ax0) #, projection=adelta_map)
+        ax2 = fig.add_subplot(3, 1, 3, sharex=ax0, sharey=ax0) #, projection=adelta_map)
+    
+        axes = (ax0, ax1, ax2)
+        
+        textloc = (-0.5, 0)
+        ax0.text(-0.5,-0.1, "smoothing: {}".format(smoothing))  #np.nansum(np.abs(gilly_toplot)) /np.count_nonzero(np.isfinite(gilly_toplot))  ))
+        ax0.text(*textloc, "Avg Px Value: {:0.4} deg".format(np.nanmean(np.abs(gilly_toplot))))  #np.nansum(np.abs(gilly_toplot)) /np.count_nonzero(np.isfinite(gilly_toplot))  ))
+        ax1.text(*textloc, "Avg Px Value: {:0.4} deg".format(np.nanmean(np.abs(steve_toplot))))  #np.nansum(np.abs(steve_toplot)) /np.count_nonzero(np.isfinite(steve_toplot))  ))
+        ax2.text(*textloc, "Avg Px Value: {:0.4} deg".format(np.nanmean(np.abs(difference   ))))  #np.nansum(np.abs(difference   )) /np.count_nonzero(np.isfinite(difference   ))  ))
+
+
+        ax0.imshow(    gilly_toplot,   interpolation='none', cmap='plasma', origin='lower', vmin=0, vmax=90,extent=extent)
+        ax1.imshow(steve_toplot,        interpolation='none', cmap='plasma', origin='lower', vmin=0, vmax=90,extent=extent)
+        img=ax2.imshow(    difference,     interpolation='none', cmap='plasma', origin='lower', vmin=0, vmax=90,extent=extent)
+        
+        
+        
+        fig.set_size_inches((6.5 , 16))
+        cax = plt.axes([0.87, 0.04, 0.05, 0.94])
+        cbar = plt.colorbar(img, cax=cax, aspect=50)
+
+        cbar.set_label(r'Magnitude of departure from radial, $\delta_r$ (degrees)')
+        ax2.set_xlabel('Distance from Sun Center')
+
+
+
+        plt.tight_layout()
+        plt.subplots_adjust(right=0.88)
+        
+        self.params.this_week_path = r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\{}\{}"
+        plt.savefig(self.params.this_week_path.format('Meeting 10-4-22', "angle_difference.png"))
+
+        
+        
+
+    
+        import matplotlib as mpl
+        # cax, kw = mpl.colorbar.make_axes([ax for ax in axes], fraction=0.1)
+        
+        # fig.colorbar(img, ax=axes, orientation='horizontal', location="top", aspect=50)
+        
+        
+        # bottom, top = 0.1, 0.9
+        # left, right = 0.1, 0.8
+        #
+        # fig.subplots_adjust(top=top, bottom=bottom, left=left, right=right, hspace=0.15, wspace=0.25)
+        # cbar_ax = fig.add_axes([0.85, bottom, 0.05, top-bottom])
+        # fig.colorbar(img, cax=cbar_ax)
+
+        
+        # plt.subplots_adjust(top=0.735,
+        #                     bottom=0.11,
+        #                     left=0.035,
+        #                     right=0.985,
+        #                     hspace=0.16,
+        #                     wspace=0.135)
+        
+        # fig.colorbar(im, cax=cbar_ax)
+        
+        
+
+        
+        # plt.colorbar(img, ax=ax0, aspect=60) #, orientation='horizontal', location="top")
+
+        
+        
+        # self.autoLabelPanels(axes)
+        # plt.colorbar(img, ax=axes[0], orientation='horizontal', aspect=60, location="top")
+        # for ax in axes:
+        #     pass
+    
+        # plt.tight_layout()
+        plt.close(fig)
+        # plt.show(block=True)
+    
+        # ax2.imshow(gilly_angles_raw,          interpolation='none', cmap='plasma',  origin='lower')#, vmin=-90, vmax=90)
+
+    def load_model_angular_data(self):
+        from scipy.io import readsav
+        filepath = r'C:\Users\chgi7364\Dropbox\AB_Interesting_Stuff\Projects\sunback_proj\data\delta2D_CR2212_clongobs_204.sav'
+        angle_dict = readsav(filepath)
+        nax, nay =  angle_dict['nx'],  angle_dict['ny']
+        ax = angle_dict['x']
+        ay = angle_dict['y']
+        adelta = angle_dict['delta']
+        return ax, ay, adelta
 
     def projected_angle_plot(self, r_vec_3D, theta_map, from_radial_theta, nan_r):
         """Vertical Plot"""
@@ -563,7 +754,7 @@ class RHTProcessor(Processor):
         # plt.xlim((512, 1024))
         fig.set_size_inches((10, 14))
         plt.tight_layout()
-        plt.savefig("{}\\7_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        plt.savefig("{}\\7_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
         plt.show(block=True)
         # plt.imshow(self.unwrap_polar(reg[0]),        origin="lower", cmap='hsv', interpolation="None"), , plt.show(block=True)
         
@@ -575,7 +766,7 @@ class RHTProcessor(Processor):
         # plt.xlim((512, 1024))
         fig.set_size_inches((18,10))
         plt.tight_layout()
-        plt.savefig("{}\\8_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        plt.savefig("{}\\8_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
         plt.show(block=True)
         # plt.imshow(self.unwrap_polar(reg[0]),        origin="lower", cmap='hsv', interpolation="None"), , plt.show(block=True)
  
@@ -593,17 +784,20 @@ class RHTProcessor(Processor):
     def roll_half_array(self, arr):
         return np.roll(arr, len(arr)//2)
         
- 
-    def projected_angle_plot3(self, one_sided=False):
+
+    def projected_angle_plot3_oneside(self, use_image=None, vibe="both2", do_unwrap=True, do_smooth=None, roll=None):
         """from radial only"""
 
-        # Make the figure
-        fig, axes = plt.subplots(2, 1, sharex=True) #, sharey="all")
+        use_image = use_image if use_image is not None else self.from_radial_theta
+
+        # Make the figure,
+        fig, axes = plt.subplots(2, 1, sharex='all', gridspec_kw = {'height_ratios':[1,1]})
         (ax0, ax1) = axes
+        ax0.set_title(vibe)
         # for ax in axes:
         # ax0.set_axis_off()
         radius, thetas = self.unwrap_coords()
-        radius /= self.limb_radius_shrunken
+        radius /= self.limb_radius_from_fit_shrunken
         
         rad_absiss = radius[:,0]
         theta_absiss = thetas[self.params.rez//2]
@@ -612,7 +806,18 @@ class RHTProcessor(Processor):
         extents = (0, 360, rmin, rmax)
         fake_theta_ax = np.linspace(0, 360, self.params.rez)
         # Transform the Array
-        unwrapped_from_radial = self.unwrap_polar(self.from_radial_theta)
+        if do_unwrap:
+            unwrapped_from_radial = np.fliplr(self.unwrap_polar(use_image))
+            if roll is not None:
+                # roll_n = int((140)/360 * unwrapped_from_radial.shape[1])
+                # unwrapped_from_radial = np.roll(unwrapped_from_radial, roll_n, axis=1)
+                # unwrapped_from_radial = np.fliplr(unwrapped_from_radial)
+                pass
+                
+        else:
+            unwrapped_from_radial = use_image
+            
+
     
         # Interpolate the missing components
         interpolated = interpolate_replace_nans(unwrapped_from_radial, Gaussian2DKernel(x_stddev=2), convolve=convolve_fft)
@@ -621,7 +826,13 @@ class RHTProcessor(Processor):
         masked[radius > 1.6] = np.nan
         masked[radius < 1.01] = np.nan
 
-        angle_image = self.wrap_angles(masked, abs=one_sided)
+        angle_image_wrapped = self.wrap_angles(masked, abs=False)
+        
+        
+        if do_smooth is not None:
+            angle_image = np.abs(self.lowpass_filt((angle_image_wrapped+0), 100, do_smooth))
+        else:
+            angle_image = angle_image_wrapped
 
         # Plot Interpolated Array
         # ax0.set_title('Angle From Radial, {}'.format(64))
@@ -629,7 +840,367 @@ class RHTProcessor(Processor):
         # img = ax0.imshow(self.wrap_angles(masked),          interpolation='none', cmap='PuOr', origin='lower', aspect='auto', vmin=-90, vmax=90) #, extent=extents)
         # img = ax0.pcolormesh(rad_absiss, theta_absiss, angle_image[:-1,:-1]) #, cmap='PuOr', vmin=-90, vmax=90,)
         ax0.imshow(np.ones_like(angle_image),          interpolation='none', cmap='gray', origin='lower', aspect='auto', vmin=-90, vmax=90, extent=extents)
-        img = ax0.imshow(angle_image,          interpolation='none', cmap='PuOr', origin='lower', aspect='auto', vmin=-90, vmax=90, extent=extents)
+        img = ax0.imshow(np.abs(angle_image),          interpolation='none', cmap='plasma', origin='lower', aspect='auto', extent=extents) #, vmin=-90, vmax=90,
+        ax0.set_xlim((0, 360))
+        ax0.set_ylim((rmin, rmax))
+
+        ax0.set_ylim((1.025, 1.275))
+        # plt.show(block=True)
+        
+        # plt.show(block=True)
+        
+        if True:
+            # Make a colormap
+            from matplotlib import cm
+            average_rows = 16
+            bott, topp = int(1.06 * self.params.rez / rmax), int(1.24 * self.params.rez / rmax)
+            rows = np.arange(bott, topp, average_rows)
+            n_rows = len(rows)
+            viridis = cm.get_cmap('viridis', n_rows)
+            
+            # Make Averaging Choic
+            half_rows = average_rows//2
+            
+            wraplist = []
+            # Plot Array Slices
+            # print(self.limb_radius_from_header, self.limb_radius_from_fit_shrunken)
+            for ind, row_ii in enumerate(rows):
+                c = viridis(ind)
+                
+                rrr = row_ii / self.params.rez * rmax
+                # print(rrr)
+                ax0.axhline(rrr, ls="--", c=c, lw=2.5)
+                
+                bot, top = row_ii-half_rows, row_ii+half_rows
+                band = angle_image[bot:top, :]
+                toplot = np.nanmean(band, axis=0)
+                # unwrapped = self.wrap_angles(toplot)
+                
+                # ax1.plot(savgol_filter(unwrapped, 21, 2), c=c, zorder=1000+ind) # label="Row: {}".format(row_ii))
+                
+                cc = list(c)
+                cc[-1] = 0.6
+                ax1.plot(fake_theta_ax, np.abs(toplot), 'o', markerfacecolor=cc, markeredgewidth=0) #, c=(0,0,0,0)) # label="Row: {}".format(row_ii))
+                # ax2.plot(fake_theta_ax, toplot, 'o', markerfacecolor=cc, markeredgewidth=0) #, c=(0,0,0,0)) # label="Row: {}".format(row_ii))
+                # ax1.plot(theta_absiss, toplot, 'o', markerfacecolor=cc, markeredgewidth=0) #, c=(0,0,0,0)) # label="Row: {}".format(row_ii))
+                # wraplist.append(unwrapped)
+                # ax1.plot(unwrapped, c=c, label="Row: {}".format(row_ii))
+                
+            # wraparray = np.asarray(wraplist)
+            
+            ax0.set_ylabel(r"Height $r/R_\odot$")
+            ax1.set_xlabel("Position Angle, with 270 = Solar North")
+            ax1.set_ylabel(r"Superradial Magnitude |$\delta_r$|")
+            # ax2.set_ylabel(r"Superradial Angle $\delta_r$")
+            # ax1.set_title("Slices of Constant Radii")
+            # ax1.legend(loc="lower left", frameon=False)
+                # toplot = np.nanmean(band, axis=0)
+                # unwrapped = np.unwrap_polar(2*toplot)/2
+                # ax1.plot(unwrapped, c=c, ls="--")
+                # ax1.plot(np.unwrap_polar(toplot), c=c)
+            
+            fig.set_size_inches((18,6))
+            # plt.colorbar(img, ax=axes[0], orientation='horizontal', aspect=60, location="top")
+            plt.tight_layout()
+            # plt.grid(True, which='both')
+            plt.minorticks_on()
+            
+            ax = ax1
+            ax.axhline(0, c='k', lw=2.5    ) #, label="datalim")
+            ax.axhline(90, c='k', lw=1.5   ) #, label="datalim")
+            ax.axhline(-90, c='k', lw=1.5  ) #, label="datalim")
+            
+            ax.axvline(0,   c='k', lw=2., ls=':'    ) #, label="datalim")
+            ax.axvline(90,  c='k', lw=2., ls=':'   ) #, label="datalim")
+            ax.axvline(180, c='k', lw=2., ls=':'  ) #, label="datalim")
+            ax.axvline(270, c='firebrick', lw=2., ls=':'  ) #, label="datalim")
+            ax.axvline(360, c='k', lw=2., ls=':'  ) #, label="datalim")
+            ax.grid(True, which='both')
+                
+            ax0.axvline(0,   c='k', lw=2., ls=':', zorder = 500    ) #, label="datalim")
+            ax0.axvline(90,  c='k', lw=2., ls=':', zorder = 500   ) #, label="datalim")
+            ax0.axvline(180, c='k', lw=2., ls=':', zorder = 500  ) #, label="datalim")
+            ax0.axvline(270, c='firebrick', lw=2., ls=':', zorder = 500  ) #, label="datalim")
+            ax0.axvline(360, c='k', lw=2., ls=':', zorder = 500  ) #, label="datalim")
+            
+            ax1.set_ylim(( -5, 95))
+            # ax2.set_ylim((-95, 95))
+        #Make the plot obey the frame
+        # ax1.set_aspect('equal', share=True, adjustable="box")
+        
+        # ax1.imshow(masked,          interpolation='none', cmap='hsv', origin='lower') #, extent=extents)
+        # ax1.pcolormesh(theta_absiss, rad_absiss, masked, cmap='hsv')
+        
+        
+        # axes[0].imshow(np.zeros_like(from_radial_theta), origin="lower", cmap='gray', interpolation="None")
+        # ax0.imshow(interpolated,    interpolation='none', cmap='hsv', origin='lower')
+        
+        # ax1.set_title('Angle From Radial')
+        # axes[0].pcolorfast(rad_absiss, theta_absiss, interpolated, cmap='hsv')
+        
+        # axes[0].imshow(unwrapped_from_radial,                                                                                 interpolation='none', cmap='hsv', origin='lower')
+        # axes[1].imshow(interpolate_replace_nans(unwrapped_from_radial, Gaussian2DKernel(x_stddev=1), convolve=convolve_fft),  interpolation='none', cmap='hsv', origin='lower')
+        # axes[3].imshow(interpolate_replace_nans(unwrapped_from_radial, Gaussian2DKernel(x_stddev=3), convolve=convolve_fft),  interpolation='none', cmap='hsv', origin='lower')
+        plt.tight_layout()
+         # "ABS" if one_sided else "BOTH"
+        # plt.show(block=True)
+        plt.savefig("{}\\9_slices_{}_{}rows.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22", vibe, average_rows))
+        plt.close(fig)
+        # plt.show(block=True)
+        #
+        # a=1
+        #
+    
+        # # unwrapped_from_radial
+        #
+        # # ax2.plot()
+        #
+        #
+        # # from astropy.nddata import block_reduce
+        # # r_factor = 4
+        # # reduced_from_radial = block_reduce(unwrapped_from_radial, 2, np.nansum)
+        # # # upscaled_from_radial = cv2.resize(reduced_from_radial, (1024, 1024))
+        # # ax2.set_title('Reduced From Radial')
+        # # ax2.imshow(np.zeros_like(reduced_from_radial), origin="lower", cmap='gray', interpolation="None")
+        # # ax2.imshow(reduced_from_radial,        origin="lower", cmap='hsv', interpolation="None")
+        #
+        # # ax2.set_title('Waterfall')
+        # # x = np.arange(self.params.rez)
+        # # y = np.arange(self.params.rez//r_factor)
+        # # X,Y = np.meshgrid(x,y)
+        # # self.waterfall_plot(fig,ax, X=X,  Y=Y, Z=unwrapped_from_radial)
+        # # ax2.imshow(np.zeros_like(unwrapped_from_radial), origin="lower", cmap='gray', interpolation="None")
+        # # # ax3.imshow(unwrapped_from_radial,        origin="lower", cmap='hsv', interpolation="None")
+        #
+        # # fig = self.angle_plot(unwrapped_rvec, self.unwrap_polar(theta_map),, self.unwrap_polar(nan_r))
+        # plt.ylim((610, 780))
+        # # plt.xlim((512, 1024))
+        # fig.set_size_inches((18,10))
+        # plt.tight_layout()
+        # plt.savefig("{}\\9_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
+        # # plt.show(block=True)
+        # # plt.imshow(self.unwrap_polar(reg[0]),        origin="lower", cmap='hsv', interpolation="None"), , plt.show(block=True)
+        #
+
+
+
+
+    def projected_angle_plot3_both(self, use_image=None, vibe="both2"):
+        """from radial only"""
+
+        use_image = use_image if use_image is not None else self.from_radial_theta
+
+        # Make the figure,
+        fig, axes = plt.subplots(3, 1, sharex='all', gridspec_kw = {'height_ratios':[2,1,2]})
+        (ax0, ax1, ax2) = axes
+        # for ax in axes:
+        # ax0.set_axis_off()
+        radius, thetas = self.unwrap_coords()
+        radius /= self.limb_radius_from_fit_shrunken
+        
+        rad_absiss = radius[:,0]
+        theta_absiss = thetas[self.params.rez//2]
+        rmin, rmax = np.nanmin(radius), np.nanmax(radius)
+        tmin, tmax = np.nanmin(theta_absiss), np.nanmax(theta_absiss)
+        extents = (0, 360, rmin, rmax)
+        fake_theta_ax = np.linspace(0, 360, self.params.rez)
+        # Transform the Array
+        unwrapped_from_radial = np.fliplr(self.unwrap_polar(use_image))
+    
+        # Interpolate the missing components
+        interpolated = interpolate_replace_nans(unwrapped_from_radial, Gaussian2DKernel(x_stddev=2), convolve=convolve_fft)
+        masked = interpolated + 0
+        # masked = unwrapped_from_radial + 0
+        masked[radius > 1.6] = np.nan
+        masked[radius < 1.01] = np.nan
+
+        angle_image = self.wrap_angles(masked, abs=False)
+
+        # Plot Interpolated Array
+        # ax0.set_title('Angle From Radial, {}'.format(64))
+        
+        # img = ax0.imshow(self.wrap_angles(masked),          interpolation='none', cmap='PuOr', origin='lower', aspect='auto', vmin=-90, vmax=90) #, extent=extents)
+        # img = ax0.pcolormesh(rad_absiss, theta_absiss, angle_image[:-1,:-1]) #, cmap='PuOr', vmin=-90, vmax=90,)
+        ax0.imshow(np.ones_like(angle_image),          interpolation='none', cmap='gray', origin='lower', aspect='auto', vmin=-90, vmax=90, extent=extents)
+        img = ax0.imshow(np.abs(angle_image),          interpolation='none', cmap='plasma', origin='lower', aspect='auto', extent=extents) #, vmin=-90, vmax=90,
+        ax0.set_xlim((0, 360))
+        ax0.set_ylim((rmin, rmax))
+
+        ax0.set_ylim((1.025, 1.275))
+        # plt.show(block=True)
+        
+        # plt.show(block=True)
+        
+        if True:
+            # Make a colormap
+            from matplotlib import cm
+            average_rows = 16
+            bott, topp = int(1.06 * self.params.rez / rmax), int(1.24 * self.params.rez / rmax)
+            rows = np.arange(bott, topp, average_rows)
+            n_rows = len(rows)
+            viridis = cm.get_cmap('viridis', n_rows)
+            
+            # Make Averaging Choic
+            half_rows = average_rows//2
+            
+            wraplist = []
+            # Plot Array Slices
+            # print(self.limb_radius_from_header, self.limb_radius_from_fit_shrunken)
+            for ind, row_ii in enumerate(rows):
+                c = viridis(ind)
+                
+                rrr = row_ii / self.params.rez * rmax
+                # print(rrr)
+                ax0.axhline(rrr, ls="--", c=c, lw=2.5)
+                
+                bot, top = row_ii-half_rows, row_ii+half_rows
+                band = angle_image[bot:top, :]
+                toplot = np.nanmean(band, axis=0)
+                # unwrapped = self.wrap_angles(toplot)
+                
+                # ax1.plot(savgol_filter(unwrapped, 21, 2), c=c, zorder=1000+ind) # label="Row: {}".format(row_ii))
+                
+                cc = list(c)
+                cc[-1] = 0.6
+                ax1.plot(fake_theta_ax, np.abs(toplot), 'o', markerfacecolor=cc, markeredgewidth=0) #, c=(0,0,0,0)) # label="Row: {}".format(row_ii))
+                ax2.plot(fake_theta_ax, toplot, 'o', markerfacecolor=cc, markeredgewidth=0) #, c=(0,0,0,0)) # label="Row: {}".format(row_ii))
+                # ax1.plot(theta_absiss, toplot, 'o', markerfacecolor=cc, markeredgewidth=0) #, c=(0,0,0,0)) # label="Row: {}".format(row_ii))
+                # wraplist.append(unwrapped)
+                # ax1.plot(unwrapped, c=c, label="Row: {}".format(row_ii))
+                
+            # wraparray = np.asarray(wraplist)
+            
+            ax0.set_ylabel(r"Height $r/R_\odot$")
+            ax2.set_xlabel("Position Angle, with 270 = Solar North")
+            ax1.set_ylabel(r"Superradial Magnitude |$\delta_r$|")
+            ax2.set_ylabel(r"Superradial Angle $\delta_r$")
+            # ax1.set_title("Slices of Constant Radii")
+            # ax1.legend(loc="lower left", frameon=False)
+                # toplot = np.nanmean(band, axis=0)
+                # unwrapped = np.unwrap_polar(2*toplot)/2
+                # ax1.plot(unwrapped, c=c, ls="--")
+                # ax1.plot(np.unwrap_polar(toplot), c=c)
+            
+            fig.set_size_inches((18,8))
+            plt.colorbar(img, ax=axes[0], orientation='horizontal', aspect=60, location="top")
+            plt.tight_layout()
+            # plt.grid(True, which='both')
+            plt.minorticks_on()
+            
+            for ax in (ax1, ax2):
+                ax.axhline(0, c='k', lw=2.5    ) #, label="datalim")
+                ax.axhline(90, c='k', lw=1.5   ) #, label="datalim")
+                ax.axhline(-90, c='k', lw=1.5  ) #, label="datalim")
+                
+                ax.axvline(0,   c='k', lw=2., ls=':'    ) #, label="datalim")
+                ax.axvline(90,  c='k', lw=2., ls=':'   ) #, label="datalim")
+                ax.axvline(180, c='k', lw=2., ls=':'  ) #, label="datalim")
+                ax.axvline(270, c='firebrick', lw=2., ls=':'  ) #, label="datalim")
+                ax.axvline(360, c='k', lw=2., ls=':'  ) #, label="datalim")
+                ax.grid(True, which='both')
+                
+            ax0.axvline(0,   c='k', lw=2., ls=':', zorder = 500    ) #, label="datalim")
+            ax0.axvline(90,  c='k', lw=2., ls=':', zorder = 500   ) #, label="datalim")
+            ax0.axvline(180, c='k', lw=2., ls=':', zorder = 500  ) #, label="datalim")
+            ax0.axvline(270, c='firebrick', lw=2., ls=':', zorder = 500  ) #, label="datalim")
+            ax0.axvline(360, c='k', lw=2., ls=':', zorder = 500  ) #, label="datalim")
+            
+            ax1.set_ylim(( -5, 95))
+            ax2.set_ylim((-95, 95))
+        #Make the plot obey the frame
+        # ax1.set_aspect('equal', share=True, adjustable="box")
+        
+        # ax1.imshow(masked,          interpolation='none', cmap='hsv', origin='lower') #, extent=extents)
+        # ax1.pcolormesh(theta_absiss, rad_absiss, masked, cmap='hsv')
+        
+        
+        # axes[0].imshow(np.zeros_like(from_radial_theta), origin="lower", cmap='gray', interpolation="None")
+        # ax0.imshow(interpolated,    interpolation='none', cmap='hsv', origin='lower')
+        
+        # ax1.set_title('Angle From Radial')
+        # axes[0].pcolorfast(rad_absiss, theta_absiss, interpolated, cmap='hsv')
+        
+        # axes[0].imshow(unwrapped_from_radial,                                                                                 interpolation='none', cmap='hsv', origin='lower')
+        # axes[1].imshow(interpolate_replace_nans(unwrapped_from_radial, Gaussian2DKernel(x_stddev=1), convolve=convolve_fft),  interpolation='none', cmap='hsv', origin='lower')
+        # axes[3].imshow(interpolate_replace_nans(unwrapped_from_radial, Gaussian2DKernel(x_stddev=3), convolve=convolve_fft),  interpolation='none', cmap='hsv', origin='lower')
+        plt.tight_layout()
+         # "ABS" if one_sided else "BOTH"
+        # plt.show(block=True)
+        plt.savefig("{}\\9_slices_{}_{}rows.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22", vibe, average_rows))
+        plt.close(fig)
+        # plt.show(block=True)
+        #
+        # a=1
+        #
+    
+        # # unwrapped_from_radial
+        #
+        # # ax2.plot()
+        #
+        #
+        # # from astropy.nddata import block_reduce
+        # # r_factor = 4
+        # # reduced_from_radial = block_reduce(unwrapped_from_radial, 2, np.nansum)
+        # # # upscaled_from_radial = cv2.resize(reduced_from_radial, (1024, 1024))
+        # # ax2.set_title('Reduced From Radial')
+        # # ax2.imshow(np.zeros_like(reduced_from_radial), origin="lower", cmap='gray', interpolation="None")
+        # # ax2.imshow(reduced_from_radial,        origin="lower", cmap='hsv', interpolation="None")
+        #
+        # # ax2.set_title('Waterfall')
+        # # x = np.arange(self.params.rez)
+        # # y = np.arange(self.params.rez//r_factor)
+        # # X,Y = np.meshgrid(x,y)
+        # # self.waterfall_plot(fig,ax, X=X,  Y=Y, Z=unwrapped_from_radial)
+        # # ax2.imshow(np.zeros_like(unwrapped_from_radial), origin="lower", cmap='gray', interpolation="None")
+        # # # ax3.imshow(unwrapped_from_radial,        origin="lower", cmap='hsv', interpolation="None")
+        #
+        # # fig = self.angle_plot(unwrapped_rvec, self.unwrap_polar(theta_map),, self.unwrap_polar(nan_r))
+        # plt.ylim((610, 780))
+        # # plt.xlim((512, 1024))
+        # fig.set_size_inches((18,10))
+        # plt.tight_layout()
+        # plt.savefig("{}\\9_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
+        # # plt.show(block=True)
+        # # plt.imshow(self.unwrap_polar(reg[0]),        origin="lower", cmap='hsv', interpolation="None"), , plt.show(block=True)
+        #
+        return angle_image
+
+ 
+    def projected_angle_plot3(self, one_sided=False):
+        """Does either the one sided or double sided unwrapped plot. the both version is preferable, this is depricated. """
+        # Make the figure
+        fig, axes = plt.subplots(2, 1, sharex=True) #, sharey="all")
+        (ax0, ax1) = axes
+        # for ax in axes:
+        # ax0.set_axis_off()
+        radius, thetas = self.unwrap_coords()
+        radius /= self.limb_radius_from_fit_shrunken
+        
+        rad_absiss = radius[:,0]
+        theta_absiss = thetas[self.params.rez//2]
+        rmin, rmax = np.nanmin(radius), np.nanmax(radius)
+        tmin, tmax = np.nanmin(theta_absiss), np.nanmax(theta_absiss)
+        extents = (0, 360, rmin, rmax)
+        fake_theta_ax = np.linspace(0, 360, self.params.rez)
+        # Transform the Array
+        unwrapped_from_radial = np.fliplr(self.unwrap_polar(self.from_radial_theta))
+    
+        # Interpolate the missing components
+        interpolated = interpolate_replace_nans(unwrapped_from_radial, Gaussian2DKernel(x_stddev=2), convolve=convolve_fft)
+        masked = interpolated + 0
+        # masked = unwrapped_from_radial + 0
+        masked[radius > 1.6] = np.nan
+        masked[radius < 1.01] = np.nan
+
+        angle_image = self.wrap_angles(masked, abs=False)
+
+        # Plot Interpolated Array
+        # ax0.set_title('Angle From Radial, {}'.format(64))
+        
+        # img = ax0.imshow(self.wrap_angles(masked),          interpolation='none', cmap='PuOr', origin='lower', aspect='auto', vmin=-90, vmax=90) #, extent=extents)
+        # img = ax0.pcolormesh(rad_absiss, theta_absiss, angle_image[:-1,:-1]) #, cmap='PuOr', vmin=-90, vmax=90,)
+        ax0.imshow(np.ones_like(angle_image),          interpolation='none', cmap='gray', origin='lower', aspect='auto', vmin=-90, vmax=90, extent=extents)
+        img = ax0.imshow(np.abs(angle_image),          interpolation='none', cmap='plasma', origin='lower', aspect='auto', extent=extents) #, vmin=-90, vmax=90,
         ax0.set_xlim((0, 360))
         ax0.set_ylim((rmin, rmax))
 
@@ -652,7 +1223,7 @@ class RHTProcessor(Processor):
             
             wraplist = []
             # Plot Array Slices
-            # print(self.limb_radius_original, self.limb_radius_shrunken)
+            # print(self.limb_radius_from_header, self.limb_radius_from_fit_shrunken)
             for ind, row_ii in enumerate(rows):
                 c = viridis(ind)
                 
@@ -669,7 +1240,8 @@ class RHTProcessor(Processor):
                 
                 cc = list(c)
                 cc[-1] = 0.6
-                ax1.plot(fake_theta_ax, toplot, 'o', markerfacecolor=cc, markeredgewidth=0) #, c=(0,0,0,0)) # label="Row: {}".format(row_ii))
+                plotty = np.abs(toplot) if one_sided else toplot
+                ax1.plot(fake_theta_ax, plotty, 'o', markerfacecolor=cc, markeredgewidth=0) #, c=(0,0,0,0)) # label="Row: {}".format(row_ii))
                 # ax1.plot(theta_absiss, toplot, 'o', markerfacecolor=cc, markeredgewidth=0) #, c=(0,0,0,0)) # label="Row: {}".format(row_ii))
                 # wraplist.append(unwrapped)
                 # ax1.plot(unwrapped, c=c, label="Row: {}".format(row_ii))
@@ -727,7 +1299,7 @@ class RHTProcessor(Processor):
         plt.tight_layout()
         vibe="ABS" if one_sided else "BOTH"
         # plt.show(block=True)
-        plt.savefig("{}\\9_slices_{}_{}rows.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22", vibe, average_rows))
+        plt.savefig("{}\\9_slices_{}_{}rows_plasma.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22", vibe, average_rows))
         
         # plt.show(block=True)
         #
@@ -760,10 +1332,11 @@ class RHTProcessor(Processor):
         # # plt.xlim((512, 1024))
         # fig.set_size_inches((18,10))
         # plt.tight_layout()
-        # plt.savefig("{}\\9_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        # plt.savefig("{}\\9_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
         # # plt.show(block=True)
         # # plt.imshow(self.unwrap_polar(reg[0]),        origin="lower", cmap='hsv', interpolation="None"), , plt.show(block=True)
         #
+
     @staticmethod
     def waterfall_plot(fig,ax,X,Y,Z):
         '''
@@ -834,7 +1407,7 @@ class RHTProcessor(Processor):
     #     # Interpolate the missing components
     #     masked = from_radial_theta #interpolated_from_radial_theta + 0
     #     radius, thetas = self.unwrap_coords()
-    #     radius /= self.limb_radius_shrunken
+    #     radius /= self.limb_radius_from_fit_shrunken
     #     masked[radius > 1.6] = np.nan
     #     masked[radius < 1.03] = np.nan
     #     ax3.set_title('Angle From Radial')
@@ -861,9 +1434,114 @@ class RHTProcessor(Processor):
     #     # self.save3(fig)
     #     return fig
  
+ 
+    
+    def make_angle_arrays(self, in_array=None, do_abs=False):
+        sparse = self.from_radial_theta if in_array is None else in_array
+        interpolated = interpolate_replace_nans(sparse, Gaussian2DKernel(x_stddev=2), convolve=convolve_fft)
+        # interpolated = self.from_radial_theta
+        masked_interp = interpolated + 0
+        masked_sparse = sparse + 0
+        radius = self.radius / self.params.header['R_SUN'] * 4
+        masked_interp[radius > 1.6]  = np.nan
+        masked_interp[radius < 1.03] = np.nan
+        masked_sparse[radius > 1.6]  = np.nan
+        masked_sparse[radius < 1.03] = np.nan
+        angles          = self.donut_the_sun(self.wrap_angles(masked_sparse, abs=do_abs))
+        interp_angles   = self.donut_the_sun(self.wrap_angles(masked_interp, abs=do_abs))
+        return angles, interp_angles
+    
+    def angle_plot2_biplot(self, do_abs = False, show=False):
+        """This is the 2 plots of the angle from radial, one interpolated and one not. """
+        fig, axes = plt.subplots(1, 2, sharex="all", sharey="all")
+        (ax2, ax3) = axes
+        for ax in axes:
+            ax.set_axis_off()
+        
+        angles, interp_angles  = self.make_angle_arrays(do_abs=do_abs)
+        
+        
+        ax2.imshow(np.ones_like(angles)*0.1,    origin="lower", cmap='gray', interpolation="None", vmin=0, vmax=1)
+        ax3.imshow(np.ones_like(angles)*0.1,    origin="lower", cmap='gray', interpolation="None", vmin=0, vmax=1)
+        
+
+    
+        ax2.imshow(angles,          interpolation='none', cmap='plasma',  origin='lower')#, vmin=-90, vmax=90)
+        ax3.imshow(interp_angles,   interpolation='none', cmap='plasma',    origin='lower')#, vmin=-90, vmax=90)
+        
+        # ax2.imshow((self.theta_array * 180 / np.pi), zorder=-10, cmap='PuOr', origin='lower', vmin=-180, vmax=180)
+        # ax3.imshow(self.shift_theta, zorder=-10, cmap='PuOr', origin='lower', vmin=-180, vmax=180)
+    
+        # ax2.imshow(self.donut_the_sun(angle_image), interpolation='none', cmap='binary_r', origin='lower', vmin=0, vmax=90)
+    
+    
+    
+        # interpolated = interpolate_replace_nans(self.from_radial_theta, Gaussian2DKernel(x_stddev=2), convolve=convolve_fft)
+        # interpolated = self.from_radial_theta
+        # masked = interpolated + 0
+        # radius = self.radius
+        # masked = unwrapped_from_radial + 0
+        # masked[radius > 1.6] = np.nan
+        # masked[radius < 1.01] = np.nan
+        # angle_image = self.wrap_angles(interpolated, abs=True)
+        # ax3.imshow(self.donut_the_sun(angle_image), interpolation='none', cmap='PuOr', origin='lower', vmin=-90, vmax=90)
+    
+    
+        # fi2, ax4 = plt.subplots()
+        # ax4.imshow(np.ones_like(theta_map),    origin="lower", cmap='copper', interpolation="None", vmin=0, vmax=1)
+        # ax4.imshow(self.donut_the_sun(angle_image), interpolation='none', cmap='binary_r', origin='lower', vmin=0, vmax=90)
+    
+    
+        # ax1.set_ylim((700, 1000))
+        # ax1.set_xlim((600, 900))
+    
+        # interpolated_from_radial_theta = interpolate_replace_nans(from_radial_theta, Gaussian2DKernel(x_stddev=2), convolve=convolve_fft)
+        # # Interpolate the missing components
+        # masked = from_radial_theta #interpolated_from_radial_theta + 0
+        # radius, thetas = self.unwrap_coords()
+        # radius /= self.limb_radius_from_fit_shrunken
+        # masked[radius > 1.6] = np.nan
+        # masked[radius < 1.03] = np.nan
+    
+        #
+        # ax1.imshow(np.zeros_like(theta_map),    origin="lower", cmap='gray', interpolation="None")
+        # ax1.imshow(r_vec_3d,    origin="lower", interpolation="None")
+        # ax1.imshow(self.donut_the_sun(nan_r), origin="lower", interpolation="None", cmap=cm_purp, alpha=0.9)
+        #
+        # ax2.set_title('Angle Map: {}'.format(self.fudge_level))
+        # ax2.imshow(np.zeros_like(theta_map),    origin="lower", cmap='gray', interpolation="None")
+        # ax2.imshow(self.donut_the_sun(theta_map), origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
+        # ax2.imshow(self.donut_the_sun(theta_map), origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
+    
+        # # Add the circles showing the rht window
+        # window = self.current_w_rht//2
+        # from matplotlib.patches import Circle
+        # radius = (window + 0)
+        # radius1 = window * self.window_factors[1]
+        # radius2 = window * self.window_factors[2]
+        # ax2.add_patch(Circle((780, 940), radius1, zorder=1000, fill=False, edgecolor='r',      lw=3))
+        # ax2.add_patch(Circle((780, 940), radius2, zorder=1000, fill=False, edgecolor='yellow', lw=3))
+        # ax2.add_patch(Circle((780, 940), radius , zorder=1000, fill=False, edgecolor="orange", lw=3))
+    
+        self.autoLabelPanels(axes, loc=(0.025, 0.025))
+        fig.set_size_inches((20, 10))
+        plt.tight_layout()
+        plt.rcParams['figure.dpi'] = 300
+        # Plot the different zoom levels
+        plt.xlim((0,1024))
+        plt.ylim((0,1024))
+        plt.tight_layout()
+        plt.savefig("{}\\4_angles_fromradial_{}.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22", "double" if not do_abs else "single"))
+    
+        if show:
+            plt.show(block=True)
+        else:
+            plt.close(fig)
+        return fig
+    
     
     def angle_plot2_triplot(self, r_vec_3d, theta_map, from_radial_theta, nan, show=False):
-        # This is the 2 plots only version
+        # This is the 3 plots only version
         nan_r = nan[1]
         # Just the Found Angle and the R_Vec plotted side by side
         fig, axes = plt.subplots(1, 3, sharex="all", sharey="all")
@@ -915,7 +1593,7 @@ class RHTProcessor(Processor):
         # # Interpolate the missing components
         # masked = from_radial_theta #interpolated_from_radial_theta + 0
         # radius, thetas = self.unwrap_coords()
-        # radius /= self.limb_radius_shrunken
+        # radius /= self.limb_radius_from_fit_shrunken
         # masked[radius > 1.6] = np.nan
         # masked[radius < 1.03] = np.nan
     
@@ -943,17 +1621,16 @@ class RHTProcessor(Processor):
             plt.xlim((0,1024))
             plt.ylim((0,1024))
             plt.tight_layout()
-            plt.savefig("{}\\4_angles_allb.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+            plt.savefig("{}\\4_angles_allb.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
             plt.show(block=True)
             plt.close(fig)
         return fig
     
  
         
-    def angle_plot2(self, r_vec_3d, theta_map, from_radial_theta, nan, show=False):
-        # This is the 2 plots only version
-        nan_r = nan[1]
-        # Just the Found Angle and the R_Vec plotted side by side
+    def angle_plot2_rainbow(self, r_vec_3d, theta_map, from_radial_theta, nan, show=False):
+        """This is the 2 plots of the absolute angle angle, one on black, one on the shirft theta"""
+
         fig, axes = plt.subplots(1, 2, sharex="all", sharey="all")
         (ax1, ax2) = axes
         for ax in axes:
@@ -964,18 +1641,34 @@ class RHTProcessor(Processor):
     
         # Plot
         # ax1.set_title('Angle Confidence')
-        
-        r_vec_3d[:,:,0] = self.donut_the_sun(r_vec_3d[:,:,0])
-        r_vec_3d[:,:,1] = self.donut_the_sun(r_vec_3d[:,:,1])
-        r_vec_3d[:,:,2] = self.donut_the_sun(r_vec_3d[:,:,2])
-        
-        ax1.imshow(np.zeros_like(theta_map),    origin="lower", cmap='gray', interpolation="None")
-        ax1.imshow(r_vec_3d,    origin="lower", interpolation="None")
-        ax1.imshow(self.donut_the_sun(nan_r), origin="lower", interpolation="None", cmap=cm_purp, alpha=0.9)
+        # plot_confidence=False
+        # if plot_confidence:
+        #     nan_r = nan[1]
+        #
+        #     r_vec_3d[:,:,0] = self.donut_the_sun(r_vec_3d[:,:,0])
+        #     r_vec_3d[:,:,1] = self.donut_the_sun(r_vec_3d[:,:,1])
+        #     r_vec_3d[:,:,2] = self.donut_the_sun(r_vec_3d[:,:,2])
+        #
+        #     ax1.imshow(np.zeros_like(theta_map),    origin="lower", cmap='gray', interpolation="None")
+        #     ax1.imshow(r_vec_3d,    origin="lower", interpolation="None")
+        #     ax1.imshow(self.donut_the_sun(nan_r), origin="lower", interpolation="None", cmap=cm_purp, alpha=0.9)
+        #
+        #     # Add the circles showing the rht window
+        #     window = self.current_w_rht//2
+        #     from matplotlib.patches import Circle
+        #     radius = (window + 0)
+        #     radius1 = window * self.window_factors[1]
+        #     radius2 = window * self.window_factors[2]
+        #     ax1.add_patch(Circle((780, 940), radius1, zorder=1000, fill=False, edgecolor='r',      lw=3))
+        #     ax1.add_patch(Circle((780, 940), radius2, zorder=1000, fill=False, edgecolor='yellow', lw=3))
+        #     ax1.add_patch(Circle((780, 940), radius , zorder=1000, fill=False, edgecolor="orange", lw=3))
+            
+        # ax1.imshow(self.shift_theta,                   origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
     
         # ax2.set_title('Angle Map: {}'.format(self.fudge_level))
-        ax2.imshow(np.zeros_like(theta_map),    origin="lower", cmap='gray', interpolation="None")
-        ax2.imshow(self.donut_the_sun(theta_map),                   origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
+        
+        
+        
         # ax2.imshow(self.donut_the_sun(self.from_radial_theta), interpolation='none', cmap='PuOr', origin='lower', aspect='auto', vmin=-90, vmax=90)
     
         # ax1.set_ylim((700, 1000))
@@ -985,33 +1678,31 @@ class RHTProcessor(Processor):
         # # Interpolate the missing components
         # masked = from_radial_theta #interpolated_from_radial_theta + 0
         # radius, thetas = self.unwrap_coords()
-        # radius /= self.limb_radius_shrunken
+        # radius /= self.limb_radius_from_fit_shrunken
         # masked[radius > 1.6] = np.nan
         # masked[radius < 1.03] = np.nan
+        
+
+        ax1.imshow(np.zeros_like(theta_map), cmap='gray')
+        ax1.imshow(self.donut_the_sun(theta_map+0),      origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
+        
+        ax2.imshow(np.zeros_like(theta_map), cmap='gray')
+        ax2.imshow(self.donut_the_sun(self.shift_theta+0, radius = 0.85),   origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
+        ax2.imshow(self.donut_the_sun(theta_map+0),      origin="lower", cmap='hsv', interpolation="None", vmin=0, vmax=180)
+
     
-    
-    
-        # Add the circles showing the rht window
-        window = self.current_w_rht//2
-        from matplotlib.patches import Circle
-        radius = (window + 0)
-        radius1 = window * self.window_factors[1]
-        radius2 = window * self.window_factors[2]
-        ax1.add_patch(Circle((780, 940), radius1, zorder=1000, fill=False, edgecolor='r',      lw=3))
-        ax1.add_patch(Circle((780, 940), radius2, zorder=1000, fill=False, edgecolor='yellow', lw=3))
-        ax1.add_patch(Circle((780, 940), radius , zorder=1000, fill=False, edgecolor="orange", lw=3))
-    
-    
-        # Plot the different zoom levels
+        # Plot settings
         fig.set_size_inches((20, 10))
         plt.tight_layout()
         plt.rcParams['figure.dpi'] = 300
         self.autoLabelPanels(axes)
         if show:
+            plt.show(block=True)
+        else:
             plt.xlim((0,1024))
             plt.ylim((0,1024))
             plt.tight_layout()
-            plt.savefig("{}\\4_angles_allb.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+            plt.savefig("{}\\4_angles_allb_rainbow.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
             # plt.show(block=True)
             plt.close(fig)
         return fig
@@ -1023,17 +1714,17 @@ class RHTProcessor(Processor):
         plt.xlim((0,1024))
         plt.ylim((0,1024))
         plt.tight_layout()
-        plt.savefig("{}\\7_angles_all.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        plt.savefig("{}\\7_angles_all.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
     
         plt.xlim((640,800))
         plt.ylim((870,1000))
         plt.tight_layout()
-        plt.savefig("{}\\8_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        plt.savefig("{}\\8_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
     
         plt.xlim((700,765))
         plt.ylim((885,950))
         plt.tight_layout()
-        plt.savefig("{}\\9_angles_zoom.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        plt.savefig("{}\\9_angles_zoom.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
     
         plt.close(fig)
         
@@ -1168,18 +1859,18 @@ class RHTProcessor(Processor):
         # plt.xlim((0,1024))
         # plt.ylim((0,1024))
         # plt.tight_layout()
-        # plt.savefig("{}\\1_angles_all.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        # plt.savefig("{}\\1_angles_all.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
         #
         plt.xlim((640,800))
         plt.ylim((870,1000))
         plt.tight_layout()
         
-        plt.savefig("{}\\2_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        plt.savefig("{}\\2_angles.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
         
         plt.xlim((700,765))
         plt.ylim((885,950))
         plt.tight_layout()
-        plt.savefig("{}\\3_angles_zoom.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 9-20-22"))
+        plt.savefig("{}\\3_angles_zoom.png".format(r"C:\Users\chgi7364\Dropbox\All School\CU\Steve Research\Research Notes\Weekly Meetings\2022\Meeting 10-4-22"))
 
         plt.close(fig)
         # plt.show(block=True)
@@ -1546,13 +2237,10 @@ class RHTProcessor(Processor):
     
     ##############################
     # Helper Functions
-    def donut_the_sun(self, input_img):
-        return self.mask_out_sun(self.vignette(input_img))
+    def donut_the_sun(self, input_img, radius=None, plug=None):
+        return self.mask_out_sun(self.vignette(input_img), radius=radius, plug=plug)
     
-    def ensure_odd(self, number):
-        if ~number % 2:
-            number += 1
-        return number
+
     
     def highpass_filt(self, image, kern_in=41, sigma_in=18, blur_f=1.0):
         # print("   * Highpass")

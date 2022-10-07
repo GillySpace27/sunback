@@ -119,9 +119,11 @@ class FidoFetcher(Fetcher):
     
     def fido_check_for_fits(self, verb=None):
         """Find the science images"""
+        from astropy import units as u
         self.verb = self.verb or verb
-        vprint("\n *   Looking for Images of {} from {} to {}...".format(
-                self.params.current_wave(), self.params.start_time_string, self.params.end_time_string), flush=True, end='', verb=self.verb)
+        vprint("\n *   Looking for Images of {} from {} to {} with {} cadence...".format(
+                self.params.current_wave(), self.params.start_time_string,
+                self.params.end_time_string, self.params.cadence_minutes().to(u.day)), flush=True, end='', verb=self.verb)
         jsoc_email = "chris.gilly@colorado.edu"
         
         # Make the base required attributes
@@ -137,7 +139,7 @@ class FidoFetcher(Fetcher):
                         attrs.jsoc.Notify(jsoc_email) & \
                         attrs.jsoc.Segment.image
                         
-            
+        print(".", end=None)
         fido_search_result = Fido.search(base_attrs, inst_attr)
         self.fido_search_result = fido_search_result
         self.fido_search_found_num = self.fido_search_result.file_num
@@ -178,12 +180,12 @@ class FidoFetcher(Fetcher):
         except AttributeError:
             response = self.fido_search_result
         self.needed_files = response
-        self.num_files_needed = len(self.needed_files)
+        self.num_files_needed = self.needed_files._numfile
     
     def fido_download_fits_ensured(self, temp=False, hold=False, ensured=True):
         """Download the files from fido_search_result"""
         
-        self.SubDownloader = Downloader(progress=True, file_progress=False, max_conn=20, overwrite=False)
+        self.SubDownloader = Downloader(progress=True, file_progress=False, max_conn=5, overwrite=False)
 
         self.out_path = self.params.temp_directory() if temp else self.params.fits_directory()
         self.store_requests()
@@ -203,8 +205,8 @@ class FidoFetcher(Fetcher):
                 self.results = []
                 
             self.n_fits = len(self.results)
-            # if ensured:
-            #     self.results = self.fido_multi_download()
+            if ensured:
+                self.results = self.fido_multi_download()
             self.multi_banner()
             # self.results = copy.copy(results)
             
@@ -216,16 +218,68 @@ class FidoFetcher(Fetcher):
             return self.results
     
     def fido_multi_download(self):
-        self.n_fits = len(self.results)
+        self.n_fits = -1
+        self.destroy_files(self.validate_fits())
         
-        while self.n_fits != self.fido_search_found_num:
+        ii = 0
+        while self.n_fits != self.fido_search_found_num and ii < 10:
             self.results = Fido.fetch(self.results, path=self.out_path, downloader=self.SubDownloader)
             self.n_fits = len(self.results)
+            to_destroy = self.validate_fits()
+            if to_destroy:
+                self.destroy_files(to_destroy)
+                self.n_fits = -1
+                
+            ii += 1
+            
         self.n_fits = len(self.results)
         if self.params.do_single:
             self.n_fits = 1
         return self.results
     
+    def destroy_files(self, to_destroy=[]):
+        if to_destroy:
+            for path in to_destroy:
+                self.remove_files(path)
+        self.n_fits = len(self.load_fits_paths())
+            
+    @staticmethod
+    def remove_files(local_fits_path):
+        # if local_fits_path in self.params.local_fits_paths():
+        #     self.params.local_fits_paths().remove(local_fits_path)
+        
+        dir = os.path.dirname(local_fits_path)
+        directory = dir.replace('fits', 'png\\mod')
+        file = os.path.basename(local_fits_path)
+        png_file = file.replace('.fits', '.png')
+        png_path = os.path.join(directory, png_file)
+    
+        dead_paths = [local_fits_path, png_path, png_path.replace("mod", "cat"), png_path.replace("mod", "orig")]
+        deleted_files = 0
+        print()
+        for path in dead_paths:
+            try:
+                print("    Deleting a File...", end="")
+                os.remove(path)
+                if os.path.exists(path):
+                    raise FileExistsError(path)
+                print("Success!")
+                deleted_files += 1
+            except PermissionError as e:
+                print(" Couldn't Access/Delete\n {}".format(path))
+                print(e)
+                # raise e
+            except FileExistsError as e:
+                print(" File was still there after attempted deletion\n{}".format(os.path.basename(path)))
+                # print(e)
+            except FileNotFoundError as e:
+                # print(" Not Found to Delete\n {}".format(path))
+                pass
+            except Exception as e:
+                print(" Failed to Delete\n {}".format(path))
+                print(e)
+                1+1
+            print("Actually Deleted {} Files".format(deleted_files))
     # Time Related Things #########################################
     
     def get_start_and_end_times_from_result(self):
@@ -285,6 +339,7 @@ class FidoFetcher(Fetcher):
     
     # Validation
     def validate_download(self):
+        # Currently not running, probably for the best
         if self.params.do_prep:
             print("prepping")
             self.params.speak_save=False
@@ -294,56 +349,56 @@ class FidoFetcher(Fetcher):
 
     def validate_fits(self):
         import numpy as np
-        if True:
-            return []
+        # if True:
+        #     return []
+        self.load_fits_paths()
         all_fits_paths = self.params.local_fits_paths()
         n_fits = len(all_fits_paths)
         destroyed = 0
         dark = 0
         missing = 0
         to_destroy = []
-        print('Validation is Running')
+        # print('Validation is Running')
         for local_fits_path in tqdm(all_fits_paths, desc=" > Validating Fits Files", unit='imgs'):
         # for local_fits_path in all_fits_paths:
             delete = False
-            
-            with fits.open(local_fits_path, ignore_missing_end=True) as hdul:
-                hdul.verify('silentfix+warn')
-                # self.rename_initial_frames(hdul) # This might not work
-                #TEST 1 - IS IT A DARK FRAME?
-                img_type = hdul[1].header['IMG_TYPE']
-                if img_type.casefold() == 'dark'.casefold():
-                    delete = True
-                    dark += 1
-                    print("Dark Image Detected")
-                    
-                #TEST 2 - IS FILLED WITH NULLS?
-                frame = hdul[-1].data
-                good_pix = np.sum(np.isfinite(frame))
-                total_pix = frame.shape[0]*frame.shape[1]
-                good_percent = good_pix / total_pix
-                # Dark Frame had 0.37
-                if good_percent < 0.6:
-                    # print("Good Percent: {:0.4f}".format(good_percent))
-                    delete = True
-                    missing += 1
-                    print("Missing Data Detected")
-                hdul.close()
-
-            if delete:
-                to_destroy.append(local_fits_path)
-                destroyed += 1
-                n_fits -= 1
+            if local_fits_path:
+                with fits.open(local_fits_path, ignore_missing_end=True) as hdul:
+                    hdul.verify('silentfix+warn')
+                    # self.rename_initial_frames(hdul) # This might not work
+                    #TEST 1 - IS IT A DARK FRAME?
+                    img_type = hdul[1].header['IMG_TYPE']
+                    if img_type.casefold() == 'dark':
+                        delete = True
+                        dark += 1
+                        # print("Dark Image Detected")
+                    if not delete:
+                        #TEST 2 - IS FILLED WITH NULLS?
+                        frame = hdul[-1].data
+                        good_pix = np.sum(np.isfinite(frame))
+                        total_pix = frame.shape[0]*frame.shape[1]
+                        good_percent = good_pix / total_pix
+                        # Dark Frame had 0.37
+                        if good_percent < 0.6:
+                            # print("Good Percent: {:0.4f}".format(good_percent))
+                            delete = True
+                            missing += 1
+                            # print("Missing Data Detected")
+                        
+                if delete:
+                    to_destroy.append(local_fits_path)
+                    destroyed += 1
+                    n_fits -= 1
         if destroyed:
-            print(" ii     Fits Files Validated: {}, Bad Frames: {}\n".format(n_fits, destroyed))
+            print("\r      >>Fits Files Validated: {}, Bad Frames: {}\n VV  {} Dark, {} Missing<<\n".format(n_fits, destroyed, missing, dark))
         else:
-            print(" ii     Fits Files Validated: {}. No Bad Frames!\n".format(n_fits))
-    
-        if missing:
-            print(" ii          > {} missing data".format(missing))
-        if dark:
-            print(" ii          > {} dark frames".format(dark))
-            
+            print("\r      >>Fits Files Validated: {0}/{0}. No Bad Frames!<<".format(n_fits))
+        #
+        # if missing:
+        #     print(" ii          > {} missing data".format(missing))
+        # if dark:
+        #     print(" ii          > {} dark frames".format(dark))
+        #
         return to_destroy
 
 

@@ -41,6 +41,7 @@ class ImageProcessorCV(ImageProcessor):
     in_name = -1
     
     def __init__(self, params=None, quick=False, rp=None):
+        self.rhe_count = 0
         self.shrink_factor = 1
         super().__init__(params, quick, rp)
         self.frame_name = self.params.png_frame_name
@@ -49,13 +50,19 @@ class ImageProcessorCV(ImageProcessor):
     
     def do_fits_function(self, fits_path, in_name=None):
         """ Main Call on the Fits Path """
-        self.params.double_rhe = False
-        if self.params.png_frame_name == 'all':
+        self.params.double_rhe_flag = False
+        target = "rhe(lev1p5)"
+        
+        if type(in_name) is int:
+            self.params.png_frame_name = self.find_frames_at_path(fits_path)[in_name]
+        
+        if 'all' in self.params.png_frame_name:
             self.params.png_frame_name = self.find_frames_at_path(fits_path)
-            target = "rhe(lev1p5)"
-            if target in self.params.png_frame_name:
-                self.params.png_frame_name.append(target)
-                self.params.double_rhe = True
+            
+        if target in self.params.png_frame_name:
+            self.params.png_frame_name.append(target)
+            self.params.double_rhe_flag = True
+            
         if type(self.params.png_frame_name) in [list]:
             for name in self.params.png_frame_name:
                 self.frame_name = name
@@ -64,7 +71,7 @@ class ImageProcessorCV(ImageProcessor):
         else:
             self.init_frame(fits_path, self.params.png_frame_name)
             out = self.render_all(reference=False)
-     
+    
         if out is not None:
             return out
         return self
@@ -159,9 +166,6 @@ class ImageProcessorCV(ImageProcessor):
     def do_save(self, do_small=False):
         self.vignette()
         self.prep_save(do_small=do_small)
-
-            
-        
         self.img_save(self.out_path)
         
 
@@ -205,36 +209,47 @@ class ImageProcessorCV(ImageProcessor):
         if alpha is not None:
             frame_label += "_{}".format(alpha)
             
-        do_combine = self.params.double_rhe
+        do_combine = self.params.double_rhe_flag
+        this_run = False
         if do_combine:
             # This lets me plot the linear combination of two frames which is awesome
-            self.params.double_rhe = False
             target = 'rhe(lev1p5)'
             product = 'rhe(msgn)'
             prod = "mean"
             if frame_name == target:
-                frame2, wave2, t_rec2, center2, int_time2, name2 = self.load_this_fits_frame(self.fits_path, product)
-                frame2 = np.flipud(frame2)
-                self.save_to_fits = True
-                # self.frame = self.geo_mean([self.frame, frame2])
-                blend = 0.5
-                self.frame = np.nanmean(np.array([blend * self.frame, (1-blend)*frame2]), axis=0)
-                frame_label += "-fxd-_{}_{}_{:02}".format(prod, product, blend)
-                self.out_name = "mgn_rhe"
-                self.frame_name = ''
-                for name in self.hdu_name_list:
-                    if self.out_name in name:
-                        do_combine = False
-                self.frame = np.flipud(self.frame)
-                # self.save_frame(self.frame, self.fits_path, self.out_name, force=True)
+                if self.rhe_count < 1:
+                    self.rhe_count += 1
+                else:
+                    self.params.double_rhe_flag = False
+                    frame2, wave2, t_rec2, center2, int_time2, name2 = self.load_this_fits_frame(self.fits_path, product)
+                    frame2 = np.flipud(frame2)
+                    self.save_to_fits = True
+                    # self.frame = self.geo_mean([self.frame, frame2])
+                    blend = 0.5
+                    self.frame = np.nanmean(np.array([blend * self.frame, (1-blend)*frame2]), axis=0)
+                    frame_label += "_{}_{}_{:02}".format(prod, product, blend)
+                    self.out_name = "mgn_rhe"
+                    self.frame_name = ''
+                    for name in self.hdu_name_list:
+                        if self.out_name in name:
+                            do_combine = False
+                    self.frame = np.flipud(self.frame)
+                    this_run = True
+                    # self.save_frame(self.frame, self.fits_path, self.out_name, force=True)
 
             
         self.out_path = self.get_changed_path()
         self.out_path=self.out_path.replace("image_lev1", frame_label)
-        print(" *       Save_path = {}".format(self.out_path))
-        print(" *           Saving...".format(self.out_path), end='')
-        self.do_save(do_small=True)
-        print("Done!")
+        if False:
+            print(" *       Save_path = {}".format(self.out_path))
+            print(" *           Saving...".format(self.out_path), end='')
+        
+        if this_run:
+            self.frame = np.flipud(self.frame)
+        self.do_save(do_small=True if "MultiImage".casefold() in self.filt_name.casefold() else False)
+        if this_run:
+            self.frame = np.flipud(self.frame)
+        # print("Done!")
         if do_combine:
             return self.frame
         return None
@@ -261,7 +276,7 @@ class ImageProcessorCV(ImageProcessor):
     
     def prep_save(self, do_small=False):
         self.make_image(do_small)
-        self.path_box.append(self.out_path)
+        
     
     def make_image(self, do_small=False):
         out = self.frame_touchup(self.frame_name, self.frame + 0)
@@ -289,6 +304,7 @@ class ImageProcessorCV(ImageProcessor):
             # plt.show(block=True)
             self.params.rbg_image.append(rgb_img)
         self.vignette()
+        self.path_box.append(self.out_path)
     
     def img_save(self, path, save=True, stamp=False):
         if "rhe" in self.frame_name:
@@ -371,7 +387,7 @@ class ImageProcessorCV(ImageProcessor):
         else:
             # rez is 1K
             scale = 1.5
-            thickness = 1
+            thickness = 2
             h_spacing = 30
             h0 = 25
             rez = img.shape[0]
@@ -518,7 +534,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
                 else:
                     self.handle_one_frame(fits_path, frame_name, doBar, iterable)
                 self.count_frames += 1
-                
+        # print("\rCollected {} frames for comparison".format(self.count_frames))
         if doBar: iterable.set_description(" *    Plots Complete", refresh=True)
     
 
@@ -783,9 +799,9 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
             if "rhe(lev1p5)" in frame_name:
                 images.append(norm_stretch(frame)), names.append("upsilon(rhe)")
                 
-        self.do_compare_histogramplot(images, names)
-        self.do_compare_histogramplot_rheonly(images, names)
         self.do_compare_histogramplot_images(images, names)
+        self.do_compare_histogramplot_rheonly(images, names)
+        self.do_compare_histogramplot(images, names)
         
         # for frame_name in iterable:
             
