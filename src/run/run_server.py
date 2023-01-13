@@ -28,29 +28,33 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
     p.download_files(True)
     p.get_fits = True
     p.multiplot_all = False
-    # p.set_waves_to_do('0171')
     p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
+    # p.set_waves_to_do('0171')
     # p.overwrite_pngs(True)
     # p.write_video(False)
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
-    p.png_frame_name = ['RHE']
-    p.msgn_targets(['lev1p5', 'rhe(lev1p5)'])
-    p.rhe_targets(["lev1p5",'msgn(lev1p5)']) #"lev1p5",
     
-    p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
-    p.processors([RHEProcessor],            rp=True)  # Applies the Radial Filtering
-    p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-    p.processors([RHEProcessor],            rp=True)  # Applies the Radial Filtering
-
-    # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-    p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
-    p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
+    # These settings might not look like they make sense but they make it work
+    p.png_frame_name = ['rhe(lev1p5)']
+    p.msgn_targets(['lev1p5']) #, 'rhe(lev1p5)'
+    p.rhe_targets(["lev1p5", 'msgn(lev1p5)']) #"lev1p5",
+    
+    # This is the right combination of processors for the server
+    if True:
+        p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
+        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        p.processors([RHEProcessor],            rp=True)  # Applies the Radial Filtering
+        p.processors([RHEProcessor],            rp=True)  # Applies the Radial Filtering
+        p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
+    
+    
     p.putters([AwsPutter])  # Uploads the PNGs to AWS
     p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
     
-
     
+    
+    # p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
     # p.processors([AIA_PREP_Processor],      rp=True   )  # Do Sunpy Things
     # p.processors([QRNSingleShotProcessor_Legacy],            rp=True)  # Applies the Radial Filtering
     
@@ -61,8 +65,8 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
     # p.processors([QRNSingleShotProcessor], rp=True)  # Applies the Radial Filtering
     # p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
     #
-
-
+    
+    
     #
     # p.processors(QRNpreProcessor, rp=True)  # Applies the Radial Filtering
     # p.processors(QRNradialFiltProcessor, rp=True)  # Applies the Radial Filtering

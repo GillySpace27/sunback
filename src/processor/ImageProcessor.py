@@ -63,7 +63,7 @@ class ImageProcessor(Processor):
             
     def do_fits_function(self, fits_path, in_name=None):
         """This is the do_fits_function for this """
-        self.init_frame(fits_path, self.params.png_frame_name)
+        self.init_frame(fits_path, -1)
         if self.render():
             self.export_files()
         return self
@@ -79,7 +79,7 @@ class ImageProcessor(Processor):
             list_of_inputs = self.params.master_frame_list_oldest
             frame0, _, _, _, _, name0 = self.load_this_fits_frame(fits_path, list_of_inputs)
             self.raw_name = self.frame_name + ''
-            frame1, wave1, t_rec1, center1, int_time, name1 = self.load_this_fits_frame(fits_path, in_name.casefold())
+            frame1, wave1, t_rec1, center1, int_time, name1 = self.load_this_fits_frame(fits_path, str(in_name).casefold())
             self.wave1 = wave1
             self.t_rec1 = t_rec1
             self.mod_name = self.frame_name + ''
@@ -360,7 +360,7 @@ class ImageProcessor(Processor):
             #     frame = self.maxima_scrunch(frame)
  
         # Norm Stretching (only runs on rhe)
-        frame = self.do_norm_stretch(frame, frame_name)
+        frame, self.frame_name = self.do_norm_stretch(frame, frame_name)
         
 
         
@@ -381,7 +381,9 @@ class ImageProcessor(Processor):
         if do and "rhe" in frame_name:
             aL, aH = self.get_alphas()
             frame = norm_stretch(frame, alpha=aL, alpha_high=aH)
-        return frame
+            frame_name = 'UP_' + frame_name
+        return frame, frame_name
+        
         
     def get_alphas(self):
         wave = self.params.current_wave(self.image_data[0])
@@ -389,7 +391,7 @@ class ImageProcessor(Processor):
         
         wave_list = [{"wave": "0094", "aL": 0.50, "aH": 0.35},
                      {"wave": "0131", "aL": 0.50, "aH": 0.30},
-                     {"wave": "0171", "aL": 0.50, "aH": 0.40},
+                     {"wave": "0171", "aL": 0.50, "aH": 0.50},
                      {"wave": "0193", "aL": 0.50, "aH": 0.45},
                      {"wave": "0211", "aL": 0.50, "aH": 0.40},
                      {"wave": "0304", "aL": 0.50, "aH": 0.40},

@@ -1381,10 +1381,6 @@ class RHTProcessor(Processor):
         unwrapped_thetas = unwrapped_thetas.T
         return unwrapped_radius, unwrapped_thetas
     
-    def autoLabelPanels(self, axArray, loc=(0.045, 0.05), messages=None):
-        for ii, ax in enumerate(axArray.flatten()):
-            message = '' if messages is None else messages[ii]
-            ax.annotate('({})  {}'.format(chr(97+ii), message), loc,color='r', xycoords='axes fraction')
         
     # def angle_plot(self, r_vec_3d, theta_map, from_radial_theta, nan_r, show=False):
     #     # Mat the figure

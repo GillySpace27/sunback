@@ -38,14 +38,13 @@ class ImageProcessorCV(ImageProcessor):
     frame_name = None
     img_frame = None
     out_path = None
-    in_name = -1
+    in_name = None
     
     def __init__(self, params=None, quick=False, rp=None):
         self.rhe_count = 0
         self.shrink_factor = 1
         super().__init__(params, quick, rp)
         self.frame_name = self.params.png_frame_name
-        self.save_to_fits = False
         
     
     def do_fits_function(self, fits_path, in_name=None):
@@ -60,7 +59,7 @@ class ImageProcessorCV(ImageProcessor):
             self.params.png_frame_name = self.find_frames_at_path(fits_path)
             
         if target in self.params.png_frame_name:
-            self.params.png_frame_name.append(target)
+            self.params.png_frame_name.append("mgn_"+target)
             self.params.double_rhe_flag = True
             
         if type(self.params.png_frame_name) in [list]:
@@ -69,7 +68,7 @@ class ImageProcessorCV(ImageProcessor):
                 self.init_frame(fits_path, name)
                 out = self.render_all(reference=False)
         else:
-            self.init_frame(fits_path, self.params.png_frame_name)
+            self.init_frame(fits_path, -1)
             out = self.render_all(reference=False)
     
         if out is not None:
@@ -112,8 +111,10 @@ class ImageProcessorCV(ImageProcessor):
         if reference:
             self.plot_aia_orig()
             # self.plot_aia_log()
-        
-        return self.plot_aia_changed()
+        try:
+            return self.plot_aia_changed()
+        except ValueError:
+            pass
         # self.save_concatinated()
         
         # self.do_shortcut()
@@ -228,18 +229,20 @@ class ImageProcessorCV(ImageProcessor):
                     blend = 0.5
                     self.frame = np.nanmean(np.array([blend * self.frame, (1-blend)*frame2]), axis=0)
                     frame_label += "_{}_{}_{:02}".format(prod, product, blend)
-                    self.out_name = "mgn_rhe"
-                    self.frame_name = ''
+                    self.out_name = "mgn_rhe(lev1p5)"
+                    self.frame_name = self.out_name + ''
                     for name in self.hdu_name_list:
                         if self.out_name in name:
                             do_combine = False
                     self.frame = np.flipud(self.frame)
                     this_run = True
-                    # self.save_frame(self.frame, self.fits_path, self.out_name, force=True)
+                    self.save_to_fits = True
+                    self.save_frame(self.frame, self.fits_path, self.out_name, force=True)
 
             
         self.out_path = self.get_changed_path()
-        self.out_path=self.out_path.replace("image_lev1", frame_label)
+        # self.out_path=self.out_path.replace("image_lev1", frame_label)
+        self.out_path=self.out_path.replace("synoptic", '_DrGilly_')
         if False:
             print(" *       Save_path = {}".format(self.out_path))
             print(" *           Saving...".format(self.out_path), end='')
@@ -315,7 +318,8 @@ class ImageProcessorCV(ImageProcessor):
         master_path = path + ''
         if save:
             for img, rez in zip(self.params.rbg_image, self.params.rbg_labels):
-                path = master_path.replace(".png", "_{}.png".format(rez))
+                if len(self.params.rbg_labels)>1:
+                    path = master_path.replace(".png", "_{}.png".format(rez))
                 
                 cv2.imwrite(path, img)
         else:
@@ -346,7 +350,7 @@ class ImageProcessorCV(ImageProcessor):
         # Get Wavelength
         inst = 'AIA'
         _, wave = self.clean_name_string(full_name)
-        
+        # wave += ' '
         # Get Stretch Params
         
         # Get Frame Name
@@ -399,10 +403,10 @@ class ImageProcessorCV(ImageProcessor):
         h2 = h1 + h_spacing
         h3 = h2 + h_spacing
 
-        x0  = rez - wid_of_char*len(name)
+        x0  = rez - wid_of_char*len(name) -10
         x1  = rez - wid_of_char*len(prev)
-        x2  = rez - wid_of_char*len(inst)
-        x3  = rez - wid_of_char*len(wave)
+        x2  = rez - wid_of_char*len(inst) -5
+        x3  = rez - wid_of_char*len(wave) -10
         
         ## APPLY LABELS
         font = 1

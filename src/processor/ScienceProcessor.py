@@ -64,7 +64,7 @@ class ScienceProcessor(Processor):
         self.locs = []
         self.vals = []
         self.annulus_width = 5
-        self.rr = 1.2
+        self.rr = 1.25
     
         # n_heights = 20
         # viridis = mpl.colormaps['viridis']#.resampled(n_lines)
@@ -76,11 +76,14 @@ class ScienceProcessor(Processor):
         print("Cleanup time!")
         
         fig, axes = plt.subplots(1, sharex='all')
-        fig.suptitle("Annulus Width: {}".format(self.annulus_width))
+        # fig.suptitle("Annulus Width: {}".format(self.annulus_width))
         
         array = np.asarray(self.vals).T
         xx, yy = np.meshgrid(self.locs, self.bins)
         hhist = axes.pcolormesh(xx, yy, array, cmap='YlOrRd', label="Sim Hist")
+        axes.set_ylabel("QRN Normalized Intensity")
+        axes.set_xlabel("Days of January 2019")
+        axes.set_title(r"Height = {} $R_\odot$".format(self.rr))
         plt.show(block=True)
         a=1
         
@@ -98,7 +101,7 @@ class ScienceProcessor(Processor):
             self.init_radius_array()
         
         good_coord, bin_array, radii, the_mean, the_std, want_bin = self.get_annulus(self.rr, 'qrn', width=self.annulus_width, load=False)
-        n, self.bins = np.histogram(bin_array, range=(0,2), bins=self.n_hist)
+        n, self.bins = np.histogram(bin_array, range=(0,1), bins=self.n_hist)
         nn = n.tolist()
         nn.append(0)
         nnn = np.asarray(nn)

@@ -32,11 +32,11 @@ plt.ioff()
 # dostring = "Beautiful 304_l"
 all_wavelengths = ['0193', '0211', '0131', '0335', '0094','0304','0171', ]
 do_wavelengths = all_wavelengths  # ['0211']
-do_wavelengths = ['0171']
-PNG_FRAME_NAME = "qrn"
+do_wavelengths = ['304']
+PNG_FRAME_NAME = "rhe"
 # wave_to_use = '0211'
 
-def run_range_multishot_movie(batch_name= "The_Long_One", wave=None, config=None, wave_to_use=None, alpha=0.35):
+def run_range_multishot_movie(batch_name= "2013_12h", wave=None, config=None, wave_to_use=None, alpha=0.35):
     # Set the Parameters
     p = make_params(batch_name, wave, config, wave_to_use)
     p.do_recent(False)
@@ -50,10 +50,11 @@ def run_range_multishot_movie(batch_name= "The_Long_One", wave=None, config=None
     # p.fetchers(FidoFetcher,                 rp=True)  # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor],    rp=False)   # Integrate several frames for S/N
     # p.processors([AIA_PREP_Processor],      rp=False)   # Do Sunpy Things # This happens in the fetcher now
-    # p.rhe_targets([-1])
-    # p.qrn_targets(["lev1p5"])
-    p.processors([QRNpreProcessor],            rp=True)  # Applies the RHE Processor
-    p.processors([QRNradialFiltProcessor],     rp=True)  # Applies the RHE Processor
+    # p.qrn_targets(["primary"])
+    # p.rhe_targets(["compressed_image"])
+    p.processors([RHEProcessor],    rp="skip")
+    # p.processors([QRNpreProcessor],            rp=True)  # Applies the RHE Processor
+    # p.processors([QRNradialFiltProcessor],     rp=True)  # Applies the RHE Processor
     p.processors([ImageProcessorCV],        rp=True)  # Makes the PNGs from Fits
     p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
     # p.putters([ScienceProcessor],             rp=True)  # Makes the PNGs into a Movie
@@ -63,11 +64,38 @@ def run_range_multishot_movie(batch_name= "The_Long_One", wave=None, config=None
     run.Runner(p).start()
 
 def make_configs(wave_to_use):
+    
+    c17 = {
+                "name": "2013_12h",
+                "debug": True, "do_one": '304', "stop": True,
+                "tstart": '2013/01/01 07:00:00', "tend": '2014/01/01 07:00:00',
+                "cadence_minutes": 12*60, "fps": 11, "exposure_time": 12*10,
+                "key_fixed_cadence": None, "key_fixed_number": 100, "time_preset": None
+            }
+    
+    c16 = {
+                "name": "Plumes",
+                "debug": True, "do_one": '0171', "stop": True,
+                "tstart": '2019/01/01 00:00:01', "tend": '2019/02/01 00:00:01',
+                "cadence_minutes": 24*60, "fps": 5, "exposure_time": 12*10,
+                "key_fixed_cadence": None, "key_fixed_number": 100, "time_preset": None
+            }
+    
+    c15 = {
+            
+            "name": "Middling",
+            "debug": True, "do_one": '0171', "stop": True,
+            "tstart": '2012/01/01 00:00:00', "tend": '2012/02/01 00:00:00',
+            "cadence_minutes": 24*60, "fps": 5, "exposure_time": 12*10,
+            "key_fixed_cadence": None, "key_fixed_number": 100, "time_preset": None
+        }
+    
     c13 = {
-        "name": "Short_Test",
+        # Five years every other day
+        "name": "Long_Test",
         "debug": True, "do_one": '0171', "stop": True,
-        "tstart": '2019/01/01 00:00:00', "tend": '2019/01/01 00:20:00',
-        "cadence_minutes": 24*60*27.5, "fps": 10, "exposure_time": 36,
+        "tstart": '2012/01/01 00:00:00', "tend": '2017/01/01 00:00:00',
+        "cadence_minutes": 24*60*7/4, "fps": 5, "exposure_time": 12*10,
         "key_fixed_cadence": None, "key_fixed_number": 100, "time_preset": None
     }
     
@@ -75,7 +103,7 @@ def make_configs(wave_to_use):
         "name": "The_Long_One",
         "debug": True, "do_one": '0171', "stop": True,
         "tstart": '2017/01/01 00:00:00', "tend": '2018/01/01 00:00:00',
-        "cadence_minutes": 24*60*27, "fps": 3, "exposure_time": 36,
+        "cadence_minutes": 24*60*27, "fps": 3, "exposure_time": 12*10,
         "key_fixed_cadence": None, "key_fixed_number": 100, "time_preset": None
     }
     
@@ -208,6 +236,9 @@ def make_configs(wave_to_use):
         c12["name"]: c12,
         c13["name"]: c13,
         c14["name"]: c14,
+        c15["name"]: c15,
+        c16["name"]: c16,
+        c17["name"]: c17,
         c100["name"]: c100,
                   }
     return ConfigDict

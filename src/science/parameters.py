@@ -67,7 +67,7 @@ class Parameters:
         self.do_temp = False
         self.do_prep = False
         self.confirm_save=False
-        self.speak_save=True
+        self.speak_save=False
         self.tend = ''
         self.tstart = ''
         self._remake_norm_curves = False

@@ -47,7 +47,7 @@ def vprint(in_string, *args, **kwargs):
 class Processor:
     """Top Level Class"""
     # name = 'data'
-    in_name = -1
+    in_name = None
     filt_name = "Base Processor Class"
     out_name = batch_name = name = 'default_name'
     description = "Use an Unnamed Processor"
@@ -109,6 +109,8 @@ class Processor:
     frame_name = None
     
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        self.binInds_forpoints = None
+        self.ratio_factor_for_radius = None
         self.limb_radius_from_file_shrunken = None
         self.binRR = None
         self.binII = None
@@ -350,7 +352,8 @@ class Processor:
             self.params.image_data = self.image_data
             return True
         else:
-            print("Skipped Fits!")
+            # print("Skipped Fits!")
+            pass
             # if img_type.casefold() == 'dark':
             #     self.delete_fits_and_png(fits_path)
             return False
@@ -432,7 +435,7 @@ class Processor:
         """
         # if self.dont_ignore:
         self.use_keyframes = (self.params.fixed_cadence_keyframes() or self.params.fixed_number_keyframes()) and self.can_use_keyframes
-        if self.use_keyframes and self.use_keyframes != 1:
+        if self.use_keyframes:
             self.keyframes = self.pick_keyframes()
         else:
             self.keyframes = self.pick_keyframes(use_all=True)
@@ -680,7 +683,9 @@ class Processor:
             # print(e)
             frame = output
         
-        self.save_frame(frame, fits_path)
+        use_name = self.frame_name if 'mgn_rhe' in self.frame_name else None
+        
+        self.save_frame(frame, fits_path, use_name)
         return frame
     
     def save_frame(self, frame, fits_path, out_name=None, force=False):
@@ -755,6 +760,7 @@ class Processor:
     def find_limb_radius(self):
         spread = 0.02
         self.limb_radius_from_fit_shrunken = self.limb_radius_from_header_shrunken
+        self.limb_radius_from_fit_shrunken_forpoints = self.limb_radius_from_header_shrunken_forpoints
         self.lCut = int(self.limb_radius_from_header_shrunken - spread * self.params.rez)
         self.hCut = int(self.limb_radius_from_header_shrunken + spread * self.params.rez)
         return
@@ -909,10 +915,18 @@ class Processor:
     def parse_shrink_args(self, shrink_needed=True):
         nn = self.shrink_factor if shrink_needed else 1
         if self.limb_radius_from_header_shrunken is None:
-            self.params.center = [self.header["X0_MP"] / (nn), self.header["Y0_MP"] / (nn)]
+            self.params.center_NOTforpoints = [self.header["X0_MP"] / (nn), self.header["Y0_MP"] / (nn)]
             self.limb_radius_from_header = self.header["R_SUN"]
             self.limb_radius_from_header_shrunken = self.header["R_SUN"] / nn
             self.output_abscissa = np.arange(self.params.rez)
+        self.params.center = [self.header["X0_MP"] / (nn), self.header["Y0_MP"] / (nn)]
+        self.limb_radius_from_header_shrunken_forpoints = self.header["R_SUN"] / nn
+        self.ratio_factor_for_radius = self.limb_radius_from_header_shrunken_forpoints / self.limb_radius_from_header_shrunken
+        # print("\n", self.params.center, self.params.center_NOTforpoints)
+        # print(self.limb_radius_from_header_shrunken_forpoints, self.limb_radius_from_header_shrunken)
+        # a=1
+    
+    
         # print(self.limb_radius_from_header_shrunken)
         
     # def parse_resize_args(self, factor=4):
@@ -926,11 +940,17 @@ class Processor:
         self.xx, self.yy = np.meshgrid(np.arange(self.params.rez), np.arange(self.params.rez))
         # if self.frame_name == "lev1p5":
         #     self.params.center = [self.params.rez//2, self.params.rez//2]
-        self.xc, self.yc = xc, yc = self.xx - self.params.center[0], \
-                                    self.yy - self.params.center[1]
+        self.xc, self.yc = xc, yc = self.xx - self.params.center_NOTforpoints[0], \
+                                    self.yy - self.params.center_NOTforpoints[1]
         self.radius = np.sqrt(xc * xc + yc * yc)
         self.theta_array = np.arctan2(yc, xc)
         self.rad_flat = self.radius.flatten()+0
+
+        self.xcp, self.ycp = xcp, ycp = self.xx - self.params.center[0], \
+                                    self.yy - self.params.center[1]
+        self.radius_forpoints = np.sqrt(xcp * xcp + ycp * ycp)
+        self.theta_array_forpoints = np.arctan2(ycp, xcp)
+        self.rad_flat_forpoints = self.radius_forpoints.flatten()+0
 
         
     
@@ -943,8 +963,9 @@ class Processor:
     
     def init_bin_array(self):
         self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
-        self.binXX   = self.xx.flatten()
-        self.binYY   = self.yy.flatten()
+        self.binInds_forpoints = np.asarray(np.floor(self.rad_flat_forpoints), dtype=np.int32)
+        # self.binXX   = self.xx.flatten()
+        # self.binYY   = self.yy.flatten()
         self.binII   = np.arange(len(self.rad_flat))
         self.binRR   = np.round(self.rad_flat / self.limb_radius_from_header_shrunken, 4)
 
@@ -1021,13 +1042,19 @@ class Processor:
     
     @staticmethod
     def squashfunc(array):
-        return array #np.sqrt(array+0)
+        # return array
+        return np.sqrt(array+0)
         # return np.log10(array)
     
-    @staticmethod
-    def squashfunc_inv(array):
-        return array**2
-        # return 10**array
+    def autoLabelPanels(self, axArray, loc=(0.045, 0.05), messages=None, color='r'):
+            for ii, ax in enumerate(axArray.flatten()):
+                message = '' if messages is None else messages[ii]
+                ax.annotate('({})  {}'.format(chr(97+ii), message), loc,color=color, xycoords='axes fraction')
+    
+    # @staticmethod
+    # def squashfunc_inv(array):
+    #     return array**2
+    #     # return 10**array
     
     def full_binning(self, binI, image, skip=1):
         entries, mean, std = self.get_bin_entries(binI, image)
@@ -1038,7 +1065,7 @@ class Processor:
             if "qrn" in str(type(self)).casefold():
                 # use_percentiles = [98.5, 90, 7, 4]
                 # use_percentiles = [99, 95, 5, 1]
-                use_percentiles = [99, 96, 4, 1]
+                use_percentiles = [99, 99.5, 4, 1]
                 # A,B,C,D =
                 array = np.arange(binI, np.min((binI+skip, self.bin_rez)))
                 self.binAbsMax[array], self.binMax[array], self.binMin[array], self.binAbsMin[array] = np.nanpercentile(bin_array, use_percentiles)
@@ -1053,8 +1080,11 @@ class Processor:
         # the_inds =          np.where(self.binRR == want_radius)
 
         the_inds =          np.where(self.binInds == binI)
-        keep, bin_array =   self.get_bin_items(image[the_inds])
-        coord =             self.binII[the_inds].tolist()
+        the_inds_forpoints = np.where(self.binInds_forpoints == binI)
+        # print("it is the same : ", np.all(the_inds[0] == the_inds_forpoints[0]))
+        
+        keep, bin_array =   self.get_bin_items(image[the_inds_forpoints])
+        coord =             self.binII[the_inds_forpoints].tolist()
         good_coord =        [coord[x] for x in keep]
         radii = [self.binRR[int(x)] for x in good_coord]
         # radii = [self.binInds[int(x)] for x in good_coord]
@@ -1687,7 +1717,7 @@ class Processor:
                     self.curves_have_been_loaded = True
                 except ValueError as e:
                     print("Failed to load Radial Curves: {}".format(e))
-                    raise e
+                    # raise e
         else:
             if True:
                 print("No Curves to Load!")
@@ -2462,6 +2492,22 @@ class Processor:
             return None
     
     ## Static Methods ##
+    def n2r_fp(self, n):
+        """Convert index to solar radius"""
+        if not self.limb_radius_from_fit_shrunken:
+            self.find_limb_radius()
+        if n is None:
+            n = 0
+        r = n / self.limb_radius_from_fit_shrunken_forpoints
+        return r
+    
+    def r2n_fp(self, r):
+        """Convert index to solar radius"""
+        if not self.limb_radius_from_fit_shrunken:
+            self.find_limb_radius()
+        n = r * self.limb_radius_from_fit_shrunken_forpoints
+        return n
+    
     def n2r(self, n):
         """Convert index to solar radius"""
         if not self.limb_radius_from_fit_shrunken:

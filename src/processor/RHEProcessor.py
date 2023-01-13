@@ -73,7 +73,6 @@ class RHEProcessor(Processor):
         self.show = show
         self.verb = verb
         self.do_orig = orig
-        
         # Parameters
         self.make_curves_latch = True  # This Recomputes the curves once
         self.floor = 0.01
@@ -182,8 +181,9 @@ class RHEProcessor(Processor):
         self.cut_pixels = None
     
     def select_input_frame(self, in_name):
-        self.in_name = in_name
+        self.in_name = 'primary' #in_name
         # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
+        
         if self.params.rhe_targets() is not None and len(self.params.rhe_targets()):
             self.in_name = self.params.rhe_targets().pop(0)
     

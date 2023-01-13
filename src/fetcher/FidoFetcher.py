@@ -219,7 +219,7 @@ class FidoFetcher(Fetcher):
     
     def fido_multi_download(self):
         self.n_fits = -1
-        self.destroy_files(self.validate_fits())
+        self.validate_fits()
         
         ii = 0
         while self.n_fits != self.fido_search_found_num and ii < 10:
@@ -240,6 +240,7 @@ class FidoFetcher(Fetcher):
     def destroy_files(self, to_destroy=[]):
         if to_destroy:
             for path in to_destroy:
+                break
                 self.remove_files(path)
         self.n_fits = len(self.load_fits_paths())
             
@@ -358,6 +359,7 @@ class FidoFetcher(Fetcher):
         dark = 0
         missing = 0
         to_destroy = []
+        to_redownload = []
         # print('Validation is Running')
         for local_fits_path in tqdm(all_fits_paths, desc=" > Validating Fits Files", unit='imgs'):
         # for local_fits_path in all_fits_paths:
@@ -373,6 +375,12 @@ class FidoFetcher(Fetcher):
                         dark += 1
                         # print("Dark Image Detected")
                     if not delete:
+                        mean_value = hdul[1].header['DATAMEDN']
+                        quality_value = hdul[1].header['QUALITY']
+                        if mean_value < 50 or quality_value > 100:
+                            delete=True
+                            dark += 1
+                    if not delete:
                         #TEST 2 - IS FILLED WITH NULLS?
                         frame = hdul[-1].data
                         good_pix = np.sum(np.isfinite(frame))
@@ -384,11 +392,16 @@ class FidoFetcher(Fetcher):
                             delete = True
                             missing += 1
                             # print("Missing Data Detected")
+
                         
                 if delete:
                     to_destroy.append(local_fits_path)
+                    to_redownload.append(local_fits_path)
                     destroyed += 1
                     n_fits -= 1
+                    
+        # self.destroy_files(to_destroy)
+        # self.fido_get_fits()
         if destroyed:
             print("\r      >>Fits Files Validated: {}, Bad Frames: {}\n VV  {} Dark, {} Missing<<\n".format(n_fits, destroyed, missing, dark))
         else:

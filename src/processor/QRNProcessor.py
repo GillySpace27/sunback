@@ -2,6 +2,7 @@ from copy import copy
 from os import makedirs
 from os.path import join, dirname, basename
 import numpy as np
+from matplotlib.ticker import MultipleLocator, AutoMinorLocator
 from scipy.signal import savgol_filter
 from scipy.stats import stats
 from processor.Processor import Processor
@@ -275,8 +276,8 @@ class QRNProcessor(Processor):
     
     def init_for_learn(self):
         # self.init_images()
+        self.init_radius_array()
         if not self.learn_init:
-            self.init_radius_array()
             self.init_statistics()
             self.learn_init = True
         self.init_frame_curves()
@@ -517,14 +518,14 @@ class QRNProcessor(Processor):
         do_all = True
         raw_alpha = 0.85
         grey_alpha = 0.90
-        self.make_radius()
+        # self.make_radius()
         self.skip_points = 10
         # Plot Scattered Points from the raw image_path in midnightblue
         
         orig_abs = self.params.raw_image.flatten() if np.isnan(self.params.modified_image).all() \
             else self.params.modified_image.flatten()
         
-        scat_arr = self.n2r(self.rad_flat)
+        scat_arr = self.n2r_fp(self.rad_flat_forpoints)
         
         if do_scat:
             ax.scatter(scat_arr[::self.skip_points],
@@ -535,10 +536,10 @@ class QRNProcessor(Processor):
         
         # Plot Raw Curves
         if do_all and self.outer_max is not None:
-            if raw:     ax.plot(rrarr, self.outer_max + offset, zorder=4, lw=3, label="Running Outer Max/Min", alpha=raw_alpha, c='orange')
-            if True:   ax.plot(rrarr, self.inner_max + offset, zorder=5, lw=3, label="Running Inner Max/Min", alpha=raw_alpha, c='firebrick')
-            if True:   ax.plot(rrarr, self.inner_min + offset, zorder=6, lw=3, alpha=raw_alpha, c='firebrick')
-            if raw:     ax.plot(rrarr, self.outer_min + offset, zorder=3, lw=3, alpha=raw_alpha, c='orange')
+            if raw:     ax.plot(rrarr, self.outer_max + offset, zorder=4, lw=3, label="Running Outer Max/Min", alpha=raw_alpha, c='limegreen')
+            if True:   ax.plot(rrarr, self.inner_max + offset, zorder=5, lw=3, label="Running Inner Max/Min", alpha=raw_alpha, c='orange')
+            if True:   ax.plot(rrarr, self.inner_min + offset, zorder=6, lw=3, alpha=raw_alpha, c='orange')
+            if raw:     ax.plot(rrarr, self.outer_min + offset, zorder=3, lw=3, alpha=raw_alpha, c='limegreen')
         
         # Plot Final Curves
         if do_all and self.norm_curve_max is not None:
@@ -593,7 +594,7 @@ class QRNProcessor(Processor):
             ax.set_yscale("symlog")
             # ax.set_ylim((10**1, 10**3))
             # ax.set_ylim(self.squashfunc_inv((self.abs_min_scalar, self.abs_max_scalar)))
-            ax.set_ylim(offset + np.asarray([self.abs_min_scalar, self.abs_max_scalar]))
+            ax.set_ylim(np.asarray([8, offset + 2.0*self.abs_max_scalar]))
             
             fig.set_size_inches(8, 6)
             
@@ -607,7 +608,7 @@ class QRNProcessor(Processor):
             
             # ax0.axvline(self.vig_radius_rr, ls=':', c='lightgrey', label='Vignette')
             ax.set_ylabel(r"Absolute Intensity (Counts) [+ offset of {:0.3}]".format(float(offset)))
-            
+            # ax.margins(0.05)
             # Vertical Lines
             # ax0.axvline(1, lw=3)
             if self.lCut is not None:
@@ -631,7 +632,7 @@ class QRNProcessor(Processor):
             else:
                 folder_name = "analysis"
                 fstring = self.file_basename[:-5]
-                file_name_1 = 'keyframe_{}.png'.format(self.ii)
+                file_name_1 = 'keyframe_{:0>2}.png'.format(self.ii)
                 file_name_2 = 'zoom_{}.png'.format(fstring)
             
             save_path_1 = join(bs, folder_name, 'radial_hist_pre', file_name_1)
@@ -824,7 +825,7 @@ class QRNProcessor(Processor):
         self.init_smooth_curves()
         self.execute_monoFilter_TUNE()
         # self.curve_fit_smooth_curves_TUNE()
-        # self.endtable_the_smooth_curves()
+        self.endtable_the_smooth_curves()
     
     def split_into_three_regions(self):
         # Split the domain into three regions
@@ -902,22 +903,22 @@ class QRNProcessor(Processor):
     
     def endtable_the_smooth_curves(self, flatten_down_ind=None, flatten_up_ind=None):
         # Flatten out the low edge
-        flatten_inner_ind = flatten_down_ind or 200
-        self.smooth_absol_maximum[0:flatten_inner_ind] = self.tri_filtered_absol_maximum[flatten_inner_ind]
+        flatten_inner_ind = flatten_down_ind or int(self.r2n(0.3))
+        # self.smooth_absol_maximum[0:flatten_inner_ind] = self.tri_filtered_absol_maximum[flatten_inner_ind]
         self.smooth_outer_maximum[0:flatten_inner_ind] = self.tri_filtered_outer_maximum[flatten_inner_ind]
         self.smooth_inner_maximum[0:flatten_inner_ind] = self.tri_filtered_inner_maximum[flatten_inner_ind]
         self.smooth_inner_minimum[0:flatten_inner_ind] = self.tri_filtered_inner_minimum[flatten_inner_ind]
         self.smooth_outer_minimum[0:flatten_inner_ind] = self.tri_filtered_outer_minimum[flatten_inner_ind]
-        self.smooth_absol_minimum[0:flatten_inner_ind] = self.tii_filtered_absol_minimum[flatten_inner_ind]
+        # self.smooth_absol_minimum[0:flatten_inner_ind] = self.tii_filtered_absol_minimum[flatten_inner_ind]
         
         # Flatten out the high edge
         flatten_outer_ind = flatten_up_ind or int(self.r2n(1.7))
-        self.smooth_absol_maximum[flatten_outer_ind:] = self.tri_filtered_absol_maximum[flatten_outer_ind]
+        # self.smooth_absol_maximum[flatten_outer_ind:] = self.tri_filtered_absol_maximum[flatten_outer_ind]
         self.smooth_outer_maximum[flatten_outer_ind:] = self.tri_filtered_outer_maximum[flatten_outer_ind]
         self.smooth_inner_maximum[flatten_outer_ind:] = self.tri_filtered_inner_maximum[flatten_outer_ind]
         self.smooth_inner_minimum[flatten_outer_ind:] = self.tri_filtered_inner_minimum[flatten_outer_ind]
         self.smooth_outer_minimum[flatten_outer_ind:] = self.tri_filtered_outer_minimum[flatten_outer_ind]
-        self.smooth_absol_minimum[flatten_outer_ind:] = self.tii_filtered_absol_minimum[flatten_outer_ind]
+        # self.smooth_absol_minimum[flatten_outer_ind:] = self.tii_filtered_absol_minimum[flatten_outer_ind]
         
         self.flatten_up = self.n2r(flatten_outer_ind)
         self.flatten_down = self.n2r(flatten_inner_ind)
@@ -1085,7 +1086,7 @@ class QRNProcessor(Processor):
         
         self.show_norm = False
         
-        self.norm_curve_max_bottom_name = "norm_curve_inner_max"
+        self.norm_curve_max_bottom_name = "norm_curve_outer_max"
         self.norm_curve_min_bottom_name = "norm_curve_outer_min"
         self.norm_curve_max = getattr(self, self.norm_curve_max_bottom_name)
         self.norm_curve_min = getattr(self, self.norm_curve_min_bottom_name)
@@ -1096,13 +1097,13 @@ class QRNProcessor(Processor):
         # Select Top Norms
         self.norm_curve_max_top_name = "norm_curve_inner_max"
         self.norm_curve_min_top_name = "norm_curve_outer_min"
-        norm_curve_max_top = getattr(self, self.norm_curve_max_top_name)
-        norm_curve_min_top = getattr(self, self.norm_curve_min_top_name)
-        
+        # norm_curve_max_top = getattr(self, self.norm_curve_max_top_name)
+        # norm_curve_min_top = getattr(self, self.norm_curve_min_top_name)
+
         # Merge the two
         low = int(self.limb_radius_from_fit_shrunken)
-        self.norm_curve_max[low:] = norm_curve_max_top[low:]
-        self.norm_curve_min[low:] = norm_curve_min_top[low:]
+        # self.norm_curve_max[low:] = norm_curve_max_top[low:]
+        # self.norm_curve_min[low:] = norm_curve_min_top[low:]
     
     @staticmethod
     def norm_formula(image, the_min, the_max):
@@ -1142,13 +1143,17 @@ class QRNProcessor(Processor):
         """Deal with pixel outliers. Lots of adjustable parameters in here"""
         # self.touchup_TUNE(self.params.raw_image)
         # self.touchup_TUNE(self.params.modified_image, power=None)
-        im_orig = self.params.modified_image
+        im_orig = np.sqrt(self.params.modified_image)
+        # self.params.modified_image =
         im = im_orig + 0
-        # im[im_orig >= 1] = np.sqrt(im[im_orig >= 1])
+        # im[im_orig >= 1.0] = np.log10(im[im_orig >= 1.0])/2 + 1
+        im[im_orig >= 1.2] = 1.2 #np.power(im[im_orig >= 1.2], 1//5)
+        im[im_orig <= -0.1] = -0.1 #np.power(im[im_orig >= 1.2], 1/5)
+        # im = self.normalize(im, 95, 0.5)
+        
         # im *= 0.8
         
         self.params.modified_image = im
-        # self.params.modified_image = self.histNorm(self.params.modified_image)
         # self.truncate_extrema()
         
         # neg = self.modified_image<0
@@ -1215,7 +1220,7 @@ class QRNProcessor(Processor):
             warnings.filterwarnings('error')
             try:
                 # Standard Normalization Formula
-                self.params.modified_image = self.squashfunc(self.params.modified_image)
+                # self.params.modified_image = self.squashfunc(self.params.modified_image)+0
                 
                 self.params.modified_image = self.norm_formula(self.params.modified_image, self.norm_curve_min, self.norm_curve_max)
             except RuntimeWarning as e:
@@ -1371,6 +1376,8 @@ class QRNProcessor(Processor):
         # for line in self.peak_indList:
         #     ax0.axvline(self.n2r(line), c='gray', lw=1)
         
+        # ax0.set_ylim((0.98*np.min(self.outer_min), 1.02*np.max(self.outer_min)))
+        # ax0.set_ylim(())
         if self.flatten_up:
             ax0.axvline(self.flatten_up, ls=':', c='grey', label='Flattening')
             ax0.axvline(self.flatten_down, ls=':', c='grey')
@@ -1475,8 +1482,8 @@ class QRNProcessor(Processor):
         ########################
         ##  Plot 0: Absolute  ##
         ########################
-        self.plot_norm_curves(fig=fig, ax=ax0,
-                              save=False, do_scat=False, offset=0,
+        offset = self.plot_norm_curves(fig=fig, ax=ax0,
+                              save=False, do_scat=False,
                               do_squash=False)
         ax0.legend(loc='lower left')
         
@@ -1485,13 +1492,14 @@ class QRNProcessor(Processor):
         if self.lCut is not None:
             ax0.axvline(self.n2r(self.lCut), ls=":")
             ax0.axvline(self.n2r(self.hCut), ls=":")
+        ax1.axvline(1, c='grey')
         
         # Plot Scattered Points from the raw image_path in midnightblue
         
 
         orig_abs = self.params.raw_image.flatten()
-        r_array = self.n2r(self.rad_flat[::self.skip_points])
-        ax0.scatter(r_array, orig_abs[::self.skip_points],
+        r_array = self.n2r_fp(self.rad_flat[::self.skip_points])
+        ax0.scatter(r_array, orig_abs[::self.skip_points] + offset,
                     alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3)
         
         ########################
@@ -1521,43 +1529,50 @@ class QRNProcessor(Processor):
         ax1.axhline(0, c='k', ls=':', zorder=-1)
         
         ## Plot 0 Formatting
-        ax0.set_title("Various Norm Curves in Absolute Scale (Sqrt squashfunc)")
-        ax0.set_ylim([10 ** 0, 10 ** 3])
-        ax0.set_xlim((0, 1.85))
+        # ax0.set_title("Various Norm Curves in Absolute Scale (Sqrt squashfunc)")
+        # ax0.set_ylim([10 ** 0, 10 ** 3])
+        # ax0.set_xlim((0, 1.85))
         
         ax0.axvline(self.vig_radius_rr, ls=':', c='lightgrey')
-        ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-        ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.025, 0.2),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-        ax0.annotate("Top Curve R:\n{}".format(self.norm_curve_max_top_name), (0.65, 0.9),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-        ax0.annotate("Bot Curve R:\n{}".format(self.norm_curve_min_top_name), (0.65, 0.8),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        # ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.0125, 0.55),
+        #              xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        # ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.0125, 0.45),
+        #              xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        # ax0.annotate("Top Curve R:\n{}".format(self.norm_curve_max_top_name), (0.65, 0.9),
+        #              xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        # ax0.annotate("Bot Curve R:\n{}".format(self.norm_curve_min_top_name), (0.65, 0.8),
+        #              xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
         
         # ax0.legend()
         # import matplotlib as mpl
         
         ax0.set_yscale('symlog')
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
+        ax0.set_xlabel(None)
         
         ## Plot 1 Formatting
         ax1.set_xlabel(r"Distance from Center of Sun ($R_\odot$)")
         ax1.set_ylabel(r"Normalized Intensity")
         ax1.set_title("")
         ax1.set_yscale("symlog")
-        ax1.set_ylim((-0.5, 2))
-        ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
+        ax1.axvline(1)
+        
+        # ax1.yaxis.set_major_locator(AutoMajorLocator())
+        # ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
         
         import matplotlib as mpl
         ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x >= 1 else x))
-        fig.set_size_inches(11, 9)
+        ax1.set_yticks([0,1])
+        ax1.set_ylim((-0.25, 1.25))
+        
+        fig.set_size_inches(8, 11)
         #         fig.set_size_inches(7, 14)
         
         plt.tight_layout()
         # plt.show(block=True)
         # 1/0
         # return True
+        self.autoLabelPanels(np.asarray([ax0, ax1]), loc=(0.05, 0.95), color='k')
         self.force_save_radial_figures(save, fig, ax0, show)
         
         vprint("Success!")
@@ -1912,7 +1927,7 @@ class QRNSingleShotProcessor(QRNProcessor):
         self.go_ahead = True
         self.params.current_wave('rainbow')
         self.params.Force_init = True
-        self.can_use_keyframes = False
+        self.can_use_keyframes = True
         self.can_initialize = False
         self.frame_list = []
     
@@ -2961,9 +2976,11 @@ class QRNpreProcessor(QRNProcessor):
         self.params.speak_save = False
     
     def setup(self):
+        self.can_use_keyframes = True
         self.load()
         self.print_keyframes()
         self.skipped = 0
+        
     
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""

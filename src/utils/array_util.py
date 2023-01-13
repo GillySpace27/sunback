@@ -9,6 +9,7 @@ def reduce_array(frame, center, desired, func=np.nansum):
     # Reduce the size of the array
     resolution = frame.shape[0]
     center = center + 0
+    reduce_amount = 1
     if resolution > desired:
         reduce_amount = int(resolution / desired)
         frame = block_reduce(frame, reduce_amount, func=func)
@@ -40,9 +41,9 @@ def get_thumblinks(rtPath):
         name = filename
     
     elif not orig:
-        name = filename[-8:]
+        name = filename #[-8:]
     else:
-        name = filename.replace(rep, '_orig')
+        name = filename.replace(".png", '_orig.png')
         name = name[-13:]
     
     arcPath = "renders/archive/" + "{}_{}".format(int(time()), name)

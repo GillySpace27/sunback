@@ -20,7 +20,7 @@ class Putter(Processor):
         """ Make sure that the loop takes the right amount of time """
         delay = self.params.delay_seconds()
         try:
-            for ii in tqdm((range(int(delay))), desc="    {}, Waiting for {:0.0f} seconds".format(self.png_name, delay)):
+            for ii in tqdm((range(int(delay))), ncols=120, desc=" *   {}, Waiting for {:0.0f} seconds".format(self.png_name, delay)):
                 sleep(1)
         except KeyboardInterrupt:
             # print("\rSkipping!")

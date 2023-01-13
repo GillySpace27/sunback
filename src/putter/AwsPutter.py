@@ -17,7 +17,7 @@ txt_args = copy(S3_UPLOAD_ARGS)
 txt_args["ContentType"] = "text/plain"
 
 png_args = copy(S3_UPLOAD_ARGS)
-png_args["ContentType"] = "frame/png"
+png_args["ContentType"] = "image/png"
 
 s3 = boto3.resource('s3')
 # bucket = s3.Bucket('gillyspace27-test-billboard')
@@ -52,27 +52,30 @@ class AwsPutter(Putter):
     
     
     def empty_the_bucket(self):
-        print(" * Emptying Bucket")
+        print(" * Emptying Bucket...", end='')
         bucket.objects.all().delete()
-        
+        print("Done!")
     
     def get_file_list(self, force=False):
         # to_upload = self.params.local_imgs_paths()
         
         if self.to_upload is None or force:
             self.to_upload = [file for file in self.params.local_imgs_paths() if ("aH" not in file and "aL" not in file and "_orig" not in file)]
-            
+            # for file in self.to_upload:
+            #     file.replace("synoptic", "gilly")
+                
             if self.params.do_orig and False:
                 for file in os.listdir(self.params.orig_directory):
                     self.to_upload.append(os.path.join(self.params.orig_directory, file))
     
-            if self.params.do_compare:
+            if self.params.do_compare and False:
                 comp_dir = self.params.orig_directory.replace('orig', 'compare')
                 for file in os.listdir(comp_dir):
                     self.to_upload.append(os.path.join(comp_dir, file))
+                    
             # print(" V Uploading Files")
-            self.pbar = tqdm(self.to_upload, desc="\r *    Uploading Files")
-
+            self.pbar = tqdm(self.to_upload, desc="\r * Uploading Files", ncols=120)
+        # [print(x) for x in self.to_upload]
         return self.to_upload, self.pbar
     
     def __upload_files(self):
@@ -83,13 +86,15 @@ class AwsPutter(Putter):
             for res in results:
                 pbar.update()
         else:
-            self.upload_serial()
-
+            self.upload_serial(to_upload, pbar)
+        pbar.close()
     
-        print("\r ^ Success! Uploaded {} PNGs\n".format(len(self.params.local_imgs_paths())))
+        print(" ^ Success! Uploaded {} PNGs\n".format(len(self.params.local_imgs_paths())))
 
-    def upload_serial(self):
-        to_upload, pbar = self.get_file_list()
+    def upload_serial(self, to_upload=None, pbar=None):
+
+        if to_upload is None:
+            to_upload, pbar = self.get_file_list()
         
         for upload in to_upload:
             self.do_upload(upload)
@@ -111,7 +116,7 @@ class AwsPutter(Putter):
             
     def __save_times(self):
         """Saves the Time file to S3 so we know when images were taken"""
-        print(" * Uploading Time File",flush=True)
+        print(" * Uploading Time File...",end='', flush=True)
         path = self.params.time_path()
         path2 = path.replace(".txt", "_readable.txt")
         
@@ -152,7 +157,7 @@ class AwsPutter(Putter):
         bucket.upload_file(path, path,   ExtraArgs=txt_args)
         bucket.upload_file(path2, path2, ExtraArgs=txt_args)
 
-        # print("\r - > Done with Time! ")
+        print("Done! ", flush=True)
 
     # def put_ultimate(self):
     #     """uploads all imgs in in_array to the s3 bucket"""
