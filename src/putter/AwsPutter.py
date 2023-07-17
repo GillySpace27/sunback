@@ -129,11 +129,11 @@ class AwsPutter(Putter):
             fp.write(t_rec)
 
         tz_list = []
-        nzt = self.clean_time_string(t_rec, "NZ"    ).replace("NZDT, ", "NZDT,")
+        nzt = self.clean_time_string(t_rec, "NZ"    ).replace("NZDT, ", "NZDT,").replace("NZST, ", "NZST,")
         tz_list.append(nzt)
         tz_list.append(self.clean_time_string(t_rec, 'Japan'   ))
         # tz_list.append(self.clean_time_string(t_rec, "Iran"    ))
-        tz_list.append(self.clean_time_string(t_rec, "EET"    ))
+        tz_list.append(self.clean_time_string(t_rec, "EET"    ).replace("EEST, ", "EEST,"))
         tz_list.append("       ~*~")
         
         # tz_list.append(self.clean_time_string(t_rec, "Europe/Berlin"    ))
