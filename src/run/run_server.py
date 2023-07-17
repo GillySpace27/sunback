@@ -1,4 +1,7 @@
 """This is the script to run on a server somewhere to process the images"""
+from sys import path
+path.append(path[0] + "/..")  # Adds higher directory to python modules path.
+# a = [print(x) for x in path]
 
 from fetcher.WebFitsFetcher import WebFitsFetcher
 from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
@@ -11,7 +14,7 @@ from science.parameters import Parameters
 from run import Runner, SingleRunner
 
 
-def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
+def run_server(delay=60, debug=False, do_one='rainbow', stop=True):
     p = Parameters()
     p.is_debug(debug)
     p.delay_seconds(delay)
@@ -47,8 +50,7 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
         p.processors([RHEProcessor],            rp=True)  # Applies the Radial Filtering
         p.processors([RHEProcessor],            rp=True)  # Applies the Radial Filtering
         p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
-    
-    
+
     p.putters([AwsPutter])  # Uploads the PNGs to AWS
     p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
     

@@ -1,7 +1,7 @@
 import sys
 from os.path import abspath, split
 from platform import system
-
+import os
 from tqdm import tqdm
 
 from putter.Putter import Putter
@@ -11,6 +11,7 @@ from time import time, sleep
 last_time = time()
 start_time = last_time
 set_local_background = True
+test=False
 # from utils.file_util import load_imgs_paths
 
 class DesktopPutter(Putter):
@@ -21,7 +22,7 @@ class DesktopPutter(Putter):
         print("\r V Setting Desktop Background to...(ctrl-c to skip)", flush=True)
         self.super_flush()
 
-        to_display = [file for file in self.params.local_imgs_paths() if ("aH" not in file and "aL" not in file)]
+        to_display = sorted([file for file in self.params.local_imgs_paths() if ("aH" not in file and "aL" not in file)])
         
         for png_path in to_display:
             self.update_background(png_path)
@@ -58,18 +59,13 @@ class DesktopPutter(Putter):
                 # for ii in np.arange(100):
                 #     ctypes.windll.user32.SystemParametersInfoW(19, 0, 'Fit', SPIF_UPDATEINIFILE)
             elif this_system == "Darwin":
-                # from appscript import app, mactypes
-                # try:
-                #     app('Finder').desktop_picture.set(mactypes.File(local_path))
-                # except Exception as e:
-                #     if test:
-                #         pass
-                #     else:
-                #         raise e
-                print("Screw you, Macintosh, this don't work here")
-                pass
+                # print(image_path)
+                osascript_command = (
+                    f'tell application "System Events" to set picture of every desktop to "{local_path}"'
+                )
+                os.system(f"osascript -e '{osascript_command}'")
+
             elif this_system == "Linux":
-                import os
                 os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-options 'scaled'")
                 os.system("/usr/bin/gsettings set org.gnome.desktop.background primary-color 'black'")
                 os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-uri {}".format(local_path))

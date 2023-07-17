@@ -1,8 +1,7 @@
 from time import sleep
-
 from tqdm import tqdm
-
 from processor.Processor import Processor
+import os.path
 
 class Putter(Processor):
     """Saves some data"""
@@ -16,11 +15,11 @@ class Putter(Processor):
         self.put(params)
         self.toc()
         
-    def sleep_until_delay_elapsed(self):
+    def sleep_until_delay_elapsed(self, delay=None):
         """ Make sure that the loop takes the right amount of time """
-        delay = self.params.delay_seconds()
+        delay = delay or self.params.delay_seconds()
         try:
-            for ii in tqdm((range(int(delay))), ncols=120, desc=" *   {}, Waiting for {:0.0f} seconds".format(self.png_name, delay)):
+            for ii in tqdm((range(int(delay))), ncols=120, desc=" *   {}, Waiting for {:0.0f} seconds".format(os.path.basename(self.png_name), delay)):
                 sleep(1)
         except KeyboardInterrupt:
             # print("\rSkipping!")
