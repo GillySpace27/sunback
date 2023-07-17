@@ -126,3 +126,15 @@ ENV/
 /resources/jythonMusic/
 /src/run/dep/
 /src/utils/noise_gate/image-noise-gate/
+
+G:/sunback_images/background_server/rainbow/imgs/*
+src/run/G:/sunback_images/background_server/rainbow/imgs/*
+.DS_Store
+image_times*
+*params.txt
+*.xml
+*.iml
+*.idea
+settings.json
+*.idea/*
+
