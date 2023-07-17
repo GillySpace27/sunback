@@ -1841,14 +1841,11 @@ class Processor:
                 wave, t_rec, center, int_time, self.limb_radius_from_header = self.get_fits_info(hdul)
                 frame = None if self.in_name is None else frame
             return frame, wave, t_rec, center, int_time, self.in_name
+        except FileNotFoundError:
+            pass
         except (OSError, RuntimeError) as e:
             print('\n', e)
             print("Unable to load Frame!")
-            try:
-                pass
-                # self.delete_fits_and_png(fits_path, False   )
-            except FileNotFoundError:
-                pass
     
         return None, None, None, None, None, None
         

@@ -51,7 +51,8 @@ class ImageProcessor(Processor):
         self.figure_box = []
         self.skipped = 0
         self.frame = None
-        self.load_curves()
+        # self.load_curves()
+
         self.save_to_fits = True
         
         
