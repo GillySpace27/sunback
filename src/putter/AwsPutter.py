@@ -154,8 +154,10 @@ class AwsPutter(Putter):
                 fp.write(item)
                 fp.write("\n")
             
-        bucket.upload_file(path, path,   ExtraArgs=txt_args)
-        bucket.upload_file(path2, path2, ExtraArgs=txt_args)
+        up_path_1 = "sunback_images/{}".format(os.path.basename(path))
+        up_path_2 = "sunback_images/{}".format(os.path.basename(path2))
+        bucket.upload_file(path, up_path_1, ExtraArgs=txt_args)
+        bucket.upload_file(path2,up_path_2, ExtraArgs=txt_args)
 
         print("Done! ", flush=True)
 
