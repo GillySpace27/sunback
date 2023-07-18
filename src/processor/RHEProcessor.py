@@ -207,6 +207,8 @@ class RHEProcessor(Processor):
         if self.should_run():
             self.skipped -= 1
             self.skipped = max((self.skipped, 0))
+        super().cleanup()
+        
    
     def should_run(self):
         """Decide of the processor should run on this file"""

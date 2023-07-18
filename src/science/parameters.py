@@ -113,7 +113,7 @@ class Parameters:
         self._mode = 'all'
         self._do_mirror = False
         self.use_cdf = False
-        self.old_fetchers = []
+        self.processors_ran = []
         self.fits_path = None
         
         # Movie Defaults

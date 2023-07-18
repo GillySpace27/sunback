@@ -12,7 +12,7 @@ class Fetcher(Processor):
     def __init__(self, params=None, quick=False, rp=None):
         # Initialize class variables
         super().__init__(params, quick, rp)
-        self.duration = ''
+        # self.duration = ''
         self.frame_count = 0
         # self.load(params)
     
@@ -27,6 +27,8 @@ class Fetcher(Processor):
     def fetch(self, params=None):
         raise NotImplementedError()
     
+    def cleanup(self):
+        super().cleanup()
     # def process(self, params=None):
     #     self.fetch(params)
 

@@ -82,8 +82,10 @@ class Runner:
                 # print(" Redownload Mode: {}\n".format(self.params.download_files()))
                 for fet, rp in zip(self.params.fetchers(), self.params._fet_rp):
                     fet_instance = fet(params=self.params, rp=rp)
+                    fet_instance.tic()
                     fet_instance.fetch()
-                    self.params.old_fetchers.append(fet_instance)
+                    fet_instance.cleanup()
+                    # self.params.processors_ran.append(fet_instance)
             
             if len(self.params.processors()) > 0:
                 sys.stdout.flush()
@@ -94,7 +96,10 @@ class Runner:
                 # print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
                 sys.stdout.flush()
                 for proc, rp in zip(self.params.processors(), self.params._proc_rp):
-                    proc(params=self.params, rp=rp).process()
+                    proc_instance = proc(params=self.params, rp=rp)
+                    proc_instance.tic()
+                    proc_instance.process()
+                    proc_instance.cleanup()
     
             if len(self.params.putters()) > 0:
                 sys.stdout.flush()
@@ -105,7 +110,10 @@ class Runner:
                 # print(" Redo Imgs: {}".format(self.params.overwrite_pngs()))
                 # print(" Redo Videos: {}".format(self.params.write_video()))
                 for put, rp in zip(self.params.putters(), self.params._put_rp):
-                    put(params=self.params, rp=rp).put()
+                    put_instance = put(params=self.params, rp=rp)
+                    put_instance.tic()
+                    put_instance.put()
+                    put_instance.cleanup()
     
             self.print_end_banner()
     
@@ -117,34 +125,42 @@ class Runner:
         print("     Check out my website: http://gilly.space\n")
         self.start_timestamp = time()
         if self.params.is_debug(): print("                    DEBUG MODE\n")
-        self.print_plan(end=False)
+        self.print_plan_start()
         print("\n", self.wall_1, "\n\n")
     
-    def print_plan(self, end=False):
-
-        if end:
-            print("   Summery of Job:")
-        else:
-            print("   Here's the Plan:")
+    def print_plan_start(self):
+        end=False
+        print("   Here's the Plan:")
             
-        durList = self.params.durList
         if len(self.params.fetchers()) > 0:
             for fet in self.params.fetchers():
-                fet.plan(fet, durList=durList)
+                fet.plan(fet, end=end)
         
         if len(self.params.processors()) > 0:
             for proc in self.params.processors():
-                proc.plan(proc, durList=durList)
+                proc.plan(proc, end=end)
         
         if len(self.params.putters()) > 0:
             for put in self.params.putters():
-                put.plan(put, durList=durList)
+                put.plan(put, end=end)
+        
+        print("   And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
+        # print("\n")
+        print("\n Run Name: {}".format(self.params.batch_name()))
+        print(" Run Type: {}\n".format(self.params.run_type()))
+
+    def print_plan_end(self):
+        end=True
+        print("   Summery of Job:")
+
+        for the_proc in self.params.processors_ran:
+            the_proc.plan(the_proc, end=end)
         
         print("   And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
         # print("\n")
         print(" Run Name: {}".format(self.params.batch_name()))
         print(" Run Type: {}\n".format(self.params.run_type()))
-        
+
     def print_end_banner(self):
         mode_string = "" if self.params.stop_after_one() else ", Restarting Loop"
         print("\n" + self.wall_2)
@@ -155,7 +171,7 @@ class Runner:
         minutes = int(np.floor(self.elapsed / 60))
         seconds = round(self.elapsed - minutes * 60, 3)
         print("  Program Complete in {} minutes and {} seconds. {}".format(minutes, seconds, mode_string))
-        self.print_plan(end=True)
+        self.print_plan_end()
         print(self.wall_2 + "\n")
         delay = self.params.delay_seconds()
         # self.params.multi_pool.close()

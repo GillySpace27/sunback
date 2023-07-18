@@ -24,7 +24,7 @@ class WebFitsFetcher(Fetcher):
     # out_name = 'QRN'
     # name = filt_name = 'QRN Single Shot Processor'
     progress_verb = 'Downloading'
-    finished_verb = "Aquired"
+    finished_verb = "Acquired"
     
     # show_plots = True
     
@@ -45,7 +45,8 @@ class WebFitsFetcher(Fetcher):
             return jpaths
         else:
             print("Skipping download!")
-        self.toc()
+            ()
+        
         return self.params.local_fits_paths()
     
     def prep_for_jpeg_fetch(self):
@@ -80,6 +81,7 @@ class WebFitsFetcher(Fetcher):
                 results = [self.grab(path) for path in pbar_iter]
             paths = []
             for res in results:
+                self.ii += 1
                 paths.append(res)
                 self.rename_start_frames(res)
             

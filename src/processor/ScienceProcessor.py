@@ -86,6 +86,8 @@ class ScienceProcessor(Processor):
         axes.set_title(r"Height = {} $R_\odot$".format(self.rr))
         plt.show(block=True)
         a=1
+        super().cleanup()
+
         
     
     def do_work(self):

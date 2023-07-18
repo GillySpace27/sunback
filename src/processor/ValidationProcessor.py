@@ -53,9 +53,8 @@ class ValidationProcessor(Processor):
 #
     def fetch(self):
         """Do whatever you want to each image_path in the directory"""
-        # self.tic()
         print("Old validator tried to run --------------")
-        # self.toc()
+        
         pass
         # to_destroy = self.validate_fits()
         # self.destroy_files(to_destroy)

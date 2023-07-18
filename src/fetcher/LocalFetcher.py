@@ -48,7 +48,7 @@ class LocalFetcher(Fetcher):
             print("Fits: ", self.params.fits_directory())
             
             sys.exit(1)
-        self.toc()
+        
 
 class LocalSingleFetcher(Fetcher):
     description = "Load the image_path from Disk"
@@ -56,7 +56,7 @@ class LocalSingleFetcher(Fetcher):
     
     def fetch(self, params=None):
         print(" v Loading Local File...")
-        self.duration = ''
+        # self.duration = ''
         self.load(params)
         fits_path = self.determine_image_path()
         # if not fits_path:
@@ -92,7 +92,7 @@ class LocalSingleFetcher(Fetcher):
                     continue
                 print("LocalSingleFetcher")
                 raise e
-        self.toc()
+        
                 
                 # self.view_raw()
 

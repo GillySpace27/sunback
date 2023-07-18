@@ -48,7 +48,7 @@ class AwsPutter(Putter):
         self.empty_the_bucket()
         self.__save_times()
         self.__upload_files()
-        self.toc()
+        
     
     
     def empty_the_bucket(self):

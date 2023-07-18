@@ -117,7 +117,6 @@ class RHTProcessor(Processor):
             self.in_name = self.params.aftereffects_in_name.pop(0)
         
         print("Evaluating frame: {}".format(self.in_name))
-        # self.tic()
     
     def do_work(self):
         print("")

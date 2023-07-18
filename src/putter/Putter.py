@@ -6,14 +6,17 @@ import os.path
 class Putter(Processor):
     """Saves some data"""
     description = "Use an Unnamed Putter"
-    
+    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        super().__init__(params, quick, rp)
+
     def put(self, params=None):
         self.load(params)
         raise NotImplementedError()
     
     def process(self, params=None):
         self.put(params)
-        self.toc()
+        # super().cleanup
+        
         
     def sleep_until_delay_elapsed(self, delay=None):
         """ Make sure that the loop takes the right amount of time """

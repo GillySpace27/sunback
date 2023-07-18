@@ -76,6 +76,7 @@ class FidoFetcher(Fetcher):
         del self.fido_search_result
         del self.needed_files
         del self.results
+        super().cleanup()
         pass
     
     def enumerate(self):

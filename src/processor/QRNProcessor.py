@@ -2998,6 +2998,7 @@ class QRNpreProcessor(QRNProcessor):
             self.skipped -= 1
             self.make_and_save_smoothed_curves(banner=True)  # Build smooth curves based on the statistics
         self.render_pre_hist_video()
+        super().cleanup()
         # print("Curves Saved!")
     
     # def select_input_frame(self, in_name):
@@ -3095,6 +3096,7 @@ class QRNradialFiltProcessor(QRNProcessor):
         """Runs after all the images have been modified with do_work"""
         self.render_post_hist_video()
         print(" ^ Filter Applied Successfully", flush=True)
+        super().cleanup()
     
     # def select_input_frame(self, in_name):
     #     # self.in_name = in_name

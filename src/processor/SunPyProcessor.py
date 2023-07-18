@@ -314,3 +314,5 @@ class MSGNProcessor(SunPyProcessor):
     
     def cleanup(self):
         MSGNProcessor.first = False
+        super().cleanup()
+

@@ -107,6 +107,7 @@ class Processor:
     short_list = []
     out_dtype = np.float32
     frame_name = None
+    init_active = False
     
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         self.binInds_forpoints = None
@@ -140,7 +141,7 @@ class Processor:
         self.radius = None
         self.do_split = False
         self.loud_tic = False
-        self.duration = 0.0
+        self.duration = None
         self.tm = time.time()
         self.raw_map = None
         self.img_path = None
@@ -150,28 +151,37 @@ class Processor:
         self.reprocess_mode(rp)
         self.load(params, quick=quick)
         # self.print_once = True
-        self.tic()
+        # self.tic()
         if self.params:
             self.run_type_str = "\\item  {}".format(self.this_file_name, self.run_type)
             self.paper_out.append(self.run_type_str)
         else:
             raise ModuleNotFoundError
     
-    # def __del__(self):
-    #     self.toc()
-    
-    # @staticmethod
-    def plan(self, durList=None):
+
+    @staticmethod
+    def plan(self, durList=None, end=False):
         """Find the name of this processor and print"""
+        if end:
+            # print(self)
+            print('      {:15} : \t{:20} : \t{:15}'.format(self.filt_name, self.description, np.round(self.duration, 4)))   
+        elif self.filt_name is not None:
+            print('      {:15} : \t{:20}'.format(self.filt_name, self.description))
+
+    #  def plan(self, durList=None, end=False):
+    #     """Find the name of this processor and print"""
+    #     try:
+    #         if self.duration in [None, -1.0]:
+    #             if durList is not None and len(durList) > 0:
+    #                 pop = float(durList.pop(0))
+    #                 self.duration = str(round(pop, 4))
+    #             else:
+    #                 self.duration = -1.0
+    #     except AttributeError:
+    #         self.duration = -1.0
         
-        if durList is not None and len(durList) > 0:
-            self.duration = str(round(durList.pop(0), 4))
-        else:
-            self.duration = "0.0"
-        
-        if self.filt_name is not None:
-            print('      {:15} : \t{:20} : \t{:15}'.format(self.filt_name, self.description, self.duration))
-    
+    #     if self.filt_name is not None:
+    #         print('      {:15} : \t{:20} : \t{:15}'.format(self.filt_name, self.description, self.duration))   
     def put(self, params=None):
         self.process(params)
     
@@ -531,19 +541,27 @@ class Processor:
         return None
     
     def tic(self, loud=False):
-        # print("tic")
+        self.tic_active = True
+        self.duration = 0.0
         if self.loud_tic or loud:
             print("\n\n *    Running Filter on {}...".format(self.params.current_wave()), end='\n')
         self.tm = time.time()
+        # print(f"tic {self}, tick_active = {self.tic_active}")
     
     def toc(self, loud=False):
-        # print("toc")
-        dur = time.time() - self.tm
-        self.tm = time.time()
-        if self.loud_tic or loud:
-            print(" ^    Done! Took: {:0.2f} seconds, or {:0.2f} mins".format(dur, dur / 60))
-        self.params.durList.append(dur)
-        self.duration = dur
+        if self.tic_active:
+            dur = time.time() - self.tm
+            self.tm = time.time()
+            if self.loud_tic or loud:
+                print(" ^    Done! Took: {:0.2f} seconds, or {:0.2f} mins".format(dur, dur / 60))
+            self.duration = dur
+            self.params.durList.append(dur)
+        else:
+            pass
+            # self.duration = "-1"
+            # self.params.durList.append("-1")
+        # print(f"toc {self}, tick_active = {self.tic_active}, dur = {self.duration}\n\n\n")
+        self.tic_active = False
         
         # TODO make the duration list thing work, displaying the time it took to do each thing at the end.
     
@@ -558,6 +576,9 @@ class Processor:
     
     def cleanup(self):
         self.toc()
+        self.print_success()
+        self.params.processors_ran.append(self)
+
         pass
     
     def setup(self):
@@ -573,15 +594,14 @@ class Processor:
                 mod = self.modify_one_image()
                 if mod is None:
                     print(" ^     No Fits Frame Saved!  ------------------------------------------------  ^\n")
-                self.cleanup()
             elif self.do_png:
                 self.load(self.params, quietly=False)
                 self.process_img_series()
             else:
                 self.load(self.params, quietly=False)
                 self.process_fits_series()
-        self.toc()
-        self.print_success()
+        # self.cleanup()
+        
     
     ##  Run on Fits Files
     def process_fits_series(self):
@@ -596,7 +616,7 @@ class Processor:
                 self.parallel_fits_series()
             else:
                 self.serial_fits_series()
-            self.cleanup()
+        
     
     def print_success(self):
         try:
@@ -605,9 +625,10 @@ class Processor:
                 if n_success <= 0:
                     print("\r X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(self.skipped))
                 else:
-                    print("\r ^ ^ ^Successfully {} {} Files ({} skipped) in {:0.4} seconds\n".format(self.finished_verb, max(n_success, 0), self.skipped, self.duration),
+                    # print(self)
+                    print("\r ^ ^ ^Successfully {} {} Files ({} skipped) in {:0.4} seconds".format(self.finished_verb, max(n_success, 0), self.skipped, self.duration),
                           flush=True)
-                    print(" ^ ---------------------------------------------------------------  ^\n")
+                    print(" ^ ---------------------------------------------------------------  ^\n\n")
                 sleep(1)
             else:
                 print(" ^    No Files Found\n")

@@ -75,6 +75,8 @@ class FidoTimeIntProcessor(FidoFetcher):
             self.delete_temp()  # TEMPCHANGE
         
         self.params.do_temp = False
+        super().cleanup()
+
     
     def do_fits_function(self, fits_path=None, in_name=None, image=True):
         """This is the thing that will be executed on every file

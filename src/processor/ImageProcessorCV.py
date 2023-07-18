@@ -451,6 +451,7 @@ class ImageProcessorCV(ImageProcessor):
     
     def cleanup(self):
         # self.make_intermediate_videos()
+        super().cleanup()
         pass
     
     def make_intermediate_videos(self):
@@ -513,7 +514,6 @@ class MultiImageProcessorCv(ImageProcessorCV):
     
     def do_fits_function(self, fits_path, in_name=None, doBar=False):
         """ Main Call on the Fits Path """
-        # self.tic()
             
         self.init_frame_from_fits(fits_path)
         self.init_quad_figure()
@@ -524,7 +524,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.finalize_and_save_plots()
         self.reinit_constants()
         
-        self.toc()
+        
         # self.open_folder(self.main_save_path)
         return False
         
@@ -758,7 +758,6 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         
     def do_fits_function(self, fits_path, in_name=None, doBar=False):
         """ Main Call on the Fits Path """
-        # self.tic()
         
         self.init_frame_from_fits(fits_path)
         self.init_radius_array()
@@ -772,7 +771,7 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         # self.finalize_and_save_plots()
         # self.reinit_constants()
         
-        self.toc()
+        
         # self.open_folder(self.main_save_path)
         return None
 

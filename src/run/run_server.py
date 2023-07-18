@@ -14,7 +14,7 @@ from science.parameters import Parameters
 from run import Runner, SingleRunner
 
 
-def run_server(delay=60, debug=False, do_one='rainbow', stop=True):
+def run_server(delay=60, debug=True, do_one='rainbow', stop=True):
     p = Parameters()
     p.is_debug(debug)
     p.delay_seconds(delay)
