@@ -16,7 +16,7 @@ import time
 import cv2
 import numpy as np
 import sunpy
-import sunpy.map
+# import sunpy.map
 
 # from run import SingleRunner
 # from processor.QRNProcessor import QRNProcessor

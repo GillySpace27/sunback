@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 import astropy.units as u
 import sunpy.data.sample
-import sunpy.map
+# import sunpy.map
 
 import sunkit_image.radial as radial
 from astropy.io import fits
@@ -31,7 +31,7 @@ from tqdm import tqdm
 from science.color_tables import aia_color_table
 import astropy.units as u
 
-import sunpy.map
+# import sunpy.map
 
 import aiapy.data.sample as sample_data
 from aiapy.calibrate import normalize_exposure, register, update_pointing

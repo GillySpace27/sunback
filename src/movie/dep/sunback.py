@@ -15,7 +15,7 @@ from calendar import timegm
 
 
 from sunpy.net import Fido, attrs
-import sunpy.map
+# import sunpy.map
 from threading import Barrier
 
 from tqdm import tqdm

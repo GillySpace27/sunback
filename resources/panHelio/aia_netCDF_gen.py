@@ -4,7 +4,7 @@
 # In[1]:
 
 import sunpy
-import sunpy.map
+# import sunpy.map
 
 import numpy as np
 

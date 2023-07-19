@@ -16,7 +16,7 @@ import astropy.units as u
 
 start = time()
 from sunpy.net import Fido, attrs as a
-import sunpy.map
+# import sunpy.map
 from sunpy.io import read_file_header, write_file
 from moviepy.editor import AudioFileClip, VideoFileClip
 import cv2
