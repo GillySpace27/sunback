@@ -151,10 +151,11 @@ class Runner:
 
     def print_plan_end(self):
         end=True
-        print("   Summery of Job:")
+        print("   Summery of Previous Job:")
 
         for the_proc in self.params.processors_ran:
             the_proc.plan(the_proc, end=end)
+        self.params.processors_ran = []
         
         print("   And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
         # print("\n")
