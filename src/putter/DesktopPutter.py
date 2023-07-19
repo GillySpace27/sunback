@@ -16,6 +16,8 @@ test=False
 
 class DesktopPutter(Putter):
     description = "Use the local images to set the desktop background"
+    filt_name = "DesktopPutter"
+
     def put(self, params=None):
         self.load(params)
         sys.stdout.flush()
@@ -23,7 +25,9 @@ class DesktopPutter(Putter):
         self.super_flush()
 
         to_display = sorted([file for file in self.params.local_imgs_paths() if ("aH" not in file and "aL" not in file)])
-        
+        im_171 = [file for file in to_display if "171" in file][0]
+        to_display.append(im_171)
+
         for png_path in to_display:
             self.update_background(png_path)
             self.sleep_until_delay_elapsed()
@@ -63,6 +67,14 @@ class DesktopPutter(Putter):
                 osascript_command = (
                     f'tell application "System Events" to set picture of every desktop to "{local_path}"'
                 )
+
+                # osascript_command = (
+                #     f'tell application "System Events" to '
+                #     f'do shell script "sqlite3 ~/Library/Application\\\\ Support/Dock/desktoppicture.db '
+                #     f'\\\"UPDATE data SET value = \'{local_path}\'\\\"; killall Dock"'
+                #     f' with administrator privileges'
+                # )
+
                 os.system(f"osascript -e '{osascript_command}'")
 
             elif this_system == "Linux":
