@@ -30,7 +30,7 @@ class WebFitsFetcher(Fetcher):
     
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
-        self.destroy = False
+        self.destroy = True
     
     def fetch(self, params=None):
         """Gets the Fits Files from the Archive URL
@@ -167,6 +167,8 @@ class WebFitsFetcher(Fetcher):
             import certifi
             import ssl
             # contexter = ssl.create_default_context()
+            if os.path.exists(filename):
+                os.remove(filename)
             with open(filename, "wb") as fp:
                 resp = ureq.urlopen(link, cafile=certifi.where()) #context=contexter)
                 fp.write(resp.read())

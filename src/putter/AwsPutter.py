@@ -85,6 +85,7 @@ class AwsPutter(Putter):
             results = self.params.multi_pool.imap(self.do_upload, to_upload)
             for res in results:
                 pbar.update()
+                self.ii += 1
         else:
             self.upload_serial(to_upload, pbar)
         pbar.close()
@@ -99,6 +100,7 @@ class AwsPutter(Putter):
         for upload in to_upload:
             self.do_upload(upload)
             pbar.update()
+            self.ii += 1
 
     @staticmethod
     def do_upload(root_path):

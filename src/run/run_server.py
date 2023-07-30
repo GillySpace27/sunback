@@ -14,7 +14,7 @@ from science.parameters import Parameters
 from run import Runner, SingleRunner
 
 
-def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
+def run_server(delay=80, debug=True, do_one='rainbow', stop=False):
     p = Parameters()
     p.is_debug(debug)
     p.delay_seconds(delay)
@@ -39,10 +39,10 @@ def run_server(delay=60, debug=True, do_one='rainbow', stop=False):
     # # p.delete_old(True)
     
     # These settings might not look like they make sense but they make it work
-    p.png_frame_name = ['rhe(lev1p5)']
-    p.png_frame_name = ['rhe(msgn)']
+    # p.png_frame_name = ['rhe(lev1p5)']
     p.msgn_targets(['lev1p5']) #, 'rhe(lev1p5)'
     p.rhe_targets(["lev1p5", 'msgn(lev1p5)']) #"lev1p5",
+    p.png_frame_name = ['rhe(msgn)']
     
     # This is the right combination of processors for the server
     if True:

@@ -108,6 +108,7 @@ class Processor:
     out_dtype = np.float32
     frame_name = None
     init_active = False
+    do_print_success = True
     
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         self.binInds_forpoints = None
@@ -619,6 +620,8 @@ class Processor:
         
     
     def print_success(self):
+        if not self.do_print_success:
+            return
         try:
             n_success = self.ii + 1 - self.skipped
             if n_success + self.skipped >= 1:
