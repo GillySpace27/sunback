@@ -48,38 +48,38 @@ class AwsPutter(Putter):
         self.empty_the_bucket()
         self.__save_times()
         self.__upload_files()
-        
-    
-    
+
+
+
     def empty_the_bucket(self):
-        print(" * Emptying Bucket...", end='')
+        print("\t* Emptying Bucket...", end='')
         bucket.objects.all().delete()
         print("Done!")
-    
+
     def get_file_list(self, force=False):
         # to_upload = self.params.local_imgs_paths()
-        
+
         if self.to_upload is None or force:
             self.to_upload = [file for file in self.params.local_imgs_paths() if ("aH" not in file and "aL" not in file and "_orig" not in file)]
             # for file in self.to_upload:
             #     file.replace("synoptic", "gilly")
-                
+
             if self.params.do_orig and False:
                 for file in os.listdir(self.params.orig_directory):
                     self.to_upload.append(os.path.join(self.params.orig_directory, file))
-    
+
             if self.params.do_compare and False:
                 comp_dir = self.params.orig_directory.replace('orig', 'compare')
                 for file in os.listdir(comp_dir):
                     self.to_upload.append(os.path.join(comp_dir, file))
-                    
+
             # print(" V Uploading Files")
-            self.pbar = tqdm(self.to_upload, desc="\r * Uploading Files", ncols=120)
+            self.pbar = tqdm(self.to_upload, desc="\r\t* Uploading Files", ncols=120)
         # [print(x) for x in self.to_upload]
         return self.to_upload, self.pbar
-    
+
     def __upload_files(self):
-    
+
         to_upload, pbar = self.get_file_list()
         if self.params.multi_pool is not None:
             results = self.params.multi_pool.imap(self.do_upload, to_upload)
@@ -89,14 +89,14 @@ class AwsPutter(Putter):
         else:
             self.upload_serial(to_upload, pbar)
         pbar.close()
-    
+
         print(" ^ Success! Uploaded {} PNGs\n".format(len(self.params.local_imgs_paths())))
 
     def upload_serial(self, to_upload=None, pbar=None):
 
         if to_upload is None:
             to_upload, pbar = self.get_file_list()
-        
+
         for upload in to_upload:
             self.do_upload(upload)
             pbar.update()
@@ -104,27 +104,24 @@ class AwsPutter(Putter):
 
     @staticmethod
     def do_upload(root_path):
-            smallPath, bigPath, arcPath = make_thumbs(root_path)
-            
+            smallPath, rtPath, smallAWSpath, bigAWSpath = make_thumbs(root_path)
+
             # Upload large File
-            bucket.upload_file(root_path, bigPath, ExtraArgs=png_args)
-    
+            bucket.upload_file(root_path, bigAWSpath, ExtraArgs=png_args)
+
             # Upload Thumbnail
-            bucket.upload_file(smallPath, smallPath, ExtraArgs=png_args)
-    
-            # Upload Archive
-            # if "orig" not in root_path and False:
-            #     bucket.upload_file(root_path, arcPath, ExtraArgs=png_args)
-            
+            bucket.upload_file(smallPath, smallAWSpath, ExtraArgs=png_args)
+
+
     def __save_times(self):
         """Saves the Time file to S3 so we know when images were taken"""
-        print(" * Uploading Time File...",end='', flush=True)
+        print("\t* Uploading Time File...",end='', flush=True)
         path = self.params.time_path()
         path2 = path.replace(".txt", "_readable.txt")
-        
+
         # Read in the Input
         frame, wave, t_rec, center, int_time, nm = self.load_this_fits_frame(self.params.local_fits_paths()[0], self.params.master_frame_list_newest)
-        
+
         # Write the raw output
         # shortened = t_rec.split('.')[0]
         with open(path, "w") as fp:
@@ -137,27 +134,26 @@ class AwsPutter(Putter):
         # tz_list.append(self.clean_time_string(t_rec, "Iran"    ))
         tz_list.append(self.clean_time_string(t_rec, "EET"    ).replace("EEST, ", "EEST,"))
         tz_list.append("       ~*~")
-        
+
         # tz_list.append(self.clean_time_string(t_rec, "Europe/Berlin"    ))
         tz_list.append(self.clean_time_string(t_rec, None           ))
         tz_list.append("       ~*~")
 
         tz_list.append(self.clean_time_string(t_rec, "US/Eastern"   ))
+        tz_list.append(self.clean_time_string(t_rec, "US/Central"  ))
         tz_list.append(self.clean_time_string(t_rec, "US/Mountain"  ))
         tz_list.append(self.clean_time_string(t_rec, "US/Pacific"   ))
         tz_list.append(self.clean_time_string(t_rec, "US/Hawaii"    ))
 
-        # tz_list.append(self.clean_time_string(t_rec, "US/Hawaii"    ))
-        
-
-        
         with open(path2, "w") as fp:
             for item in tz_list:
                 fp.write(item)
                 fp.write("\n")
-            
-        up_path_1 = "sunback_images/{}".format(os.path.basename(path))
-        up_path_2 = "sunback_images/{}".format(os.path.basename(path2))
+
+        # up_path_1 = "sunback_images/{}".format(os.path.basename(path))
+        # up_path_2 = "sunback_images/{}".format(os.path.basename(path2))
+        up_path_1 = os.path.basename(path)
+        up_path_2 = os.path.basename(path2)
         bucket.upload_file(path, up_path_1, ExtraArgs=txt_args)
         bucket.upload_file(path2,up_path_2, ExtraArgs=txt_args)
 

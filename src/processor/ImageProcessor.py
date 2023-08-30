@@ -37,7 +37,7 @@ class ImageProcessor(Processor):
     # vmax_plot = 0.8
     # vmin_plot = 0.5
     dpi = None
-    
+
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
         self.save_to_fits = False
@@ -54,21 +54,21 @@ class ImageProcessor(Processor):
         # self.load_curves()
 
         self.save_to_fits = True
-        
-        
+
+
         try:
             pass
         except AttributeError as e:
             print(e)
             print("I failed in ImageProceesor 55")
-            
+
     def do_fits_function(self, fits_path, in_name=None):
         """This is the do_fits_function for this """
         self.init_frame(fits_path, -1)
         if self.render():
             self.export_files()
         return self
-    
+
     def init_frame(self, fits_path=None, in_name=None):
         """Load the fits file from disk and get a in_name or two"""
         # self.load_curves()
@@ -86,7 +86,7 @@ class ImageProcessor(Processor):
             self.mod_name = self.frame_name + ''
             self.params.raw_image, self.params.modified_image = frame0, frame1
             self.frame = np.zeros_like(self.params.raw_image)
-            
+
         # self.peek_frames()
         try:
             shp = frame1.shape
@@ -107,27 +107,27 @@ class ImageProcessor(Processor):
         # return True
         return self.doesnt_have_wrong_string(frame_name)
         return self.does_have_right_string(frame_name)
-        
-    
+
+
     def does_have_right_string(self, frame_name, right_string=None):
-        
+
         right_string = right_string or ["lev1p5(t_int)", "final(rhe)", "rht(lev1p5)", "rht(final)"]
-        
+
         for goods in right_string:
             if frame_name.casefold() == goods:
                 return True
         return False
-        
-        
+
+
     def doesnt_have_wrong_string(self, frame_name, wrong_string=None):
         bads = wrong_string or ["lev1p0", "t_int(lev1p0)", "t_int(primary)", "lev1p5(lev1p0)"]
         if True:
             bads.append("primary")
             bads.append("lev1p5")
-        
+
         if self.params.multiplot_all:
             bads = []
-            
+
         for nam in bads:
             # if nam in frame_name:
             if nam.casefold() == frame_name:
@@ -143,7 +143,7 @@ class ImageProcessor(Processor):
             shape = self.frame.shape
         except:
             shape = 4096
-            
+
         self.image_data = wave1, fits_path, t_rec1, shape = self.params.image_data
 
         self.name, self.wave = self.clean_name_string(self.image_data[0])
@@ -156,11 +156,11 @@ class ImageProcessor(Processor):
         ax3.imshow(np.abs(self.params.modified_image-self.params.raw_image))
         plt.tight_layout()
         plt.show(block=True)
-        
 
-        
 
-    
+
+
+
     def render(self):
         """Render the raw and changed plots"""
         # Which plots to make?
@@ -170,13 +170,13 @@ class ImageProcessor(Processor):
             trials = [False, True]
         else:
             trials = [True]
-        
+
         # Make them
         for processed in trials:
             self.render_one(processed)
-        
+
         return True
-    
+
     def skip(self):
         if self.params.overwrite_pngs() or self.reprocess_mode():
             # If you do want to overwrite
@@ -189,32 +189,32 @@ class ImageProcessor(Processor):
                 return True  # do skip
             else:
                 return False  # don't skip
-    
+
     def render_one(self, processed):
         raise NotImplementedError
-        
+
     def export_files(self):
         raise NotImplementedError
-    
+
     def save_concatinated(self, destroy=False):
         # print("Saving Concatinated!!")
         """Make the side by side concatinated images"""
         cat_command_stem = 'ffmpeg -i "{}" -i "{}" -y -filter_complex hstack "{}" -hide_banner -loglevel error'
         orig_path, mod_path, cat_path = self.check_concat_readiness()
-        
+
         if cat_path:
             cat_command = cat_command_stem.format(orig_path, mod_path, cat_path)
             os.system(cat_command)
             if destroy:
                 os.remove(orig_path)
                 os.remove(mod_path)
-                
+
     def check_concat_readiness(self):
         # Select Directories
         mod_dir = self.params.mods_directory()
         orig_dir = self.params.orig_directory
         cat_path = self.params.cat_path
-        
+
         # Select Paths
         orig_path = self.path_box[0] if self.path_box else self.get_orig_path()
         mod_path = self.path_box[1] if self.path_box else self.get_changed_path()
@@ -222,17 +222,17 @@ class ImageProcessor(Processor):
         # Confirm raw
         raw_paths  = [join(orig_dir, x) for x in listdir(orig_dir)]
         have_orig = orig_path in raw_paths
-        
+
         # Confirm Modified
         processed_paths = [join(mod_dir, x) for x in listdir(mod_dir)]
         have_mod = mod_path in processed_paths
-        
+
         do_cat = self.params.do_cat
         if do_cat and have_mod and have_orig:
             return orig_path, mod_path, cat_path
         else:
             return None, None, None
-                
+
     def get_orig_path(self, mod=False):
         if self.params.do_single:
             return self.params.orig_path.replace("orig\\","").replace("image_lev1p0", mod if mod else "raw")
@@ -241,14 +241,14 @@ class ImageProcessor(Processor):
                 return self.params.orig_path
             else:
                 return self.params.orig_path.replace(".png", "_{}.png".format(mod))
-            
+
     def get_changed_path(self):
         if self.params.do_single:
             return self.params.mod_path.replace("mod\\","").replace("image_lev1p0", "mod")
         else:
             return self.params.mod_path + ''
 
-        
+
     @staticmethod
     def blankAxis(ax):
         ax.patch.set_alpha(0)
@@ -262,11 +262,11 @@ class ImageProcessor(Processor):
         ax.set_yticklabels([])
         ax.set_xticks([])
         ax.set_yticks([])
-        
+
         ax.set_title('')
         ax.set_xlabel('')
         ax.set_ylabel('')
-    
+
     @staticmethod
     def clean_name_string(full_name):
         digits = ''.join(i for i in full_name if i.isdigit())
@@ -279,9 +279,9 @@ class ImageProcessor(Processor):
         # while name[0] == '0':
         #     name = name[1:]
         return digits, name
-    
 
-        
+
+
         # tz = timezone(timedelta(range_hours=-1))
         # import pdb; pdb.set_trace()
         # cleaned = time_string.replace(tzinfo=timezone.utc).astimezone(tz=None)
@@ -295,12 +295,12 @@ class ImageProcessor(Processor):
         # while name[0] == '0':
         #     name = name[1:]
         # return name
-    
+
     @staticmethod
     def absqrt(image, **kwargs):
         return np.sqrt(np.abs(image, **kwargs))
-    
-    def frame_touchup(self, frame_name, frame):
+
+    def frame_touchup(self, frame_name, frame, do_upsilon=True):
         # print("Touchup on {}".format(frame_name))
         # print("I RAN on {}, {}".format(frame_name, self.params.current_wave()))
         # maxmax = np.nanpercentile(frame, 99)
@@ -316,26 +316,26 @@ class ImageProcessor(Processor):
         # Frame Cleanup
         frame = frame.astype(np.float32)
         frame[~np.isfinite(frame)] = np.nan
-        
+
         if '(' in frame_name:
             frame_name2 = frame_name.split('(')[0]
         else:
             frame_name2 = frame_name
-            
+
         if "primary" in frame_name2:
             frame = np.sqrt(frame)
-    
+
         basic_scrunch = True
         if basic_scrunch:
             frame = self.scrunch(frame)
-    
+
         ## Perform Nonlinear Transforms
         # Power
         for name in ["lev1p5", "_mod", "nrgf", "primary"]:  # , "int_enhance"]:
             if name in frame_name2:
                 frame = self.power_mod(frame)
 
-        
+
         # Maxima Stretching
         do_maxima_scrunch = True
         if do_maxima_scrunch:
@@ -348,23 +348,23 @@ class ImageProcessor(Processor):
                 if self.params.current_wave() in ['94', '0094', '0131', '131']:
                     frame = np.sqrt(np.abs(frame))
                     frame = self.maxima_scrunch(frame, num=np.nanmin(frame.flatten()), num2=np.nanmax(frame.flatten()))
-                    
+
                     pass
                 else:
                     num = 0.88
                     num2 = 0.075
                     frame = self.maxima_scrunch(frame, num=num, num2=num2)
                     # frame *= 1.05
-            
+
             # else:
             #     pass
             #     frame = self.maxima_scrunch(frame)
- 
-        # Norm Stretching (only runs on rhe)
-        frame, self.frame_name = self.do_norm_stretch(frame, frame_name)
-        
 
-        
+        # Norm Stretching (only runs on rhe)
+        frame, self.frame_name = self.do_norm_stretch(frame, frame_name, do=do_upsilon)
+
+
+
         dont_vminmax = False
         for name in ["RHT", 'legacy']:
             if name in frame_name:
@@ -373,23 +373,23 @@ class ImageProcessor(Processor):
         if not dont_vminmax:
             frame[frame>1.0] = 1.0
             frame[frame<0.0] = 0.0
-            
+
         self.dont_vminmax = dont_vminmax
         return frame
-    
-    
+
+
     def do_norm_stretch(self, frame, frame_name, do=True):
         if do and "rhe" in frame_name:
             aL, aH = self.get_alphas()
             frame = norm_stretch(frame, alpha=aL, alpha_high=aH)
             frame_name = 'UP_' + frame_name
         return frame, frame_name
-        
-        
+
+
     def get_alphas(self):
         wave = self.params.current_wave(self.image_data[0])
         wave = "{:04}".format(int(wave))
-        
+
         wave_list = [{"wave": "0094", "aL": 0.50, "aH": 0.35},
                      {"wave": "0131", "aL": 0.50, "aH": 0.30},
                      {"wave": "0171", "aL": 0.50, "aH": 0.50},
@@ -403,18 +403,18 @@ class ImageProcessor(Processor):
         dictdict = {}
         for wv in wave_list:
             dictdict[wv["wave"]] = wv
-            
+
         self.params.alpha_low  = dictdict[wave]['aL']
         self.params.alpha_high = dictdict[wave]['aH']
         return self.params.alpha_low, self.params.alpha_high
-        
+
                         # frame = 0.95 * frame
     # if frame_name == "nrgf":
     #     # Replace the Disk
     #     self.init_radius_array()
     #     mask = self.radius < self.limb_radius_from_header*0.5
     #     frame[mask] = 0.5 #self.base_image[mask]
-    
+
     # darken_rfilt = 1.2
     # darken_quant = 1.1
     #
@@ -429,36 +429,36 @@ class ImageProcessor(Processor):
     #
     # if frame_name == "rhe":
     #     frame /= darken_quant
-    
+
     # self.vignette_mask = np.asarray(self.radius > self.vig_radius_pix, dtype=bool)
     # frame[self.vignette_mask] = np.nan
-    
+
     def power_mod(self, frame):
         frame *= 10.
         pow = 1/2.5
         np.power(frame, pow, out=frame)
         frame *= pow
-        
+
         # frame = np.log10(frame)
         # frame = frame / np.nanpercentile(frame, 50) / 2
-        
+
         return frame
-    
+
     def scrunch(self, frame, n_exclude=50, perc_exclude=0.01):
         # lowlow = np.nanmin(frame)
         # highigh = np.nanmax(frame)
-        
+
         # total = self.params.rez ** 2
         # perc_exclude = n_exclude / total
-        
-    
-    
+
+
+
         low = np.nanpercentile(frame, perc_exclude)
         high = np.nanpercentile(frame, 100-perc_exclude)
-    
+
         frame = self.norm_formula(frame, low, high)
         return frame
-    
+
     def maxima_scrunch(self, frame, num=1.0, num2=0.06):
         mask1 = (frame > num)
         mask2 = (frame < num2)

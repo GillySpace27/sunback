@@ -37,13 +37,13 @@ def run_server(delay=80, debug=True, do_one='rainbow', stop=False):
     # p.write_video(False)
     # p.set_current_wave('rainbow')
     # # p.delete_old(True)
-    
+
     # These settings might not look like they make sense but they make it work
     # p.png_frame_name = ['rhe(lev1p5)']
     p.msgn_targets(['lev1p5']) #, 'rhe(lev1p5)'
     p.rhe_targets(["lev1p5", 'msgn(lev1p5)']) #"lev1p5",
     p.png_frame_name = ['rhe(msgn)']
-    
+
     # This is the right combination of processors for the server
     if True:
         p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
@@ -54,37 +54,37 @@ def run_server(delay=80, debug=True, do_one='rainbow', stop=False):
 
     p.putters([AwsPutter])  # Uploads the PNGs to AWS
     p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
-    
-    
-    
+
+
+
     # p.putters([MultiImageProcessorCv],      rp=True)  # Makes the PNGs from Fits
     # p.processors([AIA_PREP_Processor],      rp=True   )  # Do Sunpy Things
     # p.processors([QRNSingleShotProcessor_Legacy],            rp=True)  # Applies the Radial Filtering
-    
-    
+
+
     # p.processors([QRNSingleShotProcessor_Legacy])
     # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
     # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
     # p.processors([QRNSingleShotProcessor], rp=True)  # Applies the Radial Filtering
     # p.processors([RHTProcessor],            rp=True)  # Applies the Rolling Hough Transform
     #
-    
-    
+
+
     #
     # p.processors(QRNpreProcessor, rp=True)  # Applies the Radial Filtering
     # p.processors(QRNradialFiltProcessor, rp=True)  # Applies the Radial Filtering
     # if p.is_debug():
     # else:
-    
+
     # Runner(p).pointing_start()
-    
-    
+
+
     # Set the Parameters
     # p = default_run_single_params(batch_name, wave, config)
-    
+
     # Set the Processes
     # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N
-    
+
     # p.processors([QRNpreProcessor],     rp=True)  # Learns the bounds of the dataset for QRN
     # p.processors([QRNradialFiltProcessor], rp=True)  # Applies the QRN Filter
     # #

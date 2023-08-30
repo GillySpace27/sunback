@@ -20,34 +20,33 @@ def reduce_array(frame, center, desired, func=np.nansum):
 
 ##  THUMBNAILS
 def make_thumbs(rtPath):
-    smallPath, bigPath, arcPath = get_thumblinks(rtPath)
+    smallPath, rtPath, smallAWSpath, bigAWSpath = get_thumblinks(rtPath)
     imgDat = Image.open(rtPath)
     imgDat.thumbnail((512, 512))
     imgDat.save(smallPath)
-    return smallPath, bigPath, arcPath
+    return smallPath, rtPath, smallAWSpath, bigAWSpath
 
 
 def get_thumblinks(rtPath):
-    import os
-    rep = '_mod'
-    if rep in rtPath:
-        orig = True
-    else:
-        orig = False
-    
-    filename = os.path.basename(rtPath)
-    
-    if "compare" in filename:
-        name = filename
-    
-    elif not orig:
-        name = filename #[-8:]
-    else:
-        name = filename.replace(".png", '_orig.png')
-        name = name[-13:]
-    
-    arcPath = "renders/archive/" + "{}_{}".format(int(time()), name)
-    smallPath = "renders/thumbs/" + name
-    bigPath = 'renders/' + name
-    makedirs("renders/thumbs/", exist_ok=True)
-    return smallPath, bigPath, arcPath
+    """_summary_
+
+    Parameters
+    ----------
+    rtPath : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    import os.path
+    smallPath = rtPath.replace("/mod/", "/thmb/")
+    bigAWSpath = os.path.join("renders", os.path.basename(rtPath))
+    smallAWSpath = os.path.join("renders", "thumbs", os.path.basename(rtPath))
+
+    for pth in [smallPath, rtPath]:
+        the_dir = os.path.dirname(pth)
+        makedirs(the_dir, exist_ok=True)
+
+    return smallPath, rtPath, smallAWSpath, bigAWSpath

@@ -18,7 +18,6 @@ from science.color_tables import aia_color_table
 # import numpy as np
 # import requests
 # from bs4 import BeautifulSoup
-# from utils.file_util import find_root_directory
 # from tqdm import tqdm
 # from os import listdir
 # from time import sleep

@@ -16,11 +16,7 @@ import time
 import cv2
 import numpy as np
 import sunpy
-# import sunpy.map
 
-# from run import SingleRunner
-# from processor.QRNProcessor import QRNProcessor
-# from processor.QRNProcessor import QRNProcessor
 from science.color_tables import aia_color_table
 
 # import cv2
@@ -30,11 +26,6 @@ from tqdm import tqdm
 import matplotlib
 # matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
-
-# %matplotlib notebook
-# from utils.file_util import save_frame_to_fits_file
-# from fetcher.FidoFetcher import vprint
-# from utils.file_util import find_root_directory
 
 verb = True
 
@@ -72,7 +63,7 @@ class Processor:
     n_imgs = None
     ii = 0
     # all_wavelengths = ['0211', '0304', '0131', '0335']
-    
+
     # waves_to_do = all_wavelengths
     dont_ignore = False
     keyframes = []
@@ -84,7 +75,7 @@ class Processor:
     can_use_keyframes = False
     this_file_name = os.path.basename(__file__)
     paper_out = []
-    
+
     curves_have_been_loaded = False
     limb_radius_from_header = None
     fits_folder = None
@@ -109,7 +100,7 @@ class Processor:
     frame_name = None
     init_active = False
     do_print_success = True
-    
+
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         self.binInds_forpoints = None
         self.ratio_factor_for_radius = None
@@ -137,7 +128,7 @@ class Processor:
         self.binAbsMin = None
         self.binAbsMin = None
         self.binBox = []
-        
+
         self.limb_radius_from_fit_shrunken = None
         self.radius = None
         self.do_split = False
@@ -158,14 +149,14 @@ class Processor:
             self.paper_out.append(self.run_type_str)
         else:
             raise ModuleNotFoundError
-    
+
 
     @staticmethod
     def plan(self, durList=None, end=False):
         """Find the name of this processor and print"""
         if end:
             # print(self)
-            print('      {:15} : \t{:20} : \t{:15}'.format(self.filt_name, self.description, np.round(self.duration, 4)))   
+            print('      {:15} : \t{:20} : \t{:15}'.format(self.filt_name, self.description, np.round(self.duration, 4)))
         elif self.filt_name is not None:
             print('      {:15} : \t{:20}'.format(self.filt_name, self.description))
 
@@ -180,15 +171,15 @@ class Processor:
     #                 self.duration = -1.0
     #     except AttributeError:
     #         self.duration = -1.0
-        
+
     #     if self.filt_name is not None:
-    #         print('      {:15} : \t{:20} : \t{:15}'.format(self.filt_name, self.description, self.duration))   
+    #         print('      {:15} : \t{:20} : \t{:15}'.format(self.filt_name, self.description, self.duration))
     def put(self, params=None):
         self.process(params)
-    
+
     def fetch(self, params=None):
         self.process(params)
-    
+
     def reprocess_mode(self, flag=None):
         if flag is not None:
             if type(flag) is not bool:
@@ -197,9 +188,9 @@ class Processor:
                 if "redo" == flag:
                     flag = True
             self._reprocess_mode = flag
-        
+
         return self._reprocess_mode
-    
+
     # def __getstate__(self):
     #     self_dict = self.__dict__.copy()
     #     try:
@@ -216,7 +207,7 @@ class Processor:
             self.hdu_name_list = self.list_hdus(hdul)
         self.good_frames = [x for x in self.hdu_name_list if self.image_is_plottable(x)]
         return self.good_frames
-    
+
     def load(self, params=None, fits_directory=None, imgs_directory=None,
              absolute=True, in_name=None, out_name=None, batch_name=None,
              quietly=True, wave=None, quick=False):
@@ -227,7 +218,7 @@ class Processor:
         """
         verb = not quietly
         self.params = params or self.params
-        
+
         self.set_names(in_name, out_name, batch_name, quietly)
         self.progress_string = self.progress_stem.format(self.progress_verb, self.progress_unit)
         fits_paths, imgs_paths = None, None
@@ -241,18 +232,18 @@ class Processor:
             self.select_keyframe_subset()
             # self.params.create_subdirectories()  #Gender
             fits_paths, imgs_paths = self.load_paths(verb)
-        
+
         self.set_base_directories(fits_directory, imgs_directory, absolute)
         self.super_flush()
         return fits_paths, imgs_paths
-    
+
     # def clean_directory(self):
     #     to_rep = "D:/"
     #     if not self.params.base_directory()[0] == to_rep[0]:
     #         self.params.base_directory(self.params.base_directory().replace(to_rep,""))
     #         if self.out_path:
     #             self.out_path = self.out_path.replace(to_rep,"")
-    
+
     # Define Targets
     def set_names(self, in_name=None, out_name=None, name=None, quietly=None):
         """Store the batch names into self"""
@@ -264,22 +255,22 @@ class Processor:
             self.name = name
         if quietly:
             self.quietly = quietly
-    
+
     def set_base_directories(self, fits_directory=None, imgs_directory=None, absolute=None):
         """Store the directories into self"""
         if fits_directory:
             self.base_fits_dir = fits_directory
         elif self.base_fits_dir is None:
             self.base_fits_dir = self.params.fits_directory()
-        
+
         if imgs_directory:
             self.base_imgs_dir = imgs_directory
         elif self.base_imgs_dir is None:
             self.base_imgs_dir = self.params.mods_directory()
-        
+
         if absolute is not None:
             self.base_absolute = absolute
-    
+
     def make_temp_dir(self, img_path):
         if self.params.do_single and img_path:
             temp_top_dir = os.path.dirname(self.params.temp_directory())
@@ -288,13 +279,13 @@ class Processor:
         os.makedirs(self.params.temp_directory(), exist_ok=True)
         self.params.do_temp = True
         return self.params.temp_directory()
-    
+
     def load_paths(self, verb=False):
         """ Determines and lists the files that exist in the given directories"""
         fits_paths, imgs_paths = self.load_fits_paths(), self.load_imgs_paths()
         self.print_load_banner(verb)
         return fits_paths, imgs_paths
-    
+
     def print_load_banner(self, verb=False):
         if self.n_fits + self.n_imgs > 0 and verb:
             print('\r v {}...  ------------------------------------------------  v'.format(self.filt_name), flush=True)
@@ -304,7 +295,7 @@ class Processor:
                 print(" *    Exposure Time is {} seconds, which is {:0.2f} frames".format(exp, exp / 12))
             print("\r +    {}: {}, Redo = {}".format(self.progress_verb, self.params.current_wave(), self.reprocess_mode()))
             # vprint("\r +    Using {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()))
-    
+
     def load_fits_paths(self, absolute=True, ext=".fits"):
         """ Creates a List of the existant fits files in the fits_directory"""
         self.fits_folder = self.params.temp_directory() if self.params.do_temp \
@@ -314,7 +305,7 @@ class Processor:
         self.n_fits = self.params.n_fits = len(self.params.local_fits_paths())
         if not self.quietly: ("   Found {} {} Files in {}".format(self.params.n_fits, ext, self.params.fits_directory()))
         return out_paths
-    
+
     def load_imgs_paths(self, absolute=True, ext=".png"):
         """ Creates a List of the existant img files in the imgs_top_directory"""
         paths, abs_paths = self.__find_ext_files_in_directory(self.params.mods_directory(), ext)
@@ -322,7 +313,7 @@ class Processor:
         self.n_imgs = self.params.n_imgs = len(self.params.local_imgs_paths())
         if not self.quietly: print("   Found {} {} Files in {}".format(self.params.n_imgs, ext, self.params.imgs_top_directory()))
         return out_paths
-    
+
     @staticmethod
     def __find_ext_files_in_directory(directory, ext='.fits'):
         """Returns the paths to matching ext files in given directory"""
@@ -332,18 +323,18 @@ class Processor:
         ext_paths = [path for path in listdir(directory) if ext in path]
         abs_ext_paths = [join(directory, path) for path in ext_paths]
         return ext_paths, abs_ext_paths
-    
+
     def load_fits_image(self, fits_path=None, in_name=None):
         """open the fits file and grab_obj the necessary data"""
-        
+
         if fits_path is not None:
             self.fits_path = os.path.normpath(fits_path)
         if self.fits_path is None:
             self.fits_path = self.params.local_fits_paths()[0]
-        
+
         if self.params.fits_path is None:
             self.params.fits_path = self.fits_path
-        
+
         if type(in_name) in [str]:
             in_name = in_name.casefold()
         frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, in_name)
@@ -351,10 +342,10 @@ class Processor:
             self.params.raw_name = self.frame_name
             self.params.raw_image = np.asarray(frame, dtype=np.float32) + 0.0
             self.params.raw_image2 = np.asarray(frame, dtype=np.float32) + 0.0
-            
+
             if self.params.modified_image is None or self.params.modified_image.size==1 or self.params.do_single==False:
                 self.params.modified_image = copy(self.params.raw_image) + 0
-            
+
             self.params.current_wave(wave)
             self.params.cmap = aia_color_table(int(wave) * u.angstrom)
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
@@ -368,7 +359,7 @@ class Processor:
             # if img_type.casefold() == 'dark':
             #     self.delete_fits_and_png(fits_path)
             return False
-    
+
     def delete_fits_and_png(self, fits_path, dopng=True):
         # fitsPath = join(self.fits_folder, filename[:-5] + '.fits')
         pngPath = fits_path.replace("fits", "png")
@@ -382,51 +373,51 @@ class Processor:
             except FileNotFoundError as e:
                 print(e)
                 pass
-    
+
     def plot_two(self, name="Algorithm Result", bounds=None):
         fig, (ax0, ax1) = plt.subplots(1, 2, sharex=True, sharey=True, num=name)
-        
+
         org = self.params.raw_image
         mod = self.params.modified_image
-        
+
         # self.view_raw(fig, ax0)
         ax0.imshow(org, cmap=self.params.cmap)
         ax1.imshow(mod, cmap=self.params.cmap)
-        
+
         if bounds is None:
             ax1.set_xlim((0, 1500))
             ax1.set_ylim((600, 2000))
-        
+
         # else:
         #     ax1.set_xlim((3400,4000))
         #     ax1.set_ylim((2300,3200))
-        
+
         ax0.set_title("lev1p0")
         ax1.set_title("Changed")
-        
+
         plt.tight_layout()
-        
+
         plt.show()
-    
+
     def peek(self, img):
-        
+
         fig, ax = plt.subplots()
         ax.set_title("Peek Frame")
         print("\rThe total summed value of the array is {}".format(np.nansum(img)))
         print("{} percent of the entries are finite".format(np.nansum(np.isfinite(img)) / (self.params.rez ** 2)))
         ax.imshow(img, interpolation=None, origin="lower", cmap=self.params.cmap)
         plt.show(block=True)
-    
+
     def prep_one(self, img):
         minmin = np.nanmin(img)
         return img - minmin
-    
+
     def set_centerpoint(self, center):
         """Parse the centerpoint and ensure correct scaling"""
         self.params.center = center
         image_edge = self.params.raw_image.shape
         center_given = np.abs(self.params.center)
-        
+
         Top_Tolerance = 0.65
         Bottom_Tolerance = 0.35
         count = 0
@@ -439,7 +430,7 @@ class Processor:
             else:
                 break
         self.params.center = center_given
-    
+
     def select_keyframe_subset(self):
         """Sets the list of which frames get used as keyframes
         This function only runs once, sort of an __init__
@@ -452,7 +443,7 @@ class Processor:
             self.keyframes = self.pick_keyframes(use_all=True)
         pass
         # self.dont_ignore = False
-    
+
     def pick_keyframes(self, use_all=False):
         """Decide which frames to use in the analysis"""
         # self.load(self.params, wave=self.params.current_wave)
@@ -464,20 +455,20 @@ class Processor:
         n_paths = len(self.long_list)
         if self.n_all_frames < 100:
             use_all = True
-        
+
         if use_all:
             self.short_list = self.long_list
-        
+
         elif self.params.fixed_cadence_keyframes():
             # Fixed Cadence of one out of every {} frames
             self.short_list = self.long_list[::self.params.fixed_cadence_keyframes()]
-        
+
         elif self.params.fixed_number_keyframes():
             #  Fixed Number of Keyframes
             skip = max(n_paths // self.params.fixed_number_keyframes(), 1)
             self.short_list = self.long_list[::skip]
         self.n_do_frames = len(self.short_list)
-        
+
         # percent_too_low = self.n_do_frames / self.n_all_frames < 0.25
         # number_of_frames_too_low = self.n_do_frames < 5
         # if number_of_frames_too_low:
@@ -486,30 +477,30 @@ class Processor:
         #     else:
         #         pass
         #
-        
+
         return self.short_list
-    
+
     def init_statistics(self):
         """Initialize the statistical arrays"""
         # dprint("init_statistics")
-        
+
         self.bin_rez = np.max(self.binInds) + 10
         self.radBins = [[] for x in np.arange(self.bin_rez)]
         self.radBins_xy = [[] for x in np.arange(self.bin_rez)]
         self.radBins_ind = [[] for x in np.arange(self.bin_rez)]
-        
+
         self.binMax = np.empty(self.bin_rez)
         self.binMin = np.empty(self.bin_rez)
         self.binAbsMax = np.empty(self.bin_rez)
         self.binAbsMin = np.empty(self.bin_rez)
         self.binAbss = np.arange(self.bin_rez)
-        
+
         self.binMax.fill(np.nan)
         self.binMin.fill(np.nan)
         self.binAbsMax.fill(np.nan)
         self.binAbsMin.fill(np.nan)
-    
-    
+
+
     def print_keyframes(self):
         if self.can_use_keyframes:
             if self.params.fixed_cadence_keyframes():
@@ -521,17 +512,17 @@ class Processor:
             print(" *    >> Selected {} keyframes out of {} total frames".format(self.n_do_frames, self.n_all_frames))
         # else:
         #     print("\r *    >> KeyFrames: Using Every Image ")
-        
+
         self.super_flush(many=10)
-    
+
     # print(" *    >>Selected {} keyframes out of {} total frames".format(len(self.short_list), len(self.long_list)))
-    
+
     ########################################
     ## M2: For Every File in Path, do Func##
     ########################################
     def do_fits_function(self, fits_path=None, in_name=None, image=True):
         """Calls the do_work function on a single fits path if indicated"""
-        
+
         if self.load_fits_image(fits_path, in_name=in_name):
             # print(self.fits_path)
             if (not self.use_keyframes) or (self.fits_path in self.keyframes):
@@ -540,7 +531,7 @@ class Processor:
                     out = self.do_work()
                     return out
         return None
-    
+
     def tic(self, loud=False):
         self.tic_active = True
         self.duration = 0.0
@@ -548,7 +539,7 @@ class Processor:
             print("\n\n *    Running Filter on {}...".format(self.params.current_wave()), end='\n')
         self.tm = time.time()
         # print(f"tic {self}, tick_active = {self.tic_active}")
-    
+
     def toc(self, loud=False):
         if self.tic_active:
             dur = time.time() - self.tm
@@ -563,28 +554,28 @@ class Processor:
             # self.params.durList.append("-1")
         # print(f"toc {self}, tick_active = {self.tic_active}, dur = {self.duration}\n\n\n")
         self.tic_active = False
-        
+
         # TODO make the duration list thing work, displaying the time it took to do each thing at the end.
-    
+
     def should_run(self):
         return True
-    
+
     def do_work(self):
         raise NotImplementedError
-    
+
     def do_img_function(self):
         raise NotImplementedError
-    
+
     def cleanup(self):
         self.toc()
         self.print_success()
         self.params.processors_ran.append(self)
 
         pass
-    
+
     def setup(self):
         pass
-    
+
     def process(self, params=None):
         """Load the parameters and run the algorithm"""
         self.params = params or self.params
@@ -602,14 +593,14 @@ class Processor:
                 self.load(self.params, quietly=False)
                 self.process_fits_series()
         # self.cleanup()
-        
-    
+
+
     ##  Run on Fits Files
     def process_fits_series(self):
         """Apply the function to all necessary fits files"""
         n_fits_path = len(self.keyframes)
         self.skipped = 0
-        
+
         if n_fits_path > 0:
             self.setup()
             parallel = self.params.do_parallel
@@ -617,8 +608,8 @@ class Processor:
                 self.parallel_fits_series()
             else:
                 self.serial_fits_series()
-        
-    
+
+
     def print_success(self):
         if not self.do_print_success:
             return
@@ -637,7 +628,7 @@ class Processor:
                 print(" ^    No Files Found\n")
         except ValueError as e:
             print(e)
-    
+
     def serial_fits_series(self):
         print("Running in Serial Mode...", end='', flush=True)
         pbar = self.init_pbar_now()
@@ -647,13 +638,13 @@ class Processor:
             if result is None:
                 self.skipped += 1
         # print("Finished", flush=True)
-    
+
     def parallel_fits_series(self):
         print("Running in Parallel Mode...", end='')
         self.init_pool_if_needed()
         try:
             iter = self.params.multi_pool.imap_unordered(self.modify_one_fits, self.keyframes)
-            
+
             pbar = self.init_pbar_now()
             for self.ii, result in enumerate(iter):
                 pbar.update()
@@ -663,20 +654,20 @@ class Processor:
         except PicklingError as e:
             print("Parallel Run Failed: ", e)
             self.serial_fits_series()
-    
+
     def init_pbar_now(self, position=0):
         pbar = tqdm(self.keyframes,
                     unit=self.progress_unit,
                     desc=self.progress_string, position=position, leave=True)
         return pbar
-    
+
     def init_pool_if_needed(self):
         try:
             self.params.multi_pool.imap_unordered
         except AttributeError:
             # print("Using default number of cores")
             self.params.init_pool()
-    
+
     @staticmethod
     def confirm_fits_file(fits_path) -> bool:
         if fits_path is not None:
@@ -684,12 +675,12 @@ class Processor:
                 return True
         else:
             raise FileNotFoundError
-    
+
     def modify_one_fits(self, fits_path):
         """Apply the given funtion to the given fits path"""
         # self.ii += 1
         self.confirm_fits_file(fits_path)
-        
+
         # self.load()
         self.in_name = self.in_name or self.params.master_frame_list_newest
         # return True
@@ -706,17 +697,17 @@ class Processor:
         except AttributeError as e:
             # print(e)
             frame = output
-        
+
         use_name = self.frame_name if 'mgn_rhe' in self.frame_name else None
-        
+
         self.save_frame(frame, fits_path, use_name)
         return frame
-    
+
     def save_frame(self, frame, fits_path, out_name=None, force=False):
         if frame is not None and frame is not False:
             if self.save_to_fits or force:
                 self.save_frame_to_fits_file(fits_path, frame, out_name, dtype=self.out_dtype)
-    
+
     def select_single_image(self):
         self.load_fits_paths()
         path1 = self.params.use_image_path()
@@ -735,39 +726,39 @@ class Processor:
             self.img_path = path1 or path2
         else:
             raise FileNotFoundError("No frame found for wavelength: {}".format(wavestr))
-    
+
     def modify_one_image(self, ):
         """Apply the given funtion to the given fits path"""
-        
+
         try:
             self.select_single_image()
             self.params.modified_image = self.modify_one_fits(self.img_path)
-        
+
         except NotImplementedError as e:
             self.params.modified_image = self.do_img_function()
             # self.out_name = self.out_name
         return self.params.modified_image
-    
+
     def process_img_series(self):
         """Apply the function to all necessary img files"""
         self.do_one_wave(self.params.current_wave())
-        
+
         # self.process_all_wavelengths()
-    
+
     def process_all_wavelengths(self):
         """Run the process on all of the all_wavelengths"""
         # print(self.filt_name + ">>>", flush=True)
-        
+
         folders = self.get_folders()
         for wave in folders:
             self.do_one_wave(wave)
-    
+
     def do_one_wave(self, wave):
         if wave in self.params.waves_to_do:
             self.load(wave=wave)
             if len(self.params.local_imgs_paths()) > 0:
                 self.process_one_wavelength(wave)
-    
+
     def get_folders(self):
         base = self.params.base_directory()
         bName = self.params.batch_name()
@@ -777,10 +768,10 @@ class Processor:
         elif bName in folders:
             folders = listdir(join(base, bName))
         return folders
-    
+
     def process_one_wavelength(self, wave):
         raise NotImplementedError()
-    
+
     def find_limb_radius(self):
         spread = 0.02
         self.limb_radius_from_fit_shrunken = self.limb_radius_from_header_shrunken
@@ -788,14 +779,14 @@ class Processor:
         self.lCut = int(self.limb_radius_from_header_shrunken - spread * self.params.rez)
         self.hCut = int(self.limb_radius_from_header_shrunken + spread * self.params.rez)
         return
-        
+
         # print("\n", self.limb_radius_from_header_shrunken, self.limb_radius_from_fit_shrunken)
         # return
-        
+
         # if self.limb_radius_already_found:
         #     # print("Had~~~~~~~~~~~~~~")
         #     return self.limb_radius_from_fit_shrunken
-        
+
         # print("Needed ~~~~~~~~~~~~~~")
         # if self.limb_radius_from_fit_shrunken is not None:
         #     self.limb_radius_from_fit_shrunken = self.limb_radius_from_header_shrunken = self.limb_radius_from_fit_shrunken
@@ -805,16 +796,16 @@ class Processor:
 
         # if self.outer_max is None:
         #     self.load_curves(verb=False)
-        
+
         # self.limb_radius_from_header_shrunken = self.params.limb_radius_from_header or 1600
         # self.limb_radius_from_header_shrunken = self.limb_radius_from_header_shrunken // self.binfactor #// self.shrink_F
         # self.limb_radius_from_header   = self.limb_radius_from_header // self.shrink_F // self.binfactor
-        
+
         self.limb_radius_from_fit_shrunken = self.limb_radius_from_header_shrunken
         self.lCut = int(self.limb_radius_from_header_shrunken - spread * self.params.rez)
         self.hCut = int(self.limb_radius_from_header_shrunken + spread * self.params.rez)
         return
-        
+
         try:
             do_on_running = False
             if do_on_running and self.outer_max is not None:
@@ -822,12 +813,12 @@ class Processor:
                 inner_mid_max = self.inner_max[self.lCut:self.hCut]
                 inner_mid_min = self.inner_min[self.lCut:self.hCut]
                 outer_mid_min = self.outer_min[self.lCut:self.hCut]
-                
+
                 outer_mid_max_maxInd = np.argmax(outer_mid_max) + self.lCut
                 inner_mid_max_maxInd = np.argmax(inner_mid_max) + self.lCut
                 inner_mid_min_maxInd = np.argmax(inner_mid_min) + self.lCut
                 outer_mid_min_maxInd = np.argmax(outer_mid_min) + self.lCut
-                
+
                 self.peak_indList = [outer_mid_max_maxInd, inner_mid_max_maxInd,
                                      inner_mid_min_maxInd, outer_mid_min_maxInd]
             else:
@@ -836,19 +827,19 @@ class Processor:
                 max_ind = np.argmax(max_curve) + self.lCut
                 min_ind = np.argmax(min_curve) + self.lCut
                 self.peak_indList = [max_ind, min_ind]
-                
+
             self.limb_radius_from_fit_shrunken = np.round(np.mean(self.peak_indList), 6)
         except TypeError as e:
             # print("\r        find_limb_radius failed: ", e)
             self.limb_radius_from_fit_shrunken = self.limb_radius_from_header_shrunken
-            
-            
-            
+
+
+
         spread = 0.005
         self.lCut = int(self.limb_radius_from_fit_shrunken - spread * self.params.rez)
         self.hCut = int(self.limb_radius_from_fit_shrunken + spread * self.params.rez)
         self.limb_radius_already_found = True
-    
+
     def init_radius_array(self, vignette_radius=1.51, s_radius=400, t_factor=1.28, force=False):
         """Build an r-coordinate array of shape(in_object)"""
         # self.params.rez = self.params.modified_image.shape[0]
@@ -860,7 +851,7 @@ class Processor:
         if True: #type(self) is QRNProcessor:
             self.init_bin_array()
 
-    
+
     def double_smash(self, raw_arr, log=True, prerun=True):
         if prerun:
             tmin, tmax = np.nanpercentile(raw_arr, [0.1, 99.9])
@@ -873,7 +864,7 @@ class Processor:
         flat_arr_norm = (flat_arr - tmin) / (tmax - tmin)
         flat_arr_norm[~np.isfinite(flat_arr)] = np.nan
         return flat_arr_norm
-    
+
     def resize_image(self, img=None, want_rez=1024, prnt=True):
         # if prnt: print("   * Shrinking Rez to {}...".format(want_rez))
         # if self.params.second_shape == want_rez:
@@ -894,13 +885,13 @@ class Processor:
         # self.make_vignette()
         self.smol = True
         return self.params.raw_image
-    
+
     def ensure_odd(self, number):
         number = int(np.round(number))
         if ~number % 2:
             number += 1
         return number
-    
+
     def init_image_frames(self):
         mdi = self.params.modified_image
         do = False
@@ -915,15 +906,15 @@ class Processor:
         if do:
             mdi = np.float16(self.params.raw_image)
             self.params.modified_image = mdi
-            
+
         return self.params.modified_image
-    
+
     def determine_shrink_factor(self):
-        
+
         # self.binfactor = 4
         # = self.header["NAXIS1"]
         self.params.rez = rez = self.params.rez or self.header["NAXIS1"]
-        
+
         if rez == 4096:
             self.shrink_factor = 1
         elif rez == 2048:
@@ -932,10 +923,10 @@ class Processor:
             self.shrink_factor = 4
         else:
             raise NotImplementedError
-        
+
         self.parse_shrink_args()
         self.find_limb_radius()
-    
+
     def parse_shrink_args(self, shrink_needed=True):
         nn = self.shrink_factor if shrink_needed else 1
         if self.limb_radius_from_header_shrunken is None:
@@ -949,10 +940,10 @@ class Processor:
         # print("\n", self.params.center, self.params.center_NOTforpoints)
         # print(self.limb_radius_from_header_shrunken_forpoints, self.limb_radius_from_header_shrunken)
         # a=1
-    
-    
+
+
         # print(self.limb_radius_from_header_shrunken)
-        
+
     # def parse_resize_args(self, factor=4):
     #     if self.limb_radius_from_header_shrunken is None:
     #         self.params.center = [self.header["X0_MP"] / (factor), self.header["Y0_MP"] / (factor)]
@@ -976,15 +967,15 @@ class Processor:
         self.theta_array_forpoints = np.arctan2(ycp, xcp)
         self.rad_flat_forpoints = self.radius_forpoints.flatten()+0
 
-        
-    
+
+
     def make_vignette(self, vignette_radius=1.51):
         self.vig_radius_pix = self.r2n(vignette_radius)
         self.vig_radius_rr = self.n2r(self.vig_radius_pix)
         # self.detector_radius_rr = self.n2r(self.params.rez // 2)
-        
+
         self.vignette_mask = np.asarray(self.radius > self.vig_radius_pix*2, dtype=bool)
-    
+
     def init_bin_array(self):
         self.binInds = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
         self.binInds_forpoints = np.asarray(np.floor(self.rad_flat_forpoints), dtype=np.int32)
@@ -1002,7 +993,7 @@ class Processor:
         keep = list(np.nonzero(finite & filled)[0])
         finite_out = bin_array[keep]
         return keep, finite_out
-    
+
     def bin_radially(self):  # TODO Make the save to fits work
         """Bin the intensities by radius """
         self.do_binning(fast=False)
@@ -1016,7 +1007,7 @@ class Processor:
         #         self.load_cached_data(self.radBins)
         # else:
         #     self.do_binning(fast=False)
-    
+
     def initialize_binning(self, use_im, binBoxSize):
         flat_im = self.params.modified_image if use_im is None else use_im
         self.params.rez = flat_im.shape[0]
@@ -1029,13 +1020,13 @@ class Processor:
         self.equal_radius_array =   np.empty((self.n_inds, binBoxSize))
         self.equal_mean_array =     np.empty((self.n_inds))
         self.equal_std_array =      np.empty((self.n_inds))
-        
+
         self.equal_intensity_array.fill(np.nan)
         self.equal_radius_array.fill(np.nan)
         self.equal_mean_array.fill(np.nan)
         self.equal_std_array.fill(np.nan)
         return flat_im
-    
+
     def do_binning(self, use_im=None, fast=False, binBoxSize=100):  # Bin the intensities by radius
 
         flat_im = self.initialize_binning(use_im, binBoxSize)
@@ -1047,7 +1038,7 @@ class Processor:
             skip = 1 if "RHE" in self.out_name else 15 if fast else 1
         else:
             skip = 1
-            
+
         for binI in params_list:
             if not np.mod(binI, skip):
                 if fast:
@@ -1055,7 +1046,7 @@ class Processor:
                 else:
                     self.full_binning(binI, flat_im, skip=skip)
         return self.equal_radius_array, self.equal_intensity_array
-        
+
     def fast_binning(self, binI, flat_im, binBoxSize):
         entries, the_mean, the_std = self.get_bin_entries(binI, flat_im)
         limit = entries.shape[0]
@@ -1063,23 +1054,23 @@ class Processor:
             indices = np.random.choice(limit, binBoxSize, replace=True)
             (good_coord, self.equal_intensity_array[binI, :], self.equal_radius_array[binI, :]), self.equal_mean_array[binI], self.equal_std_array[binI]  =\
                 entries[indices].T, the_mean, the_std
-    
+
     @staticmethod
     def squashfunc(array):
         # return array
         return np.sqrt(array+0)
         # return np.log10(array)
-    
+
     def autoLabelPanels(self, axArray, loc=(0.045, 0.05), messages=None, color='r'):
             for ii, ax in enumerate(axArray.flatten()):
                 message = '' if messages is None else messages[ii]
                 ax.annotate('({})  {}'.format(chr(97+ii), message), loc,color=color, xycoords='axes fraction')
-    
+
     # @staticmethod
     # def squashfunc_inv(array):
     #     return array**2
     #     # return 10**array
-    
+
     def full_binning(self, binI, image, skip=1):
         entries, mean, std = self.get_bin_entries(binI, image)
         (good_coord, bin_array, radii) = entries.T
@@ -1096,37 +1087,37 @@ class Processor:
             else:
                 self.params.rhe_image[good_coord.astype(int)] = stats.rankdata(bin_array, "average") / len(bin_array) #This is RHE
         return good_coord, radii, bin_array
-    
+
     def get_bin_entries(self, binI, image=None):
         # frame = self.flat_im if frame is None else frame
-        
+
         # want_radius =       self.binRR[binI]
         # the_inds =          np.where(self.binRR == want_radius)
 
         the_inds =          np.where(self.binInds == binI)
         the_inds_forpoints = np.where(self.binInds_forpoints == binI)
         # print("it is the same : ", np.all(the_inds[0] == the_inds_forpoints[0]))
-        
+
         keep, bin_array =   self.get_bin_items(image[the_inds_forpoints])
         coord =             self.binII[the_inds_forpoints].tolist()
         good_coord =        [coord[x] for x in keep]
         radii = [self.binRR[int(x)] for x in good_coord]
         # radii = [self.binInds[int(x)] for x in good_coord]
         return np.asarray([good_coord, bin_array, radii]).T, np.mean(bin_array), np.std(bin_array)
-    
+
     def mask_out_sun(self, image, radius=None, mask=None, plug=None, radius2=0.9):
         if self.radius is None:
             self.init_radius_array()
-            
+
         if radius is None:
             radius = 1.01
         mask = mask or np.nan if "f" in str(image.dtype) else 0
-        
+
         if len(image.shape)>2:
             image[:, self.radius / self.limb_radius_from_fit_shrunken < radius] = mask
             if plug is not None:
                 image[:, self.radius / self.limb_radius_from_fit_shrunken < radius2] = plug
-            
+
         else:
             image[self.radius / self.limb_radius_from_fit_shrunken < radius] = mask
             if plug is not None:
@@ -1138,10 +1129,10 @@ class Processor:
         # Get an even number of items vs radius
         binRad = []
         binInts = []
-    
+
         self.do_binning(use_im=image, fast=True, binBoxSize=binBoxSize)
         return self.equal_radius_array, self.equal_intensity_array
-    
+
         # if use_image is not None:
         #     self.binBox = []
         #
@@ -1163,16 +1154,16 @@ class Processor:
 
     def do_compare_histogramplot(self, frames=None, names=None, even_points=100, use_cmap=False):
 
-        
+
         # self.prep_histograms()
         frames = frames if frames is not None else [self.params.raw_image2.reshape(self.params.modified_image.shape),
                                                     self.params.modified_image.reshape(self.params.modified_image.shape),
                                                     self.params.rhe_image.reshape(self.params.modified_image.shape)]
-        
+
         names = names if names is not None else ["Log10 (Normalized)", "QRN (Normalized)", "RHE"]
-        
-        
-        
+
+
+
         fig, axArray = plt.subplots(3, len(frames), sharex='row', sharey="row", gridspec_kw = {'height_ratios':[2,1.5,2.5]})
         (top_axes, mid_axes, bot_axes) = axArray
         try:
@@ -1186,7 +1177,7 @@ class Processor:
         self.plot_histogram_images(top_axes, frames, names)
         self.plot_histogram_points(bot_axes, frames, names, even_points, axes2=mid_axes )
 
-        
+
         mid_axes[0].legend(frameon=False, fontsize=7)
         bot_axes[0].set_ylabel("Intensity")
         bot_axes[1].legend(frameon=False, fontsize=7)
@@ -1216,11 +1207,11 @@ class Processor:
         framesq = [frames[int(x)] for x in has_rhe]
         namesq = [names[int(x)] for x in has_rhe]
         namesqq = [names[int(x)]+"_raw" for x in has_rhe]
-        
+
         fram = [framesq[0], framesq[1], framesq[1]]
         name = [namesq[0], namesqq[1], namesq[1]]
-        
-        
+
+
         fig, axArray = plt.subplots(2, len(fram), sharex='row', sharey="row", gridspec_kw = {'height_ratios':[3,2]})
         (top_axes, bot_axes) = axArray
         try:
@@ -1234,17 +1225,17 @@ class Processor:
         self.plot_histogram_images(top_axes, fram, name)
         self.plot_histogram_points(bot_axes, fram, name, even_points, axes2=None)
 
-        
+
         # mid_axes[0].legend(frameon=False)
         bot_axes[0].set_ylabel("Intensity")
         bot_axes[0].legend(frameon=False) #, loc='lower left')
         fig.set_size_inches((14,8))
         plt.tight_layout()
-        
+
         plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_rhe_hq.png", dpi=600)
         plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_rhe_lq.png", dpi=400)
         plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_rhe_vlq.png", dpi=300)
-        
+
         # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_rhe.png", dpi=400)
         # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.pdf", dpi=400)
         # plt.show()
@@ -1261,11 +1252,11 @@ class Processor:
         framesq = [frames[int(x)] for x in has_rhe]
         namesq = [names[int(x)] for x in has_rhe]
         namesqq = [names[int(x)]+"_raw" for x in has_rhe]
-        
+
         fram = frames[2:] #[framesq[0], framesq[1], framesq[1]]
         name = names[ 2:] #[namesq[0], namesqq[1], namesq[1]]
-        
-        
+
+
         fig, axArray = plt.subplots(4, len(fram), sharex='row', sharey="row")
         (top_axes, mid_axes, low_mid_axes,  bot_axes) = axArray
         try:
@@ -1286,13 +1277,13 @@ class Processor:
 
         top_axes[0].set_xlim((1393, 2703))
         top_axes[0].set_ylim((0,        1000))
-        
+
         mid_axes[0].set_xlim((2200, 4096))
         mid_axes[0].set_ylim((1612,      3013))
 
         low_mid_axes[0].set_xlim((3013, 4096))
         low_mid_axes[0].set_ylim((650,      1426))
-        
+
         bot_axes[0].set_xlim((0,        1200))
         bot_axes[0].set_ylim((477,      1413))
         # mid_axes[0].legend(frameon=False)
@@ -1301,7 +1292,7 @@ class Processor:
         plt.tight_layout()
         plt.tight_layout()
         plt.subplots_adjust(wspace=0, hspace=0)
-        
+
         plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_images_hq.png", dpi=400)
         plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_images_lq.png", dpi=250)
         plt.close(fig)
@@ -1312,14 +1303,14 @@ class Processor:
         # plt.show(block=True)
         # asdf = 1
 
-    
+
     def plot_histogram_images(self, axes, frames, names, donorm=True, dosmash=True):
         ## Plot Images
         print(" *    Plotting Images")
         for ax, frame, nam in zip(axes, frames, names):
             frame = self.histNorm(frame, donorm=donorm, dosmash=dosmash, name=nam)
             self.plot_one_histimage(ax, frame, title=nam)
-            
+
     def plot_histogram_points(self, axes, frames, names, even_points, donorm=True, dosmash=True, axes2=None):
         # Plot the Histograms
         print(" *    Plotting Histograms")
@@ -1347,13 +1338,13 @@ class Processor:
         ax.imshow(frame, origin='lower', cmap='gray', vmin=0, vmax=1)
         if title is not None:
             ax.set_title(title)
-        
+
     def plot_one_histogram(self, ax, ax2, frame, title=None, even_points=100):
         absiss, frame = self.get_even_points_in_radius(even_points, frame)
         self.plot_frame_hist(ax, ax2, frame, title, hist_absiss=absiss)
         # ax.set_title(title)
-        
-        
+
+
     def plot_frame_hist(self, ax1, ax2, use_image, title="Default", blk_alpha=0.2, hist_absiss=None):
         # Gather Points to Display
         # flat_sunback = self.params.modified_image.flatten() + 0
@@ -1363,19 +1354,19 @@ class Processor:
         ax1.scatter(hist_absiss, use_image, c='k', s=4, alpha=blk_alpha, edgecolors='none')
         lo, hi, num = np.nanmin(hist_absiss), np.nanmax(hist_absiss), len(self.equal_mean_array)
         absiss = np.linspace(lo, hi, num)
-    
+
         inds = (~np.isnan(self.equal_mean_array) & np.isfinite(self.equal_mean_array))
         if ax2 is not None:
             ax2.plot(absiss[inds], self.equal_mean_array[inds], c='k', ls="-", label="Mean")
             ax2.plot(absiss[inds], self.equal_std_array[inds] , c='grey', ls=(0, (5,1)), label="Std")
             ax2.set_ylim((-0.2, 1.2))
-            
-    
-    
+
+
+
         # Formatting the Plot
         vloc = self.n2r(self.params.rez / 2)
         do_legend = 'rhe(lev1p5)' in title
-    
+
         # ax1.set_title(title)
         use_axes = (ax1, ax2) if ax2 is not None else [ax1]
         for ax in use_axes:
@@ -1388,17 +1379,17 @@ class Processor:
         ax1.set_ylim((-0.3, 1.5))
         ax1.set_xlabel("Distance from Sun Center")
         # plt.show(block=True)
-        
-        
-    
+
+
+
     def prep_histograms(self):
         # self.params.rhe_image = self.params.rhe_image.reshape(self.params.modified_image.shape)
-        
+
         skip_points = 10 if self.params.rez < 3000 else 300
         self.hist_absiss = self.n2r(self.rad_flat[::skip_points])
         self.hist_argsort = np.argsort(self.hist_absiss)
         self.hist_absiss_sorted = self.hist_absiss[self.hist_argsort]
-        
+
     @staticmethod
     def maximizePlot():
         try:
@@ -1418,24 +1409,24 @@ class Processor:
             return True
         except:
             return False
-        
-        
+
+
         # top_axes[ii].imshow( fram.reshape(self.params.raw_image2.shape),  origin='lower', cmap='gray', vmin=0, vmax=1)
-        
+
     # self.plot_one_histogram(bot_axes[1], img2, lab2, donorm=False, even_points=even_points)
     # self.plot_one_histogram(bot_axes[2], img3, lab3, donorm=False, dosmash=False, even_points=even_points)
-    
+
     # if use_cmap:
     #     self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
     # else:
     #     from matplotlib import cm
     #     self.params.cmap = cm.gray
-    
 
-    
+
+
     # if "log10" in lab1:
     #     img1 = self.orig_smasher(img1)
-    
+
     ## Plot Images
     # top_axes[1].imshow( img2,  origin='lower', cmap='gray', vmin=0, vmax=1)
     # top_axes[2].imshow( img3,  origin='lower', cmap='gray', vmin=0, vmax=1)
@@ -1444,34 +1435,34 @@ class Processor:
         # # basis = np.logspace(0,2)
         # # wantInds = basis
     # def plot_aia_changed(self):
-    
+
     ########################################
     ## M3: Identify Directory of Interest ##
     ########################################
-    
+
     def discover_best_root_directory(self, subdirectory_name="sunback_images", drive=None):
         """Determine where to store the images"""
         if __file__ in globals():
             ddd = dirname(abspath(__file__))
         else:
             ddd = abspath(getcwd())
-        
+
         while "dropbox".casefold() in ddd.casefold():
             ddd = abspath(join(ddd, ".."))
-        
+
         directory = join(ddd, subdirectory_name)
-        
+
         if drive:
             directory[0] = drive
-        
+
         if not isdir(directory):
             makedirs(directory)
         return directory
-    
+
     ############################
     ## M4: Save Frame to Fits ##
     ############################
-    
+
     def save_frame_to_fits_file(self, fits_path, frame, out_name=None, dtype=None, shrink=True):
         """Save a fits file to disk"""
         # print("Saving Frame to Fits File")
@@ -1487,7 +1478,7 @@ class Processor:
         else:
             field = out_name.casefold()
         good_frame = np.any(frame)
-        
+
         if good_frame:
             frame2 = frame + 0
             # frame2 = frame
@@ -1501,17 +1492,17 @@ class Processor:
                 with fits.open(fits_path, mode="update", memmap=False) as hdul:
                     hdul.verify('silentfix+ignore')  # Then Verify
                     # self.rename_initial_frames(hdul)  # THis might not work
-                    
+
                     fit_frame = fits.ImageHDU(frame2, name=field, header=self.header)
-                    
+
                     if field not in hdul:
                         hdul.append(fit_frame)  # Write
                     else:
                         hdul[field] = fit_frame  # Write
-                    
+
                     # hdul = self.delete_further_hdus(hdul, in_name)
-                    
-                    
+
+
                     hdul.close(output_verify='fix')
                     if self.params.speak_save:
                         middle = " *         ** >> Saved Frame {} << **".format(field)
@@ -1519,29 +1510,29 @@ class Processor:
                         print(" * \n *         ** " + "V" * midlen + " **")
                         print(middle)
                         print(" *         ** " + "^" * midlen + " **\n * ")
-                    
+
             except PermissionError as e:
                 print("\n        !! No Permission to save the file: \n         {}".format(fits_path))
                 self.skipped += 1
-    
+
     def make_shortcut(self, file_in_path=None, shortcut_out_path=None, doAppend=True):
         path = self.params.shortcut_directory(shortcut_out_path)
         # import os, winshell, win32com.client, Pythoncom
         import os, win32com.client
-        
+
         basename = os.path.basename(file_in_path)
         basename = basename.replace("___raw.avi", '')
         basename = basename.replace("__comp.avi", '')
         basename = basename.replace("_small.avi", '')
         if doAppend: path = os.path.join(path, '{}.lnk'.format(basename))
         # print(path)
-        
+
         shell = win32com.client.Dispatch("WScript.Shell")
         shortcut = shell.CreateShortCut(path)
         shortcut.Targetpath = path
         shortcut.IconLocation = file_in_path
         shortcut.save()
-    
+
     def delete_further_hdus(self, hdul, field):
         try:
             self.list_hdus(hdul)
@@ -1550,11 +1541,11 @@ class Processor:
         except ValueError as e:
             # print(e)
             return hdul
-    
+
     def load_last_fits_field(self, fits_path):
         """Load a fits file from disk"""
         return self.load_this_fits_frame(fits_path, -1)
-    
+
     def load_first_fits_field(self, fits_path):
         """Load a fits file from disk"""
         if "1600" in fits_path:
@@ -1563,12 +1554,12 @@ class Processor:
         if fields[0] is None:
             fields = self.load_this_fits_frame(fits_path, 1)
         return fields
-    
+
     def rename_start_frames(self, fits_path):
         with fits.open(fits_path, cache=False, mode="update",
                        ignore_missing_end=True, output_verify='silentfix+ignore') as hdul:
             self.rename_initial_frames(hdul)  # This might not work
-    
+
     @staticmethod
     def rename_initial_frames(hdul):
         # vprint("Blank Frame Ran")
@@ -1579,11 +1570,11 @@ class Processor:
         #         break
         #     except:
         #         continue
-        
+
         # level_string = 'lev' + str(level).replace('.', 'p')
         # a=1
         pass
-        
+
         hdu_name_list = [frame.name.casefold() for frame in hdul]
         for to_replace in ['COMPRESSED_IMAGE', '']:  # , 'PRIMARY']:
             if to_replace.casefold() in hdu_name_list:
@@ -1595,21 +1586,21 @@ class Processor:
                         # item.name = level_string
                         # hdul[item.name] = item
                         break
-                
-                
-                
-                
-                
+
+
+
+
+
                 # break
                 #
                 # item.data = np.empty(0)
                 # item.name = to_replace
-    
+
     def remove_unprocessed_frames(self, fits_path=None):
         # vprint("Blank Frame Ran")
         fits_path = fits_path or self.fits_path
         to_destroy = ['lev1p0', 't_int', ]
-        
+
         with fits.open(fits_path, cache=False, ignore_missing_end=True, mode='update') as hdul:
             # hdul.verify('silentfix+ignore')  # Verify
             self.list_hdus(hdul)
@@ -1618,12 +1609,12 @@ class Processor:
                 sm = name.casefold()
                 if sm in beginnings:
                     del hdul[name]
-    
+
     def remove_unprocessed_frames2(self, fits_path=None):
         # vprint("Blank Frame Ran")
         fits_path = fits_path or self.fits_path
         to_destroy = ['lev1p0']
-        
+
         with fits.open(fits_path, cache=False, ignore_missing_end=True, mode='update') as hdul:
             # hdul.verify('silentfix+ignore')  # Verify
             self.list_hdus(hdul)
@@ -1656,7 +1647,7 @@ class Processor:
         # except (UnboundLocalError, TypeError) as e:
         #     print("load single frame:: ", e)
         #     return None
-    
+
     # Curves Save and Load
     def prep_save_outs(self):
         """Prepare the scalar_out_curve for writing"""
@@ -1673,7 +1664,7 @@ class Processor:
             self.tri_filtered_inner_minimum = np.empty_like(self.outer_min)
             self.tri_filtered_inner_maximum = np.empty_like(self.outer_min)
             self.tri_filtered_outer_minimum = np.empty_like(self.outer_min)
-        
+
         out_list = [self.outer_min, self.inner_min, self.inner_max, self.outer_max, self.scalar_out_curve]
         out_list.extend([self.tri_filtered_outer_maximum, self.tri_filtered_inner_maximum,
                          self.tri_filtered_inner_minimum, self.tri_filtered_outer_minimum,
@@ -1684,12 +1675,12 @@ class Processor:
                                    ["scalar_out_curve", "limb_radius_from_fit_shrunken", "abs_min", "abs_max"],
                                    "tri_filtered_outer_maximum", "tri_filtered_inner_maximum",
                                    "tri_filtered_inner_minimum", "tri_filtered_outer_minimum", 'smooth_abs_max', 'smooth_abs_min']
-        
+
         none_check = [item is not None for item in out_list]
         self.do_save = np.all(none_check)
         self.curve_out_array = np.asarray(out_list)
         return self.do_save
-    
+
     def unpack_save_ins(self):
         """Prepare the scalar_out_curve for writing"""
         self.outer_min, self.inner_min, self.inner_max, \
@@ -1697,12 +1688,12 @@ class Processor:
         self.tri_filtered_outer_maximum, self.tri_filtered_inner_maximum, \
         self.tri_filtered_inner_minimum, self.tri_filtered_outer_minimum, \
         self.abs_max, self.abs_min, = np.loadtxt(self.params.curve_path())
-        
+
         # self.limb_radius_from_file_shrunken = self.scalar_in_curve[0]
         self.limb_radius_from_file_shrunken = self.scalar_in_curve[0]
         self.abs_min_scalar = self.scalar_in_curve[1]
         self.abs_max_scalar = self.scalar_in_curve[2]
-    
+
     def save_curves(self, banner=True, extra_line=False):  #
         """Save the curves so they don't have to be recalculated"""
         self.super_flush()
@@ -1711,12 +1702,12 @@ class Processor:
                 vprint("\r *\n *    Saving Radial Curves...", end='')
             else:
                 vprint("\r *        Saving Radial Curves...", end='')
-        
+
         if self.prep_save_outs():
             curve_path = self.params.curve_path()
             descr_path = curve_path.replace("curve.txt", "curve_names.txt")
             makedirs(os.path.dirname(curve_path), exist_ok=True)
-            
+
             with open(descr_path, mode='w') as fp:
                 for desc, item in zip(self.curve_descriptions, self.curve_out_array):
                     len_item = str(len(item))
@@ -1726,7 +1717,7 @@ class Processor:
             if banner: vprint("Success!")
         else:
             vprint("Skipping Save Curves!")
-    
+
     def load_curves(self, force=None, verb=True):
         """Load the curves so they don't have to be recalculated"""
         lc=verb
@@ -1747,10 +1738,10 @@ class Processor:
                 print("No Curves to Load!")
                 print("Please place the curves file at:")
                 print(self.params.curve_path())
-            
+
             # self.image_learn()
             # self.save_curves()
-            
+
             # if hdul['primary'].data is None:
             #     hdul['primary'].data = hdul["lev1p0"].data + 0
             #     hdul[0].name = 'primary'
@@ -1770,7 +1761,7 @@ class Processor:
             #     except KeyError as e:
             #         pass
             #
-            
+
             # del hdul['primary'].header['OSCNMEAN']
             # del hdul['primary'].header['OSCNRMS']
             #
@@ -1792,34 +1783,34 @@ class Processor:
             #
             # # [print(x) for x in sorted(all_head_list) if "OSCN" in x]
             # a=1
-            
+
             # print()
             # [print(x.name, '\t\t', x) for x in hdul]
             # a=1
             # print(self.list_hdus(hdul))
             # print()
-            
+
             # data_frame = hdul[to_delete.pop(0)]
             # data_frame.name = 'PRIMARY'
-            
+
             # for de in to_delete:
             #     del hdul[de]
             # hdul.update(self.fits_path)
             # [print(x.name, '\t\t', x) for x in hdul]
-    
+
     def smallify_frame(self, frame):
         return frame
         mx = np.nanmax(frame)
         mn = np.nanmin(frame)
         normed = (frame - mn) / (mx - mn)
-        
+
         scaled = normed * 2 ** 16
         average = np.uint16(np.round(np.nanmean(scaled)))
         de_NANed = np.nan_to_num(scaled, nan=average)
         compressed = de_NANed.astype(np.uint16)
-        
+
         return compressed
-    
+
     def get_fits_info(self, hdul):
         # Load the raw out_array
         wave, t_rec, center, int_time, found_limb_radius, data_unit = None, None, None, None, None, None
@@ -1852,9 +1843,9 @@ class Processor:
         self.params.header = self.header
         self.params.bunit = data_unit
         return wave, t_rec, center, int_time, found_limb_radius
-    
+
     # Frame Loading
-    
+
     def load_this_fits_frame(self, fits_path=None, in_name=None, quiet=False):
         """Load a fits file from disk"""
         try:
@@ -1870,19 +1861,19 @@ class Processor:
         except (OSError, RuntimeError) as e:
             print('\n', e)
             print("Unable to load Frame!")
-    
+
         return None, None, None, None, None, None
-        
-        
-    
+
+
+
     def set_in_frame_name(self, in_name=None, fits_path=None, hdul=None):
         """Determine the right in_name given any kind of in_array"""
-        
+
         # Short-circuit if the in_array is a string
         if in_name is not None and type(in_name) in [str]:
             self.in_name = self.frame_name = in_name
             return self.in_name
-        
+
         # Get the Hdul
         if hdul is None:
             with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
@@ -1890,46 +1881,46 @@ class Processor:
                 self.in_name = self.find_correct_in_name(hdul, name=in_name)
         else:
             self.in_name = self.find_correct_in_name(hdul, name=in_name)
-            
+
         return self.in_name
-    
+
     def outer(self, name, do=False):
         if self.do_split or do:
             return name.split('(')[0]
         return name
-    
+
     def get_frame_names(self, requested_output_name, do_split=False):
         self.do_split = do_split
         first_name = self.outer(self.hdu_name_list[0])
         second_name = self.outer(self.hdu_name_list[1]) if len(self.hdu_name_list) > 1 else self.outer(first_name)
         penultimate_name = self.outer(self.determine_penultimate_frame_name())
         last_name = self.outer(self.hdu_name_list[-1])
-        
+
         try:
             sh_all_names = [self.outer(x.casefold(), do=True) for x in self.hdu_name_list if type(x) is str]
             prev_name = self.outer(self.hdu_name_list[sh_all_names.index(requested_output_name) - 1])
         except ValueError:
             prev_name = self.outer(penultimate_name)
-        
+
         all_names = [self.outer(x.casefold()) for x in self.hdu_name_list if type(x) is str]
         return first_name, second_name, penultimate_name, last_name, prev_name, all_names
-    
+
     def find_correct_in_name(self, hdul, name):
         """Determine which out_array of the in_array file to use on redo"""
         repo = self.reprocess_mode()
         reprocess_mode = self.params.reprocess_mode(repo)
-        
+
         # List all the various Names
         # self.hdu_name_list = self.list_hdus(hdul)
         requested_input_name = self.determine_in_frame_name(hdul, name)
         requested_output_name = self.outer(self.determine_out_frame_name())
-        
+
         first_name, second_name, penultimate_name, \
         last_name, prev_name, all_names = self.get_frame_names(requested_output_name)
-        
+
         sh_first_name, sh_second_name, sh_penultimate_name, \
         sh_last_name, sh_prev_name, sh_all_names = self.get_frame_names(requested_output_name, True)
-        
+
         # Do logic
         filter_already_applied = requested_output_name.casefold() in sh_all_names
         if filter_already_applied:
@@ -1956,40 +1947,40 @@ class Processor:
             self.in_name = requested_input_name or self.in_name
         hdul.verify('silentfix+ignore')
         return self.in_name
-    
+
     def determine_in_frame_name(self, hdul, name, quiet=True):
         """Parses an in_array variable to determine the frame it's talking about"""
         self.frame_name = None
         self.hdu_name_list = self.list_hdus(hdul)
-        
+
         if name is None:
             return None
-        
+
         if isinstance(name, str):
             self.frame_name = name
-        
+
         elif isinstance(name, int):
             offset = 0 if name < len(self.hdu_name_list) else 1
             self.frame_name = self.hdu_name_list[name - offset]
-        
+
         elif isinstance(name, list):
             self.frame_name = self.pick_from_list(name, quiet)
-        
+
         return self.frame_name
-    
+
     def pick_from_list(self, name, quiet=True):
         """This function selects the appropriate frame to use from a list of names"""
-        
+
         for try_two in [False, True]:
             for input_name in name:
                 input_name = input_name.casefold()
                 short_input_name = input_name.split('(')[0]
-                
+
                 to_check = short_input_name if try_two else input_name
-                
+
                 for full_name in self.hdu_name_list:
                     short_name = full_name.split('(')[0]
-                    
+
                     if to_check in short_name:  # or name in lowercase_hdu_names:
                         self.frame_name = full_name
                         if not quiet:
@@ -1998,29 +1989,29 @@ class Processor:
                 if self.frame_name is not None:
                     return self.frame_name
         return None
-    
+
     @staticmethod
     def clean_time_string(time_string, targetZone=None, out_fmt=None):
         # Make the name strings
         import pytz
-        
+
         # Ingest the original time in UTC
         original = datetime.strptime(time_string.split('.')[0], "%Y-%m-%dT%H:%M:%S")
         tz_UTC = pytz.timezone('UTC')
         original = original.replace(tzinfo=tz_UTC)
-        
+
         if targetZone is not None:
             tz_diff = pytz.timezone(targetZone)
             cleaned = original.astimezone(tz_diff)
         else:
             cleaned = original
-        
+
         default_out_fmt = "%I:%M%p %Z,  %m-%d-%y"
         out_fmt = out_fmt or default_out_fmt
         out_str = cleaned.strftime(out_fmt)
-        
+
         return out_str
-    
+
     def open_fits_hdul_old(self, hdul, quiet=True, fail=False, frame_name=None):
         """Load a fits file from disk"""
         # self.rename_initial_frames(hdul)
@@ -2034,7 +2025,7 @@ class Processor:
         # if self.frame_name.casefold() == 'primary':
         #     self.frame_name = self.hdu_name_list[1]
         name = self.pick_from_list(self.params.master_frame_list_newest)
-        
+
         try:
             # Try it as Written
             field_hdu = hdul[self.frame_name]
@@ -2045,12 +2036,12 @@ class Processor:
             except KeyError as e2:
                 try:
                     # Try shortening the file frame names
-                    
+
                     loc = [x == self.frame_name for x in hdu_name_list_trimmed]
                     idx = np.where(loc)[0][0]
-                    
+
                     field_hdu = hdul[idx]
-                
+
                 except KeyError:
                     try:
                         field_hdu = hdul[self.in_name]
@@ -2096,42 +2087,42 @@ class Processor:
         except IndexError:
             data = field_hdu.data + 0
             header = hdul[0].header
-        
+
         # if Processor.print_once:
         #     print("\r +    Loading Frame: {}".format(self.frame_name))
         #     self.print_once = False
         return data, header
-    
+
     def get_field_hdu(self, hdul, frame_name=None):
         # Gather Names
         self.frame_name = frame_name or self.frame_name
         self.trimmed_name = self.frame_name.split('(')[0]
         self.hdu_name_list = self.list_hdus(hdul)
         self.hdu_name_list_trimmed = [x.split('(')[0] for x in self.hdu_name_list]
-        
+
         # # Determine which frames are available
         # frames = self.hdu_name_list
         # frames_trimmed = self.hdu_name_list_trimmed
-            
+
             # [name for name in self.params.master_frame_list_oldest
             #               if name in self.hdu_name_list_trimmed]
-        
+
         # Try to get frame
         field_hdu = None
         if self.frame_name in self.hdu_name_list:
             # Try it as Written
             field_hdu = hdul[self.frame_name]
-            
+
             loc = [x == self.frame_name for x in self.hdu_name_list]
             idx = np.where(loc)[0][0]
-            
+
         elif self.trimmed_name in self.hdu_name_list:
-            
+
             field_hdu = hdul[self.trimmed_name]
-            
+
             loc = [x == self.trimmed_name for x in self.hdu_name_list_trimmed]
             idx = np.where(loc)[0][0]
-            
+
         elif self.trimmed_name in self.hdu_name_list_trimmed:
             loc = [x == self.trimmed_name for x in self.hdu_name_list_trimmed]
             idx = np.where(loc)[0][0]
@@ -2139,7 +2130,7 @@ class Processor:
             self.frame_name = self.trimmed_name
         else:
             raise FileNotFoundError
-        
+
         # Make sure not to fumble the first frame
         early_names = ["primary", '', 'lev1p0']
         idxx = 0
@@ -2147,16 +2138,16 @@ class Processor:
             while field_hdu.data is None:
                 field_hdu = hdul[idxx]
                 idxx += 1
-        
+
         return field_hdu, self.frame_name, idx
-    
+
     def open_fits_hdul(self, hdul, quiet=True, fail=False, frame_name=None):
         """Load a fits file from disk"""
-        
+
         # self.rename_initial_frames(hdul)
-        
+
         field_hdu, frame_name, loc = self.get_field_hdu(hdul, frame_name)
-        
+
         data = field_hdu.data
         header = field_hdu.header
         # try:
@@ -2176,11 +2167,11 @@ class Processor:
         #         if fail:
         #             raise e
         #     field_hdu = hdul[name]
-        
+
         # data = None
         # header = None
         # field_hdu = None or field_hdu
-        
+
         # try:
         #     data = field_hdu.data + 0
         #     header = hdul[1].header
@@ -2189,12 +2180,12 @@ class Processor:
         # except IndexError:
         #     data = field_hdu.data + 0
         #     header = hdul[0].header
-        
+
         # if Processor.print_once:
         #     print("\r +    Loading Frame: {}".format(self.frame_name))
         #     self.print_once = False
         return data, header
-    
+
     def list_hdus(self, hdul):
         if hdul is not None:
             hdul.verify('silentfix+ignore')  # Verify
@@ -2202,19 +2193,19 @@ class Processor:
             self.hdu_name_list = [frame.name.casefold() for frame in hdul]
             hdul.verify('silentfix+ignore')  # Verify
         return self.hdu_name_list
-    
+
     def determine_penultimate_frame_name(self):
         get = -2 if len(self.hdu_name_list) > 1 else -1
         return self.hdu_name_list[get]
-    
+
     def determine_first_frame_name(self, hdul=None):
         self.list_hdus(hdul)
         return self.hdu_name_list[0]
-    
+
     def determine_last_frame_name(self, hdul=None):
         self.list_hdus(hdul)
         return self.hdu_name_list[-1]
-    
+
     def determine_requested_in_frame_name(self):
         # Determine the called-for in_array out_array NAME
         if type(self.in_name) is str:
@@ -2225,7 +2216,7 @@ class Processor:
         else:
             input_frame_name = self.in_name
         return input_frame_name
-    
+
     def determine_out_frame_name(self):
         # Determine the called-for output out_array NAME
         if type(self.out_name) is str:
@@ -2235,7 +2226,7 @@ class Processor:
         else:
             output_frame_name = "None"
         return output_frame_name
-    
+
     def determine_first_hIndex(self, hdul):
         """Find out which hInd has the data"""
         hInd = 0
@@ -2247,16 +2238,16 @@ class Processor:
             except Exception as e:
                 pass
         return hInd
-    
+
     ## UTIL
     def get(self):
         """Return just the modified_image frome"""
         return self.params.modified_image
-    
+
     def get_orig(self):
         """Return just the raw_image frome"""
         return self.params.raw_image
-    
+
     def super_flush(self, txt=None, end=None, many=5):
         """Flush the stdout many times"""
         if txt:
@@ -2264,25 +2255,25 @@ class Processor:
         for ii in range(many):
             sys.stdout.flush()
             sys.stderr.flush()
-    
+
     def printout_hdul(self, hdul):
         print("\n\n**Examining Hdul**")
-        
+
         for h_num in range(len(hdul)):
             print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n")
             print("\n  HDUL #", h_num)
             for h_info in hdul.fileinfo(h_num):
                 print("    ", h_num, " : ", h_info, "\t : \t", hdul.fileinfo(h_num)[h_info])
-            
+
             to_find = ['bound method', "built-in method", 'method-wrapper']
             HDU = hdul[h_num]
-            
+
             print("\n  Hdul Fields")
             self.print_without(HDU, to_find)
-            
+
             for ff in to_find:
                 self.print_with(HDU, ff)
-    
+
     def view_raw(self, fig=None, ax=None):
         if fig is None and ax is None:
             fig, ax = plt.subplots(num='Input Image')
@@ -2290,11 +2281,11 @@ class Processor:
         minmin = np.min(self.params.raw_image)
         img = np.sqrt(np.asarray(self.params.raw_image - minmin, dtype=np.float32))
         ax.imshow(img, cmap=self.params.cmap)
-    
+
     def print_without(self, HDU, not_wanted=None):
         print("      ** " + "Remainder without these:  " + str(not_wanted) + " **")
         ban_list = [str(it) for it in not_wanted]
-        
+
         found_list = []
         for found_field_name in dir(HDU):
             found_field_value = getattr(HDU, found_field_name)
@@ -2305,32 +2296,32 @@ class Processor:
                     skip = True
             if skip:
                 continue
-            
+
             found_list.append([found_field_name, found_field_value])
-            
+
             # Print these
             out_string = "      {}".format("Misc") + ':: ' + found_field_name
             out_2 = "\t  :  \t" + found_field_value_string
             print("{0: <35}".format(out_string.replace("\n", " ")), out_2)
         print("\n\n")
         return found_list
-    
+
     def print_with(self, HDU, wanted=None):
         print("    ** " + str(wanted) + " **")
         found_list = []
         for found_field_name in dir(HDU):
             found_field_value = getattr(HDU, found_field_name)
             found_field_value_string = str(found_field_value)
-            
+
             if wanted in str(found_field_value_string):
                 found_list.append([found_field_name, found_field_value])
                 out_string = "      {}".format(wanted) + ':: ' + found_field_name
                 out_2 = "\t  :  \t" + found_field_value_string
                 print("{0: <35}".format(out_string), out_2)
         print("\n\n")
-        
+
         return found_list
-    
+
     @staticmethod
     def write_video_in_directory(directory=None, file_name=None, fps=10, pop=None,
                                  folder_name=None, desc=None, key_string='keyframe', fullpath=None, destroy=False, shortcut=False, orig=False):
@@ -2348,10 +2339,10 @@ class Processor:
                 # makedirs(radial_directory, exist_ok=True)
                 video_path = radial_directory + "\\" + file_name
                 good_paths = [radial_directory + "\\" + f for f in listdir(radial_directory) if 'png' in f]
-            
+
             if orig:
                 video_path = os.path.normpath(os.path.join(directory, "..\..\..\\video\\orig_{}".format(file_name)))
-                
+
                 if desc is None:
                     desc = " *    Writing Video {}".format(basename(directory))
             if video_path is None:
@@ -2361,23 +2352,23 @@ class Processor:
                     up_dir_1 = os.path.dirname(directory)
                     up_dir_2 = os.path.dirname(up_dir_1)
                     up_dir_3 = os.path.dirname(up_dir_2)
-                    
+
                     if pop is True:
                         up_dir = up_dir_1
                     if pop == 2:
                         up_dir = up_dir_2
                     if pop == 3:
                         up_dir = up_dir_3
-                    
+
                     video_path = os.path.join(up_dir, "video", filename)
-            
+
             # Initialize the Machine
             if len(good_paths):
                 good_paths.sort()
                 first_path = good_paths[0]
                 height, width, _ = cv2.imread(first_path).shape
                 video_avi = cv2.VideoWriter(video_path, 0, fps, (width, height))
-                
+
                 # Write the Frames
                 for img_path in tqdm(good_paths, desc=desc, unit="frames"):
                     video_avi.write(cv2.imread(img_path))
@@ -2398,35 +2389,35 @@ class Processor:
             #     import winshell
             #     self.params.basename()
         # print(" ^    Successfully {} from {} images! ({} skipped)".format(self.finished_verb, ii, self.skipped))
-    
+
     def orig_smasher(self, orig):
         return np.log10(orig) / 2
-    
+
     def touchup_TUNE(self, img):
         print("TOUCHUP TOOOOOOOOON")
         img *= 10.
         np.power(img, 1 / 3, out=img)
         img /= 3.5
-        
+
         # img += 0.1
-        
+
         # img[img > 1.] = np.power(img[img > 1.], 1/2)
-        
+
         # img *= 1.5
         # img -= 0.75
-        
+
         # img[img < 0.] = 0.
         # img[img == 0.] = np.nan
         img[~np.isfinite(img)] = np.nan
         return img
-    
+
     @staticmethod
     def despike(arr, n1=2.5, n2=40, block=25):
         def rolling_window(data, block):
             shape = data.shape[:-1] + (data.shape[-1] - block + 1, block)
             strides = data.strides + (data.strides[-1],)
             return np.lib.stride_tricks.as_strided(data, shape=shape, strides=strides)
-        
+
         # Condition the Input
         data = arr.copy()
         data[data == -1] = np.NaN
@@ -2455,7 +2446,7 @@ class Processor:
                 std.filled(fill_value=np.NaN))
         arr[mask] = mean[mask]
         return arr + offset
-    
+
     def maximizePlot(self):
         try:
             mng = plt.get_current_fig_manager()
@@ -2474,7 +2465,7 @@ class Processor:
             return True
         except:
             return False
-    
+
     @staticmethod
     def norm_formula(image, the_min, the_max):
         """Standard Normalization Formula"""
@@ -2484,15 +2475,15 @@ class Processor:
         np.divide(image_flat, diff, out=image_flat)
         image = image_flat.reshape(image.shape)
         return image
-    
+
     def vignette(self, frame=None):
         """Truncate the in_object above a certain radis"""
         # if self.vignette_mask is None:
         return frame
-        
+
         if self.radius is None:
             self.init_radius_array()
-            
+
         if frame is not None:
             # frame = frame.astype(np.float16)
             mask = np.nan if "float" in str(frame.dtype) else 0
@@ -2501,17 +2492,17 @@ class Processor:
             else:
                 frame[self.vignette_mask] = mask
             return frame
-        
+
         else:
             self.params.modified_image.astype(np.float16)[self.vignette_mask] = np.nan
             self.params.raw_image.astype(np.float16)[self.vignette_mask] = np.nan
-            
+
             if self.params.rhe_image is not None:
                 self.params.rhe_image[self.vignette_mask] = np.nan
             if self.params.rbg_image is not None:
                 self.params.rbg_image[self.vignette_mask] = 1
             return None
-    
+
     ## Static Methods ##
     def n2r_fp(self, n):
         """Convert index to solar radius"""
@@ -2521,14 +2512,14 @@ class Processor:
             n = 0
         r = n / self.limb_radius_from_fit_shrunken_forpoints
         return r
-    
+
     def r2n_fp(self, r):
         """Convert index to solar radius"""
         if not self.limb_radius_from_fit_shrunken:
             self.find_limb_radius()
         n = r * self.limb_radius_from_fit_shrunken_forpoints
         return n
-    
+
     def n2r(self, n):
         """Convert index to solar radius"""
         if not self.limb_radius_from_fit_shrunken:
@@ -2537,19 +2528,19 @@ class Processor:
             n = 0
         r = n / self.limb_radius_from_fit_shrunken
         return r
-    
+
     def r2n(self, r):
         """Convert index to solar radius"""
         if not self.limb_radius_from_fit_shrunken:
             self.find_limb_radius()
         n = r * self.limb_radius_from_fit_shrunken
         return n
-    
+
     @staticmethod
     def normalize(image, high=98., low=15.):
         """Normalize the Array"""
         lowP, highP = np.nanpercentile(image, [low, high])
-        
+
         # if low is None:
         #     lowP = 0
         # else:
@@ -2563,7 +2554,7 @@ class Processor:
             except RuntimeWarning as e:
                 out = image
         return out
-    
+
     @staticmethod
     def fill_end(use):
         iii = -1
@@ -2573,7 +2564,7 @@ class Processor:
             val = use[iii]
         use[iii:] = val
         return use
-    
+
     @staticmethod
     def fill_start(use):
         iii = 0
@@ -2583,7 +2574,7 @@ class Processor:
             val = use[iii]
         use[:iii] = val
         return use
-        
+
         # fail_count = 0
         # img_paths = self.params.local_imgs_paths()
         # for ii, img_path in enumerate(tqdm(img_paths, desc="  ")):
@@ -2594,7 +2585,7 @@ class Processor:
         #         fail_count += 1
         #     self.ii = ii
         # print("    Success! {} Files Processed\n".format(self.ii+1))
-    
+
     # def modify_one_img(self, img_path, function):
     #     in_object = function(img_path, self.in_field).get()
     #     # save_frame_to_fits_file(img_path, in_object, get_field=self.out_name)
