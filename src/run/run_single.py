@@ -1,23 +1,41 @@
-from fetcher.FidoFetcher import FidoFetcher
-from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
-from fetcher.LocalFetcher import LocalSingleFetcher
-from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv, MultiHistogramProcessorCv
-from processor.NoiseGateProcessor import NoiseGateProcessor
-from processor.RHEProcessor import RHEProcessor
-from processor.RHTProcessor import RHTProcessor
-from processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
-# from processor.QRNSubProcessors import QRNSingleShotProcessor
-from processor.ScienceProcessor import ScienceProcessor
-from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor
-from science.parameters import Parameters
 from run import SingleRunner
+import os
+import subprocess
+
+cwd = os.getcwd()
+os.system(f'export PYTHONPATH={cwd}')
+os.system('echo $PYTHONPATH')
+# result = subprocess.run([f'export PYTHONPATH={cwd}'], capture_output=True, text=True)
+# result = subprocess.run(['echo $PYTHONPATH'], capture_output=True, text=True)
+# exec(f"export )
+# exec(f"echo $PYTHONPATH")
+
+from science.parameters import Parameters
+from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor
+from processor.ScienceProcessor import ScienceProcessor
+from processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
+from processor.RHTProcessor import RHTProcessor
+from processor.RHEProcessor import RHEProcessor
+from processor.NoiseGateProcessor import NoiseGateProcessor
+from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv, MultiHistogramProcessorCv
+from fetcher.LocalFetcher import LocalSingleFetcher
+from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
+from fetcher.FidoFetcher import FidoFetcher
 import matplotlib.pyplot as plt
+
+# exec("export PYTHONPATH=/src:$PYTHONPATH")
+
+
+# from processor.QRNSubProcessors import QRNSingleShotProcessor
+
 
 plt.ioff()
 
 # My favorite prominance: "2013-09-29T13:35:00"
 # Awesome Plumes: "2019-01-01T00:00:00"
 # MC Paper: "2014-11-10T16:00:00"
+
+
 def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20, frames=None):
     """Download a single frame and time-integrate it, then apply RHE
         :type wave: strings
@@ -28,11 +46,11 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
     # Set the Parameters
     name = "Single_Test"
     p = default_run_single_params(wave, tstart, duration_seconds, frames, name)
-    
+
     # p.download_files(False)
     # p.multiplot_all = True
     master = True
-    
+
     # Set the Processes
     get_images = False and master
     if get_images:
@@ -41,10 +59,11 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
         p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
         # p.processors([NoiseGateProcessor],     rp=True)
         p.processors([AIA_PREP_Processor],     rp=True)   # Do Sunpy Things
-    
-    p.png_frame_name = ['all'] #'rhe(lev1p5)' #"msgn(rhe)" #'all' #['rhe', "msgn(rhe)", "rhe(msgn)"] ## I want to be able to call final, but it is made in the processor that save images, so I have to split it out into the touchup processor.
-    p.msgn_targets(["lev1p5", 'rhe' ]) #
-    p.rhe_targets(["lev1p5",'msgn(lev1p5)']) #"lev1p5",
+
+    # 'rhe(lev1p5)' #"msgn(rhe)" #'all' #['rhe', "msgn(rhe)", "rhe(msgn)"] ## I want to be able to call final, but it is made in the processor that save images, so I have to split it out into the touchup processor.
+    p.png_frame_name = ['all']
+    p.msgn_targets(["lev1p5", 'rhe'])
+    p.rhe_targets(["lev1p5", 'msgn(lev1p5)'])  # "lev1p5",
     radial_norms = False and master
     if radial_norms:
         pass
@@ -55,20 +74,19 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
         # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         # p.processors([RHEProcessor],            rp=True)  # Applies the RHE Filter
         p.processors([ImageProcessorCV])
-    
+
     p.aftereffects_in_name = ["rhe(lev1p5)",]
     aftereffects = True and master
     if aftereffects:
         pass
         p.processors([RHTProcessor],            rp='redo')  # Applies the Rolling Hough Transform+
         # p.processors([RHTProcessor],            rp="redo")  # Applies the Rolling Hough Transform+
-    
     use_putters = False and master
     if use_putters:
         # p.putters(MultiImageProcessorCv,            rp=True)  # Makes the PNGs from Fits
         p.putters(ScienceProcessor,            rp=True)  # Makes the PNGs from Fits
         # p.putters(MultiHistogramProcessorCv,            rp=True)  # Makes the PNGs from Fits
-        
+
     # Run the Code
     runner = SingleRunner(p)
     runner.start()
@@ -77,14 +95,14 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
 def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, name="Single"):
     """ Create the default parameters and parse and set the inputs"""
     p = Parameters()
-    
+
     # Parse Inputs
     p.do_one(wave, stop=True)
     p.set_time_range_duration(tstart)
     if frames is not None:
         duration_seconds = frames*12
     p.exposure_time_seconds(duration_seconds)
-    
+
     # Set Metadata
     p.batch_name(name)
     p.run_type("Process a Single Image Start to Finish")
@@ -99,7 +117,7 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
     p.do_recent(False)
     p.currently_local = True
     p.download_files(True)
-    p.do_prep = False # Won't do AIA prep upon download of each frame
+    p.do_prep = False  # Won't do AIA prep upon download of each frame
     p.use_drive = "G"
     # p.do_one(wave, stop=True)
 
@@ -108,53 +126,28 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
     # p.png_frame_name = ['lev1P5_Q', 'RHE']
     # p.putters(ImageProcessorCV,            rp=True)  # Makes the PNGs from Fits
 
-    
     return p
+
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    
+
     all_wavelengths = ['0171']  # , '0304', ]  #, '0211', '0193' ]
     # all_wavelengths = ['211', '0094', '0335'] ['0094', '0131'] #,
     # all_wavelengths = ['0171', '0304'] #,  "0304"]
-    
+
     for wave_to_use in all_wavelengths:
         run_single(wave=wave_to_use)
-        
+
         # import sys
         # sys.exit()
 
 
+# p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
 
+# p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
-
-
-    # p.processors([FidoTimeIntProcessor], rp=True)   # Integrate several frames for S/N
-
-
-    # p.processors([QRNradialFiltProcessor],  rp=True)  # Applies the QRN Filter
-
+# p.processors([QRNradialFiltProcessor],  rp=True)  # Applies the QRN Filter
 
 
 # def run_range_multishot_movie(debug=True, do_one='0304', stop=True,

@@ -6,8 +6,9 @@ Handles the primary functions
 """
 
 # Imports
+import matplotlib.image as mpimg
 from time import localtime, timezone, strftime, time
-from science.modify import Modify
+from src.science.modify import Modify
 from urllib.request import urlretrieve
 from os import rename, remove
 from os.path import normpath, abspath, join, exists
@@ -32,7 +33,6 @@ except Exception as e:
 
 import matplotlib.pyplot as plt
 plt.ioff()
-import matplotlib.image as mpimg
 
 bbb = Barrier(3, timeout=100)
 
@@ -89,10 +89,6 @@ class Sunback:
         self.renew_mask = True
         self.mask_num = [1, 2]
 
-
- 
- 
- 
     # MR Version
 
     def mr_execute(self):
@@ -104,7 +100,7 @@ class Sunback:
         """Download the images if there are new ones"""
         local_dir = self.params.discover_best_default_directory()
         local_time_path = abspath(local_dir+r"/times.txt")
-        local_fileBox_path = abspath(local_dir +r'/fileBox.dat')
+        local_fileBox_path = abspath(local_dir + r'/fileBox.dat')
 
         # Retrieve the file names
         web_path = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"
@@ -113,7 +109,7 @@ class Sunback:
         # local_path = abspath(r"C:\Users\chgi7364\Dropbox\AB_Interesting_Stuff\Projects\sunback_proj\sunback\data\images\times.txt")
         self.fileBox = []
 
-        #Find the time of the previous images
+        # Find the time of the previous images
         try:
             with open(local_time_path) as fp:
                 header = fp.readline()
@@ -140,7 +136,7 @@ class Sunback:
                     with open(local_fileBox_path, 'r') as fp2:
                         for line in fp2:
                             a, b = line.split()
-                            self.fileBox.append([a,b])
+                            self.fileBox.append([a, b])
                     print("None found!\n", flush=True)
 
                     need = False
@@ -149,7 +145,8 @@ class Sunback:
                             pass
                         else:
                             need = True
-                    if len(self.fileBox) == 0: need = True
+                    if len(self.fileBox) == 0:
+                        need = True
                     if not need:
                         return self.fileBox
                     else:
@@ -184,15 +181,14 @@ class Sunback:
                         print("Failed Download...Retrying {} / {}".format(ii, tries))
                         pass
 
-
                 self.fileBox.append([label, local_path])
             used = []
             # self.fileBox = list(set(self.fileBox))
             self.fileBox = [x for x in self.fileBox if x not in used and (used.append(x) or True)]
             self.fileBox = sorted(self.fileBox, key=lambda x: x[0])
             with open(local_fileBox_path, 'w') as fp:
-                for a,b in self.fileBox:
-                    fp.write('{} {}\n'.format(a,b))
+                for a, b in self.fileBox:
+                    fp.write('{} {}\n'.format(a, b))
         return self.fileBox
 
     def mr_run(self):
@@ -201,13 +197,13 @@ class Sunback:
         for this_name, file_path in self.fileBox:
             self.params.start_time = time()
             self.name = this_name
-            
+
             if self.params.do_one() and self.params.do_one() not in this_name:
                 continue
 
             print("Image: {}".format(this_name))
 
-            #Modify the Image
+            # Modify the Image
             new_path = self.mr_modify(this_name, file_path)
 
             # Wait for a bit
@@ -261,7 +257,6 @@ class Sunback:
                     raise e
         return data, image_data
 
-
     # Jp Version
 
     def jp_execute(self):
@@ -275,8 +270,7 @@ class Sunback:
         local_path = "times.txt"
         self.fileBox = []
 
-
-        #Find the time of the last images
+        # Find the time of the last images
         try:
             with open(local_path) as fp:
                 header = fp.readline()
@@ -299,7 +293,7 @@ class Sunback:
                     with open('data/images/fileBox.dat', 'r') as fp2:
                         for line in fp2:
                             a, b = line.split()
-                            self.fileBox.append([a,b])
+                            self.fileBox.append([a, b])
                     print("None found!\n", flush=True)
 
                     need = False
@@ -308,14 +302,14 @@ class Sunback:
                             pass
                         else:
                             need = True
-                    if len(self.fileBox) == 0: need = True
+                    if len(self.fileBox) == 0:
+                        need = True
                     if not need:
                         return self.fileBox
                     else:
                         print("Images Missing!\n", flush=True)
                 except FileNotFoundError:
                     print("New Images Required")
-
 
             print("New images found!\n", flush=True)
             self.new_images = True
@@ -335,12 +329,11 @@ class Sunback:
             self.fileBox = [x for x in self.fileBox if x not in used and (used.append(x) or True)]
             self.fileBox = sorted(self.fileBox, key=lambda x: x[0])
             with open('data/images/fileBox.dat', 'w') as fp:
-                for a,b in self.fileBox:
-                    fp.write('{} {}\n'.format(a,b))
+                for a, b in self.fileBox:
+                    fp.write('{} {}\n'.format(a, b))
         return self.fileBox
 
     def jp_run(self):
-
 
         for this_name, file_path in self.fileBox:
             self.params.start_time = time()
@@ -350,7 +343,7 @@ class Sunback:
 
             print("Image: {}".format(this_name))
 
-            #Modify the Image
+            # Modify the Image
             new_path = self.jp_modify(this_name, file_path)
 
             # Wait for a bit
@@ -418,7 +411,8 @@ class Sunback:
 
         else:
             inst = '  AIA'
-            plt.imshow(data, cmap='sdoaia{}'.format(name), origin='lower', interpolation=None, vmin=self.vmin_plot, vmax=self.vmax_plot)
+            plt.imshow(data, cmap='sdoaia{}'.format(name), origin='lower',
+                       interpolation=None, vmin=self.vmin_plot, vmax=self.vmax_plot)
             plt.tight_layout(pad=0)
             height = 0.95
 
@@ -502,7 +496,6 @@ class Sunback:
         #     return
         if self.params.do_one() and self.params.do_one() not in this_name:
             return
-
 
         print("Image: {}".format(this_name))
 
@@ -660,22 +653,22 @@ class Sunback:
         K = drms.Client()
         series = r"aia.lev1_euv_12s"
         segment = "image"
-        ## SO I CAN ONLY GET THE 4 DAY OLD VERSION HERE
+        # SO I CAN ONLY GET THE 4 DAY OLD VERSION HERE
         # SET THIS UP LIKE BELOW
-        time_query = "2020.08.12_TAI/1d@1d" #/1d@6h"
+        time_query = "2020.08.12_TAI/1d@1d"  # /1d@6h"
         wavelength = ''
 
         query_string = series + "[{}][{}]".format(time_query, wavelength)
         print(query_string)
         aiakeys = K.pkeys(series)
-        kk,ss = K.query(query_string, key=aiakeys, seg=segment)
+        kk, ss = K.query(query_string, key=aiakeys, seg=segment)
         if len(ss) > 0:
             list_of_files = ss[segment]
             print(list_of_files)
         else:
             print(ss)
-        import pdb; pdb.set_trace()
-
+        import pdb
+        pdb.set_trace()
 
         # import pdb;
         # pdb.set_trace()
@@ -823,7 +816,8 @@ class Sunback:
                     early = '2020/05/26 00:00'
                     now = '2020/05/30 00:00'
                     # Find Results
-                    self.fido_result = Fido.search(attrs.Time(early, now), attrs.Instrument('aia'), attrs.Resolution(self.params.resolution()))
+                    self.fido_result = Fido.search(attrs.Time(early, now), attrs.Instrument(
+                        'aia'), attrs.Resolution(self.params.resolution()))
                     self.fido_num = self.fido_result.file_num
                     self.new_images = True
                     self.this_time = int(self.fido_result.get_response(0)[0].time.start)
@@ -965,7 +959,7 @@ class Sunback:
 
     def fido_download(self, this_result, save_path):
         original = sys.stderr
-        
+
         #  TODO make the error print to a log instead of console
         # sys.stderr = open(join(self.params.local_directory, 'log.txt'), 'w')
         downloaded_files = Fido.fetch(this_result, path=self.params.local_directory)
@@ -1026,8 +1020,6 @@ class Sunback:
                     raise e
         data = my_map.data
         return data, image_data
-
-
 
     # Level 4
 
@@ -1090,7 +1082,8 @@ class Sunback:
         from astropy.time import Time
         # import pdb; pdb.set_trace()
         # cleaned = time_string.replace(tzinfo=timezone.utc).astimezone(tz=None)
-        cleaned = Time(time_string).datetime.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%I:%M%p, %b-%d, %Y")
+        cleaned = Time(time_string).datetime.replace(
+            tzinfo=timezone.utc).astimezone(tz=None).strftime("%I:%M%p, %b-%d, %Y")
 
         return cleaned
         # name = full_name + ''
@@ -1147,7 +1140,7 @@ class Sunback:
 
     def vignette(self, data):
 
-        mask = self.radius > (int(1.1* self.rez // 2)) #(3.5 * self.noise_radii)
+        mask = self.radius > (int(1.1 * self.rez // 2))  # (3.5 * self.noise_radii)
         data[mask] = np.nan
         return data
 
@@ -1164,27 +1157,25 @@ class Sunback:
         # original = sys.stderr
         # sys.stderr = open(join(self.params.local_directory, 'log.txt'), 'w+')
         # print(data.dtype)
-        data[data==0] = np.nan
+        data[data == 0] = np.nan
         radius_bin = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
         # import pdb; pdb.set_trace()
         dat_corona = (data.flatten() - self.fakeMin[radius_bin]) / \
                      (self.fakeMax[radius_bin] - self.fakeMin[radius_bin])
 
-
         # sys.stderr = original
 
         # Deal with too hot things
         self.vmax = 0.95
-        self.vmax_plot = 0.85 #np.max(dat_corona)
+        self.vmax_plot = 0.85  # np.max(dat_corona)
         hotpowr = 1/1.5
-
 
         hot = dat_corona > self.vmax
         # dat_corona[hot] = dat_corona[hot] ** hotpowr
 
         # Deal with too cold things
         self.vmin = 0.3
-        self.vmin_plot = -0.05 #np.min(dat_corona)# 0.3# -0.03
+        self.vmin_plot = -0.05  # np.min(dat_corona)# 0.3# -0.03
         coldpowr = 1/2
 
         cold = dat_corona < self.vmin
@@ -1193,28 +1184,24 @@ class Sunback:
         self.dat_coronagraph = dat_corona
         dat_corona_square = dat_corona.reshape(data.shape)
 
-
         if self.renew_mask or self.params.mode() == 'r':
             self.corona_mask = self.get_mask(data)
             self.renew_mask = False
 
-
-
         dat_corona_square = dat_corona_square ** (1/5)
-        data = self.normalize(data, high = 100, low=0)
-        dat_corona_square = self.normalize(dat_corona_square, high = 100, low=1)
-
+        data = self.normalize(data, high=100, low=0)
+        dat_corona_square = self.normalize(dat_corona_square, high=100, low=1)
 
         # import pdb; pdb.set_trace()
         if self.params.do_mirror():
-            #Do stuff
+            # Do stuff
             xx, yy = self.corona_mask.shape[0], int(self.corona_mask.shape[1]/2)
             # import pdb; pdb.set_trace()
             newDat = data[self.corona_mask]
-            grid = newDat.reshape(xx,yy)
+            grid = newDat.reshape(xx, yy)
             # if self.
             flipped = np.fliplr(grid)
-            data[~self.corona_mask] = flipped.flatten() # np.flip(newDat)
+            data[~self.corona_mask] = flipped.flatten()  # np.flip(newDat)
 
         data[self.corona_mask] = dat_corona_square[self.corona_mask]
         # print(data.dtype)
@@ -1234,7 +1221,6 @@ class Sunback:
         # data = np.log(data)
 
         # data = self.normalize(data, high=85, low=5)
-
 
         return data
 
@@ -1382,7 +1368,7 @@ class Sunback:
                 self.binMid[ii] = np.nan
                 self.binMed[ii] = np.nan
 
-        #Remove NANs
+        # Remove NANs
         idx = np.isfinite(self.binMax) & np.isfinite(self.binMin)
         self.binMax = self.binMax[idx]
         self.binMin = self.binMin[idx]
@@ -1408,7 +1394,6 @@ class Sunback:
         self.lCut = int(self.limb_radii - 0.01 * self.rez)
         self.hCut = int(self.limb_radii + 0.01 * self.rez)
 
-
         # Split into three regions
         self.low_abs = self.radAbss[:self.lCut]
         self.low_max = self.binMax[:self.lCut]
@@ -1421,7 +1406,6 @@ class Sunback:
         self.high_abs = self.radAbss[self.hCut:]
         self.high_max = self.binMax[self.hCut:]
         self.high_min = self.binMin[self.hCut:]
-
 
         if False:
 
@@ -1444,17 +1428,15 @@ class Sunback:
             plt.legend()
             plt.show()
 
-
         # Filter the regions separately
 
         from scipy.signal import savgol_filter
 
-        lWindow = 7 # 4 * self.extra_rez + 1
-        mWindow = 7 # 4 * self.extra_rez + 1
-        hWindow = 7 # 30 * self.extra_rez + 1
+        lWindow = 7  # 4 * self.extra_rez + 1
+        mWindow = 7  # 4 * self.extra_rez + 1
+        hWindow = 7  # 30 * self.extra_rez + 1
         fWindow = 7  # int(3 * self.extra_rez) + 1
         rank = 3
-
 
         # print(self.count_nan(self.throw_nan(self.low_max)))
         mode = 'nearest'
@@ -1477,10 +1459,9 @@ class Sunback:
         degree = 5
         # print(self.count_nan(low_max_filt))
         p = np.polyfit(self.low_abs, low_max_filt, degree)
-        low_max_fit = np.polyval(p, self.low_abs) #* 1.1
+        low_max_fit = np.polyval(p, self.low_abs)  # * 1.1
         p = np.polyfit(self.low_abs, low_min_filt, degree)
         low_min_fit = np.polyval(p, self.low_abs)
-
 
         ind = 10
         low_max_fit[0:ind] = low_max_fit[ind]
@@ -1493,13 +1474,11 @@ class Sunback:
 
             plt.plot(self.radAbss, self.binMax, label="Max")
 
-
             plt.plot(self.low_abs, low_min_filt, lw=4)
             plt.plot(self.mid_abs, mid_min_filt, lw=4)
             plt.plot(self.high_abs, high_min_filt, lw=4)
 
             plt.plot(self.radAbss, self.binMin, label="Min")
-
 
             plt.plot(self.low_abs, low_min_fit, c='k')
             plt.plot(self.low_abs, low_max_fit, c='k')
@@ -1511,8 +1490,6 @@ class Sunback:
 
             plt.legend()
             plt.show()
-
-
 
         # Build output curves
         self.fakeAbss = np.hstack((self.low_abs, self.mid_abs, self.high_abs))
@@ -1532,10 +1509,9 @@ class Sunback:
         self.fakeMax[self.fakeAbss] = self.fakeMax0
         self.fakeMin[self.fakeAbss] = self.fakeMin0
 
-            # plt.plot(np.arange(self.rez), self.fakeMax)
-            # plt.plot(np.arange(self.rez), self.fakeMin)
-            # plt.show()
-
+        # plt.plot(np.arange(self.rez), self.fakeMax)
+        # plt.plot(np.arange(self.rez), self.fakeMin)
+        # plt.show()
 
         # # Locate the Noise Floor
         # noiseMin = 550 * self.extra_rez - self.hCut
@@ -1636,7 +1612,7 @@ class Sunback:
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
 
         plt.tight_layout()
-        if True: #self.params.is_debug():
+        if True:  # self.params.is_debug():
             file_name = '{}_Radial.png'.format(self.name)
             # print("Saving {}".format(file_name))
             save_path = join(r"data\images\radial", file_name)
@@ -1658,6 +1634,8 @@ class Sunback:
             return n
 
 # Helper Functions
+
+
 def run(delay=60, mode='y', debug=False, do171=False, do304=False):
     p = Parameters()
     p.set_delay_seconds(delay)
@@ -1671,7 +1649,7 @@ def run(delay=60, mode='y', debug=False, do171=False, do304=False):
 
     # p.time_period(period=['2019/12/21 04:20', '2019/12/21 04:40'])
     p.resolution(2048)
-    p.range(days=5)#0.060)
+    p.range(days=5)  # 0.060)
     p.download_images(True)
     p.cadence(3)
     p.frames_per_second(20)
@@ -1689,6 +1667,7 @@ def run(delay=60, mode='y', debug=False, do171=False, do304=False):
 
     Sunback(p).start()
 
+
 def where():
     """Prints the location that the images are stored in."""
     p = Parameters()
@@ -1699,16 +1678,6 @@ if __name__ == "__main__":
     # Do something if this file is invoked on its own
     where()
     run(10, 'y', debug=debugg)
-
-
-
-
-
-
-
-
-
-
 
 
 # cdef int SINE = 0

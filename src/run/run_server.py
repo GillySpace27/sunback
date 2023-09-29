@@ -1,9 +1,10 @@
 """This is the script to run on a server somewhere to process the images"""
-from sys import path
-path.append(path[0] + "/..")  # Adds higher directory to python modules path.
+# from sys import path
+# path.append(path[0] + "/..")  # Adds higher directory to python modules path.
 # a = [print(x) for x in path]
 
-from fetcher.WebFitsFetcher import WebFitsFetcher
+from src.fetcher import WebFitsFetcher
+WebFitsFetcher.WebFitsFetcher()
 from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
 from processor.RHEProcessor import RHEProcessor
 from processor.QRNProcessor import QRNSingleShotProcessor_Legacy

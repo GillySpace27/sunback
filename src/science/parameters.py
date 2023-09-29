@@ -16,6 +16,7 @@ from utils.time_util import define_time_range, define_recent_range
 global multi_pool
 multi_pool = None
 
+
 class Parameters:
     """
     A container class for the run parameters of the program
@@ -35,7 +36,7 @@ class Parameters:
         self.multi_pool = None
         self.do_parallel = True
         self.master_frame_list_newest = ["msgn", "rhe", "lev1p5", "t_int", "lev1p0", "primary", '']
-        self.master_frame_list_oldest = [ x for x in reversed(self.master_frame_list_newest)]
+        self.master_frame_list_oldest = [x for x in reversed(self.master_frame_list_newest)]
         self.short_circuit = False
         self.durList = []
         self.aftereffects_in_name = "rhe"
@@ -47,8 +48,8 @@ class Parameters:
         self.use_drive = "D"
         self.file_basename = None
         self.orig_path = None
-        self.cat_path  = None
-        self.mod_path  = None
+        self.cat_path = None
+        self.mod_path = None
         self.last_wave = None
         self.analysis_directory = None
         self._imgs_top_directory = None
@@ -65,8 +66,8 @@ class Parameters:
         self.int_tm_tot = 0
         self.do_temp = False
         self.do_prep = False
-        self.confirm_save=False
-        self.speak_save=False
+        self.confirm_save = False
+        self.speak_save = False
         self.tend = ''
         self.tstart = ''
         self._remake_norm_curves = False
@@ -102,9 +103,9 @@ class Parameters:
         self.Force_init = False
         self.list_of_default_hdus = ['t_int', "lev1p0", 0, 1]
         self.raw_image = None
-        self.modified_image=None
-        self.rhe_image=None
-        self.alpha=0.35
+        self.modified_image = None
+        self.rhe_image = None
+        self.alpha = 0.35
         self.hdu_name = None
         self.start_time = time()
         self.is_first_run = True
@@ -177,8 +178,8 @@ class Parameters:
 
         # self.multi_pool = self.init_pool(self.n_pool)
 
-        self._msgn_targets = [] #['primary', 'rhe(primary)']
-        self._qrn_targets = [] #['primary', 'rhe(primary)']
+        self._msgn_targets = []  # ['primary', 'rhe(primary)']
+        self._qrn_targets = []  # ['primary', 'rhe(primary)']
 
         # self.set_default_values()
 
@@ -205,9 +206,14 @@ class Parameters:
         try:
             del self_dict['multi_pool']
         except KeyError:
-            a=1
+            a = 1
 
         return self_dict
+
+    def do_standard_RHE(self):
+        self.msgn_targets(['lev1p5'])  # , 'rhe(lev1p5)'
+        self.rhe_targets(["lev1p5", 'msgn(lev1p5)'])  # "lev1p5",
+        self.png_frame_name = ['rhe(msgn)']  # ['rhe(lev1p5)']
 
     def init_pool(self, n_cores=10):
         if self.multi_pool is None and self.do_parallel is True:
@@ -256,7 +262,7 @@ class Parameters:
     def putters(self, _putters=None, rp=None):
         if _putters is not None:
             if type(_putters) not in [list]:
-                self._putters =  [_putters]
+                self._putters = [_putters]
                 self._put_rp = [rp]
             else:
                 self._putters.extend(_putters)
@@ -264,7 +270,7 @@ class Parameters:
 
         return self._putters
 
-    ## Other
+    # Other
 
     # Directories
 
@@ -272,7 +278,6 @@ class Parameters:
         if _image is not None:
             self._image = _image
         return self._image
-
 
     def base_directory(self, _base_directory=None):
         if _base_directory is not None:
@@ -331,9 +336,6 @@ class Parameters:
         if make:
             makedirs(self._movs_directory, exist_ok=True)
         return self._movs_directory
-
-
-
 
     def time_path(self, _time_path=None):
         if _time_path is not None:
@@ -560,13 +562,12 @@ class Parameters:
 
     def reset_frames(self):
         self.modified_image = np.zeros_like(self.modified_image)
-        self.raw_image = self.modified_image +0
-        self.raw_image2 = self.modified_image +0
+        self.raw_image = self.modified_image + 0
+        self.raw_image2 = self.modified_image + 0
 
     def set_current_wave(self, wave=None):
         """Set the current wave parameter correctly"""
         self.reset_frames()
-
 
         if self.do_one():
             self.current_wave(self.do_one())
@@ -578,7 +579,6 @@ class Parameters:
         else:
             self.set_current_wave_paths()
         # self.make_directories()
-
 
     def get_wave_directory(self):
         """Define the root folder"""
@@ -592,7 +592,7 @@ class Parameters:
 
         return self.base_directory(base_directory)
 
-    def find_root_directory(self, root_directory_name = None):
+    def find_root_directory(self, root_directory_name=None):
         """Determine where to store the images"""
 
         if root_directory_name is None:
@@ -609,8 +609,6 @@ class Parameters:
             self.root_directory = root_directory_name
         else:
             raise OSError("Operating System Not Supported")
-
-
 
         # self.currently_local = False
         # if self.currently_local: # True when run locally, False when run in panHelio
@@ -643,40 +641,38 @@ class Parameters:
         # Define and Set Directories
         # print("Target: {}".format(self.current_wave))
 
-        ## \\>Batch<\\>Wavelength<\\
+        # \\>Batch<\\>Wavelength<\\
         self.base_directory(abspath(self.get_wave_directory()))
 
-
         # Top Folders
-        self.shortcut_directory(    abspath(join(self.base_directory(), '..', 'MOVS')))
-        self.time_path(             abspath(join(self.base_directory(), "image_times.txt")))
-        self.imgs_top_directory(    abspath(join(self.base_directory(), 'imgs')))
-        self.movs_directory(        abspath(join(self.base_directory(), 'video')))
-        self.analysis_directory =   abspath(join(self.base_directory(), "analysis"))
+        self.shortcut_directory(abspath(join(self.base_directory(), '..', 'MOVS')))
+        self.time_path(abspath(join(self.base_directory(), "image_times.txt")))
+        self.imgs_top_directory(abspath(join(self.base_directory(), 'imgs')))
+        self.movs_directory(abspath(join(self.base_directory(), 'video')))
+        self.analysis_directory = abspath(join(self.base_directory(), "analysis"))
 
         # Fits Folders
         if not self.do_single:
-            self.fits_directory(        abspath(join(self.imgs_top_directory(), 'fits')))
+            self.fits_directory(abspath(join(self.imgs_top_directory(), 'fits')))
         else:
-            self.fits_directory(        abspath(join(self.imgs_top_directory())))
+            self.fits_directory(abspath(join(self.imgs_top_directory())))
 
         if not self.temp_directory():
-            self.temp_directory(        abspath(join(self.fits_directory(), "temp")))
+            self.temp_directory(abspath(join(self.fits_directory(), "temp")))
 
         # Png Folders
-        self.mods_directory(        abspath(join(self.imgs_top_directory(), 'mod')))
-        self.orig_directory =       abspath(join(self.imgs_top_directory(), "orig"))
-        self.cat_directory =        abspath(join(self.imgs_top_directory(), "cat"))
+        self.mods_directory(abspath(join(self.imgs_top_directory(), 'mod')))
+        self.orig_directory = abspath(join(self.imgs_top_directory(), "orig"))
+        self.cat_directory = abspath(join(self.imgs_top_directory(), "cat"))
 
         # Analysis Folders
 
-        norm_curves_name =      self.norm_curves_name or '{}_curves.txt'.format(self.current_wave())
-        self.curve_path(        abspath(join(self.analysis_directory, norm_curves_name)))
-
+        norm_curves_name = self.norm_curves_name or '{}_curves.txt'.format(self.current_wave())
+        self.curve_path(abspath(join(self.analysis_directory, norm_curves_name)))
 
         wave = "Rainbow" if self.do_single else self.current_wave()
-        param_file_name =       '{}_params.txt'.format(wave)
-        self.params_path(       abspath(join(self.analysis_directory, param_file_name)))
+        param_file_name = '{}_params.txt'.format(wave)
+        self.params_path(abspath(join(self.analysis_directory, param_file_name)))
         if not self.do_single:
             self.save_to_txt()
 
@@ -691,23 +687,23 @@ class Parameters:
         # Define and Set Directories
         # print("Target: {}".format(self.current_wave))
 
-        ## \\>Batch<\\>Wavelength<\\
+        # \\>Batch<\\>Wavelength<\\
         new_root = self.temp_directory()
 
         # Top Folders
-        self.analysis_directory =   abspath(join(new_root, "analysis"))
+        self.analysis_directory = abspath(join(new_root, "analysis"))
 
         # Fits Folders
-        self.fits_directory(        abspath(join(self.imgs_top_directory())))
+        self.fits_directory(abspath(join(self.imgs_top_directory())))
 
         # Png Folders
-        self.mods_directory(        abspath(join(self.imgs_top_directory())))
-        self.orig_directory =       abspath(join(self.imgs_top_directory()))
-        self.cat_directory =        abspath(join(self.imgs_top_directory()))
+        self.mods_directory(abspath(join(self.imgs_top_directory())))
+        self.orig_directory = abspath(join(self.imgs_top_directory()))
+        self.cat_directory = abspath(join(self.imgs_top_directory()))
 
         # Analysis Folders
-        param_file_name =       '{}_params.txt'.format("Rainbow")
-        self.params_path(       abspath(join(self.analysis_directory, param_file_name)))
+        param_file_name = '{}_params.txt'.format("Rainbow")
+        self.params_path(abspath(join(self.analysis_directory, param_file_name)))
         self.save_to_txt()
 
     ## Time Range ##
@@ -727,11 +723,11 @@ class Parameters:
         # delta = max(duration_seconds - slide, 1)
         delta = duration_seconds
         duration = datetime.timedelta(seconds=delta)
-        shift = datetime.timedelta(seconds=-1)# -slide//2 ) #delta/1.5)
+        shift = datetime.timedelta(seconds=-1)  # -slide//2 ) #delta/1.5)
         # Pokemon this is where I am working 2-9-22
 
         t_start_dt = t_start_dt + shift
-        t_end_dt   = t_start_dt + shift + duration
+        t_end_dt = t_start_dt + shift + duration
 
         # Get the formatted outputs
         t_start_out = t_start_dt.strftime('%Y/%m/%d %H:%M:%S')
@@ -754,8 +750,6 @@ class Parameters:
         self.start_time, self.start_time_long, self.start_time_string = start
         self.end_time, self.end_time_long, self.end_time_string = end
 
-
-
         # self.radial_hist_path = abspath(join(self.analysis_directory, param_file_name))
 
     def make_directories(self):
@@ -773,7 +767,7 @@ class Parameters:
     def make_file_paths(self, image_data):
         _, self.fits_save_path, _, _ = image_data
         fits_name = os.path.basename(self.fits_save_path)
-        png_name =  fits_name.replace('fits', 'png')
+        png_name = fits_name.replace('fits', 'png')
         self.mod_path = join(self.mods_directory(), png_name)
         self.cat_path = self.mod_path.replace("mod", "cat")
         self.orig_path = self.mod_path
@@ -782,7 +776,6 @@ class Parameters:
         # os.makedirs(os.path.dirname(self.orig_path), exist_ok=True)
 
         return self.mod_path, self.cat_path, self.orig_path
-
 
     def get_pre_radial_fig_paths(self):
 
@@ -820,14 +813,11 @@ class Parameters:
 
         return save_path_1, save_path_2
 
-
-
-
     def current_wave(self, _current_wave=None):
         if _current_wave is not None:
             self._current_wave = _current_wave
             if not self._current_wave:
-                self._current_wave ='rainbow'
+                self._current_wave = 'rainbow'
         return self._current_wave
 
     def check_real_number(self, number):
@@ -854,7 +844,6 @@ class Parameters:
         except Exception as e:
             print("Failed to print to text: {}".format(e))
 
-
     def load_preset_time_settings(self, selection=None):
         """Load one of a few presets for the time settings"""
         if selection is not None:
@@ -865,30 +854,30 @@ class Parameters:
 
         key_fixed_cadence = 1
         key_fixed_number = None
-        switch =self.selection.casefold()
+        switch = self.selection.casefold()
         # print("Loading {} cadence.".format(self.selection))
         if switch in ['slow', 's', 1, "1"]:
-            cadence_minutes = 10 # One Forty Four Frames Per Day
-            exposure_time_secs = 180 # Fifteen Frames per Frame
+            cadence_minutes = 10  # One Forty Four Frames Per Day
+            exposure_time_secs = 180  # Fifteen Frames per Frame
             self.selection = 'slow'
 
         elif switch in ['medium', 'm', 2, "2"]:
-            cadence_minutes = 20 # Seventy Two Frames Per Day
+            cadence_minutes = 20  # Seventy Two Frames Per Day
             exposure_time_secs = 120  # Ten Frames per Frame
             self.selection = 'medium'
 
         elif switch in ['quick', 'q', 3, "3"]:
-            cadence_minutes = 60 # Twenty Four Frames Per Day
+            cadence_minutes = 60  # Twenty Four Frames Per Day
             exposure_time_secs = 60  # Five Frames per Frame
             self.selection = 'quick'
 
         elif switch in ['ludacris', "ludicrous ", 'l', 4, "4"]:
-            cadence_minutes = 3 * 60 # Eight Frames Per Day
+            cadence_minutes = 3 * 60  # Eight Frames Per Day
             exposure_time_secs = 36  # Three Frames per Frame
             self.selection = 'ludacris'
 
         elif switch in ['ludacris', "ludicrous ", 'l2', 4, "4"]:
-            cadence_minutes = 60 # 24 Frames Per Day
+            cadence_minutes = 60  # 24 Frames Per Day
             exposure_time_secs = 36  # Three Frames per Frame
             self.selection = 'ludacris'
 
@@ -902,7 +891,8 @@ class Parameters:
 
         if not self.did_print:
             print("Settings: {}".format(self.selection),
-                  "\n  Cadence = {} Minutes ({} hours), [{}] per day".format(cadence_minutes, cadence_minutes/60, 24*60/cadence_minutes),
+                  "\n  Cadence = {} Minutes ({} hours), [{}] per day".format(
+                      cadence_minutes, cadence_minutes/60, 24*60/cadence_minutes),
                   "\n  Exposure = {} Seconds".format(exposure_time_secs),)
             self.did_print = True
 

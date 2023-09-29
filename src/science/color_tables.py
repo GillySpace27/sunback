@@ -7,6 +7,7 @@ import pathlib
 
 import matplotlib.colors as colors
 import numpy as np
+import os.path
 
 import astropy.units as u
 
@@ -15,10 +16,13 @@ __all__ = [
     'sxt_color_table', 'xrt_color_table', 'trace_color_table',
     'sot_color_table', 'hmi_mag_color_table', 'suvi_color_table'
 ]
-cmap_data_dir = pathlib.Path(__file__).parent.absolute() / '../../data'
+cmap_data_dir = os.path.join(pathlib.Path(__file__).parent.absolute(), '../../data', "idl_3.csv")
+if not os.path.exists(cmap_data_dir):
+    cmap_data_dir = "/Users/cgilbert/PycharmProjects/sunback/data/idl_3.csv"
+assert os.path.exists(cmap_data_dir), f"Could not find cmap_data_dir: {cmap_data_dir}"
 
 # The following values describe color table 3 for IDL (Red Temperature)
-idl_3 = np.loadtxt(cmap_data_dir / 'idl_3.csv', delimiter=',')
+idl_3 = np.loadtxt(cmap_data_dir, delimiter=',')
 r0, g0, b0 = idl_3[:, 0], idl_3[:, 1], idl_3[:, 2]
 
 c0 = np.arange(256, dtype='f')
