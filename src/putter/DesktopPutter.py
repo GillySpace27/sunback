@@ -5,7 +5,7 @@ import os
 from tqdm import tqdm
 import subprocess
 
-from putter.Putter import Putter
+from src.putter.Putter import Putter
 # Initialization
 from time import time, sleep
 
@@ -13,7 +13,7 @@ last_time = time()
 start_time = last_time
 set_local_background = True
 test = False
-# from utils.file_util import load_imgs_paths
+# from src.utils.file_util import load_imgs_paths
 
 
 class DesktopPutter(Putter):
@@ -69,10 +69,11 @@ class DesktopPutter(Putter):
         elif this_system == "Linux":
             # Command to change wallpaper on Linux (GNOME)
             command = f"gsettings set org.gnome.desktop.background picture-uri file://{local_path}"
+            subprocess.run(command, shell=True)
         else:
             raise OSError("Operating System Not Supported")
 
-        subprocess.run(command, shell=True)
+
 
         # try:
         #     if this_system == "Windows":

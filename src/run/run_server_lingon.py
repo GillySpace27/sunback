@@ -1,13 +1,13 @@
 """This is the script to run on a server somewhere to process the images"""
-from run import Runner, SingleRunner
-from science.parameters import Parameters
-from putter.DesktopPutter import DesktopPutter
-from putter.AwsPutter import AwsPutter
-from processor.SunPyProcessor import AIA_PREP_Processor, NRGFProcessor, MSGNProcessor
-from processor.QRNProcessor import QRNSingleShotProcessor_Legacy
-from processor.RHEProcessor import RHEProcessor
-from fetcher.WebFitsFetcher import WebFitsFetcher
-from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
+from src.run import Runner, SingleRunner
+from src.science.parameters import Parameters
+from src.putter.DesktopPutter import DesktopPutter
+from src.putter.AwsPutter import AwsPutter
+from src.processor.SunPyProcessor import AIA_PREP_Processor, NRGFProcessor, MSGNProcessor
+from src.processor.QRNProcessor import QRNSingleShotProcessor_Legacy
+from src.processor.RHEProcessor import RHEProcessor
+from src.fetcher.WebFitsFetcher import WebFitsFetcher
+from src.processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
 
 
 def run_server_lingon(delay=20, debug=False, do_one='rainbow', stop=True):

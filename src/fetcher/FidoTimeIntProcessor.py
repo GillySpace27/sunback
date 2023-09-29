@@ -11,7 +11,7 @@ import numpy as np
 import astropy.units as u
 from tqdm import tqdm
 
-from fetcher.FidoFetcher import FidoFetcher
+from src.fetcher.FidoFetcher import FidoFetcher
 
 jsoc_email = "chris.gilly@colorado.edu"
 
@@ -39,7 +39,7 @@ class FidoTimeIntProcessor(FidoFetcher):
     dopng = False
     temp_folder = ''
     exposure_paths = []
-    
+
     ## Structure ###
     def __init__(self, params=None, quick=False, rp=False):
         # Initialize class variables
@@ -56,28 +56,28 @@ class FidoTimeIntProcessor(FidoFetcher):
         self.verb = False
         self.params.do_temp = True
         self.params.do_parallel = False
-    
+
     def should_get_files(self):
         return self.params.download_files() or self.reprocess_mode() or not self.verb
-    
+
     def setup(self):
         img_path = self.determine_image_path()
         self.make_temp_dir(img_path)
-    
+
     def cleanup(self):
         self.reset_params()
-        
+
         if self.hold:
             self.fido_download_fits_ensured(temp=True)
             self.sum_subframes()
-        
+
         if self.params.destroy:
             self.delete_temp()  # TEMPCHANGE
-        
+
         self.params.do_temp = False
         super().cleanup()
 
-    
+
     def do_fits_function(self, fits_path=None, in_name=None, image=True):
         """This is the thing that will be executed on every file
             In this case, that thing is time integration
@@ -85,9 +85,9 @@ class FidoTimeIntProcessor(FidoFetcher):
         if fits_path is None:
             return False
         self.fits_path = fits_path
-        
+
         self.set_in_frame_name(fits_path=fits_path, in_name=in_name)
-        
+
         if self.should_do_exposure(fits_path):
             # self.params.do_temp = True
             # Get the Images
@@ -99,9 +99,9 @@ class FidoTimeIntProcessor(FidoFetcher):
                 if self.params.destroy:
                     self.delete_temp_folder_items()
             return self.params.modified_image
-        
+
         return None
-    
+
     def should_do_exposure(self, fits_path):
         """Do we need to do time integration here?"""
         self.keyframe_fits_path = fits_path
@@ -109,7 +109,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         need_exposure = self.params.exposure_time_seconds() > 0
         have_input = True  # self.in_name is not None
         already_made = self.out_name in self.hdu_name_list
-        
+
         if already_made:
             orig, wave, t_rec, center, int_time, name = self.load_this_fits_frame(fits_path, "lev1p0")
             tint, wave, t_rec, center, int_time, name = self.load_this_fits_frame(fits_path, "t_int")
@@ -120,50 +120,50 @@ class FidoTimeIntProcessor(FidoFetcher):
                     already_made = False
             else:
                 already_made = False
-        
+
         reprocess = self.reprocess_mode()
         do_exposure = need_exposure and have_input and (not already_made or reprocess)
         return do_exposure
-    
+
     def gather_subframes(self, fits_path):
         # Parse the Keyframe Time
         self.init_integration_period(fits_path)
         # Search fido for those frames + Download the Files
         self.fetch(self.params, quick=True, verb=False)
-    
+
     def init_integration_period(self, fits_path):
-        
+
         # in_name = self.in_name
         self.subname = fits_path.split('\\')[-1][:-5]
         # self.subname = basename(fits_path.split('.')[0])
         self.params.do_temp = True
         self.set_in_frame_name(fits_path=fits_path)
-        
+
         keyframe, wave, t_rec, center, t_int, name = self.load_this_fits_frame(fits_path, self.in_name)
         self.orig_t_int = t_int
         self.params.raw_image = keyframe
         self.params.modified_image = np.zeros_like(keyframe, dtype=np.float32)
-        
+
         # Define new exposure time window
         self.main_time_period = self.params.time_period([self.params.tstart, self.params.tend])
         self.params.set_time_range_duration(t_start=t_rec, duration_seconds=self.params.exposure_time_seconds())
         self.params.do_recent(False)
         self.params.cadence_minutes(10. / 60.)
         # self.out_dtype = np.float32
-    
+
     def reset_params(self):
         # Reset the main time period
         self.params.time_period(self.main_time_period)
         self.params.load_preset_time_settings()
         self.params.define_range()
-    
+
     def get_exposure_paths(self):
         self.prep_temp_folder()
         exposure_files = os.listdir(self.temp_folder)
         self.exposure_paths = [join(self.temp_folder, path) for path in exposure_files]
         self.exposure_paths.append(self.fits_path)
         return self.exposure_paths
-    
+
     def sum_subframes(self):
         # self.verb=False
         # vprint("Summing Arrays", False)
@@ -175,7 +175,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         frameNames = self.params.master_frame_list_newest
         frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(exp_paths[0], frameNames, quiet=True)
         self.params.modified_image = np.zeros_like(frame, dtype=np.float32)
-        
+
 
         for ii, path in enumerate(tqdm(exp_paths, desc="Summing Frames")):
             try:
@@ -199,7 +199,7 @@ class FidoTimeIntProcessor(FidoFetcher):
         # self.params.modified_image *= self.orig_t_int  # TODO remove this line to make the curves be per second
         self.params.modified_image = np.asarray(self.params.modified_image, dtype=self.out_dtype)
         self.params.header["Exptime_TOT"] = self.params.int_tm_tot  # TODO Make this actually work
-    
+
     ## TEMP FOLDER IO ##
     def prep_temp_folder(self):
         self.params.download_files(True)
@@ -207,23 +207,23 @@ class FidoTimeIntProcessor(FidoFetcher):
         # self.temp_folder = join(self.params.temp_directory(), self.subname)
         os.makedirs(self.temp_folder, exist_ok=True)
         # self.delete_temp_folder_items()
-    
+
     def delete_temp(self, delete_folder_too=True):
         if delete_folder_too:
             self.delete_temp_folder()
         else:
             self.delete_temp_folder_items()
-    
+
     def delete_temp_folder(self):
         if os.path.isdir(self.temp_folder):
             shutil.rmtree(self.temp_folder)
-    
+
     def delete_temp_folder_items(self, folder=None):
         directory = folder if folder is not None else self.temp_folder
         for root, dirs, files in os.walk(directory):
             for file in files:
                 self.force_delete(file, root)
-    
+
     @staticmethod
     def force_delete(file, root='', do=True):
         if do:
@@ -231,9 +231,9 @@ class FidoTimeIntProcessor(FidoFetcher):
                 os.remove(os.path.join(root, file))
             else:
                 shutil.rmtree(file)
-        
+
         # self.params.do_multishot()
-    
+
     # def remove_and_mark_redownload(self, filename):
     #     fitsPath = join(self.fits_folder, filename[:-5] + '.fits')
     #     self.redownload.append(filename)
@@ -267,7 +267,7 @@ class FidoTimeIntProcessor(FidoFetcher):
     #     sys.stdout.flush()
     #     return results
     #
-    
+
     # def download_fits_series(self):
     #     self.fido_check_for_fits()
     #     if self.fido_search_found_num:
@@ -275,7 +275,7 @@ class FidoTimeIntProcessor(FidoFetcher):
     #         self.fido_download_fits_ensured()
     #     else:
     #         print("\n     No Images Found\n")
-    
+
     # def define_range(self):
     #
     #

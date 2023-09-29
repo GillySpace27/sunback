@@ -1,17 +1,17 @@
 import os
 
-from fetcher.FidoFetcher import FidoFetcher
-from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
-from fetcher.LocalFetcher import LocalFetcher
-from processor.ImageProcessorCV import ImageProcessorCV
-from processor.RHEProcessor import RHEProcessor
-# from processor.QRNProcessor import QRNradialFiltProcessor, QRNpreProcessor
-from processor.SunPyProcessor import AIA_PREP_Processor
-from processor.ValidationProcessor import ValidationProcessor
-from processor.VideoProcessor import VideoProcessor
-from processor.Processor import Processor
+from src.fetcher.FidoFetcher import FidoFetcher
+from src.fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
+from src.fetcher.LocalFetcher import LocalFetcher
+from src.processor.ImageProcessorCV import ImageProcessorCV
+from src.processor.RHEProcessor import RHEProcessor
+# from src.processor.QRNProcessor import QRNradialFiltProcessor, QRNpreProcessor
+from src.processor.SunPyProcessor import AIA_PREP_Processor
+from src.processor.ValidationProcessor import ValidationProcessor
+from src.processor.VideoProcessor import VideoProcessor
+from src.processor.Processor import Processor
 wv = Processor.write_video_in_directory
-from science.parameters import Parameters
+from src.science.parameters import Parameters
 import run
 
 # import matplotlib as mpl
@@ -44,7 +44,7 @@ def run_range_multishot_movie(batch_name= "The_Long_One", wave=None, config=None
     p.do_parallel=False
     # p.init_pool(6)
     # Set the Processes
-    
+
     p.fetchers(FidoFetcher,                 rp=True)  # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor],    rp=False)   # Integrate several frames for S/N
     # This happens in the fetcher now p.processors([AIA_PREP_Processor],      rp=False)   # Do Sunpy Things
@@ -64,7 +64,7 @@ def make_configs(wave_to_use):
         "cadence_minutes": 24*60*27.5, "fps": 3, "exposure_time": 36,
         "key_fixed_cadence": None, "key_fixed_number": 100, "time_preset": None
     }
-    
+
     c100 = {
         "name": "Single_Search",
         "debug": True, "do_one": wave_to_use, "stop": True, #"tend": '2013/09/30 23:59:59',
@@ -72,7 +72,7 @@ def make_configs(wave_to_use):
         "cadence_minutes": 6, "fps": None, "exposure_time": None,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "l"
     }
-    
+
     c8 = {
         "name": "Liftoff",
         "debug": True, "do_one": wave_to_use, "stop": True, #"tend": '2013/09/30 23:59:59',
@@ -101,7 +101,7 @@ def make_configs(wave_to_use):
         "cadence_minutes": 60*24/4, "fps": 24, "exposure_time": 12*6,
         "key_fixed_cadence": 8, "key_fixed_number": None, "time_preset": None
     }
-    
+
     c2 = {
         "name": "Gonzalez",
         "debug": True, "do_one": wave_to_use, "stop": True,
@@ -109,7 +109,7 @@ def make_configs(wave_to_use):
         "cadence_minutes": 36/60, "fps": None, "exposure_time": 36,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": None
     }
-    
+
     c3 = {
         "name": "Beautiful 171_l",
         "debug": True, "do_one": '0171', "stop": True,
@@ -176,7 +176,7 @@ def make_configs(wave_to_use):
         "cadence_minutes": None, "fps": None, "exposure_time": None,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
     }
-    
+
     ConfigDict = {
         c0["name"]:   c0,
         c00["name"]:   c00,
@@ -198,15 +198,15 @@ def make_configs(wave_to_use):
     return ConfigDict
 
 def make_params(batch_name=None, wave=None, config=None, wave_to_use=None):
-    
+
     if wave:
         batch_name = batch_name + ' ' + wave
-    
+
     # Set the Parameters
     if not config:
         ConfigDict = make_configs(wave_to_use)
         config = ConfigDict[batch_name]
-        
+
     p = Parameters()
     p.config = config
     p.destroy = False
@@ -222,7 +222,7 @@ def make_params(batch_name=None, wave=None, config=None, wave_to_use=None):
     # p.do_recent(True)
     p.currently_local = True
     p.use_drive = "G"
-    
+
     # Set the Times
     # if not p.load_preset_time_settings(config["time_preset"]):
     p.cadence_minutes(config["cadence_minutes"])
@@ -232,13 +232,13 @@ def make_params(batch_name=None, wave=None, config=None, wave_to_use=None):
     p.fixed_number_keyframes(config["key_fixed_number"])
     p.time_period(period=[config["tstart"], config["tend"]])
     # p.compare_fits_frames()
-    
+
     return p
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     import numpy as np
-    
+
     for wave_to_use in do_wavelengths:
     #     for alpha in np.linspace(0.25,0.5,20):
     #         run_range_multishot_movie(wave_to_use=wave_to_use, alpha=alpha)

@@ -16,14 +16,14 @@ from os import stat
 
 from tqdm import tqdm
 
-from fetcher.Fetcher import Fetcher
-from processor.SunPyProcessor import AIA_PREP_Processor
+from src.fetcher.Fetcher import Fetcher
+from src.processor.SunPyProcessor import AIA_PREP_Processor
 
-from utils.time_util import parse_time_string_to_local
+from src.utils.time_util import parse_time_string_to_local
 import astropy.units as u
 
 import datetime
-from utils.time_util import define_time_range, define_recent_range
+from src.utils.time_util import define_time_range, define_recent_range
 
 default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
@@ -51,7 +51,7 @@ class FidoFetcher(Fetcher):
     temp_folder = None
     # int_tm_tot = 0
     fits_path=None
-    
+
     def __init__(self, params=None, quick=False, rp=None):
         # Initialize class variables
         super().__init__(params, quick, rp)
@@ -60,7 +60,7 @@ class FidoFetcher(Fetcher):
         self.reprocess_mode(rp)
         self.params.load_preset_time_settings()
         # self.fetch()
-    
+
     ## Main Fetch Logic
     def fetch(self, params=None, quick=False, rp=None, verb=True):
         if verb is not None:
@@ -69,7 +69,7 @@ class FidoFetcher(Fetcher):
         self.__init__(params, quick, rp)
         # self.verb = True
         self.fido_get_fits(self.params.current_wave(), temp=self.params.do_temp)
-    
+
     def cleanup(self):
         # self.fido_download_fits_ensured(hold=False, temp=True)
         # self.delete_temp_folder_items(delete_folder_too=True)
@@ -78,21 +78,21 @@ class FidoFetcher(Fetcher):
         del self.results
         super().cleanup()
         pass
-    
+
     def enumerate(self):
         # for fits_path in self.params.local_fits_paths():
         #     print(fits_path)
         pass
-    
+
     def fido_get_fits(self, current_wave, temp=False):
         self.load(self.params, wave=current_wave)
         have_file = self.determine_image_path() is not False
         # vprint("\r          ")
         time_integrator = type(self) is not FidoFetcher
-        
+
         out_string = "\r v Fetching Fits Files: {}  ---------------------------------------------------  v"
         vprint(out_string.format(self.params.current_wave()), self.verb)
-        
+
         need_file = (self.params.download_files() and not have_file)
         want_to_redo = (self.reprocess_mode() and have_file)
         if need_file or want_to_redo or time_integrator:
@@ -105,7 +105,7 @@ class FidoFetcher(Fetcher):
             else:
                 prnt = self.params.n_fits
             vprint(" *\n ^ Using {} Cached Fits Files".format(prnt), self.verb)
-    
+
     def download_fits_series(self, temp=True, hold=None):
         if hold is None:
             hold = False  # TODO Fix this
@@ -117,7 +117,7 @@ class FidoFetcher(Fetcher):
             self.validate_download()
         else:
             print("\n     No Images Found\n")
-    
+
     def fido_check_for_fits(self, verb=None):
         """Find the science images"""
         from astropy import units as u
@@ -126,33 +126,33 @@ class FidoFetcher(Fetcher):
                 self.params.current_wave(), self.params.start_time_string,
                 self.params.end_time_string, self.params.cadence_minutes().to(u.day)), flush=True, end='', verb=self.verb)
         jsoc_email = "chris.gilly@colorado.edu"
-        
+
         # Make the base required attributes
         time_attr = attrs.Time(self.params.start_time, self.params.end_time)
         wave_attr = attrs.Wavelength(int(self.params.current_wave()) * u.angstrom)
         sample_attr = attrs.Sample(self.params.cadence_minutes())
         base_attrs = time_attr & wave_attr & sample_attr
-        
+
         if self.params.do_recent():
             inst_attr = attrs.Instrument.aia
         else:
             inst_attr = attrs.jsoc.Series.aia_lev1_euv_12s & \
                         attrs.jsoc.Notify(jsoc_email) & \
                         attrs.jsoc.Segment.image
-                        
+
         print(".", end=None)
         fido_search_result = Fido.search(base_attrs, inst_attr)
         self.fido_search_result = fido_search_result
         self.fido_search_found_num = self.fido_search_result.file_num
-    
+
     def fido_parse_result(self):
         """Examine the search results"""
         self.start_time, self.end_time = self.get_start_and_end_times_from_result()
-        
+
         begin_time = parse_time_string_to_local(self.start_time, 4)[0]
         end_time = parse_time_string_to_local(self.end_time, 4)[0]
         self.extra_string = "from {} to {}".format(begin_time, end_time)
-        
+
         if self.fido_search_found_num > 1:
             vprint("\n *      Search Found {: 3} Images {}...".format(
                     self.fido_search_found_num, self.extra_string), flush=True, verb=self.verb)
@@ -164,17 +164,17 @@ class FidoFetcher(Fetcher):
         else:
             vprint("\n *      Search Found Nothing")
             raise FileNotFoundError
-        
+
         while len(self.name) < 4:
             self.name = '0' + self.name
-            
+
         if self.fido_search_found_num > 200 and False:
             response = input("Do you still want to download all {} images? [y]/n > ".format(self.fido_search_found_num))
             if 'n' in response.casefold():
                 print("Stopping!")
                 raise StopIteration
             print("Continuing. ", end='')
-            
+
     def store_requests(self):
         try:
             response = self.fido_search_result.get_response(0)
@@ -182,17 +182,17 @@ class FidoFetcher(Fetcher):
             response = self.fido_search_result
         self.needed_files = response
         self.num_files_needed = self.needed_files._numfile
-    
+
     def fido_download_fits_ensured(self, temp=False, hold=False, ensured=True):
         """Download the files from fido_search_result"""
-        
+
         self.SubDownloader = Downloader(progress=True, file_progress=False, max_conn=5, overwrite=False)
 
         self.out_path = self.params.temp_directory() if temp else self.params.fits_directory()
         self.store_requests()
-        
+
         main_stdout = sys.stdout
-        
+
         if not hold:
             loc = os.path.join(self.params.temp_directory(), 'log.txt')
             # with open(loc, mode="w+") as sys.stdout:
@@ -204,24 +204,24 @@ class FidoFetcher(Fetcher):
             except DrmsExportError as e:
                 print(e)
                 self.results = []
-                
+
             self.n_fits = len(self.results)
             if ensured:
                 self.results = self.fido_multi_download()
             self.multi_banner()
             # self.results = copy.copy(results)
-            
+
             # self.params.params_path()
             # self.params.save_to_txt()
-            
+
             sys.stdout = main_stdout
-            
+
             return self.results
-    
+
     def fido_multi_download(self):
         self.n_fits = -1
         self.validate_fits()
-        
+
         ii = 0
         while self.n_fits != self.fido_search_found_num and ii < 10:
             self.results = Fido.fetch(self.results, path=self.out_path, downloader=self.SubDownloader)
@@ -230,32 +230,32 @@ class FidoFetcher(Fetcher):
             if to_destroy:
                 self.destroy_files(to_destroy)
                 self.n_fits = -1
-                
+
             ii += 1
-            
+
         self.n_fits = len(self.results)
         if self.params.do_single:
             self.n_fits = 1
         return self.results
-    
+
     def destroy_files(self, to_destroy=[]):
         if to_destroy:
             for path in to_destroy:
                 break
                 self.remove_files(path)
         self.n_fits = len(self.load_fits_paths())
-            
+
     @staticmethod
     def remove_files(local_fits_path):
         # if local_fits_path in self.params.local_fits_paths():
         #     self.params.local_fits_paths().remove(local_fits_path)
-        
+
         dir = os.path.dirname(local_fits_path)
         directory = dir.replace('fits', 'png\\mod')
         file = os.path.basename(local_fits_path)
         png_file = file.replace('.fits', '.png')
         png_path = os.path.join(directory, png_file)
-    
+
         dead_paths = [local_fits_path, png_path, png_path.replace("mod", "cat"), png_path.replace("mod", "orig")]
         deleted_files = 0
         print()
@@ -283,19 +283,19 @@ class FidoFetcher(Fetcher):
                 1+1
             print("Actually Deleted {} Files".format(deleted_files))
     # Time Related Things #########################################
-    
+
     def get_start_and_end_times_from_result(self):
         # self.verb = True
         try:
             all_times = self.fido_search_result.get_response(0)
         except AttributeError as e:
             all_times = self.fido_search_result
-            
+
         start_time_list = []
         # end_time_list = []
         if len(all_times) == 1:
             all_times = all_times[0]
-            
+
         for result in all_times:
             try:
                 try:
@@ -305,9 +305,9 @@ class FidoFetcher(Fetcher):
                     raise e
             except KeyError:
                 start_time_list.append(result["Start Time"].value)
-            
+
             # end_time_list.append(result.time.pointing_end)
-        
+
         times = sorted(start_time_list)
         time_start = times[0]
         time_end = times[-1]
@@ -318,15 +318,15 @@ class FidoFetcher(Fetcher):
         # for t in range(ii-1):
         #     self.fido_search_result[0].remove_row(0)
         self.fido_search_found_num = self.fido_search_result.file_num
-        
-        return time_start, time_end
-    
 
-    
+        return time_start, time_end
+
+
+
     # Printing #####################################################
-    
+
     def multi_banner(self):
-        
+
         print("\r   [\\~~~~~~~~~~~~~~~~~~~~~~~~~~~FIDO~~~~~~~~~~~~~~~~~~~~~~~~~~~//]\n")
         if self.n_fits == self.fido_search_found_num:
             print("\r ^     Successfully Downloaded all {} Files\n".format(self.n_fits), flush=True)
@@ -336,9 +336,9 @@ class FidoFetcher(Fetcher):
             print(" ^     Unable to Download...Try again Later.")
             raise (ConnectionRefusedError(" Unable to Download...Try again Later."))
 
-        
+
         self.super_flush()
-    
+
     # Validation
     def validate_download(self):
         # Currently not running, probably for the best
@@ -394,13 +394,13 @@ class FidoFetcher(Fetcher):
                             missing += 1
                             # print("Missing Data Detected")
 
-                        
+
                 if delete:
                     to_destroy.append(local_fits_path)
                     to_redownload.append(local_fits_path)
                     destroyed += 1
                     n_fits -= 1
-                    
+
         # self.destroy_files(to_destroy)
         # self.fido_get_fits()
         if destroyed:
@@ -423,10 +423,10 @@ class FidoFetcher(Fetcher):
         #     set_output_paths(self)
         # self.list_requested_files()
         # self.local_fits_paths = list_files_in_directory(self.fits_folder)
-        
-        
+
+
         # pass
-        
+
         # if self.params.delete_old():
         #     self.remove_all_old_fits_pngs()
         #     self.remove_all_old_pngs()
@@ -437,7 +437,7 @@ class FidoFetcher(Fetcher):
         #     self.redownload_bad_fits()
         #
         # self.fido_download_fits_ensured()
-        
+
         # self.find_missing_images()
         # self.get_missing_images()
 
@@ -471,14 +471,14 @@ class FidoFetcher(Fetcher):
 
 
 
-    
+
     def list_requested_files(self):
         self.requested_files = []
         self.requested_response = []
         for ii in np.arange(self.fido_search_found_num):
             self.requested_files.append(self.fido_search_result.get_response(0)[ii]['fileid'].casefold())
             self.requested_files.append(self.fido_search_result.get_response(0)[ii]['time']['start_timestamp'])
-    
+
     @staticmethod
     def parse_filename_to_time(local_file):
         try:
@@ -491,7 +491,7 @@ class FidoFetcher(Fetcher):
         except:
             stub = local_file[3:-10].replace('_', '')
             return stub
-    
+
     @staticmethod
     def out_of_range(hdul):
         print('A')

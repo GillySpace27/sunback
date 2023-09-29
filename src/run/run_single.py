@@ -1,4 +1,4 @@
-from run import SingleRunner
+from src.run import SingleRunner
 import os
 import subprocess
 
@@ -10,23 +10,23 @@ os.system('echo $PYTHONPATH')
 # exec(f"export )
 # exec(f"echo $PYTHONPATH")
 
-from science.parameters import Parameters
-from processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor
-from processor.ScienceProcessor import ScienceProcessor
-from processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
-from processor.RHTProcessor import RHTProcessor
-from processor.RHEProcessor import RHEProcessor
-from processor.NoiseGateProcessor import NoiseGateProcessor
-from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv, MultiHistogramProcessorCv
-from fetcher.LocalFetcher import LocalSingleFetcher
-from fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
-from fetcher.FidoFetcher import FidoFetcher
+from src.science.parameters import Parameters
+from src.processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor
+from src.processor.ScienceProcessor import ScienceProcessor
+from src.processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
+from src.processor.RHTProcessor import RHTProcessor
+from src.processor.RHEProcessor import RHEProcessor
+from src.processor.NoiseGateProcessor import NoiseGateProcessor
+from src.processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv, MultiHistogramProcessorCv
+from src.fetcher.LocalFetcher import LocalSingleFetcher
+from src.fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
+from src.fetcher.FidoFetcher import FidoFetcher
 import matplotlib.pyplot as plt
 
 # exec("export PYTHONPATH=/src:$PYTHONPATH")
 
 
-# from processor.QRNSubProcessors import QRNSingleShotProcessor
+# from src.processor.QRNSubProcessors import QRNSingleShotProcessor
 
 
 plt.ioff()

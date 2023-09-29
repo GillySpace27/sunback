@@ -23,7 +23,7 @@ from scipy.signal import savgol_filter
 from scipy.stats import stats
 from tqdm import tqdm
 
-from science.color_tables import aia_color_table
+from src.science.color_tables import aia_color_table
 import astropy.units as u
 
 # import sunpy.map
@@ -31,11 +31,11 @@ import astropy.units as u
 import aiapy.data.sample as sample_data
 from aiapy.calibrate import normalize_exposure, register, update_pointing
 
-from processor.Processor import Processor
+from src.processor.Processor import Processor
 import warnings
 
-from utils.RHT.rht import rht
-from utils.RHT.rht.convRHT import unsharp_mask
+from src.utils.RHT.rht import rht
+from src.utils.RHT.rht.convRHT import unsharp_mask
 
 warnings.filterwarnings("ignore")
 import matplotlib.pyplot as plt
@@ -66,23 +66,23 @@ class TouchupProcessor(Processor):
     progress_verb = 'Normalizing'
     finished_verb = "Normalized"
     out_name = "RHT"
-    
+
     # Flags
     show_plots = True
     renew_mask = True
     can_initialize = True
     raw_map = None
     # do_png = False
-    
+
     # Parse Inputs
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
         # self.tm = time.time()
         self.in_name = self.params.aftereffects_in_name or "lev1p5"
-        
+
     def do_work(self):
         print("")
-        
-        
+
+
         self.save_frame(self.frame, self.fits_path)

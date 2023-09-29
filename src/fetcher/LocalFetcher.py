@@ -5,12 +5,12 @@ from astropy.io import fits
 from numpy import where, power
 import numpy as np
 
-from fetcher.Fetcher import Fetcher
+from src.fetcher.Fetcher import Fetcher
 import xarray as xr
 import matplotlib.pyplot as plt
 import shutil
 import astropy.units as u
-from science.color_tables import aia_color_table
+from src.science.color_tables import aia_color_table
 
 # import urllib
 # from datetime import datetime
@@ -30,10 +30,10 @@ default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # 
 class LocalFetcher(Fetcher):
     description = "Load the images from Disk"
     filt_name = "Local Fetcher"
-    
+
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
-        
+
     def fetch(self, params=None):
         print(" v Loading Local Files...")
         self.load(params)
@@ -45,14 +45,14 @@ class LocalFetcher(Fetcher):
             print("Base: ", self.params.base_directory())
             print("Imgs: ", self.params.imgs_top_directory())
             print("Fits: ", self.params.fits_directory())
-            
+
             sys.exit(1)
-        
+
 
 class LocalSingleFetcher(Fetcher):
     description = "Load the image_path from Disk"
     filt_name = "Local Single Fetcher"
-    
+
     def fetch(self, params=None):
         print(" v Loading Local File...")
         # self.duration = ''
@@ -74,8 +74,8 @@ class LocalSingleFetcher(Fetcher):
             print("No Local File Found!")
             raise e
 
-        
-        
+
+
         for self.params.hdu_name in self.params.master_frame_list_newest:
 
             if self.params.hdu_name in self.hdu_name_list:
@@ -91,12 +91,12 @@ class LocalSingleFetcher(Fetcher):
                     continue
                 print("LocalSingleFetcher")
                 raise e
-        
-                
+
+
                 # self.view_raw()
 
 
-    
+
 
 class LocalCdfFetcher(Fetcher):
     description = "Load the image_path from Disk"
@@ -112,11 +112,11 @@ class LocalCdfFetcher(Fetcher):
 #         self.peek_load()
 #         self.select_frame(gen=True)
 #         self.peek_selection()
-    
+
     def store_self(self):
         """Store the fetcher into the parameters"""
         self.params.cdf_fetcher = self
-        
+
     def find_paths(self):
         """Figure out the paths"""
         img_path = self.params.use_image_path()
@@ -124,14 +124,14 @@ class LocalCdfFetcher(Fetcher):
         file_name = os.path.basename(img_path)
         dir_path = os.path.dirname(img_path)
         self.time_stamp = file_name[3:-3]
-        
+
         pstem = "   Looking in: \n     {}\n     for {}  at  {}"
         print(pstem.format(dir_path, file_name, self.time_stamp))
 #         if not os.path.exists(new_img_path):
 #             self.copy_cdf(img_path, new_img_path)
         self.params.new_img_path = new_img_path
         return img_path
-        
+
     def open_cdf(self, img_path=None, verb=False):
         """Load all the frames out of the CDF file"""
         # Open the Image
@@ -153,7 +153,7 @@ class LocalCdfFetcher(Fetcher):
         self.params.color_frames = self.color_frames
         self.params.n_frames = self.n_frames
         dss.close()
-        
+
     def save_cdf(self, new_img_path, frame_list, do_plot=False):
         """Load all the frames out of the CDF file"""
         orig_img_path = self.params.use_image_path()
@@ -161,13 +161,13 @@ class LocalCdfFetcher(Fetcher):
 
         if do_plot:
             self.confirm_save(orig_img_path, new_img_path)
-    
-    
+
+
     def confirm_save(self, orig_img_path, new_img_path):
             # Load the raw file for reference
-            
+
             print("\n   V Plotting Confirmation of Reduction:")
-           
+
             print("      raw:")
             self.open_cdf(orig_img_path)
             self.peek_load(title="raw: {}".format(os.path.basename(orig_img_path)))
@@ -176,14 +176,14 @@ class LocalCdfFetcher(Fetcher):
             self.open_cdf(new_img_path)
             self.peek_load(filt=False,title="MODIFIED: {}".format(os.path.basename(new_img_path)))
             print("   ^ We Plotted!\n")
-        
-        
+
+
     def write_to_cdf(self, orig_img_path, new_img_path, frame_list, do_plot=False):
         # Load + Legacy_SRN_Kernal the netCDF File
         dss = xr.open_dataset(orig_img_path)
 #         frames = dss.value
 #         print("Writing!")
-       
+
         for index, (frame, wave) in enumerate(frame_list):
             if do_plot:
                 # Display a before and after image_path
@@ -191,17 +191,17 @@ class LocalCdfFetcher(Fetcher):
                 ax1.imshow(self.quick_filter(dss.value[index]), origin="lower")
                 ax2.imshow(frame, origin="lower")
                 plt.show()
-        
+
             # Store after_image into array
             dss.value[index] = frame
-        
+
         dss.to_netcdf(new_img_path)
         dss.close()
         print("   New CDF saved to \n    {}".format(new_img_path))
-        
 
-        
-        
+
+
+
     def peek_load(self, filt=True, use_cmap=True, title=None):
         #Prep Plot
         n_frames = len(self.color_frames)
@@ -220,20 +220,20 @@ class LocalCdfFetcher(Fetcher):
                 cmap = aia_color_table(int(wave) * u.angstrom)
             else:
                 cmap = 'gray'
-                
-                
+
+
             ax.imshow(to_plot,cmap=cmap, origin="lower")
 
         fig.set_size_inches((8,8))
         plt.tight_layout()
         plt.show(block=True)
-        
+
     def quick_filter(self, image, pow=1/3):
         return power(np.abs(image), pow)
-        
+
     def peek_selection(self):
         """ Plot the loaded image_path"""
-        
+
         print("")
         fig, (ax1, ax) = plt.subplots(1,2)
         fig.suptitle("Plotting Selected Frame: {}".format(self.current_wave))
@@ -245,10 +245,10 @@ class LocalCdfFetcher(Fetcher):
         to_plot1 = self.quick_filter(self.params.raw_image)
         ax1.imshow(to_plot1, origin="lower")
         ax1.set_title("lev1p0")
-        
+
         fig.set_size_inches(10,5)
         plt.show()
-        
+
     def peek_cdf(self, path):
         print("\n\n          Plotting the frames on in_array from CDF")
         # Open the Image
@@ -291,7 +291,7 @@ class LocalCdfFetcher(Fetcher):
             else:
                 select_ind = 0
         return select_ind
-        
+
     def select_frame(self, get_ind=None, get_wave=None, gen=False, peek=False):
         """Select which frame to use, then load it
                 get_ind = int  :  will select frames by index
@@ -309,21 +309,21 @@ class LocalCdfFetcher(Fetcher):
         # Set the Frame
         self.params.modified_image = this_frame+0
         self.params.raw_image = this_frame+0
-        
+
 #         stem = "         Loaded {}A frame of size {}, idx={}"
 #         print(stem.format(this_wave, frame_shape, select_ind))
 #         self.params.set_current_wave(this_wave) # This is too powerful
-        
+
         # Prep the Metadata
         wave1 = self.current_wave = this_wave
         shape = self.params.modified_image.shape
         fits_path = None
         t_rec1 = self.time_stamp
-        
+
         # Store the Metadata
         self.image_data = self.params.image_data = wave1, fits_path, t_rec1, shape
         if peek:
             self.peek_selection()
-        
+
         return self.params.modified_image
 

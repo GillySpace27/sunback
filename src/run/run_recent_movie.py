@@ -1,11 +1,11 @@
-from fetcher.FidoFetcher import FidoFetcher
-from processor.ImageProcessor import ImageProcessor
-# from processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
-from processor.ImageProcessorCV import ImageProcessorCV
-from processor.QRNProcessor import QRNSingleShotProcessor #, QRNpreProcessor, QRNradialFiltProcessor
+from src.fetcher.FidoFetcher import FidoFetcher
+from src.processor.ImageProcessor import ImageProcessor
+# from src.processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
+from src.processor.ImageProcessorCV import ImageProcessorCV
+from src.processor.QRNProcessor import QRNSingleShotProcessor #, QRNpreProcessor, QRNradialFiltProcessor
 
-from processor.VideoProcessor import VideoProcessor
-from science.parameters import Parameters
+from src.processor.VideoProcessor import VideoProcessor
+from src.science.parameters import Parameters
 import run
 import matplotlib.pyplot as plt
 plt.ioff()
@@ -24,11 +24,11 @@ def run_recent_movie(delay=10, debug=True, do_one="0211", stop=True, cadence_min
     # p.stop_after_one(stop)
     p.is_debug(debug)
     p.do_recent(True)
-    
+
     p.download_files(True)
     # p.overwrite_pngs(True)
     # p.delete_old(True)
-    
+
     # Set the Times
     debug_hours = 36 # Range in Hours
     debug_cadence = 60 # Cadence in Minutes
@@ -43,11 +43,11 @@ def run_recent_movie(delay=10, debug=True, do_one="0211", stop=True, cadence_min
     #
     # p.putters([ImageProcessor])
     # p.putters([VideoProcessor])
-    
+
     # Set the Processes
     p.fetchers(FidoFetcher, rp=None)                                     # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N
-    
+
     p.processors([QRNSingleShotProcessor])
     # p.processors([QRNpreProcessor],     rp=True)  # Learns the bounds of the dataset for QRN
     # p.processors([QRNradialFiltProcessor], rp=True)  # Applies the QRN Filter
@@ -61,10 +61,10 @@ def run_recent_movie(delay=10, debug=True, do_one="0211", stop=True, cadence_min
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     run_recent_movie()
-    
-    
+
+
     #, VideoProcessor(p)])  #
-    
+
     # p.processors([RadialFiltProcessor(p), NoiseGateProcessor(p), VideoProcessor(p)])  #
 
     # p.putter(AwsPutter(p))        # Uploads the PNGs to AWS
@@ -79,84 +79,83 @@ if __name__ == "__main__":
     # p.sonify_images(False, False)
     # p.do_171(True)
     # p.do_304(True)
-    
+
     # # p.bpm(150)
     #
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

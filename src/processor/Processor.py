@@ -17,7 +17,7 @@ import cv2
 import numpy as np
 import sunpy
 
-from science.color_tables import aia_color_table
+from src.science.color_tables import aia_color_table
 
 # import cv2
 from astropy.io import fits
@@ -871,7 +871,7 @@ class Processor:
         #     return self.params.raw_image
         img = img if img is not None else self.params.raw_image
         first_shape = img.shape[0]
-        from utils.array_util import reduce_array
+        from src.utils.array_util import reduce_array
         self.params.raw_image, self.params.center, self.shrink_F = reduce_array(self.params.raw_image, self.params.center, want_rez)
         self.params.modified_image, _, _ = reduce_array(self.params.modified_image, self.params.center, want_rez)
         self.params.rez = want_rez
@@ -1076,7 +1076,7 @@ class Processor:
         (good_coord, bin_array, radii) = entries.T
         if len(bin_array) > 0:
             # self.binBox.append(np.asarray([good_coord, radii, bin_array]).T.tolist())
-            # from processor.QRNProcessor import QRNpreProcessor
+            # from src.processor.QRNProcessor import QRNpreProcessor
             if "qrn" in str(type(self)).casefold():
                 # use_percentiles = [98.5, 90, 7, 4]
                 # use_percentiles = [99, 95, 5, 1]

@@ -48,7 +48,7 @@ setup(
     # install_requires=["sunpy[net]>=1.1"]
     install_requires=["boto3", "matplotlib", "twine", "pillow", "appscript;platform_system=='Darwin'",
                       "moviepy", 'parfive', 'playsound', 'opencv-python', 'numba', "bs4",
-                      "sunpy", "scipy", "astropy", "html5lib", "numpy"],
+                      "sunpy", "scipy", "astropy", "html5lib", "numpy", 'sunkit-image', 'aiapy', 'xarray'],
 
     platforms=['Windows', 'Linux', 'Mac OS-X'],            # Valid platforms your code works on, adjust to your flavor
     # 'Linux','Mac OS-X','Unix',

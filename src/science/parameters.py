@@ -6,13 +6,13 @@ from time import time, sleep, strftime, asctime, strptime, mktime
 
 import numpy as np
 from astropy import units as u
-from fetcher.LocalFetcher import LocalFetcher
-from processor.Processor import Processor
-from processor.ValidationProcessor import ValidationProcessor
-from putter.NullPutter import NullPutter
+from src.fetcher.LocalFetcher import LocalFetcher
+from src.processor.Processor import Processor
+from src.processor.ValidationProcessor import ValidationProcessor
+from src.putter.NullPutter import NullPutter
 import matplotlib.pyplot as plt
 
-from utils.time_util import define_time_range, define_recent_range
+from src.utils.time_util import define_time_range, define_recent_range
 global multi_pool
 multi_pool = None
 

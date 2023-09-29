@@ -3,7 +3,7 @@
 # from os.path import join, dirname
 # import numpy as np
 # from scipy.signal import savgol_filter
-# from processor.Processor import Processor
+# from src.processor.Processor import Processor
 #
 # import warnings
 #
@@ -29,7 +29,7 @@ from os.path import join
 from astropy.io import fits
 from tqdm import tqdm
 
-from processor.Processor import Processor
+from src.processor.Processor import Processor
 
 
 class ValidationProcessor(Processor):
@@ -54,7 +54,7 @@ class ValidationProcessor(Processor):
     def fetch(self):
         """Do whatever you want to each image_path in the directory"""
         print("Old validator tried to run --------------")
-        
+
         pass
         # to_destroy = self.validate_fits()
         # self.destroy_files(to_destroy)
@@ -127,22 +127,22 @@ class ValidationProcessor(Processor):
     #         print(" ii          > {} dark frames".format(dark))
     #
     #     return to_destroy
-       
+
     def destroy_files(self, to_destroy=[]):
         if to_destroy:
             for path in to_destroy:
                 self.remove_files(path)
-        
+
     def remove_files(self, local_fits_path):
         # if local_fits_path in self.params.local_fits_paths():
         #     self.params.local_fits_paths().remove(local_fits_path)
-        
+
         dir = os.path.dirname(local_fits_path)
         directory = dir.replace('fits', 'png\\mod')
         file = os.path.basename(local_fits_path)
         png_file = file.replace('.fits', '.png')
         png_path = os.path.join(directory, png_file)
-    
+
         dead_paths = [local_fits_path, png_path, png_path.replace("mod", "cat"), png_path.replace("mod", "orig")]
         deleted_files = 0
         print()
@@ -169,7 +169,7 @@ class ValidationProcessor(Processor):
                 print(e)
                 1+1
         print("Actually Deleted {} Files".format(deleted_files))
-        
+
         # try:
         # # try:
         # #     hh = 0

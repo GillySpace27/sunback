@@ -1,6 +1,6 @@
 from time import sleep
 from tqdm import tqdm
-from processor.Processor import Processor
+from src.processor.Processor import Processor
 import os.path
 
 class Putter(Processor):
@@ -12,12 +12,12 @@ class Putter(Processor):
     def put(self, params=None):
         self.load(params)
         raise NotImplementedError()
-    
+
     def process(self, params=None):
         self.put(params)
         # super().cleanup
-        
-        
+
+
     def sleep_until_delay_elapsed(self, delay=None):
         """ Make sure that the loop takes the right amount of time """
         delay = delay or self.params.delay_seconds()
@@ -27,6 +27,6 @@ class Putter(Processor):
         except KeyboardInterrupt:
             # print("\rSkipping!")
             pass
-                
+
             # if brk:
             #     break

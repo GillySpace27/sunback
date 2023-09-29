@@ -1,21 +1,21 @@
 import os
 print(os.getcwd())
 
-from processor.Processor import Processor
+from src.processor.Processor import Processor
 import numpy as np
 
 class Fetcher(Processor):
     """Gets some data"""
     filt_name = "Base Fetcher Class"
     description = "Use an Unnamed Fetcher"
-    
+
     def __init__(self, params=None, quick=False, rp=None):
         # Initialize class variables
         super().__init__(params, quick, rp)
         # self.duration = ''
         self.frame_count = 0
         # self.load(params)
-    
+
     def more_init(self):
         self.local_wave_directory = None
         self.image_folder = None
@@ -23,10 +23,10 @@ class Fetcher(Processor):
         self.fits_folder = None
         self.fido_search_result = None
         self.fido_search_found_num = None
-    
+
     def fetch(self, params=None):
         raise NotImplementedError()
-    
+
     def cleanup(self):
         super().cleanup()
     # def process(self, params=None):
@@ -46,7 +46,7 @@ class Fetcher(Processor):
             fits_dates = [x.split(".")[2] for x in fits_files]
             fits_dates_cleaned = [x.replace('-','/').replace("T", " ").replace("Z","") for x in fits_dates]
             times = [x.replace(":", "") for x in self.params.time_period()]
-    
+
             # Test for Match
             correct = [times[0] <= x <= times[1] for x in fits_dates_cleaned]
             locs = np.where(correct)[0]
@@ -69,7 +69,7 @@ class Fetcher(Processor):
             else:
                 return False
                 # raise FileNotFoundError(fits_dates_cleaned)
-            
+
             use_file = fits_files[use_index]
             use_path = os.path.join(self.params.fits_directory(), use_file)
             # print("Img Use Path:{}".format(use_path))

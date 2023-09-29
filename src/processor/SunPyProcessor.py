@@ -18,7 +18,7 @@ from aiapy.calibrate import correct_degradation
 from aiapy.calibrate.util import get_pointing_table, get_correction_table
 from scipy.signal import savgol_filter
 from scipy.stats import stats
-from science.color_tables import aia_color_table
+from src.science.color_tables import aia_color_table
 import astropy.units as u
 
 # import sunpy.map
@@ -26,7 +26,7 @@ import astropy.units as u
 import aiapy.data.sample as sample_data
 from aiapy.calibrate import normalize_exposure, register, update_pointing
 
-from processor.Processor import Processor
+from src.processor.Processor import Processor
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -55,14 +55,14 @@ class SunPyProcessor(Processor):
     progress_verb = 'Normalizing'
     finished_verb = "Normalized"
     out_name = "sunpy"
-    
+
     # Flags
     show_plots = True
     # do_png = False
     renew_mask = True
     can_initialize = True
     raw_map = None
-    
+
     # Parse Inputs
     def __init__(self, params=None, quick=False, rp=None, in_name="LEV1P5(t_int)"):
         """Initialize the main class"""
@@ -77,27 +77,27 @@ class SunPyProcessor(Processor):
         # del self.params._cadence
         # del self_dict['radial_bin_edges']
         return self_dict
-    
+
 class AIA_PREP_Processor(SunPyProcessor):
     """This class holds the code for the AIA_PREP Processor"""
     name = filt_name = "AIA_PREP"
     description = "Apply AIA_PREP to images"
     progress_verb = 'Prepping'
     finished_verb = "Prepped"
-    
+
     # Flags
     show_plots = True
     # do_png = False
     renew_mask = True
     can_initialize = True
     can_use_keyframes = False
-    
+
     # Parse Inputs
     def __init__(self, params=None, quick=False, rp=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp)
         self.in_name = self.params.master_frame_list_newest
-        
+
         self.last_wave = None
         self.psf = None
         self.level_1_maps = None
@@ -109,10 +109,10 @@ class AIA_PREP_Processor(SunPyProcessor):
         self.out_name = "lev1p5"
         self.params.modified_image = None
         self.params.speak_save = False
-        
+
     def setup(self):
         pass
-    
+
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
@@ -122,7 +122,7 @@ class AIA_PREP_Processor(SunPyProcessor):
             # self.remove_unprocessed_frames2()
             return self.params.modified_image
         return None
-    
+
     def ensure_endian(self, the_map):
         if the_map.dtype.byteorder == '>':
             data = the_map.data.byteswap().newbyteorder()
@@ -130,40 +130,40 @@ class AIA_PREP_Processor(SunPyProcessor):
             # import sunpy.map.sources as srcs
             the_map = srcs.AIAMap(data, head)
         return the_map
-    
+
     def do_AIA_PREP(self):
         self.level_15_maps = []
         for a_map in self.level_1_maps:
-            
+
             # if False:
             #     a_map = self.deconvolve_psf(a_map)
-            
+
             # Execute AIA_PREP
             if self.params.pointing_table is not None:
                 map_updated_pointing = self.get_updated_pointing(a_map)
-                
+
                 map_updated_pointing = self.ensure_endian(map_updated_pointing)
 
                 map_registered = register(map_updated_pointing)
             else:
                 map_registered = register(a_map)
-                
+
             map_degraded = correct_degradation(map_registered, correction_table=self.params.correction_table)
             map_normalized = normalize_exposure(map_degraded)
-            
+
             doNorm = True
             out = map_normalized if doNorm else map_degraded
             # map_double_normed = map_normalized / np.nanmax(map_normalized.data)
             # out = map_double_normed if 'q' in self.out_name.casefold() else map_degradation
-            
+
             self.level_15_maps.append(out)
-            
+
         done_map = self.level_15_maps[0]
         self.params.modified_image = done_map.data
         self.header = self.params.header = sunpy.io.fits.header_to_fits(done_map.meta)
 
     def get_aia_prep_data(self, force=False):
-        
+
         if self.fits_path is None:
             self.fits_path = self.keyframes[0]
         raw_image, _, _, _, _, self.in_name = self.load_this_fits_frame(self.fits_path, self.params.master_frame_list_newest)
@@ -185,7 +185,7 @@ class AIA_PREP_Processor(SunPyProcessor):
                 # The same applies for the correction table.
                 self.params.correction_table = get_correction_table()
             # print("\r   ^ Prep Loaded!")
-            
+
     def deconvolve_psf(self, a_map):
         import aiapy.psf as psf
         if not a_map.wavelength == self.last_wave or self.psf is None:
@@ -194,7 +194,7 @@ class AIA_PREP_Processor(SunPyProcessor):
         # Deconvolve the PSF
         m_deconvolved = aiapy.psf.deconvolve(a_map, psf=self.psf)
         return m_deconvolved
-    
+
     def get_updated_pointing(self, a_map, one_deep=True):
         # Get the new pointing information
         try:
@@ -209,14 +209,14 @@ class AIA_PREP_Processor(SunPyProcessor):
                 return self.get_updated_pointing(a_map, one_deep=False)
             else:
                 raise e
-    
+
     def plot_lev1p5(self, plot_result=True):
         two_maps = [self.level_15_maps[0]]
         if plot_result:
             lev1 = np.sqrt(self.level_1_maps[0].data)
             lev1_map = sunpy.map.Map((lev1, self.params.header))
             two_maps.append(lev1_map)
-            
+
             sequence = sunpy.map.Map(two_maps, sequence=True)
             sequence.peek(resample=0.25, annotate=True)
             plt.show(block=True)
@@ -229,7 +229,7 @@ class NRGFProcessor(SunPyProcessor):
     progress_verb = 'Normalizing'
     finished_verb = "Normalized"
     out_name = "NRGF"
-    
+
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         radial_bin_edges = equally_spaced_bins(inner_value=0.0, nbins=300) * u.R_sun
@@ -245,14 +245,14 @@ class FNRGFProcessor(SunPyProcessor):
     progress_verb = 'Normalizing'
     finished_verb = "Normalized"
     out_name = "FNRGF"
-    
+
     # Parse Inputs
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
         self.order = 20
         self.attenuation_coefficients = radial.set_attenuation_coefficients(self.order)
-    
+
     def do_work(self):
         self.params.modified_image = radial.fnrgf(self.raw_map, self.radial_bin_edges,
                                                   self.order, self.attenuation_coefficients).data
@@ -269,7 +269,7 @@ class IntEnhanceProcessor(SunPyProcessor):
     progress_verb = 'Filtering'
     finished_verb = "Normalized"
     out_name = "int_enhance"
-    
+
     def do_work(self):
         self.params.modified_image = radial.intensity_enhance(self.raw_map, self.radial_bin_edges).data
         return self.params.modified_image
@@ -283,7 +283,7 @@ class MSGNProcessor(SunPyProcessor):
     finished_verb = "Normalized"
     out_name = "MSGN"
     first = True
-    
+
     def __init__(self, params=None, quick=False, rp=None, in_name="LEV1P5(T_INT)"):
         """Initialize the main class"""
         self.load(params, quick=quick)
@@ -301,8 +301,8 @@ class MSGNProcessor(SunPyProcessor):
         # else:
         #     self.in_name = "qrn(primary)" #"qrn(lev1p5)"
         #     #TODO make sure this works the same in all versions
-    
-    
+
+
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         import sunkit_image.enhance as enhance
@@ -310,8 +310,8 @@ class MSGNProcessor(SunPyProcessor):
             self.params.raw_image[np.isnan(self.params.raw_image)] = -1.
         self.params.modified_image = enhance.mgn(self.params.raw_image)
         return self.params.modified_image
-    
-    
+
+
     def cleanup(self):
         MSGNProcessor.first = False
         super().cleanup()

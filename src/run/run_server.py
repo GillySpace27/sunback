@@ -3,19 +3,18 @@
 # path.append(path[0] + "/..")  # Adds higher directory to python modules path.
 # a = [print(x) for x in path]
 
-from src.fetcher import WebFitsFetcher
-WebFitsFetcher.WebFitsFetcher()
-from processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
-from processor.RHEProcessor import RHEProcessor
-from processor.QRNProcessor import QRNSingleShotProcessor_Legacy
-from processor.SunPyProcessor import AIA_PREP_Processor, NRGFProcessor, MSGNProcessor
-from putter.AwsPutter import AwsPutter
-from putter.DesktopPutter import DesktopPutter
-from science.parameters import Parameters
-from run import Runner, SingleRunner
+from src.fetcher.WebFitsFetcher import WebFitsFetcher
+from src.processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv
+from src.processor.RHEProcessor import RHEProcessor
+from src.processor.QRNProcessor import QRNSingleShotProcessor_Legacy
+from src.processor.SunPyProcessor import AIA_PREP_Processor, NRGFProcessor, MSGNProcessor
+from src.putter.AwsPutter import AwsPutter
+from src.putter.DesktopPutter import DesktopPutter
+from src.science.parameters import Parameters
+from src.run import Runner, SingleRunner
 
 
-def run_server(delay=80, debug=True, do_one='rainbow', stop=False):
+def run_server(delay=10, debug=True, do_one='rainbow', stop=False):
     p = Parameters()
     p.is_debug(debug)
     p.delay_seconds(delay)
@@ -45,15 +44,16 @@ def run_server(delay=80, debug=True, do_one='rainbow', stop=False):
     p.rhe_targets(["lev1p5", 'msgn(lev1p5)']) #"lev1p5",
     p.png_frame_name = ['rhe(msgn)']
 
+    compute = False
     # This is the right combination of processors for the server
-    if True:
+    if compute:
         p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent
         p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         p.processors([RHEProcessor],            rp=True)  # Applies the Radial Filtering
         p.processors([RHEProcessor],            rp=True)  # Applies the Radial Filtering
         p.putters([ImageProcessorCV],           rp=True)  # Turns Fits into Pngs
 
-    p.putters([AwsPutter])  # Uploads the PNGs to AWS
+        p.putters([AwsPutter])  # Uploads the PNGs to AWS
     p.putters([DesktopPutter], rp=True)  # Runs the Desktop Background Sequence on PNGs
 
 

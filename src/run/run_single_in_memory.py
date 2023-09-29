@@ -1,7 +1,7 @@
-from fetcher.LocalFetcher import LocalSingleFetcher
-from processor.ImageProcessorCV import ImageProcessorCV
-from science.parameters import Parameters
-from run import SingleRunner
+from src.fetcher.LocalFetcher import LocalSingleFetcher
+from src.processor.ImageProcessorCV import ImageProcessorCV
+from src.science.parameters import Parameters
+from src.run import SingleRunner
 import matplotlib.pyplot as plt
 
 plt.ioff()
@@ -11,13 +11,13 @@ def run_single_in_memory(image=None):
     # Set the Parameters
     p = make_params()
     p.use_image_path(image)
-    
+
     # Set the Processes
     p.fetchers(LocalSingleFetcher,                rp=True)  # Gets the desired file
     # p.processors([QRNpreProcessor],  rp=True)  # Applies the QRN Filter
     # p.processors([QRNradialFiltProcessor],  rp=True)  # Applies the QRN Filter
     p.putters(ImageProcessorCV,           rp=True)  # Makes the PNGs from Fits
-    
+
     # Run the Code
     aa = SingleRunner(p)
     aa.start()

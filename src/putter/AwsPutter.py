@@ -3,12 +3,12 @@ from os import makedirs
 from time import time
 
 from tqdm import tqdm
-from putter.Putter import Putter
+from src.putter.Putter import Putter
 import boto3
 
 # Select Amazon Resources
-# from utils.file_util import get_thumblinks
-from utils.array_util import get_thumblinks, make_thumbs
+# from src.utils.file_util import get_thumblinks
+from src.utils.array_util import get_thumblinks, make_thumbs
 import os
 S3_UPLOAD_ARGS = {'ACL': 'public-read', "ContentDisposition": "inline"}
 

@@ -24,7 +24,7 @@ from platform import system
 import sys
 import numpy as np
 import matplotlib as mpl
-from science.parameters import Parameters
+from src.science.parameters import Parameters
 
 try:
     mpl.use('qt5agg')

@@ -4,7 +4,7 @@ from os.path import join, dirname, abspath
 from time import strftime
 import cv2
 from tqdm import tqdm
-from processor.Processor import Processor
+from src.processor.Processor import Processor
 
 """This Processor is used to turn a set of images into a video"""
 
@@ -23,10 +23,10 @@ class VideoProcessor(Processor):
     finished_verb = "Wrote Movie"
     progress_unit = "imgs"
     progress_text = progress_string
-    
+
     video_name_stem = ""
     description = "Turn all the imgs into an AVI video"
-    
+
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
         self.final_output_path3 = None
@@ -36,12 +36,12 @@ class VideoProcessor(Processor):
         self.skipped = 0
         self.final_output_path = None
 
-    
+
     def process_one_wavelength(self, wave):
         """Prepare and execute the video writer"""
         video_avi =     self.prep_video_writer(wave)
         if video_avi is not False:   self.run_video_writer(video_avi)
-    
+
     def prep_video_writer(self, wave):
         """Build all the paths and initialize everything"""
         self.load(self.params, wave=wave)
@@ -50,13 +50,13 @@ class VideoProcessor(Processor):
 
             if not self.should_continue():
                 return False
-            
+
             return self.init_writers()
-        
+
         else:  # If there are no files then sad
             print("    No Files Found \n")
             return False
-    
+
     def build_output_paths(self, path_box=None):
         """Build the Path to the Video"""
         # Parse Inputs
@@ -65,13 +65,13 @@ class VideoProcessor(Processor):
         height, width, _ = cv2.imread(path_box[0]).shape
         self.frame_shape = (width, height)
         self.good_paths = [path for path in path_box if ('orig' not in path and 'cat' not in path)]
-        
+
         # Build File Name
         batch_name = self.params.config['name']
 
         file_name = '{}_video_{}.{}'.format(batch_name,  "1___raw", self.mov_type)
         self.final_output_path = join(self.params.movs_directory(), file_name)
-        
+
         file_name2 = '{}_video_{}.{}'.format(batch_name, "2__comp", self.mov_type)
         self.final_output_path2 = join(self.params.movs_directory(), file_name2)
 
@@ -79,7 +79,7 @@ class VideoProcessor(Processor):
         self.final_output_path3 = join(self.params.movs_directory(), file_name3)
 
         self.progress_text = self.progress_stem.format(self.wave)
-        
+
         # Make the Directory
         makedirs(dirname(self.final_output_path), exist_ok=True)
 
@@ -87,7 +87,7 @@ class VideoProcessor(Processor):
         shape  = self.frame_shape
         shape2 = (self.frame_shape[0]//2, self.frame_shape[1]//2)
         shape3 = (self.frame_shape[0]//4, self.frame_shape[1]//4)
-        
+
         # Make the VideoWriter and return it
         video_avi = cv2.VideoWriter(self.final_output_path,   0, self.params.frames_per_second(), shape  )
         # video_avi2 = cv2.VideoWriter(self.final_output_path2, 0, self.params.frames_per_second(), shape )
@@ -95,25 +95,25 @@ class VideoProcessor(Processor):
         # video_avi2 = cv2.VideoWriter(self.final_output_path2, cv2.VideoWriter.fourcc("m", "p", "4", "v"), self.params.frames_per_second(), shape )
         video_avi2 = cv2.VideoWriter(self.final_output_path2, cv2.VideoWriter.fourcc("M", "J", "P", "G"),
                                      self.params.frames_per_second(), shape )
-        
+
         video_avi3 = cv2.VideoWriter(self.final_output_path3, cv2.VideoWriter.fourcc("M", "J", "P", "G"),
                                      self.params.frames_per_second(), shape3 )
 
         return [video_avi, video_avi2, video_avi3]
-    
+
     def should_continue(self):
         """Skip the video writing if indicated"""
         if os.path.exists(self.final_output_path) and \
                 not (self.params.write_video() or self.reprocess_mode()):
             print(" ^    Skipped \n")
             return False
-        
+
         # Find the Good Frames
         if len(self.good_paths) == 0:
             print(" ^    No Good Files Found \n")
             return False
         return True
-    
+
     def run_video_writer(self, video_avi):
         """Generate the video file"""
         ii = 0
@@ -141,4 +141,3 @@ class VideoProcessor(Processor):
 
 
 
-        

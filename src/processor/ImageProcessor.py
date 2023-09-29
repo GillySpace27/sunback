@@ -9,14 +9,14 @@ from os.path import join
 # import matplotlib as mpl
 # mpl.use('Agg')
 # import matplotlib.pyplot as plt
-from processor.Processor import Processor
+from src.processor.Processor import Processor
 import matplotlib.pyplot as plt
 import astropy.units as u
 import numpy as np
 
-from science.color_tables import aia_color_table
+from src.science.color_tables import aia_color_table
 
-from utils.stretch_intensity_module import norm_stretch
+from src.utils.stretch_intensity_module import norm_stretch
 
 class ImageProcessor(Processor):
     filt_name = 'Image Writer'
