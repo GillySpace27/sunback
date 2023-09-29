@@ -3,8 +3,8 @@ Empty init file in case you choose a package besides PyTest such as Nose which m
 """
 from run.run import Runner
 from run.run import SingleRunner
-from run.run_panhelio import run_QRN
-__all__ = [Runner, SingleRunner, run_QRN]
+# from run.run_panhelio import run_QRN
+__all__ = [Runner, SingleRunner]
 
 
 # #  TODO: Make this not bad
