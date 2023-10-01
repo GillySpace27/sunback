@@ -19,15 +19,15 @@ Solar Background Updater
 
 
 
-A program that downloads the most current images of the sun from the SDO satellite, then normalizes them. Then it sets each of the images to the desktop background in series. 
+A program that downloads the most current images of the sun from the SDO satellite, then normalizes them. Then it sets each of the images to the desktop background in series.
 
 
-Basic Usage:  
+Basic Usage:
 ``` bash
-pip install sunback  
-python3  
-import sunback as sb  
-sb.run(delay=20)  
+pip install sunback
+python3
+import sunback as sb
+sb.run(delay=20)
 ```
 
 Check contribute.md to see how you can help out!
@@ -38,6 +38,6 @@ Copyright (c) 2019, [C. R. Gilly](https://gilly.space) [ORCiD](https://orcid.org
 
 
 #### Acknowledgements
- 
-Project based on the 
+
+Project based on the
 [Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.1.

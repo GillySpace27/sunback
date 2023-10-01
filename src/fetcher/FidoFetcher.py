@@ -1,65 +1,46 @@
-import copy
 import os
-import shutil
-
-from os import remove
-from os.path import join, basename
 from time import strptime, mktime
 import sys
-
+import numpy as np
+from astropy.io import fits
+from tqdm import tqdm
 from drms import DrmsExportError
 from sunpy.net import Fido, attrs
 from parfive import Downloader
-import numpy as np
-from astropy.io import fits
-from os import stat
-
-from tqdm import tqdm
-
-from src.fetcher.Fetcher import Fetcher
-from src.processor.SunPyProcessor import AIA_PREP_Processor
-
-from src.utils.time_util import parse_time_string_to_local
 import astropy.units as u
-
 import datetime
-from src.utils.time_util import define_time_range, define_recent_range
+from src.utils.time_util import parse_time_string_to_local, define_time_range, define_recent_range
+from src.fetcher.Fetcher import Fetcher
 
-default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
+# Constants
+default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"
+jsoc_email = "chris.gilly@colorado.edu"
+global_verbosity = False
 
-global global_verb
-global_verb = False
 
-
-def vprint(in_string, verb=None, *args, **kwargs):
-    global global_verb
-    if verb is not None:
-        global_verb = verb
-    if FidoFetcher.verb or global_verb:
-        print(in_string, *args, **kwargs)
+def vprint(message, verbose=None, global_verbosity=global_verbosity, *args, **kwargs):
+    if verbose or global_verbosity:
+        print(message, *args, **kwargs)
 
 
 class FidoFetcher(Fetcher):
-    """Gets some data"""
     description = "Get Fits Files from the Internet using Fido"
-    verb = True
+    verbose = True
     filt_name = "Fido Fetcher"
     num_files_needed = None
     batch_id = 0
     needed_files = None
     results = None
     temp_folder = None
-    # int_tm_tot = 0
-    fits_path=None
+    fits_path = None
+
 
     def __init__(self, params=None, quick=False, rp=None):
-        # Initialize class variables
         super().__init__(params, quick, rp)
-
         self.SubDownloader = None
         self.reprocess_mode(rp)
         self.params.load_preset_time_settings()
-        # self.fetch()
+
 
     ## Main Fetch Logic
     def fetch(self, params=None, quick=False, rp=None, verb=True):
@@ -73,9 +54,18 @@ class FidoFetcher(Fetcher):
     def cleanup(self):
         # self.fido_download_fits_ensured(hold=False, temp=True)
         # self.delete_temp_folder_items(delete_folder_too=True)
-        del self.fido_search_result
-        del self.needed_files
-        del self.results
+        try:
+            del self.fido_search_result
+        except AttributeError:
+            pass
+        try:
+            del self.needed_files
+        except AttributeError:
+            pass
+        try:
+            del self.results
+        except AttributeError:
+            pass
         super().cleanup()
         pass
 
@@ -83,6 +73,8 @@ class FidoFetcher(Fetcher):
         # for fits_path in self.params.local_fits_paths():
         #     print(fits_path)
         pass
+
+
 
     def fido_get_fits(self, current_wave, temp=False):
         self.load(self.params, wave=current_wave)
@@ -122,9 +114,9 @@ class FidoFetcher(Fetcher):
         """Find the science images"""
         from astropy import units as u
         self.verb = self.verb or verb
-        vprint("\n *   Looking for Images of {} from {} to {} with {} cadence...".format(
+        vprint("\n *   Looking for Images of {} from {} to {} with {:0.3} or {:0.3} cadence...".format(
                 self.params.current_wave(), self.params.start_time_string,
-                self.params.end_time_string, self.params.cadence_minutes().to(u.day)), flush=True, end='', verb=self.verb)
+                self.params.end_time_string, self.params.cadence_minutes().to(u.d), self.params.cadence_minutes().to(u.s)), flush=True, end='', verb=self.verb)
         jsoc_email = "chris.gilly@colorado.edu"
 
         # Make the base required attributes
@@ -149,8 +141,12 @@ class FidoFetcher(Fetcher):
         """Examine the search results"""
         self.start_time, self.end_time = self.get_start_and_end_times_from_result()
 
-        begin_time = parse_time_string_to_local(self.start_time, 4)[0]
-        end_time = parse_time_string_to_local(self.end_time, 4)[0]
+        try:
+            begin_time = parse_time_string_to_local(self.start_time, 4)[0]
+            end_time = parse_time_string_to_local(self.end_time, 4)[0]
+        except ValueError:
+            # Handle the error or log it
+            pass
         self.extra_string = "from {} to {}".format(begin_time, end_time)
 
         if self.fido_search_found_num > 1:
@@ -186,7 +182,7 @@ class FidoFetcher(Fetcher):
     def fido_download_fits_ensured(self, temp=False, hold=False, ensured=True):
         """Download the files from fido_search_result"""
 
-        self.SubDownloader = Downloader(progress=True, file_progress=False, max_conn=5, overwrite=False)
+        self.SubDownloader = Downloader(progress=True, max_conn=5, overwrite=False)
 
         self.out_path = self.params.temp_directory() if temp else self.params.fits_directory()
         self.store_requests()

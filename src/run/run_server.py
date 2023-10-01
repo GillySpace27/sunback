@@ -44,7 +44,7 @@ def run_server(delay=10, debug=True, do_one='rainbow', stop=False):
     p.rhe_targets(["lev1p5", 'msgn(lev1p5)']) #"lev1p5",
     p.png_frame_name = ['rhe(msgn)']
 
-    compute = False
+    compute = True
     # This is the right combination of processors for the server
     if compute:
         p.fetchers(WebFitsFetcher,                      )  # Gets Fits from JSOC Most Recent

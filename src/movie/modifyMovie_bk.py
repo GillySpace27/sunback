@@ -20,7 +20,7 @@ Handles the primary functions
 # Imports
 from time import localtime, timezone, strftime, sleep, time, struct_time
 # from urllib.request import urlretrieve
-from os import getcwd, makedirs, rename, remove, listdir, startfile
+from os import getcwd, makedirs, rename, remove, listdir
 from os.path import normpath, abspath, join, dirname, exists
 from calendar import timegm
 import astropy.units as u
