@@ -21,7 +21,12 @@ source ~/.zshrc
   export PYTHONPATH=$PWD:$PYTHONPATH
 
   echo $'\n\t>Running Server file: "run_server_lingon.zsh"...\n'
- /opt/homebrew/anaconda3/envs/sunback_env_arm/bin/python /Users/cgilbert/vscode/sunback/src/run/run_server_lingon.py
+
+ # append a timestamp to another file for reference
+  date >> /Users/cgilbert/vscode/sunback/src/run/run_server_lingon.timestamp
+
+  # save all the output from the following command to a log file, and also print to console
+  /opt/homebrew/anaconda3/envs/sunback_env_arm/bin/python /Users/cgilbert/vscode/sunback/src/run/run_server_lingon.py | tee /Users/cgilbert/vscode/sunback/src/run/run_server_lingon.log
 
   echo Job Complete!
 )

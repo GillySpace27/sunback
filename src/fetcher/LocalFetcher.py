@@ -58,6 +58,7 @@ class LocalSingleFetcher(Fetcher):
         # self.duration = ''
         self.load(params)
         fits_path = self.determine_image_path()
+        print(fits_path)
         # if not fits_path:
         #     self.params.fits_directory(path.join(self.params.fits_directory(), "raw"))
         #     raw_path = self.determine_image_path()
@@ -67,22 +68,26 @@ class LocalSingleFetcher(Fetcher):
             # # raise e
             # self.fetch()
             # return
-        try:
-            with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
-                self.list_hdus(hdul)
-        except ValueError as e:
-            print("No Local File Found!")
-            raise e
-
+        if fits_path.endswith(".fits"):
+            try:
+                with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
+                    self.hdu_name_list = self.list_hdus(hdul)
+            except ValueError as e:
+                print("No Local File Found!")
+                raise e
+        elif fits_path.endswith(".jpg") or fits_path.endswith(".jpeg"):
+            self.load_jpg(fits_path)
+            return
 
 
         for self.params.hdu_name in self.params.master_frame_list_newest:
 
             if self.params.hdu_name in self.hdu_name_list:
                 try:
+                    import pdb; pdb.set_trace()
                     self.load_fits_image(self.params.use_image_path(), self.params.hdu_name)
                     # print(" *   Loaded the '{}' HDU from".format(self.params.hdu_name))
-                    print(" *   Loaded".format(self.params.hdu_name))
+                    print(" *   Loading frame {}".format(self.params.hdu_name))
                     print(" *     ", path.basename(self.params.use_image_path()))
                     print(" *    in\n *     ", path.dirname(self.params.use_image_path()))
                     print(" ^ Success!")
@@ -95,8 +100,52 @@ class LocalSingleFetcher(Fetcher):
 
                 # self.view_raw()
 
+    def load_jpg(self, fits_path):
+        print("\tLoading a JPG:", os.path.basename(fits_path))
+
+        """open the fits file and grab_obj the necessary data"""
+
+        if fits_path is not None:
+            self.fits_path = os.path.normpath(fits_path)
+        if self.fits_path is None:
+            self.fits_path = self.params.local_fits_paths()[0]
+
+        if self.params.fits_path is None:
+            self.params.fits_path = self.fits_path
+
+        wave="jpeg"
+        t_rec = "04-08-2024 13:00"
+        from os.path import basename
+        from copy import copy
+        frame = plt.imread(fits_path)
+        frame = np.sum(frame, axis=2)
+        self.frame_name = "compressed_image"
+        # frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, in_name)
+        if frame is not None:
+            self.params.raw_name = self.frame_name
+            self.params.raw_image = np.asarray(frame, dtype=np.float32) + 0.0
+            self.params.raw_image2 = np.asarray(frame, dtype=np.float32) + 0.0
+
+            if self.params.modified_image is None or self.params.modified_image.size==1 or self.params.do_single==False:
+                self.params.modified_image = copy(self.params.raw_image) + 0
+
+            self.params.current_wave(wave)
+            self.params.cmap = "viridis" #aia_color_table(int(wave) * u.angstrom)
+            self.image_data = str(wave), self.fits_path, t_rec, frame.shape
+            self.file_basename = basename(self.fits_path)
+            self.set_centerpoint(self.params.center)
+            self.params.image_data = self.image_data
+            self.save_frame_to_fits_file(self.fits_path.replace(".jpg", ".fits"),
+                                         self.params.raw_image, out_name="compressed_image", dtype=None, shrink=True)
 
 
+            return True
+        else:
+            # print("Skipped Fits!")
+            pass
+            # if img_type.casefold() == 'dark':
+            #     self.delete_fits_and_png(fits_path)
+            return False
 
 class LocalCdfFetcher(Fetcher):
     description = "Load the image_path from Disk"

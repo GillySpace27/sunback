@@ -16,6 +16,8 @@ import time
 import cv2
 import numpy as np
 import sunpy
+from sunpy.map import Map as mp
+
 
 from src.science.color_tables import aia_color_table
 
@@ -338,7 +340,7 @@ class Processor:
         if type(in_name) in [str]:
             in_name = in_name.casefold()
         frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, in_name)
-        if frame is not None and self.header['IMG_TYPE'].casefold() != 'dark':
+        if frame is not None and self.header.get('IMG_TYPE', "").casefold() != 'dark':
             self.params.raw_name = self.frame_name
             self.params.raw_image = np.asarray(frame, dtype=np.float32) + 0.0
             self.params.raw_image2 = np.asarray(frame, dtype=np.float32) + 0.0
@@ -347,10 +349,11 @@ class Processor:
                 self.params.modified_image = copy(self.params.raw_image) + 0
 
             self.params.current_wave(wave)
-            self.params.cmap = aia_color_table(int(wave) * u.angstrom)
+            self.params.cmap = "greys" #aia_color_table(int(wave) * u.angstrom)
             self.image_data = str(wave), self.fits_path, t_rec, frame.shape
             self.file_basename = basename(self.fits_path)
-            self.set_centerpoint(center)
+            if center is not None:
+                self.set_centerpoint(center)
             self.params.image_data = self.image_data
             return True
         else:
@@ -416,19 +419,20 @@ class Processor:
         """Parse the centerpoint and ensure correct scaling"""
         self.params.center = center
         image_edge = self.params.raw_image.shape
-        center_given = np.abs(self.params.center)
+        center_given = np.asarray((np.abs(self.params.center)), dtype=float)
 
         Top_Tolerance = 0.65
         Bottom_Tolerance = 0.35
         count = 0
-        while count < 10:
-            ratio = center_given / image_edge
-            if np.array(ratio > Top_Tolerance).any():
-                center_given *= 0.5
-            elif np.array(ratio < Bottom_Tolerance).any():
-                center_given *= 2
-            else:
-                break
+        # while count < 10:
+        #     ratio = center_given / np.sum(image_edge, axis=-1)
+        #     if np.array(ratio > Top_Tolerance).any():
+        #         center_given *= 0.5
+        #     elif np.array(ratio < Bottom_Tolerance).any():
+        #         center_given *= 2
+        #     else:
+        #         break
+        #     count += 1
         self.params.center = center_given
 
     def select_keyframe_subset(self):
@@ -579,6 +583,7 @@ class Processor:
     def process(self, params=None):
         """Load the parameters and run the algorithm"""
         self.params = params or self.params
+        # import pdb; pdb.set_trace()
         if self.params is not None:
             if self.params.do_single:
                 self.setup()
@@ -672,14 +677,18 @@ class Processor:
     def confirm_fits_file(fits_path) -> bool:
         if fits_path is not None:
             if os.path.exists(fits_path):
-                return True
+                if fits_path.endswith('.fits'):
+                    return fits_path
+                else:
+                    fits_path = fits_path.replace(".jpg", ".fits")
+                    return fits_path
         else:
             raise FileNotFoundError
 
     def modify_one_fits(self, fits_path):
         """Apply the given funtion to the given fits path"""
         # self.ii += 1
-        self.confirm_fits_file(fits_path)
+        fits_path = self.confirm_fits_file(fits_path)
 
         # self.load()
         self.in_name = self.in_name or self.params.master_frame_list_newest
@@ -698,14 +707,20 @@ class Processor:
             # print(e)
             frame = output
 
-        use_name = self.frame_name if 'mgn_rhe' in self.frame_name else None
-
+        use_name = None
+        if self.frame_name is not None:
+            if 'mgn_rhe' in self.frame_name:
+                use_name = self.frame_name
+            else:
+                use_name = self.out_name
         self.save_frame(frame, fits_path, use_name)
         return frame
 
     def save_frame(self, frame, fits_path, out_name=None, force=False):
+        # import pdb; pdb.set_trace()
         if frame is not None and frame is not False:
             if self.save_to_fits or force:
+                # import pdb; pdb.set_trace()
                 self.save_frame_to_fits_file(fits_path, frame, out_name, dtype=self.out_dtype)
 
     def select_single_image(self):
@@ -720,7 +735,7 @@ class Processor:
         except TypeError:
             wavestr = str(self.params.current_wave())
         wave_paths = [x for x in all_fits_paths if wavestr in x]
-        if len(wave_paths) == 1:
+        if len(wave_paths) >= 1:
             self.img_path = wave_paths[0]
         elif path1 is not None or path2 is not None:
             self.img_path = path1 or path2
@@ -869,12 +884,15 @@ class Processor:
         # if prnt: print("   * Shrinking Rez to {}...".format(want_rez))
         # if self.params.second_shape == want_rez:
         #     return self.params.raw_image
+
         img = img if img is not None else self.params.raw_image
         first_shape = img.shape[0]
         from src.utils.array_util import reduce_array
         self.params.raw_image, self.params.center, self.shrink_F = reduce_array(self.params.raw_image, self.params.center, want_rez)
         self.params.modified_image, _, _ = reduce_array(self.params.modified_image, self.params.center, want_rez)
         self.params.rez = want_rez
+
+
         # if self.params.modified_image is not None and self.params.modified_image.shape != self.params.raw_image.shape:
         # self.header["NAXIS1"] = want_rez
         # second_shape = self.params.raw_image.shape[0]
@@ -922,20 +940,27 @@ class Processor:
         elif rez == 1024:
             self.shrink_factor = 4
         else:
-            raise NotImplementedError
+            self.shrunk_factor = 1
+            # raise NotImplementedError
 
         self.parse_shrink_args()
         self.find_limb_radius()
 
     def parse_shrink_args(self, shrink_needed=True):
         nn = self.shrink_factor if shrink_needed else 1
-        if self.limb_radius_from_header_shrunken is None:
-            self.params.center_NOTforpoints = [self.header["X0_MP"] / (nn), self.header["Y0_MP"] / (nn)]
-            self.limb_radius_from_header = self.header["R_SUN"]
-            self.limb_radius_from_header_shrunken = self.header["R_SUN"] / nn
-            self.output_abscissa = np.arange(self.params.rez)
-        self.params.center = [self.header["X0_MP"] / (nn), self.header["Y0_MP"] / (nn)]
-        self.limb_radius_from_header_shrunken_forpoints = self.header["R_SUN"] / nn
+        # if self.limb_radius_from_header_shrunken is None:
+
+        x0 = self.header.get("X0_MP", self.params.rez // 2)
+        y0 = self.header.get("Y0_MP", self.params.rez // 2)
+        rsun = self.header.get("R_SUN", self.params.rez // 2)
+
+        self.params.center_NOTforpoints = [x0 / (nn), y0 / (nn)]
+        self.limb_radius_from_header = rsun
+        self.limb_radius_from_header_shrunken =  rsun / nn
+        self.output_abscissa = np.arange(self.params.rez)
+
+        self.params.center = [x0 / (nn), y0 / (nn)]
+        self.limb_radius_from_header_shrunken_forpoints =  rsun / nn
         self.ratio_factor_for_radius = self.limb_radius_from_header_shrunken_forpoints / self.limb_radius_from_header_shrunken
         # print("\n", self.params.center, self.params.center_NOTforpoints)
         # print(self.limb_radius_from_header_shrunken_forpoints, self.limb_radius_from_header_shrunken)
@@ -1010,10 +1035,11 @@ class Processor:
 
     def initialize_binning(self, use_im, binBoxSize):
         flat_im = self.params.modified_image if use_im is None else use_im
+        self.orig_size = flat_im.shape
         self.params.rez = flat_im.shape[0]
         flat_im = flat_im.flatten()
         sz = (self.params.rez, self.params.rez)
-        self.params.rhe_image = np.empty(sz[0]**2)
+        self.params.rhe_image = np.empty(self.orig_size).flatten()
         self.params.rhe_image.fill(np.nan)
         self.n_inds = np.max(self.binInds)
         self.equal_intensity_array =np.empty((self.n_inds, binBoxSize))
@@ -1028,7 +1054,6 @@ class Processor:
         return flat_im
 
     def do_binning(self, use_im=None, fast=False, binBoxSize=100):  # Bin the intensities by radius
-
         flat_im = self.initialize_binning(use_im, binBoxSize)
         if False:
             params_list = tqdm(np.arange(self.n_inds), desc=" *    Sorting Pixels", position=0, leave=True)
@@ -1044,7 +1069,22 @@ class Processor:
                 if fast:
                     self.fast_binning(binI, flat_im, binBoxSize)
                 else:
+
                     self.full_binning(binI, flat_im, skip=skip)
+
+        if False:
+            fig, (ax1, ax2) = plt.subplots(2, 1, sharex='all', sharey='all')
+            fig.set_size_inches(5,8)
+            ax1.imshow(np.sqrt(self.params.raw_image), interpolation=None, origin="lower", cmap="viridis")
+            ax2.imshow(self.params.rhe_image.reshape(self.orig_size), interpolation=None, origin="lower", cmap="viridis")
+            ax2.scatter(*self.params.center, c='r', s=10)
+            ax1.scatter(*self.params.center, c='r', s=10)
+            ax1.set_title("Original")
+            ax2.set_title("Radial Histogram Equalization")
+            fig.suptitle("Eclipse Photo on Pixel 6")
+            plt.tight_layout()
+            plt.show()
+
         return self.equal_radius_array, self.equal_intensity_array
 
     def fast_binning(self, binI, flat_im, binBoxSize):
@@ -1066,44 +1106,107 @@ class Processor:
                 message = '' if messages is None else messages[ii]
                 ax.annotate('({})  {}'.format(chr(97+ii), message), loc,color=color, xycoords='axes fraction')
 
-    # @staticmethod
-    # def squashfunc_inv(array):
-    #     return array**2
-    #     # return 10**array
+    def safe_indexing(self, array, indices):
+        # Create an output array filled with NaN values
+        output = np.full(len(indices), np.nan)
+
+        # Filter indices that are within the valid range
+        valid_indices = indices[(indices >= 0) & (indices < len(array))]
+
+        # Set valid values into the output array
+        output[(indices >= 0) & (indices < len(array))] = array[valid_indices]
+
+        return output
+
+    def safe_indexing_update(self, array, indices, values):
+        # Ensure indices are within valid range
+        valid_mask = (indices >= 0) & (indices < len(array))
+        valid_indices = indices[valid_mask]
+        valid_values = values[valid_mask]
+
+        # Update the array at the valid indices
+        array[valid_indices] = valid_values
 
     def full_binning(self, binI, image, skip=1):
         entries, mean, std = self.get_bin_entries(binI, image)
+        if entries.size == 0:
+            # print("No valid entries found.")
+            return
+
         (good_coord, bin_array, radii) = entries.T
-        if len(bin_array) > 0:
-            # self.binBox.append(np.asarray([good_coord, radii, bin_array]).T.tolist())
-            # from src.processor.QRNProcessor import QRNpreProcessor
-            if "qrn" in str(type(self)).casefold():
-                # use_percentiles = [98.5, 90, 7, 4]
-                # use_percentiles = [99, 95, 5, 1]
-                use_percentiles = [99, 99.5, 4, 1]
-                # A,B,C,D =
-                array = np.arange(binI, np.min((binI+skip, self.bin_rez)))
-                self.binAbsMax[array], self.binMax[array], self.binMin[array], self.binAbsMin[array] = np.nanpercentile(bin_array, use_percentiles)
-            else:
-                self.params.rhe_image[good_coord.astype(int)] = stats.rankdata(bin_array, "average") / len(bin_array) #This is RHE
-        return good_coord, radii, bin_array
+
+        best_coords = np.floor(good_coord).astype(int)
+        best_coords = np.clip(best_coords, 0, len(self.params.rhe_image) - 1)  # Ensure within bounds
+        ranks = stats.rankdata(bin_array, "average") / len(bin_array)
+
+        # Use safe_indexing_update to assign ranks safely to self.params.rhe_image
+        self.safe_indexing_update(self.params.rhe_image, best_coords, ranks)
+
 
     def get_bin_entries(self, binI, image=None):
-        # frame = self.flat_im if frame is None else frame
-
-        # want_radius =       self.binRR[binI]
-        # the_inds =          np.where(self.binRR == want_radius)
-
-        the_inds =          np.where(self.binInds == binI)
+        the_inds = np.where(self.binInds == binI)
         the_inds_forpoints = np.where(self.binInds_forpoints == binI)
-        # print("it is the same : ", np.all(the_inds[0] == the_inds_forpoints[0]))
 
-        keep, bin_array =   self.get_bin_items(image[the_inds_forpoints])
-        coord =             self.binII[the_inds_forpoints].tolist()
-        good_coord =        [coord[x] for x in keep]
-        radii = [self.binRR[int(x)] for x in good_coord]
-        # radii = [self.binInds[int(x)] for x in good_coord]
-        return np.asarray([good_coord, bin_array, radii]).T, np.mean(bin_array), np.std(bin_array)
+        # Flattening the image for simpler indexing
+        flat_image = image.flatten() if image is not None else self.flat_im
+
+        # Using safe indexing to handle out-of-bound indices
+        bin_array = self.safe_indexing(flat_image, the_inds_forpoints[0])
+        coords = self.safe_indexing(self.binII, the_inds_forpoints[0]).astype(int)
+
+        # Filter out NaN entries which indicate out-of-bound indices
+        valid_entries = ~np.isnan(bin_array)
+        good_coord = coords[valid_entries]
+        bin_array = bin_array[valid_entries]
+
+        # Calculating radii for valid coordinates only
+        radii = [self.binRR[x] for x in good_coord]
+
+        return np.asarray([good_coord, bin_array, radii]).T, np.nanmean(bin_array), np.nanstd(bin_array)
+
+
+    # def full_binning(self, binI, image, skip=1):
+    #     try:
+    #         entries, mean, std = self.get_bin_entries(binI, image)
+    #     except IndexError as e:
+    #         print(e, "Bin # ", binI)
+    #     (good_coord, bin_array, radii) = entries.T
+    #     if len(bin_array) > 0:
+    #         # self.binBox.append(np.asarray([good_coord, radii, bin_array]).T.tolist())
+    #         # from src.processor.QRNProcessor import QRNpreProcessor
+    #         if "qrn" in str(type(self)).casefold():
+    #             # use_percentiles = [98.5, 90, 7, 4]
+    #             # use_percentiles = [99, 95, 5, 1]
+    #             use_percentiles = [99, 99.5, 4, 1]
+    #             # A,B,C,D =
+    #             array = np.arange(binI, np.min((binI+skip, self.bin_rez)))
+    #             self.binAbsMax[array], self.binMax[array], self.binMin[array], self.binAbsMin[array] = np.nanpercentile(bin_array, use_percentiles)
+    #         else:
+    #             # best_coords = np.asarray([x for x in good_coord if x < len(image.flatten())]).astype(int)
+    #                 best_coords = np.floor(good_coord).astype(int)
+    #                 ranks = stats.rankdata(bin_array, "average") / len(bin_array)
+    #                 best_coords = np.clip(best_coords, 0, len(image) - 1)  # Clip the value to prevent index errors
+    #                 self.params.rhe_image[best_coords] = ranks #This is RHE
+    #     return good_coord, radii, bin_array
+
+    # def get_bin_entries(self, binI, image=None):
+    #     # frame = self.flat_im if frame is None else frame
+
+    #     # want_radius =       self.binRR[binI]
+    #     # the_inds =          np.where(self.binRR == want_radius)
+
+    #     the_inds =          np.where(self.binInds == binI)
+    #     the_inds_forpoints = np.where(self.binInds_forpoints == binI)
+    #     # the_inds_forpoints = [x for x in the_inds_forpoints if x < len(image.flatten())]
+    #     # print("it is the same : ", np.all(the_inds[0] == the_inds_forpoints[0]))
+
+    #     keep, bin_array =   self.get_bin_items(image[the_inds_forpoints])
+    #     coord =             self.binII[the_inds_forpoints].tolist()
+    #     good_coord =        [coord[x] for x in keep]
+    #     radii = [self.binRR[int(x)] for x in good_coord]
+    #     # radii = [self.binInds[int(x)] for x in good_coord]
+    #     return np.asarray([good_coord, bin_array, radii]).T, np.mean(bin_array), np.std(bin_array)
+
 
     def mask_out_sun(self, image, radius=None, mask=None, plug=None, radius2=0.9):
         if self.radius is None:
@@ -1465,55 +1568,80 @@ class Processor:
 
     def save_frame_to_fits_file(self, fits_path, frame, out_name=None, dtype=None, shrink=True):
         """Save a fits file to disk"""
-        # print("Saving Frame to Fits File")
-        if out_name is None:
-            in_name = self.frame_name
-            entries = in_name.split("(")
-            previous_name = entries[-1].replace(")", "")
-            last_name = entries[0]
-            this_filters_name = str(self.out_name)
-            the_original = "({})".format(last_name)
-            field = this_filters_name + the_original
-            field = field.casefold()
+        # print(f"\t\tSaving {out_name} to Fits File...", end="")
+
+        # Check if the file exists
+        file_exists = os.path.exists(fits_path)
+
+        if not file_exists:
+            # Create a new FITS file
+            # hdul = fits.HDUList([fits.PrimaryHDU()])
+            hdul = fits.HDUList([])
         else:
-            field = out_name.casefold()
-        good_frame = np.any(frame)
+            # Open the existing FITS file
+            hdul = fits.open(fits_path, mode="update", memmap=False, ignore_missing_simple=True)
+            hdul.verify('silentfix+ignore')  # Verify the file
+        # self.frame_name = "jpeg"
+        try:
+            if out_name is None:
+                in_name = self.frame_name
+                entries = in_name.split("(")
+                previous_name = entries[-1].replace(")", "")
+                last_name = entries[0]
+                this_filters_name = str(self.out_name)
+                the_original = "({})".format(last_name)
+                field = this_filters_name + the_original
+                field = field.casefold()
+            else:
+                field = out_name.casefold()
 
-        if good_frame:
-            frame2 = frame + 0
-            # frame2 = frame
+
+
+            frame2 = np.copy(frame)  # Create a copy of the frame to avoid modifying the original
+
+            if len(frame2.shape) > 2:
+                frame2 = np.sum(frame2, axis=-1)
+
             if "float" in str(frame.dtype):
-                # frame2 *= 10**3
-                # frame2 = np.abs(frame2)
                 frame2 = frame2.astype(np.float32)
-                # frame2[0] = 2**16 - 3
-            try:
-                # with fits.open(fits_path, cache=False, mode="update", ignore_missing_end=True, memmap=False) as hdul:
-                with fits.open(fits_path, mode="update", memmap=False) as hdul:
-                    hdul.verify('silentfix+ignore')  # Then Verify
-                    # self.rename_initial_frames(hdul)  # THis might not work
 
-                    fit_frame = fits.ImageHDU(frame2, name=field, header=self.header)
+            # import pdb; pdb.set_trace()
+            if self.header is None:
+                self.header = fits.Header()
+                self.header["IMG_TYPE"] = "LIGHT"
+                self.header['EXPTIME'] = 3.0
+                self.header['CUNIT1'] = 'degree'
+                self.header['CUNIT2'] = 'degree'
+                self.header['X0_MP'] = self.params.center[0]
+                self.header['Y0_MP'] = self.params.center[1]
+                self.header['R_SUN'] = 960 * 10**3
+                self.header['T_OBS'] = "04-08-2024 12:00:00"
 
-                    if field not in hdul:
-                        hdul.append(fit_frame)  # Write
-                    else:
-                        hdul[field] = fit_frame  # Write
+            fit_frame = fits.ImageHDU(frame2, name=field, header=self.header)
 
-                    # hdul = self.delete_further_hdus(hdul, in_name)
+            if field not in hdul:
+                hdul.append(fit_frame)  # Write
+            else:
+                hdul[field] = fit_frame  # Write
+            # import pdb; pdb.set_trace()
+            hdul.writeto(fits_path, output_verify='fix', overwrite=True)
 
+            hdul.close(output_verify='fix')
 
-                    hdul.close(output_verify='fix')
-                    if self.params.speak_save:
-                        middle = " *         ** >> Saved Frame {} << **".format(field)
-                        midlen = len(middle) - 14
-                        print(" * \n *         ** " + "V" * midlen + " **")
-                        print(middle)
-                        print(" *         ** " + "^" * midlen + " **\n * ")
+            if self.params.speak_save:
+                middle = " *         ** >> Saved Frame {} << **".format(field)
+                midlen = len(middle) - 14
+                print(" * \n *         ** " + "V" * midlen + " **")
+                print(middle)
+                print(" *         ** " + "^" * midlen + " **\n * ")
+                # print("File Saved!")
+        except PermissionError as e:
+            print("\n        !! No Permission to save the file: \n         {}".format(fits_path))
+            self.skipped += 1
+        except FileNotFoundError as e:
+            print("\n        !! No File to save the file: \n         {}".format(fits_path))
+            self.skipped += 1
 
-            except PermissionError as e:
-                print("\n        !! No Permission to save the file: \n         {}".format(fits_path))
-                self.skipped += 1
 
     def make_shortcut(self, file_in_path=None, shortcut_out_path=None, doAppend=True):
         path = self.params.shortcut_directory(shortcut_out_path)
@@ -1812,19 +1940,24 @@ class Processor:
         return compressed
 
     def get_fits_info(self, hdul):
-        # Load the raw out_array
-        wave, t_rec, center, int_time, found_limb_radius, data_unit = None, None, None, None, None, None
-        ii = 0
-        self.list_hdus(hdul)
-        for ii in range(len(hdul)):
+        """
+        Extract FITS file information such as wavelength, observation time, and more.
+
+        Args:
+            hdul (astropy.io.fits.HDUList): The FITS HDU list.
+
+        Returns:
+            tuple: A tuple containing wavelength, observation time, center coordinates,
+            integration time, and limb radius.
+        """
+        wave, t_rec, center, int_time, found_limb_radius = None, None, None, None, None
+
+        for hdu in hdul:
             try:
-                try:
-                    name = [x for x in self.hdu_name_list if "lev" in x][-1]
-                except IndexError as e:
-                    name = ii
-                except TypeError as e:
-                    name = ii
-                last_hdul_frame = hdul[name]
+                if "lev" in hdu.name:
+                    last_hdul_frame = hdul[hdu.name]
+                else:
+                    last_hdul_frame = hdul[-1]  # Fall back to using an index
                 last_hdul_frame.header["DRMS_ID"]
                 self.header = last_hdul_frame.header
                 wave = last_hdul_frame.header['WAVELNTH']
@@ -1832,31 +1965,46 @@ class Processor:
                 center = [last_hdul_frame.header['X0_MP'], last_hdul_frame.header['Y0_MP']]
                 int_time = last_hdul_frame.header['EXPTIME']
                 found_limb_radius = last_hdul_frame.header['R_SUN']
-                data_unit = last_hdul_frame.header['BUNIT']
+                self.params.bunit = last_hdul_frame.header['BUNIT']
                 while found_limb_radius > last_hdul_frame.header['NAXIS1']:
                     found_limb_radius /= 4.0
                 break
-            except KeyError as e:
+            except KeyError:
+                # print("NNNNNN")
                 continue
-        self.first_hIndex = ii
+
         self.params.limb_radius_from_header = found_limb_radius
         self.params.header = self.header
-        self.params.bunit = data_unit
+        # print(center)
         return wave, t_rec, center, int_time, found_limb_radius
 
-    # Frame Loading
-
     def load_this_fits_frame(self, fits_path=None, in_name=None, quiet=False):
-        """Load a fits file from disk"""
+        """
+        Load a FITS file from disk and extract information.
+
+        Args:
+            fits_path (str, optional): The path to the FITS file.
+            in_name (str, optional): The name of the desired HDU.
+            quiet (bool, optional): Whether to suppress output.
+
+        Returns:
+            tuple: A tuple containing the loaded frame, wavelength, observation time,
+            center coordinates, integration time, and frame name.
+        """
         try:
+
+            fits_path = fits_path.replace(".jpg", ".fits")
             with fits.open(fits_path, cache=False, ignore_missing_end=True, ignore_missing_simple=True, memmap=False) as hdul:
+
                 self.in_name = self.set_in_frame_name(in_name=in_name, fits_path=fits_path, hdul=hdul)
-                # print("\r", self.in_name, self.frame_name, "\n")
+
                 frame, self.header = self.open_fits_hdul(hdul=hdul, quiet=quiet, frame_name=self.in_name)
+
                 wave, t_rec, center, int_time, self.limb_radius_from_header = self.get_fits_info(hdul)
-                frame = None if self.in_name is None else frame
+
             return frame, wave, t_rec, center, int_time, self.in_name
-        except FileNotFoundError:
+        except FileNotFoundError as e:
+            print(f"File Not Found!: {e}")
             pass
         except (OSError, RuntimeError) as e:
             print('\n', e)
@@ -1864,20 +2012,24 @@ class Processor:
 
         return None, None, None, None, None, None
 
-
-
     def set_in_frame_name(self, in_name=None, fits_path=None, hdul=None):
-        """Determine the right in_name given any kind of in_array"""
+        """
+        Determine the frame name based on different input types.
 
-        # Short-circuit if the in_array is a string
-        if in_name is not None and type(in_name) in [str]:
+        Args:
+            in_name (str or int or list, optional): The input name or index.
+            fits_path (str, optional): The path to the FITS file.
+            hdul (astropy.io.fits.HDUList, optional): The FITS HDU list.
+
+        Returns:
+            str: The determined frame name.
+        """
+        if isinstance(in_name, str):
             self.in_name = self.frame_name = in_name
             return self.in_name
 
-        # Get the Hdul
         if hdul is None:
             with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
-                # Pick the Name
                 self.in_name = self.find_correct_in_name(hdul, name=in_name)
         else:
             self.in_name = self.find_correct_in_name(hdul, name=in_name)
@@ -1885,28 +2037,77 @@ class Processor:
         return self.in_name
 
     def outer(self, name, do=False):
+        """
+        Remove parentheses from a frame name.
+
+        Args:
+            name (str): The frame name.
+            do (bool): Whether to remove parentheses.
+
+        Returns:
+            str: The frame name with or without parentheses.
+        """
         if self.do_split or do:
             return name.split('(')[0]
         return name
 
     def get_frame_names(self, requested_output_name, do_split=False):
+        """
+        Get various frame names based on the requested output name.
+
+        Args:
+            requested_output_name (str): The requested output frame name.
+            do_split (bool, optional): Whether to remove parentheses from frame names.
+
+        Returns:
+            tuple: A tuple containing the first frame name, second frame name, penultimate frame name,
+            last frame name, previous frame name, and a list of all frame names.
+        """
         self.do_split = do_split
+
+        # Get the first frame name
         first_name = self.outer(self.hdu_name_list[0])
-        second_name = self.outer(self.hdu_name_list[1]) if len(self.hdu_name_list) > 1 else self.outer(first_name)
+
+        # Get the second frame name or use the first if there is only one frame
+        if len(self.hdu_name_list) > 1:
+            second_name = self.outer(self.hdu_name_list[1])
+        else:
+            second_name = first_name
+
+        # Get the penultimate frame name
         penultimate_name = self.outer(self.determine_penultimate_frame_name())
+
+        # Get the last frame name
         last_name = self.outer(self.hdu_name_list[-1])
 
         try:
-            sh_all_names = [self.outer(x.casefold(), do=True) for x in self.hdu_name_list if type(x) is str]
+            # Create a list of cleaned, casefolded names for comparison
+            sh_all_names = [self.outer(x.casefold(), do=True) for x in self.hdu_name_list if isinstance(x, str)]
+
+            # Find the previous frame name based on the requested output name
             prev_name = self.outer(self.hdu_name_list[sh_all_names.index(requested_output_name) - 1])
+
         except ValueError:
+            # If the requested output name is not found, use the penultimate frame name
             prev_name = self.outer(penultimate_name)
 
-        all_names = [self.outer(x.casefold()) for x in self.hdu_name_list if type(x) is str]
+        # Create a list of cleaned, casefolded names for all frame names
+        all_names = [self.outer(x.casefold()) for x in self.hdu_name_list if isinstance(x, str)]
+
         return first_name, second_name, penultimate_name, last_name, prev_name, all_names
 
+
     def find_correct_in_name(self, hdul, name):
-        """Determine which out_array of the in_array file to use on redo"""
+        """
+        Determine the correct input frame name for redoing operations.
+
+        Args:
+            hdul (astropy.io.fits.HDUList): The FITS HDU list.
+            name (str or None): The requested input name.
+
+        Returns:
+            str: The determined input frame name.
+        """
         repo = self.reprocess_mode()
         reprocess_mode = self.params.reprocess_mode(repo)
 
@@ -1949,7 +2150,16 @@ class Processor:
         return self.in_name
 
     def determine_in_frame_name(self, hdul, name, quiet=True):
-        """Parses an in_array variable to determine the frame it's talking about"""
+        """
+        Parse an in_array variable to determine the frame it's referring to.
+
+        Args:
+            hdul (astropy.io.fits.HDUList): The FITS HDU list.
+            name (str or int or list): The input name or index.
+
+        Returns:
+            str: The determined frame name.
+        """
         self.frame_name = None
         self.hdu_name_list = self.list_hdus(hdul)
 
@@ -1994,7 +2204,6 @@ class Processor:
     def clean_time_string(time_string, targetZone=None, out_fmt=None):
         # Make the name strings
         import pytz
-
         # Ingest the original time in UTC
         original = datetime.strptime(time_string.split('.')[0], "%Y-%m-%dT%H:%M:%S")
         tz_UTC = pytz.timezone('UTC')
@@ -2093,106 +2302,152 @@ class Processor:
         #     self.print_once = False
         return data, header
 
+    # def get_field_hdu(self, hdul, frame_name=None):
+    #     # Gather Names
+    #     self.frame_name = frame_name or self.frame_name
+    #     self.trimmed_name = self.frame_name.split('(')[0]
+    #     self.hdu_name_list = self.list_hdus(hdul)
+    #     self.hdu_name_list_trimmed = [x.split('(')[0] for x in self.hdu_name_list]
+
+    #     # # Determine which frames are available
+    #     # frames = self.hdu_name_list
+    #     # frames_trimmed = self.hdu_name_list_trimmed
+
+    #         # [name for name in self.params.master_frame_list_oldest
+    #         #               if name in self.hdu_name_list_trimmed]
+
+    #     # Try to get frame
+    #     field_hdu = None
+    #     if self.frame_name in self.hdu_name_list:
+    #         # Try it as Written
+    #         field_hdu = hdul[self.frame_name]
+
+    #         loc = [x == self.frame_name for x in self.hdu_name_list]
+    #         idx = np.where(loc)[0][0]
+
+    #     elif self.trimmed_name in self.hdu_name_list:
+
+    #         field_hdu = hdul[self.trimmed_name]
+
+    #         loc = [x == self.trimmed_name for x in self.hdu_name_list_trimmed]
+    #         idx = np.where(loc)[0][0]
+
+    #     elif self.trimmed_name in self.hdu_name_list_trimmed:
+    #         loc = [x == self.trimmed_name for x in self.hdu_name_list_trimmed]
+    #         idx = np.where(loc)[0][0]
+    #         field_hdu = hdul[idx]
+    #         self.frame_name = self.trimmed_name
+    #     else:
+    #         raise FileNotFoundError
+
+    #     # Make sure not to fumble the first frame
+    #     early_names = ["primary", '', 'lev1p0']
+    #     idxx = 0
+    #     if field_hdu is not None and self.frame_name in early_names:
+    #         try:
+    #             while field_hdu.data is None:
+    #                 field_hdu = hdul[idxx]
+    #                 idxx += 1
+    #         except ValueError:
+    #             print(field_hdu.__getattribute__('data'))
+    #             pass
+    #     return field_hdu, self.frame_name, idx
+
+    # def open_fits_hdul(self, hdul, quiet=True, fail=False, frame_name=None):
+    #     """Load a fits file from disk"""
+
+    #     # self.rename_initial_frames(hdul)
+
+    #     field_hdu, frame_name, loc = self.get_field_hdu(hdul, frame_name)
+
+    #     data = field_hdu.data
+    #     header = field_hdu.header
+    #     return data, header
+
+    # def list_hdus(self, hdul):
+    #     if hdul is not None:
+    #         hdul.verify('silentfix+ignore')  # Verify
+    #         # self.rename_initial_frames(hdul)  # This might not work
+    #         self.hdu_name_list = [frame.name.casefold() for frame in hdul]
+    #         hdul.verify('silentfix+ignore')  # Verify
+    #     return self.hdu_name_list
+
+    def _get_cleaned_frame_name(self):
+        # Extract the frame name and remove parentheses if present
+        return self.frame_name.split('(')[0] if self.frame_name else None
+
     def get_field_hdu(self, hdul, frame_name=None):
-        # Gather Names
-        self.frame_name = frame_name or self.frame_name
-        self.trimmed_name = self.frame_name.split('(')[0]
-        self.hdu_name_list = self.list_hdus(hdul)
-        self.hdu_name_list_trimmed = [x.split('(')[0] for x in self.hdu_name_list]
+        """
+        Retrieve a specific Header Data Unit (HDU) from a FITS file.
 
-        # # Determine which frames are available
-        # frames = self.hdu_name_list
-        # frames_trimmed = self.hdu_name_list_trimmed
+        Args:
+            hdul (astropy.io.fits.HDUList): The FITS HDU list.
+            frame_name (str, optional): The name of the desired HDU.
 
-            # [name for name in self.params.master_frame_list_oldest
-            #               if name in self.hdu_name_list_trimmed]
+        Returns:
+            astropy.io.fits.PrimaryHDU or astropy.io.fits.ImageHDU: The selected HDU.
+            str: The selected frame name.
+            int: The index of the selected HDU in the HDU list.
 
-        # Try to get frame
-        field_hdu = None
-        if self.frame_name in self.hdu_name_list:
-            # Try it as Written
-            field_hdu = hdul[self.frame_name]
+        Raises:
+            FileNotFoundError: If the desired HDU is not found in the file.
+        """
+        if frame_name is not None:
+            self.frame_name = frame_name
+        cleaned_frame_name = self._get_cleaned_frame_name()
 
-            loc = [x == self.frame_name for x in self.hdu_name_list]
-            idx = np.where(loc)[0][0]
+        # Iterate through the HDUs to find the desired one
+        for idx, hdu in enumerate(hdul):
+            hduname = hdu.name.casefold()
+            # print(hduname)
+            cleaned_hdu_name = hduname.split('(')[0]
+            if hduname == self.frame_name.casefold() or cleaned_hdu_name == cleaned_frame_name.casefold():
+                if hdu.data is None:
+                    if hduname in ["primary"] or cleaned_hdu_name in ["primary"]:
+                        self.frame_name = "compressed_image"
+                        continue
+                    raise FileNotFoundError("The specified HDU '{}' was found but has no data.".format(self.frame_name))
+                return hdu, hdu.name, idx
 
-        elif self.trimmed_name in self.hdu_name_list:
+        # If the desired HDU is not found, raise an exception
+        raise FileNotFoundError("The specified HDU '{}' was not found.".format(self.frame_name))
 
-            field_hdu = hdul[self.trimmed_name]
+    def open_fits_hdul(self, hdul, quiet=True, frame_name=None):
+        """
+        Load data and header from a specific HDU in a FITS file.
 
-            loc = [x == self.trimmed_name for x in self.hdu_name_list_trimmed]
-            idx = np.where(loc)[0][0]
+        Args:
+            hdul (astropy.io.fits.HDUList): The FITS HDU list.
+            quiet (bool, optional): Whether to suppress output.
+            frame_name (str, optional): The name of the desired HDU.
 
-        elif self.trimmed_name in self.hdu_name_list_trimmed:
-            loc = [x == self.trimmed_name for x in self.hdu_name_list_trimmed]
-            idx = np.where(loc)[0][0]
-            field_hdu = hdul[idx]
-            self.frame_name = self.trimmed_name
-        else:
-            raise FileNotFoundError
+        Returns:
+            numpy.ndarray: The data from the selected HDU.
+            astropy.io.fits.Header: The header from the selected HDU.
 
-        # Make sure not to fumble the first frame
-        early_names = ["primary", '', 'lev1p0']
-        idxx = 0
-        if field_hdu is not None and self.frame_name in early_names:
-            while field_hdu.data is None:
-                field_hdu = hdul[idxx]
-                idxx += 1
+        Raises:
+            FileNotFoundError: If the desired HDU is not found in the file.
+        """
+        # import pdb; pdb.set_trace()
 
-        return field_hdu, self.frame_name, idx
-
-    def open_fits_hdul(self, hdul, quiet=True, fail=False, frame_name=None):
-        """Load a fits file from disk"""
-
-        # self.rename_initial_frames(hdul)
-
-        field_hdu, frame_name, loc = self.get_field_hdu(hdul, frame_name)
-
+        field_hdu, frame_name, _ = self.get_field_hdu(hdul, frame_name)
         data = field_hdu.data
         header = field_hdu.header
-        # try:
-        #     # Try shortening the file frame names
-        #
-        #     loc = [x == self.frame_name for x in hdu_name_list_trimmed]
-        #     idx = np.where(loc)[0][0]
-        #
-        #     field_hdu = hdul[idx]
-        #
-        # except KeyError:
-        #     try:
-        #         field_hdu = hdul[self.in_name]
-        #     except KeyError as e:
-        #         if not quiet:
-        #             print("Oh No! Can't Find {}".format(self.frame_name))
-        #         if fail:
-        #             raise e
-        #     field_hdu = hdul[name]
-
-        # data = None
-        # header = None
-        # field_hdu = None or field_hdu
-
-        # try:
-        #     data = field_hdu.data + 0
-        #     header = hdul[1].header
-        # except TypeError:
-        #     vprint("Processor: 1224 !Failed to Load Frame!")
-        # except IndexError:
-        #     data = field_hdu.data + 0
-        #     header = hdul[0].header
-
-        # if Processor.print_once:
-        #     print("\r +    Loading Frame: {}".format(self.frame_name))
-        #     self.print_once = False
         return data, header
 
     def list_hdus(self, hdul):
-        if hdul is not None:
-            hdul.verify('silentfix+ignore')  # Verify
-            # self.rename_initial_frames(hdul)  # This might not work
-            self.hdu_name_list = [frame.name.casefold() for frame in hdul]
-            hdul.verify('silentfix+ignore')  # Verify
-        return self.hdu_name_list
+        """
+        Get a list of HDU names (casefolded) from a FITS HDU list.
+
+        Args:
+            hdul (astropy.io.fits.HDUList): The FITS HDU list.
+
+        Returns:
+            List[str]: A list of HDU names (in lowercase).
+        """
+        hdul.verify('silentfix+ignore')  # Verify the FITS HDU list
+        hdu_name_list = [hdu.name.casefold() for hdu in hdul]
+        return hdu_name_list
 
     def determine_penultimate_frame_name(self):
         get = -2 if len(self.hdu_name_list) > 1 else -1

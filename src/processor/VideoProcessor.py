@@ -118,7 +118,7 @@ class VideoProcessor(Processor):
         """Generate the video file"""
         ii = 0
         self.skipped = 0
-        for img_path in tqdm(self.good_paths, desc=self.progress_text, unit="frames"):
+        for img_path in tqdm(sorted(self.good_paths), desc=self.progress_text, unit="frames"):
             if 'orig' not in img_path and 'cat' not in img_path:
                 img = cv2.imread(img_path)
                 img_small = cv2.resize(img, (1024, 1024), interpolation = cv2.INTER_AREA)

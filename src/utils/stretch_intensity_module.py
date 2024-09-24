@@ -16,7 +16,7 @@ def make_one_curve(alpha=0.35, xprime=None, alpha_high=None, eq_num=1):
     if xprime is None:  # Defaults
         xprime = demo_make_xprime()
     alpha_high = alpha_high or alpha
-    
+
     # print("Using alpha = {:0.5f}".format(alpha))
 
     # And this makes the curve!
@@ -32,19 +32,19 @@ def make_one_curve(alpha=0.35, xprime=None, alpha_high=None, eq_num=1):
     elif eq_num == 4:
         lows = xprime < 0.5
         highs = xprime >= 0.5
-        
+
         x_low = xprime[lows]
         x_high = xprime[highs]
-        
+
         curve_low = ((2*x_low) ** alpha)/2
         curve_high = -(   ((2-2*x_high) ** alpha_high)/2 - 1)
-        
+
         out_curve = np.zeros_like(xprime)
         out_curve[lows] = curve_low
         out_curve[highs]= curve_high
-       
+
         # outcurve = np.fmax(curve,curve)
-        
+
     return out_curve
 
 ## DEMO STUFF --------------------------------------------------------------
@@ -61,9 +61,10 @@ def demo_make_xprime(nx=10001, eq_num=1):
     else:
         xprime = np.linspace(0, 1, num=nx)
     return xprime
-        
-def demo_make_alpha_array(nalpha=6, range=10., eq_num=1):
+
+def demo_make_alpha_array(nalpha=6, range=2., eq_num=1):
     """ Prepare the alpha array"""
+    print(f"Eqn #: {eq_num}")
     if eq_num == 1:
         # alpha_array = np.linspace(1., range, num=nalpha)
         alpha_array = np.logspace(0, np.log10(range), num=nalpha)
@@ -80,6 +81,8 @@ def demo_make_alpha_array(nalpha=6, range=10., eq_num=1):
             alpha_array = np.asarray(alpha_list)
     else:
         alpha_array = [1]
+    # alpha_array = np.linspace(1, 2, 5)
+    print(alpha_array)
     return alpha_array
 
 
@@ -87,7 +90,7 @@ def demo_make_all_curves(alphas_list=None, xprime=None, eq_num=None):
     """ Make a set of curves at a number of alphas"""
     # if alphas_list is None:  # Defaults
     #     alphas_list = demo_make_alpha_array(eq_num=eq_num)
-    
+
     # Make the Curves
     curve_list = []
     for alph in alphas_list:
@@ -98,15 +101,14 @@ def demo_make_all_curves(alphas_list=None, xprime=None, eq_num=None):
 
 def demo_plot_many_alphas(curve_list=None, alphas_list=None, xprime=None, axis=None, first0=True, eq_num=None, **kwargs):
     """ Demonstrate the Effect of the Alpha Parameter """
-    
+
     if alphas_list is None:  # Defaults
-        alphas_list = demo_make_alpha_array(eq_num=eq_num)
+        alphas_list = demo_make_alpha_array(eq_num=eq_num) * 10
     if xprime is None:  # Defaults
         xprime = demo_make_xprime(eq_num=eq_num)
     if curve_list is None:   # Defaults
         curve_list = demo_make_all_curves(alphas_list, xprime, eq_num=eq_num)
-    
-    
+
     wid = 3
     off = 0 if first0 else wid
     torun = axis if axis else plt
@@ -120,36 +122,37 @@ def demo_plot_many_alphas(curve_list=None, alphas_list=None, xprime=None, axis=N
     use_color = 'darkred' if first0 else 'navy'
     alpha = 3.5 if first0 else 0.35
     # alpha = 0.1 if first0 else 0.01
-    use_curve1 = make_one_curve(alpha=alpha, xprime=xprime, eq_num=eq_num)
+    use_curve1 = make_one_curve(alpha=alpha*10, xprime=xprime, eq_num=eq_num)
     # plt.figure()
-    torun.plot(xprime, use_curve1, ls='-', c=use_color, lw=4, label=r"Example Curve, $\Upsilon_L=\Upsilon_H=0.35$", zorder=10000)
-    
+    torun.plot(xprime, use_curve1, ls='-', c=use_color, lw=4, zorder=10000)
+
     for curve, alpha in zip(reversed(curve_list), reversed(alphas_list)):
         # lls = ":" if alpha==1 else ":"
+        print(alpha)
         plt.plot(xprime, (xprime)**alpha,       c='coral', ls=":", alpha=0.75, zorder=-10, label=lbl)
-        plt.plot(xprime, (xprime)**(alpha*10),  c='coral', ls=":", alpha=0.75, zorder=-10)
+        plt.plot(xprime, (xprime)**(alpha/10),  c='coral', ls=":", alpha=0.75, zorder=-10)
         lbl=None
-    
 
-    
-    
+
+
+
     # plt.show(block=True)
     return xprime
-    
+
 
 
 def demo_plot_white_noise(alpha=0.35):
     """ Demonstrate the Algorithm on Random Input """
-    
+
     in_array = np.random.random_sample(size=50) - 0.5
     out_array = norm_stretch(in_array, alpha=alpha)
-    
+
     plt.scatter(in_array,out_array)
     plt.title("Demonstration of the Algorithm on Random Input")
-    
+
     plt.show()
-    
-    
+
+
 def demo_plot_2D_method(in_array=None, alpha=0.35, do_plot=True):
     if in_array is None:
         in_array = np.random.random_sample(size=(400, 400)) - 0.5
@@ -164,18 +167,18 @@ def plot_2d(in_array=None, out_array=None, alpha=None, do_plot=True):
         in_array = np.random.random_sample(size=(100, 100)) - 0.5
     if out_array is None:
         out_array = norm_stretch(in_array, alpha=alpha)
-        
+
     if do_plot:
         fig, (ax0, ax1) = plt.subplots(1,2, sharex='all', sharey='all')
-        
+
         ax0.set_title("Input")
         im0 = ax0.imshow(in_array+0.5, origin="lower", vmin=0, vmax=1)
         plt.colorbar(im0, ax=ax0)
-    
+
         ax1.set_title("Output")
         im1 = ax1.imshow(out_array, origin="lower", vmin=0, vmax=1)
         plt.colorbar(im1, ax=ax1)
-        
+
         fig.set_size_inches(8,4)
         plt.suptitle("Alpha = {}".format(alpha))
         plt.tight_layout()
@@ -189,51 +192,51 @@ def norm_stretch(in_array, alpha=0.35, alpha_high=None, eq_num=4):
 def many_alphas():
     fig, ax = plt.subplots(1,1)
     first0 = False
-    for eq_num, CurveString, ls, c in zip([4,1], ["Redistribution Curves", "Flat Middle"], ["-","--"], ["dodgerblue", "tomato"]):
+    for eq_num, CurveString, ls, c in zip([4,2], ["Redistribution Curves", "Flat Middle"], ["-","--"], ["dodgerblue", "tomato"]):
         xprime = demo_plot_many_alphas(axis=ax, ls=ls, c=c, first0=first0, label=CurveString, eq_num=eq_num)
-        
+
         first0 = True
         break
 
-    
+
     plt.ylim((0,1))
     trim = 0.01
     lims = (0-trim, 1+trim)
     if eq_num==1:
         plt.xlim(lims)
         plt.ylim(lims)
-    
+
     elif eq_num==2:
         plt.xlim((0.5,1.5))
-    
+
     elif eq_num==4:
         plt.xlim(lims)
         plt.ylim(lims)
     else:
         plt.xlim((0,1))
-    
+
     lsed = "-"
     lsmid = "--"
     ced = 'k'
     cmid = 'k'
-    
+
     plt.axhline(0,      c=ced,  ls=lsed)
     plt.axhline(0.5,    c=cmid, ls=lsmid)
     plt.axhline(1,      c=ced,  ls=lsed)
-    
+
     plt.axvline(0,      c=ced,  ls=lsed)
     plt.axvline(0.5,    c=cmid, ls=lsmid)
     # plt.axvline(-0.5, c=ced,  ls=":")
     plt.axvline(1,      c=ced,  ls=lsed)
-    
+
     plt.scatter(1,1)
     plt.scatter(0.5,0.5)
     plt.scatter(0,0)
-    
+
     # plt.title("Demonstration of Curve Shapes".format(CurveString))
     plt.xlabel("Input Intensity Value")
     plt.ylabel("Normalized Output Value")
-    
+
     # plt.legend(ncol=2)
     # plt.show(block=True)
 
@@ -241,16 +244,16 @@ def many_alphas():
     ax.legend(frameon=False, loc='upper left', bbox_to_anchor=(0.01, 0.99))
     fig.set_size_inches((8,8))
     plt.tight_layout()
-    plt.savefig(r"C:\Users\chgi7364\Dropbox\All School\CU\My Research\My Papers\Sunback\fig\redistribution_both.pdf")
-    plt.savefig(r"C:\Users\chgi7364\Dropbox\All School\CU\My Research\My Papers\Sunback\fig\redistribution_both.png")
-    
+    # plt.savefig(r"C:\Users\chgi7364\Dropbox\All School\CU\My Research\My Papers\Sunback\fig\redistribution_both.pdf")
+    # plt.savefig(r"C:\Users\chgi7364\Dropbox\All School\CU\My Research\My Papers\Sunback\fig\redistribution_both.png")
+
     plt.show(block=True)
-    
+
 if __name__ == "__main__":
-    
+
     many_alphas()
     # many_alphas()
-    
+
     # pass
     # fig, ax = plt.subplots(1,1)
     # first0 = True

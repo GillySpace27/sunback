@@ -10,7 +10,7 @@ import astropy.units as u
 import sunpy.data.sample
 # import sunpy.map
 
-# import sunkit_image.radial as radial
+import sunkit_image.radial as radial
 from sunkit_image.utils import equally_spaced_bins
 import aiapy
 import numpy as np
@@ -160,7 +160,10 @@ class AIA_PREP_Processor(SunPyProcessor):
 
         done_map = self.level_15_maps[0]
         self.params.modified_image = done_map.data
-        self.header = self.params.header = sunpy.io.fits.header_to_fits(done_map.meta)
+        self.params.header = sunpy.io._fits.header_to_fits(done_map.meta)
+        # import pdb; pdb.set_trace()
+        self.header = self.params.header
+        self.modified_image = self.params.modified_image
 
     def get_aia_prep_data(self, force=False):
 
@@ -233,6 +236,7 @@ class NRGFProcessor(SunPyProcessor):
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         radial_bin_edges = equally_spaced_bins(inner_value=0.0, nbins=300) * u.R_sun
+        import sunkit_image.radial as radial
         self.params.modified_image = radial.nrgf(self.raw_map,
                                                  radial_bin_edges, application_radius=0.00 * u.R_sun).data
         return self.params.modified_image
@@ -258,6 +262,22 @@ class FNRGFProcessor(SunPyProcessor):
                                                   self.order, self.attenuation_coefficients).data
         return self.params.modified_image
 
+class RHEFProcessor(SunPyProcessor):
+    """TThis is the RHE Filter as described in Gilly's Thesis"""
+    name = filt_name = "RHEF Processor"
+    description = "Apply Radial Histogram Equalization to images"
+    progress_verb = 'Equalizing'
+    finished_verb = "Radially Equalized"
+    out_name = "RHEF"
+
+    # Parse Inputs
+    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        """Initialize the main class"""
+        super().__init__(params, quick, rp, in_name)
+
+    def do_work(self):
+        self.params.modified_image = radial.rhef(self.raw_map, self.radial_bin_edges,).data
+        return self.params.modified_image
 
 class IntEnhanceProcessor(SunPyProcessor):
     """Implementation of: https://docs.sunpy.org/projects/sunkit-image/en/stable/api/sunkit_image.radial.intensity_enhance.html#sunkit_image.radial.intensity_enhance
@@ -284,7 +304,7 @@ class MSGNProcessor(SunPyProcessor):
     out_name = "MSGN"
     first = True
 
-    def __init__(self, params=None, quick=False, rp=None, in_name="LEV1P5(T_INT)"):
+    def __init__(self, params=None, quick=False, rp=None, in_name="RHE"):
         """Initialize the main class"""
         self.load(params, quick=quick)
         self.select_input_frame(in_name)

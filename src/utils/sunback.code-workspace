@@ -1,0 +1,32 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../sunback_data"
+		}
+	],
+	"settings": {
+		"workbench.colorCustomizations": {
+			"activityBar.activeBackground": "#85151b",
+			"activityBar.background": "#85151b",
+			"activityBar.foreground": "#e7e7e7",
+			"activityBar.inactiveForeground": "#e7e7e799",
+			"activityBarBadge.background": "#000000",
+			"activityBarBadge.foreground": "#e7e7e7",
+			"commandCenter.border": "#e7e7e799",
+			"sash.hoverBorder": "#85151b",
+			"statusBar.background": "#590e12",
+			"statusBar.foreground": "#e7e7e7",
+			"statusBarItem.hoverBackground": "#85151b",
+			"statusBarItem.remoteBackground": "#590e12",
+			"statusBarItem.remoteForeground": "#e7e7e7",
+			"titleBar.activeBackground": "#590e12",
+			"titleBar.activeForeground": "#e7e7e7",
+			"titleBar.inactiveBackground": "#590e1299",
+			"titleBar.inactiveForeground": "#e7e7e799"
+		},
+		"peacock.color": "#590e12"
+	}
+}

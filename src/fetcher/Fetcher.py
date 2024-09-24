@@ -102,6 +102,7 @@ class Fetcher(Processor):
         # Check if the directory exists
         fits_dir = self.params.fits_directory()
         if not os.path.exists(fits_dir):
+            return False
             raise FileNotFoundError(f"The directory {fits_dir} does not exist.")
 
         # Filter out only .fits files directly

@@ -68,8 +68,8 @@ class ImageProcessorCV(ImageProcessor):
                 self.init_frame(fits_path, name)
                 out = self.render_all(reference=False)
         else:
-            self.init_frame(fits_path, -1)
-            out = self.render_all(reference=False)
+            self.init_frame(fits_path)
+            out = self.render_all(reference=True)
 
         if out is not None:
             return out
@@ -140,7 +140,7 @@ class ImageProcessorCV(ImageProcessor):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
         if True: #self.params.raw_image is None:
-            self.frame_name = self.params.master_frame_list_oldest
+            self.frame_name = "compressed_image" # self.params.master_frame_list_oldest
             frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
             self.params.raw_image = self.frame = np.flipud(frame)
 
@@ -165,6 +165,7 @@ class ImageProcessorCV(ImageProcessor):
         self.do_save()
 
     def do_save(self, do_small=False):
+
         self.vignette()
         self.prep_save(do_small=do_small)
         self.img_save(self.out_path)
@@ -187,9 +188,13 @@ class ImageProcessorCV(ImageProcessor):
         """Plot the raw_image data from AIA"""
         # Get the Frame and Path
         # self.frame_name = "t_int"
+
+
         if frame_name is None:
-            frame_name = self.frame_name
+            frame_name = self.params.png_frame_name
         # self.frame_name =   # .hdu_name_list[-1]
+
+
 
         if True: #self.params.modified_image is None:
             frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, frame_name)
@@ -299,8 +304,11 @@ class ImageProcessorCV(ImageProcessor):
 
         for frame in frames:
             self.img_frame = (self.params.cmap(frame)[:, :, :3] * 255).astype(np.uint8)
-            fff = self.label_plot(self.img_frame)
-
+            try:
+                fff = self.label_plot(self.img_frame)
+            except (ValueError, AttributeError) as e:
+                print(e)
+                fff = self.img_frame
             b, g, r = cv2.split(fff)  # get b,g,r
             rgb_img = cv2.merge([r, g, b])  # switch it to rgb
             # plt.imshow(rgb_img)
@@ -320,7 +328,6 @@ class ImageProcessorCV(ImageProcessor):
             for img, rez in zip(self.params.rbg_image, self.params.rbg_labels):
                 if len(self.params.rbg_labels)>1:
                     path = master_path.replace(".png", "_{}.png".format(rez))
-
                 cv2.imwrite(path, img)
         else:
             # cv2.imshow(mat=self.params.rbg_image)

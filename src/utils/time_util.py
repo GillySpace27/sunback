@@ -45,7 +45,7 @@ def parse_time_string_to_local(input_string, which=0, local=True):
     elif which == 2:
         time_string = input_string
     else:
-        time_string = input_string.split(" ")[0].replace("-", "").replace(":", "")
+        time_string = input_string.split(" ")[0].replace("-", "").replace(":", "").replace("T","")
 
     year, month, day = time_string[YEAR_SLICE], time_string[MONTH_SLICE], time_string[DAY_SLICE]
     hour, minute, second = time_string[HOUR_SLICE], time_string[MINUTE_SLICE], time_string[SECOND_SLICE]

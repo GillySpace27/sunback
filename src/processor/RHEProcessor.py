@@ -56,7 +56,7 @@ class RHEProcessor(Processor):
     can_initialize = True
 
     # Parse Inputs
-    def __init__(self, fits_path=None, in_name="LEV1P5(T_INT)", orig=False, show=False, verb=False, quick=False, rp=None, params=None):
+    def __init__(self, fits_path=None, in_name=None, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
         """Initialize the main class"""
         # super().__init__(params, quick, rp)
         self.load(params, quick=quick)
@@ -180,12 +180,14 @@ class RHEProcessor(Processor):
         self.norm_avg_min = None
         self.cut_pixels = None
 
-    def select_input_frame(self, in_name):
-        self.in_name = 'primary' #in_name
+    def select_input_frame(self, in_name="LEV1P5(T_INT)"):
+        self.in_name = "COMPRESSED_IMAGE"
         # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
 
         if self.params.rhe_targets() is not None and len(self.params.rhe_targets()):
             self.in_name = self.params.rhe_targets().pop(0)
+
+        # print("Selected Frame: {}".format(self.in_name))
 
     def setup(self):
         self.load()
@@ -195,7 +197,7 @@ class RHEProcessor(Processor):
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
-            self.resize_image()
+            # self.resize_image()
             self.image_learn()
         # self.plot_full_normalization()
         # self.params.modified_image = norm_stretch(self.params.modified_image, alpha=0.35) #TODO This
@@ -216,8 +218,8 @@ class RHEProcessor(Processor):
             print("No header Loaded")
             return False
         self.can_use_keyframes = True
-        not_dark = self.header["IMG_TYPE"] == "LIGHT"
-        not_weak = self.header["EXPTIME"] >= 0.9
+        not_dark = self.header.get('IMG_TYPE', "LIGHT") == "LIGHT"
+        not_weak = self.header.get("EXPTIME", 10.0) >= 0.9
         set_to_make = self.params.remake_norm_curves() or self.reprocess_mode()
         not_made_yet = not os.path.exists(self.params.curve_path()) or self.outer_min is None
         frame_is_not_loaded = self.params.raw_image is None
@@ -248,10 +250,10 @@ class RHEProcessor(Processor):
     ##   Main Calls  ##
     ###################
 
-    # def do_img_function(self):
-    #     """Calls the do_work function on a single fits path if indicated"""
-    #     raise NotImplementedError
-    #     # return self.do_work()  # Do the work on the fits files
+    def do_img_function(self):
+        """Calls the do_work function on a single fits path if indicated"""
+        # raise NotImplementedError
+        return self.do_work()  # Do the work on the fits files
 
     ###################
     ## Top-Level ##
@@ -277,7 +279,7 @@ class RHEProcessor(Processor):
     def coronaLearn(self):
         """Perform the actual analysis"""
         self.bin_radially()  # Create a cloud of intesity values for each radial bin
-        # self.radial_statistics()  # Find mean and rhes vs height
+        self.radial_statistics()  # Find mean and rhes vs height
 
     def update_keyframe_counters(self, n=1):
         """Keep track of how many items have been added to keyframes"""
@@ -303,6 +305,8 @@ class RHEProcessor(Processor):
         # mod = self.params.modified_image
         # if mod is None or not mod:
         self.params.modified_image = self.params.raw_image + 0
+
+
 
     def do_rhe_plot(self):
         fig, axArray = plt.subplots(2, 3, sharex='row', sharey="row")
@@ -395,13 +399,15 @@ class RHEProcessor(Processor):
             else:
                 self.load_cached_data(self.radBins)
         else:
-
-
             self.do_binning(fast=False)
 
-        sz = (self.params.rez, self.params.rez)
+        # sz = (self.params.rez, self.params.rez)
+        sz = self.params.raw_image.shape
 
-        self.modified_image = self.params.modified_image = self.params.rhe_image = self.params.rhe_image.reshape(sz)
+
+        self.modified_image = self.params.modified_image = self.params.rhe_image = \
+            self.params.rhe_image.reshape((sz[1],sz[0]))
+
 
 
     # def do_binning(self, skip=1):  # Bin the intensities by radius
@@ -513,14 +519,13 @@ class RHEProcessor(Processor):
 
     def finalize_radial_statistics(self):
         """Clean up the radial statistics to be used"""
-        use_shape = self.params.raw_image.shape
-        self.params.modified_image = self.params.mod_flat.reshape(use_shape)
+
+        use_shape = self.params.modified_image.shape
+        self.params.modified_image = self.params.mod_flat.reshape(use_shape[1], use_shape[0])
 
         # from src.utils.stretch_intensity_module import norm_stretch
         # self.params.modified_image = norm_stretch(self.params.modified_image, alpha=self.params.alpha)
 
-        # plt.imshow(self.params.modified_image)
-        # plt.show(block=True)
 
 
 

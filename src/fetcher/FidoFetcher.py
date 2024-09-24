@@ -9,7 +9,11 @@ from sunpy.net import Fido, attrs
 from parfive import Downloader
 import astropy.units as u
 import datetime
-from src.utils.time_util import parse_time_string_to_local, define_time_range, define_recent_range
+from src.utils.time_util import (
+    parse_time_string_to_local,
+    define_time_range,
+    define_recent_range,
+)
 from src.fetcher.Fetcher import Fetcher
 
 # Constants
@@ -34,13 +38,11 @@ class FidoFetcher(Fetcher):
     temp_folder = None
     fits_path = None
 
-
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
         self.SubDownloader = None
         self.reprocess_mode(rp)
         self.params.load_preset_time_settings()
-
 
     ## Main Fetch Logic
     def fetch(self, params=None, quick=False, rp=None, verb=True):
@@ -74,8 +76,6 @@ class FidoFetcher(Fetcher):
         #     print(fits_path)
         pass
 
-
-
     def fido_get_fits(self, current_wave, temp=False):
         self.load(self.params, wave=current_wave)
         have_file = self.determine_image_path() is not False
@@ -85,8 +85,8 @@ class FidoFetcher(Fetcher):
         out_string = "\r v Fetching Fits Files: {}  ---------------------------------------------------  v"
         vprint(out_string.format(self.params.current_wave()), self.verb)
 
-        need_file = (self.params.download_files() and not have_file)
-        want_to_redo = (self.reprocess_mode() and have_file)
+        need_file = self.params.download_files() and not have_file
+        want_to_redo = self.reprocess_mode() and have_file
         if need_file or want_to_redo or time_integrator:
             self.print_load_banner(verb=self.verb)
             self.download_fits_series(temp=temp)
@@ -113,10 +113,20 @@ class FidoFetcher(Fetcher):
     def fido_check_for_fits(self, verb=None):
         """Find the science images"""
         from astropy import units as u
+
         self.verb = self.verb or verb
-        vprint("\n *   Looking for Images of {} from {} to {} with {:0.3} or {:0.3} cadence...".format(
-                self.params.current_wave(), self.params.start_time_string,
-                self.params.end_time_string, self.params.cadence_minutes().to(u.d), self.params.cadence_minutes().to(u.s)), flush=True, end='', verb=self.verb)
+        vprint(
+            "\n *   Looking for Images of {} from {} to {} with {:0.3} or {:0.3} cadence...".format(
+                self.params.current_wave(),
+                self.params.start_time_string,
+                self.params.end_time_string,
+                self.params.cadence_minutes().to(u.d),
+                self.params.cadence_minutes().to(u.s),
+            ),
+            flush=True,
+            end="",
+            verb=self.verb,
+        )
         jsoc_email = "chris.gilly@colorado.edu"
 
         # Make the base required attributes
@@ -128,9 +138,11 @@ class FidoFetcher(Fetcher):
         if self.params.do_recent():
             inst_attr = attrs.Instrument.aia
         else:
-            inst_attr = attrs.jsoc.Series.aia_lev1_euv_12s & \
-                        attrs.jsoc.Notify(jsoc_email) & \
-                        attrs.jsoc.Segment.image
+            inst_attr = (
+                attrs.jsoc.Series.aia_lev1_euv_12s
+                & attrs.jsoc.Notify(jsoc_email)
+                & attrs.jsoc.Segment.image
+            )
 
         print(".", end=None)
         fido_search_result = Fido.search(base_attrs, inst_attr)
@@ -150,26 +162,43 @@ class FidoFetcher(Fetcher):
         self.extra_string = "from {} to {}".format(begin_time, end_time)
 
         if self.fido_search_found_num > 1:
-            vprint("\n *      Search Found {: 3} Images {}...".format(
-                    self.fido_search_found_num, self.extra_string), flush=True, verb=self.verb)
+            vprint(
+                "\n *      Search Found {: 3} Images {}...".format(
+                    self.fido_search_found_num, self.extra_string
+                ),
+                flush=True,
+                verb=self.verb,
+            )
         elif self.fido_search_found_num == 1:
-            vprint("\n *      Search Found  {: 3} Image  at  {}...".format(
-                    1, begin_time), flush=True, verb=self.verb)
-            vprint(" *                             End = {}...".format(
-                    self.params.end_time_string), flush=True, verb=self.verb)
+            vprint(
+                "\n *      Search Found  {: 3} Image  at  {}...".format(1, begin_time),
+                flush=True,
+                verb=self.verb,
+            )
+            vprint(
+                " *                             End = {}...".format(
+                    self.params.end_time_string
+                ),
+                flush=True,
+                verb=self.verb,
+            )
         else:
             vprint("\n *      Search Found Nothing")
             raise FileNotFoundError
 
         while len(self.name) < 4:
-            self.name = '0' + self.name
+            self.name = "0" + self.name
 
         if self.fido_search_found_num > 200 and False:
-            response = input("Do you still want to download all {} images? [y]/n > ".format(self.fido_search_found_num))
-            if 'n' in response.casefold():
+            response = input(
+                "Do you still want to download all {} images? [y]/n > ".format(
+                    self.fido_search_found_num
+                )
+            )
+            if "n" in response.casefold():
                 print("Stopping!")
                 raise StopIteration
-            print("Continuing. ", end='')
+            print("Continuing. ", end="")
 
     def store_requests(self):
         try:
@@ -182,21 +211,28 @@ class FidoFetcher(Fetcher):
     def fido_download_fits_ensured(self, temp=False, hold=False, ensured=True):
         """Download the files from fido_search_result"""
 
-        self.SubDownloader = Downloader(progress=True, max_conn=5, overwrite=False)
+        self.SubDownloader = Downloader(progress=True, max_conn=10, overwrite=False)
 
-        self.out_path = self.params.temp_directory() if temp else self.params.fits_directory()
+        self.out_path = (
+            self.params.temp_directory() if temp else self.params.fits_directory()
+        )
+        print("Out Path: ", self.out_path)
         self.store_requests()
 
         main_stdout = sys.stdout
 
         if not hold:
-            loc = os.path.join(self.params.temp_directory(), 'log.txt')
+            loc = os.path.join(self.params.temp_directory(), "log.txt")
             # with open(loc, mode="w+") as sys.stdout:
             self.verb = False
             print(" **       Fido Fetching...")
-            print("\r \n   [/~~~~~~~~~~~~~~~~~~~~~~~~~~~FIDO~~~~~~~~~~~~~~~~~~~~~~~~~~~\\]")
+            print(
+                "\r \n   [/~~~~~~~~~~~~~~~~~~~~~~~~~~~FIDO~~~~~~~~~~~~~~~~~~~~~~~~~~~\\]"
+            )
             try:
-                self.results = Fido.fetch(self.needed_files, path=self.out_path, downloader=self.SubDownloader)
+                self.results = Fido.fetch(
+                    self.needed_files, path=self.out_path, downloader=self.SubDownloader
+                )
             except DrmsExportError as e:
                 print(e)
                 self.results = []
@@ -216,13 +252,15 @@ class FidoFetcher(Fetcher):
 
     def fido_multi_download(self):
         self.n_fits = -1
-        self.validate_fits()
+        # self.validate_fits()
 
         ii = 0
         while self.n_fits != self.fido_search_found_num and ii < 10:
-            self.results = Fido.fetch(self.results, path=self.out_path, downloader=self.SubDownloader)
+            self.results = Fido.fetch(
+                self.results, path=self.out_path, downloader=self.SubDownloader
+            )
             self.n_fits = len(self.results)
-            to_destroy = self.validate_fits()
+            to_destroy = False  # self.validate_fits()
             if to_destroy:
                 self.destroy_files(to_destroy)
                 self.n_fits = -1
@@ -247,12 +285,17 @@ class FidoFetcher(Fetcher):
         #     self.params.local_fits_paths().remove(local_fits_path)
 
         dir = os.path.dirname(local_fits_path)
-        directory = dir.replace('fits', 'png\\mod')
+        directory = dir.replace("fits", "png\\mod")
         file = os.path.basename(local_fits_path)
-        png_file = file.replace('.fits', '.png')
+        png_file = file.replace(".fits", ".png")
         png_path = os.path.join(directory, png_file)
 
-        dead_paths = [local_fits_path, png_path, png_path.replace("mod", "cat"), png_path.replace("mod", "orig")]
+        dead_paths = [
+            local_fits_path,
+            png_path,
+            png_path.replace("mod", "cat"),
+            png_path.replace("mod", "orig"),
+        ]
         deleted_files = 0
         print()
         for path in dead_paths:
@@ -268,7 +311,11 @@ class FidoFetcher(Fetcher):
                 print(e)
                 # raise e
             except FileExistsError as e:
-                print(" File was still there after attempted deletion\n{}".format(os.path.basename(path)))
+                print(
+                    " File was still there after attempted deletion\n{}".format(
+                        os.path.basename(path)
+                    )
+                )
                 # print(e)
             except FileNotFoundError as e:
                 # print(" Not Found to Delete\n {}".format(path))
@@ -276,8 +323,9 @@ class FidoFetcher(Fetcher):
             except Exception as e:
                 print(" Failed to Delete\n {}".format(path))
                 print(e)
-                1+1
+                1 + 1
             print("Actually Deleted {} Files".format(deleted_files))
+
     # Time Related Things #########################################
 
     def get_start_and_end_times_from_result(self):
@@ -317,21 +365,25 @@ class FidoFetcher(Fetcher):
 
         return time_start, time_end
 
-
-
     # Printing #####################################################
 
     def multi_banner(self):
-
         print("\r   [\\~~~~~~~~~~~~~~~~~~~~~~~~~~~FIDO~~~~~~~~~~~~~~~~~~~~~~~~~~~//]\n")
         if self.n_fits == self.fido_search_found_num:
-            print("\r ^     Successfully Downloaded all {} Files\n".format(self.n_fits), flush=True)
+            print(
+                "\r ^     Successfully Downloaded all {} Files\n".format(self.n_fits),
+                flush=True,
+            )
         elif self.n_fits:
-            print(" ^     Downloaded {} Files out of {}\n".format(self.n_fits, self.fido_search_found_num), flush=True)
+            print(
+                " ^     Downloaded {} Files out of {}\n".format(
+                    self.n_fits, self.fido_search_found_num
+                ),
+                flush=True,
+            )
         else:
             print(" ^     Unable to Download...Try again Later.")
             raise (ConnectionRefusedError(" Unable to Download...Try again Later."))
-
 
         self.super_flush()
 
@@ -340,13 +392,12 @@ class FidoFetcher(Fetcher):
         # Currently not running, probably for the best
         if self.params.do_prep:
             print("prepping")
-            self.params.speak_save=False
+            self.params.speak_save = False
             AIA_PREP_Processor(params=self.params, rp=True).process()
-
-
 
     def validate_fits(self):
         import numpy as np
+
         # if True:
         #     return []
         self.load_fits_paths()
@@ -358,30 +409,32 @@ class FidoFetcher(Fetcher):
         to_destroy = []
         to_redownload = []
         # print('Validation is Running')
-        for local_fits_path in tqdm(all_fits_paths, desc=" > Validating Fits Files", unit='imgs'):
-        # for local_fits_path in all_fits_paths:
+        for local_fits_path in tqdm(
+            all_fits_paths, desc=" > Validating Fits Files", unit="imgs"
+        ):
+            # for local_fits_path in all_fits_paths:
             delete = False
             if local_fits_path:
                 with fits.open(local_fits_path, ignore_missing_end=True) as hdul:
-                    hdul.verify('silentfix+warn')
+                    hdul.verify("silentfix+warn")
                     # self.rename_initial_frames(hdul) # This might not work
-                    #TEST 1 - IS IT A DARK FRAME?
-                    img_type = hdul[1].header['IMG_TYPE']
-                    if img_type.casefold() == 'dark':
+                    # TEST 1 - IS IT A DARK FRAME?
+                    img_type = hdul[1].header["IMG_TYPE"]
+                    if img_type.casefold() == "dark":
                         delete = True
                         dark += 1
                         # print("Dark Image Detected")
                     if not delete:
-                        mean_value = hdul[1].header['DATAMEDN']
-                        quality_value = hdul[1].header['QUALITY']
+                        mean_value = hdul[1].header["DATAMEDN"]
+                        quality_value = hdul[1].header["QUALITY"]
                         if mean_value < 50 or quality_value > 100:
-                            delete=True
+                            delete = True
                             dark += 1
                     if not delete:
-                        #TEST 2 - IS FILLED WITH NULLS?
+                        # TEST 2 - IS FILLED WITH NULLS?
                         frame = hdul[-1].data
                         good_pix = np.sum(np.isfinite(frame))
-                        total_pix = frame.shape[0]*frame.shape[1]
+                        total_pix = frame.shape[0] * frame.shape[1]
                         good_percent = good_pix / total_pix
                         # Dark Frame had 0.37
                         if good_percent < 0.6:
@@ -389,7 +442,6 @@ class FidoFetcher(Fetcher):
                             delete = True
                             missing += 1
                             # print("Missing Data Detected")
-
 
                 if delete:
                     to_destroy.append(local_fits_path)
@@ -400,9 +452,17 @@ class FidoFetcher(Fetcher):
         # self.destroy_files(to_destroy)
         # self.fido_get_fits()
         if destroyed:
-            print("\r      >>Fits Files Validated: {}, Bad Frames: {}\n VV  {} Dark, {} Missing<<\n".format(n_fits, destroyed, missing, dark))
+            print(
+                "\r      >>Fits Files Validated: {}, Bad Frames: {}\n VV  {} Dark, {} Missing<<\n".format(
+                    n_fits, destroyed, missing, dark
+                )
+            )
         else:
-            print("\r      >>Fits Files Validated: {0}/{0}. No Bad Frames!<<".format(n_fits))
+            print(
+                "\r      >>Fits Files Validated: {0}/{0}. No Bad Frames!<<".format(
+                    n_fits
+                )
+            )
         #
         # if missing:
         #     print(" ii          > {} missing data".format(missing))
@@ -411,15 +471,12 @@ class FidoFetcher(Fetcher):
         #
         return to_destroy
 
-
-
         # try:
         #     self.set_output_paths()
         # except:
         #     set_output_paths(self)
         # self.list_requested_files()
         # self.local_fits_paths = list_files_in_directory(self.fits_folder)
-
 
         # pass
 
@@ -437,59 +494,32 @@ class FidoFetcher(Fetcher):
         # self.find_missing_images()
         # self.get_missing_images()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def list_requested_files(self):
         self.requested_files = []
         self.requested_response = []
         for ii in np.arange(self.fido_search_found_num):
-            self.requested_files.append(self.fido_search_result.get_response(0)[ii]['fileid'].casefold())
-            self.requested_files.append(self.fido_search_result.get_response(0)[ii]['time']['start_timestamp'])
+            self.requested_files.append(
+                self.fido_search_result.get_response(0)[ii]["fileid"].casefold()
+            )
+            self.requested_files.append(
+                self.fido_search_result.get_response(0)[ii]["time"]["start_timestamp"]
+            )
 
     @staticmethod
     def parse_filename_to_time(local_file):
         try:
-            ifirst = 13 if '94' in local_file else 14
+            ifirst = 13 if "94" in local_file else 14
             stub = local_file[ifirst:-20]
-            fmt_A = '%Y_%m_%dt%H_%M_%S'
-            fmt_B = '%Y%m%d%H%M%S'
+            fmt_A = "%Y_%m_%dt%H_%M_%S"
+            fmt_B = "%Y%m%d%H%M%S"
             # return stub.replace(['_', 't'], '')
             return datetime.datetime.strptime(stub, fmt_A).strftime(fmt_B)
         except:
-            stub = local_file[3:-10].replace('_', '')
+            stub = local_file[3:-10].replace("_", "")
             return stub
 
     @staticmethod
     def out_of_range(hdul):
-        print('A')
+        print("A")
         pass
         return False

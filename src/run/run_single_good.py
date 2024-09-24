@@ -3,34 +3,21 @@ import os
 import subprocess
 
 cwd = os.getcwd()
-os.system(f"export PYTHONPATH={cwd}")
-os.system("echo $PYTHONPATH")
+os.system(f'export PYTHONPATH={cwd}')
+os.system('echo $PYTHONPATH')
 # result = subprocess.run([f'export PYTHONPATH={cwd}'], capture_output=True, text=True)
 # result = subprocess.run(['echo $PYTHONPATH'], capture_output=True, text=True)
 # exec(f"export )
 # exec(f"echo $PYTHONPATH")
 
 from src.science.parameters import Parameters
-from src.processor.SunPyProcessor import (
-    RHEFProcessor,
-    SunPyProcessor,
-    AIA_PREP_Processor,
-    NRGFProcessor,
-    FNRGFProcessor,
-    IntEnhanceProcessor,
-    MSGNProcessor,
-)
+from src.processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor
 from src.processor.ScienceProcessor import ScienceProcessor
 from src.processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
 from src.processor.RHTProcessor import RHTProcessor
 from src.processor.RHEProcessor import RHEProcessor
-
 # from src.processor.NoiseGateProcessor import NoiseGateProcessor
-from src.processor.ImageProcessorCV import (
-    ImageProcessorCV,
-    MultiImageProcessorCv,
-    MultiHistogramProcessorCv,
-)
+from src.processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv, MultiHistogramProcessorCv
 from src.fetcher.LocalFetcher import LocalSingleFetcher
 from src.fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from src.fetcher.FidoFetcher import FidoFetcher
@@ -49,21 +36,15 @@ plt.ioff()
 # MC Paper: "2014-11-10T16:00:00"
 
 
-def run_single(
-    wave="0171",
-    tstart="2024-04-09T00:00:01",
-    duration_seconds=60 * 20,
-    frames=None,
-    name="newtest",
-):
+def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20, frames=None):
     """Download a single frame and time-integrate it, then apply RHE
-    :type wave: strings
-    :type tstart: string
-    :type duration_seconds: int or float
-    :type frames: int
+        :type wave: strings
+        :type tstart: string
+        :type duration_seconds: int or float
+        :type frames: int
     """
     # Set the Parameters
-
+    name = "Single_Test2"
     p = default_run_single_params(wave, tstart, duration_seconds, frames, name)
 
     # p.download_files(False)
@@ -74,59 +55,52 @@ def run_single(
     get_images = True and master
     if get_images:
         pass
-        p.fetchers(FidoFetcher, rp=True)  # Gets the desired file
+        p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
         # p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
         # p.processors([NoiseGateProcessor],     rp=True)
-        p.processors([AIA_PREP_Processor], rp=True)  # Do Sunpy Things
+        # p.processors([AIA_PREP_Processor],     rp=True)   # Do Sunpy Things
 
     # 'rhe(lev1p5)' #"msgn(rhe)" #'all' #['rhe', "msgn(rhe)", "rhe(msgn)"] ## I want to be able to call final, but it is made in the processor that save images, so I have to split it out into the touchup processor.
-    p.png_frame_name = ["rhef"]
-    # p.msgn_targets(["lev1p5", 'rhef'])
-    p.msgn_targets(["lev1p5", "rhef"])
-    p.rhe_targets(["msgn"])  # "lev1p5",
+    p.png_frame_name = ['all']
+    p.msgn_targets(["lev1p5", 'rhe'])
+    p.rhe_targets(["lev1p5", 'msgn(lev1p5)'])  # "lev1p5",
     radial_norms = True and master
     if radial_norms:
         pass
         # p.processors([QRNSingleShotProcessor], rp=True)
-        # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
-        # p.processors([RHEProcessor],            rp=True)  # Applies the RHE Filter
-        # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        p.processors(
-            [MSGNProcessor], rp=True
-        )  # Applies the Sunpy Multiscale Gausian Norm
-        p.processors([RHEFProcessor], rp=True)  # Applies the RHE Filter
+        p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
+        p.processors([RHEProcessor],            rp=True)  # Applies the RHE Filter
+        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        p.processors([RHEProcessor],            rp=True)  # Applies the RHE Filter
         p.processors([ImageProcessorCV])
 
-    p.aftereffects_in_name = [
-        "rhe(lev1p5)",
-    ]
+    p.aftereffects_in_name = ["rhe(lev1p5)",]
     aftereffects = False and master
     if aftereffects:
         pass
-        p.processors([RHTProcessor], rp="redo")  # Applies the Rolling Hough Transform+
+        p.processors([RHTProcessor],            rp='redo')  # Applies the Rolling Hough Transform+
         # p.processors([RHTProcessor],            rp="redo")  # Applies the Rolling Hough Transform+
     use_putters = False and master
     if use_putters:
-        p.putters(MultiImageProcessorCv, rp=True)  # Makes the PNGs from Fits
+        p.putters(MultiImageProcessorCv,            rp=True)  # Makes the PNGs from Fits
         # p.putters(ScienceProcessor,            rp=True)  # Makes the PNGs from Fits
-        p.putters(MultiHistogramProcessorCv, rp=True)  # Makes the PNGs from Fits
+        p.putters(MultiHistogramProcessorCv,            rp=True)  # Makes the PNGs from Fits
 
     # Run the Code
     runner = SingleRunner(p)
     runner.start()
 
 
-def default_run_single_params(
-    wave, tstart, duration_seconds=60, frames=None, name="Single"
-):
-    """Create the default parameters and parse and set the inputs"""
+def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, name="Single"):
+    """ Create the default parameters and parse and set the inputs"""
     p = Parameters()
 
     # Parse Inputs
     p.do_one(wave, stop=True)
     p.set_time_range_duration(tstart)
     if frames is not None:
-        duration_seconds = frames * 12
+        duration_seconds = frames*12
     p.exposure_time_seconds(duration_seconds)
 
     # Set Metadata
@@ -158,7 +132,7 @@ def default_run_single_params(
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
 
-    all_wavelengths = ["0171"]  # , '0304', ]  #, '0211', '0193' ]
+    all_wavelengths = ['0171']  # , '0304', ]  #, '0211', '0193' ]
     # all_wavelengths = ['211', '0094', '0335'] ['0094', '0131'] #,
     # all_wavelengths = ['0171', '0304'] #,  "0304"]
 

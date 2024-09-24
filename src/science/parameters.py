@@ -35,7 +35,7 @@ class Parameters:
         self._rhe_targets = []
         self.multi_pool = None
         self.do_parallel = True
-        self.master_frame_list_newest = ["msgn", "rhe", "lev1p5", "t_int", "lev1p0", "primary", '']
+        self.master_frame_list_newest = ["rhef", "msgn", "rhe", "lev1p5", "t_int", "lev1p0", "primary", '']
         self.master_frame_list_oldest = [x for x in reversed(self.master_frame_list_newest)]
         self.short_circuit = False
         self.durList = []
@@ -596,7 +596,7 @@ class Parameters:
         """Determine where to store the images"""
 
         if root_directory_name is None:
-            root_directory_name = "/Users/cgilbert/PycharmProjects/sunback/renders"
+            root_directory_name = "/Users/cgilbert/vscode/sunback_data/renders"
 
         import platform
         self.os(platform.system())

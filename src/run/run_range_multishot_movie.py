@@ -32,11 +32,11 @@ plt.ioff()
 # dostring = "Beautiful 304_l"
 all_wavelengths = ['0193', '0211', '0131', '0335', '0094','0304','0171', ]
 do_wavelengths = all_wavelengths  # ['0211']
-do_wavelengths = ['304']
+do_wavelengths = ['0193']
 PNG_FRAME_NAME = "rhe"
 # wave_to_use = '0211'
 
-def run_range_multishot_movie(batch_name= "2013_12h", wave=None, config=None, wave_to_use=None, alpha=0.35):
+def run_range_multishot_movie(batch_name= "Beautiful 304_p", wave=None, config=None, wave_to_use=None, alpha=0.35):
     # Set the Parameters
     p = make_params(batch_name, wave, config, wave_to_use)
     p.do_recent(False)
@@ -44,20 +44,23 @@ def run_range_multishot_movie(batch_name= "2013_12h", wave=None, config=None, wa
     p.alpha=alpha
     p.destroy=True
     p.do_parallel=False
+    # p.rhe_targets(["compressed_image"])
     # p.init_pool(6)
-    # Set the Processes
 
-    # p.fetchers(FidoFetcher,                 rp=True)  # Gets Fits FIDO
+    # Set the Processes
+    p.fetchers(FidoFetcher,                 rp=True)  # Gets Fits FIDO
+    p.processors([RHEProcessor],    rp=True)
+    p.processors([ImageProcessorCV],        rp=True)  # Makes the PNGs from Fits
+    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
+
+
     # p.processors([FidoTimeIntProcessor],    rp=False)   # Integrate several frames for S/N
     # p.processors([AIA_PREP_Processor],      rp=False)   # Do Sunpy Things # This happens in the fetcher now
     # p.qrn_targets(["primary"])
-    # p.rhe_targets(["compressed_image"])
-    p.processors([RHEProcessor],    rp="skip")
     # p.processors([QRNpreProcessor],            rp=True)  # Applies the RHE Processor
     # p.processors([QRNradialFiltProcessor],     rp=True)  # Applies the RHE Processor
-    p.processors([ImageProcessorCV],        rp=True)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor],             rp=True)  # Makes the PNGs into a Movie
-    # p.putters([ScienceProcessor],             rp=True)  # Makes the PNGs into a Movie
+
+    # # p.putters([ScienceProcessor],             rp=True)  # Makes the PNGs into a Movie
 
     # Run the Code
     # print(p.do_one())
@@ -67,7 +70,7 @@ def make_configs(wave_to_use):
 
     c17 = {
                 "name": "2013_12h",
-                "debug": True, "do_one": '304', "stop": True,
+                "debug": True, "do_one": '0171', "stop": True,
                 "tstart": '2013/01/01 07:00:00', "tend": '2014/01/01 07:00:00',
                 "cadence_minutes": 12*60, "fps": 11, "exposure_time": 12*10,
                 "key_fixed_cadence": None, "key_fixed_number": 100, "time_preset": None
@@ -213,9 +216,9 @@ def make_configs(wave_to_use):
     }
     c14 = {
         "name": "Beautiful 304_p",
-        "debug": True, "do_one": '0304', "stop": True,
+        "debug": True, "do_one": '0193', "stop": True,
         "tstart": '2014/11/04 00:00:01', "tend": '2014/11/06 00:00:00',
-        "cadence_minutes": None, "fps": None, "exposure_time": None,
+        "cadence_minutes": 5, "fps": None, "exposure_time": None,
         "key_fixed_cadence": None, "key_fixed_number": None, "time_preset": "p"
     }
 
@@ -258,7 +261,7 @@ def make_params(batch_name=None, wave=None, config=None, wave_to_use=None):
     p.destroy = False
     # tstart, tend = self.params.set_time_range_duration(tstart, duration_seconds=60):
     time_string = config["tstart"].replace('/', '_').replace(' ', '_').replace(':', '')
-    rng = os.path.normpath("MultiRange\\{}_{}_{}".format(config['name'], config["time_preset"], time_string))
+    rng = os.path.normpath("MultiRange/{}_{}_{}".format(config['name'], config["time_preset"], time_string))
     p.batch_name(rng)
     p.run_type("Make Movie of Given Time Range, With Time Integration")
     p.do_one(config["do_one"], config["stop"])

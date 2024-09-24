@@ -72,19 +72,21 @@ class ImageProcessor(Processor):
     def init_frame(self, fits_path=None, in_name=None):
         """Load the fits file from disk and get a in_name or two"""
         # self.load_curves()
+        # import pdb; pdb.set_trace()
         if in_name is not None:
             self.frame_name = in_name
         self.fits_path = fits_path or self.fits_path
         self.params.fits_path = self.fits_path
         if True: #self.params.raw_image is None:
             list_of_inputs = self.params.master_frame_list_oldest
-            frame0, _, _, _, _, name0 = self.load_this_fits_frame(fits_path, list_of_inputs)
+            # frame0, _, _, _, _, name0 = self.load_this_fits_frame(fits_path, list_of_inputs)
             self.raw_name = self.frame_name + ''
-            frame1, wave1, t_rec1, center1, int_time, name1 = self.load_this_fits_frame(fits_path, str(in_name).casefold())
+            frame1, wave1, t_rec1, center1, int_time, name1 = self.load_this_fits_frame(fits_path, str(self.frame_name).casefold())
+            # import pdb; pdb.set_trace()
             self.wave1 = wave1
             self.t_rec1 = t_rec1
             self.mod_name = self.frame_name + ''
-            self.params.raw_image, self.params.modified_image = frame0, frame1
+            self.params.raw_image, self.params.modified_image = frame1, frame1
             self.frame = np.zeros_like(self.params.raw_image)
 
         # self.peek_frames()
@@ -335,7 +337,6 @@ class ImageProcessor(Processor):
             if name in frame_name2:
                 frame = self.power_mod(frame)
 
-
         # Maxima Stretching
         do_maxima_scrunch = True
         if do_maxima_scrunch:
@@ -379,14 +380,21 @@ class ImageProcessor(Processor):
 
 
     def do_norm_stretch(self, frame, frame_name, do=True):
-        if do and "rhe" in frame_name:
+        if do and "rhe" in frame_name.casefold():
             aL, aH = self.get_alphas()
             frame = norm_stretch(frame, alpha=aL, alpha_high=aH)
-            frame_name = 'UP_' + frame_name
+            # frame_name = 'UP_' + frame_name
         return frame, frame_name
 
 
     def get_alphas(self):
+        # import pdb; pdb.set_trace()
+        name = self.image_data[0]
+
+        if name is None or "None" in name:
+            self.params.alpha_low, self.params.alpha_high = 0.5, 0.5
+            return self.params.alpha_low, self.params.alpha_high
+
         wave = self.params.current_wave(self.image_data[0])
         wave = "{:04}".format(int(wave))
 
@@ -398,7 +406,9 @@ class ImageProcessor(Processor):
                      {"wave": "0304", "aL": 0.50, "aH": 0.40},
                      {"wave": "0335", "aL": 0.50, "aH": 0.40},
                      {"wave": "1600", "aL": 0.50, "aH": 0.40},
-                     {"wave": "1700", "aL": 0.50, "aH": 0.40}]
+                     {"wave": "1700", "aL": 0.50, "aH": 0.40},
+                     {"wave": "jpeg", "aL": 0.50, "aH": 0.35},
+                     ]
 
         dictdict = {}
         for wv in wave_list:
