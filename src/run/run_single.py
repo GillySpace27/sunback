@@ -23,7 +23,7 @@ from src.processor.SunPyProcessor import (
 from src.processor.ScienceProcessor import ScienceProcessor
 from src.processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
 from src.processor.RHTProcessor import RHTProcessor
-from src.processor.RHEProcessor import RHEProcessor
+# from src.processor.RHEProcessor import RHEProcessor
 
 # from src.processor.NoiseGateProcessor import NoiseGateProcessor
 from src.processor.ImageProcessorCV import (
@@ -50,11 +50,11 @@ plt.ioff()
 
 
 def run_single(
-    wave="0171",
-    tstart="2024-04-09T00:00:01",
+    wave="0193",
+    tstart="2011-08-09T00:00:01",
     duration_seconds=60 * 20,
     frames=None,
-    name="newtest",
+    name="newtest193",
 ):
     """Download a single frame and time-integrate it, then apply RHE
     :type wave: strings
@@ -74,6 +74,7 @@ def run_single(
     get_images = True and master
     if get_images:
         pass
+        # p.fetchers(LocalSingleFetcher)
         p.fetchers(FidoFetcher, rp=True)  # Gets the desired file
         # p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
         # p.processors([NoiseGateProcessor],     rp=True)
@@ -83,19 +84,19 @@ def run_single(
     p.png_frame_name = ["rhef"]
     # p.msgn_targets(["lev1p5", 'rhef'])
     p.msgn_targets(["lev1p5", "rhef"])
-    p.rhe_targets(["msgn"])  # "lev1p5",
+    p.rhe_targets(["lev1p5", "nrgf", "msgn"])  # "lev1p5",
     radial_norms = True and master
     if radial_norms:
         pass
-        # p.processors([QRNSingleShotProcessor], rp=True)
-        # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
-        # p.processors([RHEProcessor],            rp=True)  # Applies the RHE Filter
-        # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         p.processors(
-            [MSGNProcessor], rp=True
+            [NRGFProcessor, RHEFProcessor], rp=True
+        )  # Applies the Sunpy NRGF Filter
+        # p.processors([RHEFProcessor], rp=True)  # Applies the RHE Filter
+        p.processors(
+            [MSGNProcessor, RHEFProcessor], rp=True
         )  # Applies the Sunpy Multiscale Gausian Norm
         p.processors([RHEFProcessor], rp=True)  # Applies the RHE Filter
-        p.processors([ImageProcessorCV])
+        # p.processors([ImageProcessorCV])
 
     p.aftereffects_in_name = [
         "rhe(lev1p5)",
@@ -105,7 +106,7 @@ def run_single(
         pass
         p.processors([RHTProcessor], rp="redo")  # Applies the Rolling Hough Transform+
         # p.processors([RHTProcessor],            rp="redo")  # Applies the Rolling Hough Transform+
-    use_putters = False and master
+    use_putters = True or master
     if use_putters:
         p.putters(MultiImageProcessorCv, rp=True)  # Makes the PNGs from Fits
         # p.putters(ScienceProcessor,            rp=True)  # Makes the PNGs from Fits
@@ -144,7 +145,7 @@ def default_run_single_params(
     p.currently_local = True
     p.download_files(True)
     p.do_prep = False  # Won't do AIA prep upon download of each frame
-    p.use_drive = "G"
+    p.use_drive = ""
     # p.do_one(wave, stop=True)
 
     # p.processors([FNRGFProcessor],            rp=True)  # Applies the Sunpy FNRGF Filter

@@ -16,6 +16,7 @@ from src.utils.time_util import (
 )
 from src.fetcher.Fetcher import Fetcher
 from src.processor.SunPyProcessor import AIA_PREP_Processor
+from sunpy.coordinates.sun import carrington_rotation_time
 
 # Constants
 default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"
@@ -77,42 +78,68 @@ class FidoFetcher(Fetcher):
         #     print(fits_path)
         pass
 
-    def fido_get_fits(self, current_wave, temp=False):
+    def carrington_to_time(self, carrington_start, carrington_end, num_frames):
+        """
+        Convert Carrington rotation numbers to times and generate intermediate steps.
+
+        Args:
+            carrington_start (float): Start Carrington rotation number.
+            carrington_end (float): End Carrington rotation number.
+            num_frames (int): Number of time steps (frames) between start and end rotations.
+
+        Returns:
+            list of datetime: List of times corresponding to the frames.
+        """
+        # Get start and end times for the Carrington rotations
+        start_time = carrington_rotation_time(carrington_start).to_datetime()
+        end_time = carrington_rotation_time(carrington_end).to_datetime()
+
+        # Calculate time step in minutes per frame
+        time_delta = (end_time - start_time) / num_frames  # * 24 * 60
+
+        # Generate the list of times for each frame
+        times = [start_time + i * time_delta for i in range(num_frames)]
+        return times
+
+    def fido_get_fits(self, current_wave, temp=False, num_frames=2):
         self.load(self.params, wave=current_wave)
         have_file = self.determine_image_path() is not False
-        # vprint("\r          ")
-        time_integrator = type(self) is not FidoFetcher
-
         out_string = "\r v Fetching Fits Files: {}  ---------------------------------------------------  v"
         vprint(out_string.format(self.params.current_wave()), self.verb)
-
         need_file = self.params.download_files() and not have_file
         want_to_redo = self.reprocess_mode() and have_file
-        if need_file or want_to_redo or time_integrator:
+
+        if need_file or want_to_redo:
             self.print_load_banner(verb=self.verb)
-            self.download_fits_series(temp=temp)
-            # self.enumerate()
+
+            if self.params.carrington():
+                self.params.carrington_start = self.params.carrington()[0]
+                self.params.carrington_end = self.params.carrington()[1]
+                self.params.num_frames = self.params.carrington()[-1]
+                # Use Carrington rotations to define the time range
+                times = self.carrington_to_time(
+                    self.params.carrington_start,
+                    self.params.carrington_end,
+                    self.params.num_frames,
+                )
+                # Define the time range from the first to last time
+                self.params.start_time = times[0]
+                self.params.end_time = times[-1]
+                self.params.time_steps = times  # Pass the list of times
+
+                # Define time range from the first to last time
+                self.params.unpack_time_strings(times[0], times[-1])
+                self.params.time_steps = times  # Pass the list of times
+
+            self.params.define_range()
+            self.fido_check_for_fits()
+            self.fido_download_fits_ensured(temp=temp)
         else:
-            if self.params.do_single:
-                prnt = "\b"
-            else:
-                prnt = self.params.n_fits
+            prnt = self.params.n_fits if not self.params.do_single else "\b"
             vprint(" *\n ^ Using {} Cached Fits Files".format(prnt), self.verb)
 
-    def download_fits_series(self, temp=True, hold=None):
-        if hold is None:
-            hold = False  # TODO Fix this
-        self.params.define_range()
-        self.fido_check_for_fits()
-        if self.fido_search_found_num:
-            self.fido_parse_result()
-            self.fido_download_fits_ensured(temp, hold)
-            self.validate_download()
-        else:
-            print("\n     No Images Found\n")
-
     def fido_check_for_fits(self, verb=None):
-        """Find the science images"""
+        """Find the science images."""
         from astropy import units as u
 
         self.verb = self.verb or verb
@@ -128,27 +155,6 @@ class FidoFetcher(Fetcher):
             end="",
             verb=self.verb,
         )
-        jsoc_email = "chris.gilly@colorado.edu"
-
-        # Make the base required attributes
-        time_attr = attrs.Time(self.params.start_time, self.params.end_time)
-        wave_attr = attrs.Wavelength(int(self.params.current_wave()) * u.angstrom)
-        sample_attr = attrs.Sample(self.params.cadence_minutes())
-        base_attrs = time_attr & wave_attr & sample_attr
-
-        if self.params.do_recent():
-            inst_attr = attrs.Instrument.aia
-        else:
-            inst_attr = (
-                attrs.jsoc.Series.aia_lev1_euv_12s
-                & attrs.jsoc.Notify(jsoc_email)
-                & attrs.jsoc.Segment.image
-            )
-
-        print(".", end=None)
-        fido_search_result = Fido.search(base_attrs, inst_attr)
-        self.fido_search_result = fido_search_result
-        self.fido_search_found_num = self.fido_search_result.file_num
 
     def fido_parse_result(self):
         """Examine the search results"""
@@ -190,7 +196,7 @@ class FidoFetcher(Fetcher):
         while len(self.name) < 4:
             self.name = "0" + self.name
 
-        if self.fido_search_found_num > 200:
+        if self.fido_search_found_num > 200 and False:
             response = input(
                 "Do you still want to download all {} images? [y]/n > ".format(
                     self.fido_search_found_num
@@ -217,8 +223,6 @@ class FidoFetcher(Fetcher):
         self.out_path = (
             self.params.temp_directory() if temp else self.params.fits_directory()
         )
-        if not os.path.exists(self.out_path):
-            os.makedirs(self.out_path)
         print("Out Path: ", self.out_path)
         self.store_requests()
 
@@ -394,7 +398,7 @@ class FidoFetcher(Fetcher):
     def validate_download(self):
         # Currently not running, probably for the best
         if self.params.do_prep:
-            print("prepping")
+            print("AIA Prepping...")
             self.params.speak_save = False
             AIA_PREP_Processor(params=self.params, rp=True).process()
 

@@ -16,15 +16,16 @@ import aiapy
 import numpy as np
 from aiapy.calibrate import correct_degradation
 from aiapy.calibrate.util import get_pointing_table, get_correction_table
-from scipy.signal import savgol_filter
-from scipy.stats import stats
-from src.science.color_tables import aia_color_table
-import astropy.units as u
+# from scipy.signal import savgol_filter
+# from scipy.stats import stats
+# from src.science.color_tables import aia_color_table
+# import astropy.units as u
 
 # import sunpy.map
+import sunpy.map.sources as srcs
 
-import aiapy.data.sample as sample_data
-from aiapy.calibrate import normalize_exposure, register, update_pointing
+# import aiapy.data.sample as sample_data
+from aiapy.calibrate import register, update_pointing
 
 from src.processor.Processor import Processor
 import warnings
@@ -50,9 +51,10 @@ def vprint(in_string, *args, **kwargs):
 
 class SunPyProcessor(Processor):
     """This class template holds the code for the Sunpy Processors"""
+
     name = filt_name = "Sunpy Processor"
     description = "Apply sunpy effets to images"
-    progress_verb = 'Normalizing'
+    progress_verb = "Normalizing"
     finished_verb = "Normalized"
     out_name = "sunpy"
 
@@ -78,11 +80,13 @@ class SunPyProcessor(Processor):
         # del self_dict['radial_bin_edges']
         return self_dict
 
+
 class AIA_PREP_Processor(SunPyProcessor):
     """This class holds the code for the AIA_PREP Processor"""
+
     name = filt_name = "AIA_PREP"
     description = "Apply AIA_PREP to images"
-    progress_verb = 'Prepping'
+    progress_verb = "Prepping"
     finished_verb = "Prepped"
 
     # Flags
@@ -124,9 +128,11 @@ class AIA_PREP_Processor(SunPyProcessor):
         return None
 
     def ensure_endian(self, the_map):
-        if the_map.dtype.byteorder == '>':
-            data = the_map.data.byteswap().newbyteorder()
+        if the_map.dtype.byteorder == ">":
+            data = the_map.data
             head = the_map.fits_header
+            # Update to handle new byte order method
+            data = data.byteswap().view(data.dtype.newbyteorder("="))
             # import sunpy.map.sources as srcs
             the_map = srcs.AIAMap(data, head)
         return the_map
@@ -134,7 +140,6 @@ class AIA_PREP_Processor(SunPyProcessor):
     def do_AIA_PREP(self):
         self.level_15_maps = []
         for a_map in self.level_1_maps:
-
             # if False:
             #     a_map = self.deconvolve_psf(a_map)
 
@@ -148,8 +153,10 @@ class AIA_PREP_Processor(SunPyProcessor):
             else:
                 map_registered = register(a_map)
 
-            map_degraded = correct_degradation(map_registered, correction_table=self.params.correction_table)
-            map_normalized = normalize_exposure(map_degraded)
+            map_degraded = correct_degradation(
+                map_registered, correction_table=self.params.correction_table
+            )
+            map_normalized = map_degraded / map_degraded.exposure_time
 
             doNorm = True
             out = map_normalized if doNorm else map_degraded
@@ -166,10 +173,11 @@ class AIA_PREP_Processor(SunPyProcessor):
         self.modified_image = self.params.modified_image
 
     def get_aia_prep_data(self, force=False):
-
         if self.fits_path is None:
             self.fits_path = self.keyframes[0]
-        raw_image, _, _, _, _, self.in_name = self.load_this_fits_frame(self.fits_path, self.params.master_frame_list_newest)
+        raw_image, _, _, _, _, self.in_name = self.load_this_fits_frame(
+            self.fits_path, self.params.master_frame_list_newest
+        )
         self.header["LVL_NUM"] = self.params.header["LVL_NUM"] = 1.5
         self.level_1_maps = [sunpy.map.Map((raw_image, self.params.header))]
         if self.params.correction_table is None or force:
@@ -181,7 +189,9 @@ class AIA_PREP_Processor(SunPyProcessor):
                 pointing_end = self.level_1_maps[-1].date + 3 * u.h
                 try:
                     # with partial(print, "  ") as print:
-                    self.params.pointing_table = get_pointing_table(pointing_start, pointing_end)
+                    self.params.pointing_table = get_pointing_table(
+                        pointing_start, pointing_end
+                    )
                 except RuntimeError as e:
                     # print("\r   - > "+str(e))
                     pass
@@ -191,6 +201,7 @@ class AIA_PREP_Processor(SunPyProcessor):
 
     def deconvolve_psf(self, a_map):
         import aiapy.psf as psf
+
         if not a_map.wavelength == self.last_wave or self.psf is None:
             # Make the psf map if needed
             self.psf = psf.psf(a_map.wavelength)
@@ -201,7 +212,9 @@ class AIA_PREP_Processor(SunPyProcessor):
     def get_updated_pointing(self, a_map, one_deep=True):
         # Get the new pointing information
         try:
-            map_updated_pointing = update_pointing(a_map, pointing_table=self.params.pointing_table)
+            map_updated_pointing = update_pointing(
+                a_map, pointing_table=self.params.pointing_table
+            )
             return map_updated_pointing
         except IndexError as e:
             # If it fails
@@ -227,9 +240,10 @@ class AIA_PREP_Processor(SunPyProcessor):
 
 class NRGFProcessor(SunPyProcessor):
     """This class template holds the code for the Sunpy Processors"""
+
     name = filt_name = "NRGF Processor"
     description = "Apply NRGF effets to images"
-    progress_verb = 'Normalizing'
+    progress_verb = "Normalizing"
     finished_verb = "Normalized"
     out_name = "NRGF"
 
@@ -237,16 +251,19 @@ class NRGFProcessor(SunPyProcessor):
         """Analyze the Image, Normalize it, Plot"""
         radial_bin_edges = equally_spaced_bins(inner_value=0.0, nbins=300) * u.R_sun
         import sunkit_image.radial as radial
-        self.params.modified_image = radial.nrgf(self.raw_map,
-                                                 radial_bin_edges, application_radius=0.00 * u.R_sun).data
+
+        self.params.modified_image = radial.nrgf(
+            self.raw_map, radial_bin_edges, application_radius=0.00 * u.R_sun
+        ).data
         return self.params.modified_image
 
 
 class FNRGFProcessor(SunPyProcessor):
     """This class template holds the code for the Sunpy Processors"""
+
     name = filt_name = "FNRGF Processor"
     description = "Apply FNRGF effets to images"
-    progress_verb = 'Normalizing'
+    progress_verb = "Normalizing"
     finished_verb = "Normalized"
     out_name = "FNRGF"
 
@@ -258,15 +275,21 @@ class FNRGFProcessor(SunPyProcessor):
         self.attenuation_coefficients = radial.set_attenuation_coefficients(self.order)
 
     def do_work(self):
-        self.params.modified_image = radial.fnrgf(self.raw_map, self.radial_bin_edges,
-                                                  self.order, self.attenuation_coefficients).data
+        self.params.modified_image = radial.fnrgf(
+            self.raw_map,
+            self.radial_bin_edges,
+            self.order,
+            self.attenuation_coefficients,
+        ).data
         return self.params.modified_image
 
+
 class RHEFProcessor(SunPyProcessor):
-    """TThis is the RHE Filter as described in Gilly's Thesis"""
+    """This is the RHE Filter as described in Gilly's Thesis"""
+
     name = filt_name = "RHEF Processor"
     description = "Apply Radial Histogram Equalization to images"
-    progress_verb = 'Equalizing'
+    progress_verb = "Equalizing"
     finished_verb = "Radially Equalized"
     out_name = "RHEF"
 
@@ -276,30 +299,40 @@ class RHEFProcessor(SunPyProcessor):
         super().__init__(params, quick, rp, in_name)
 
     def do_work(self):
-        self.params.modified_image = radial.rhef(self.raw_map, self.radial_bin_edges,).data
+        self.params.modified_image = radial.rhef(
+            self.raw_map,
+            radial_bin_edges=self.radial_bin_edges,
+            upsilon=None,
+            progress=False,
+        ).data
         return self.params.modified_image
+
 
 class IntEnhanceProcessor(SunPyProcessor):
     """Implementation of: https://docs.sunpy.org/projects/sunkit-image/en/stable/api/sunkit_image.radial.intensity_enhance.html#sunkit_image.radial.intensity_enhance
-        Which is clled Intensity_enhance, but seems like it's a version of AIR_RFILT that divides curve that is fitted to the data
-        Technically this is similar to SRN, I will be interested to see how it performs
+    Which is clled Intensity_enhance, but seems like it's a version of AIR_RFILT that divides curve that is fitted to the data
+    Technically this is similar to SRN, I will be interested to see how it performs
     """
+
     name = filt_name = "Intensity_Enhance Sunpy Processor"
     description = "Apply Intensity_Enhance to the images"
-    progress_verb = 'Filtering'
+    progress_verb = "Filtering"
     finished_verb = "Normalized"
     out_name = "int_enhance"
 
     def do_work(self):
-        self.params.modified_image = radial.intensity_enhance(self.raw_map, self.radial_bin_edges).data
+        self.params.modified_image = radial.intensity_enhance(
+            self.raw_map, self.radial_bin_edges
+        ).data
         return self.params.modified_image
 
 
 class MSGNProcessor(SunPyProcessor):
     """This class template holds the code for the Sunpy Processors"""
+
     name = filt_name = "MSGN Processor"
     description = "Apply MSGN effets to images"
-    progress_verb = 'Normalizing'
+    progress_verb = "Normalizing"
     finished_verb = "Normalized"
     out_name = "MSGN"
     first = True
@@ -322,17 +355,15 @@ class MSGNProcessor(SunPyProcessor):
         #     self.in_name = "qrn(primary)" #"qrn(lev1p5)"
         #     #TODO make sure this works the same in all versions
 
-
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         import sunkit_image.enhance as enhance
+
         if np.isnan(self.params.raw_image).any():
-            self.params.raw_image[np.isnan(self.params.raw_image)] = -1.
+            self.params.raw_image[np.isnan(self.params.raw_image)] = -1.0
         self.params.modified_image = enhance.mgn(self.params.raw_image)
         return self.params.modified_image
-
 
     def cleanup(self):
         MSGNProcessor.first = False
         super().cleanup()
-

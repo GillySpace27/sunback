@@ -30,6 +30,9 @@ class Parameters:
     n_pool = 10
 
     def __init__(self):
+        self.use_carrington = False  # Default value
+        self.carrington_start = None
+        self.carrington_end = None
         """Sets all the attributes to None"""
 
         # Initialize Variables
@@ -45,7 +48,6 @@ class Parameters:
             "t_int",
             "lev1p0",
             "primary",
-            "compressed_image",
             "",
         ]
         self.master_frame_list_oldest = [
@@ -149,6 +151,7 @@ class Parameters:
         self._time_period = None
         self._range_in_days = 4
         self._cadence = 10 * u.minute
+        self._carrington = None
         self._exposure_time = 60  # seconds
 
         self._frames_per_second = 30
@@ -544,6 +547,11 @@ class Parameters:
             self._cadence = cad * u.minute
         return self._cadence
 
+    def carrington(self, cad=None):
+        if cad is not None:
+            self._carrington = cad
+        return self._carrington
+
     def exposure_time_seconds(self, _exposure_time=None):
         if _exposure_time is not None:
             self._exposure_time = _exposure_time
@@ -759,18 +767,36 @@ class Parameters:
         return [t_start_out, t_end_out]
 
     def define_range(self):
-        """Defines the time range of imagery desired"""
+        """Defines the time range of imagery desired."""
         if self.do_recent():
             self.unpack_time_strings(*define_recent_range(self.range()))
+        elif self.carrington():
+            # Use Carrington rotations to define the time range
+            times = self.carrington_to_time(
+                self.carrington()[0],
+                self.carrington()[1],
+                self.carrington()[-1],
+            )
+            self.unpack_time_strings(times[0], times[-1])
+            self.time_steps = times  # Store the list of time steps for further use
         else:
             self.unpack_time_strings(*define_time_range(*self.time_period()))
 
-    def unpack_time_strings(self, start, end):
-        """Unpacks the time lists"""
-        self.start_time, self.start_time_long, self.start_time_string = start
-        self.end_time, self.end_time_long, self.end_time_string = end
+    def carrington_period(self, var):
+        """Set up the time strings correctly"""
+        pass
 
-        # self.radial_hist_path = abspath(join(self.analysis_directory, param_file_name))
+    def unpack_time_strings(self, start, end):
+        """Unpacks the time lists into different formats for easier access."""
+        self.start_time = start
+        self.end_time = end
+        # Convert to string representations
+        self.start_time_string = self.start_time.strftime("%Y-%m-%dT%H:%M:%S")
+        self.end_time_string = self.end_time.strftime("%Y-%m-%dT%H:%M:%S")
+
+        # Long format for readability or for use in logs
+        self.start_time_long = self.start_time.strftime("%B %d, %Y %H:%M:%S")
+        self.end_time_long = self.end_time.strftime("%B %d, %Y %H:%M:%S")
 
     def make_directories(self):
         # Make Directories

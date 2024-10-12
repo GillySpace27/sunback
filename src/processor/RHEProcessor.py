@@ -43,9 +43,10 @@ def vprint(in_string, *args, **kwargs):
 
 class RHEProcessor(Processor):
     """This class holds the code for the Radial Histogram Equalization Processor"""
+
     name = filt_name = "RHE Norm"
     description = "Apply the single-shot RHE to images"
-    progress_verb = 'Filtering'
+    progress_verb = "Filtering"
     finished_verb = "Radially Filtered"
     out_name = "RHE"
 
@@ -56,14 +57,23 @@ class RHEProcessor(Processor):
     can_initialize = True
 
     # Parse Inputs
-    def __init__(self, fits_path=None, in_name=None, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
+    def __init__(
+        self,
+        fits_path=None,
+        in_name=None,
+        orig=False,
+        show=False,
+        verb=False,
+        quick=False,
+        rp=None,
+        params=None,
+    ):
         """Initialize the main class"""
         # super().__init__(params, quick, rp)
         self.load(params, quick=quick)
         self.select_input_frame(in_name)
         super().__init__(params, quick, rp, self.in_name)
         print(" --- Running RHE on {} ---".format(self.in_name))
-
 
         self.shrink_factor = 1
         self.radius = None
@@ -197,7 +207,7 @@ class RHEProcessor(Processor):
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         if self.should_run():
-            # self.resize_image()
+            self.resize_image()
             self.image_learn()
         # self.plot_full_normalization()
         # self.params.modified_image = norm_stretch(self.params.modified_image, alpha=0.35) #TODO This
@@ -211,33 +221,42 @@ class RHEProcessor(Processor):
             self.skipped = max((self.skipped, 0))
         super().cleanup()
 
-
     def should_run(self):
         """Decide of the processor should run on this file"""
         if not self.header:
             print("No header Loaded")
             return False
         self.can_use_keyframes = True
-        not_dark = self.header.get('IMG_TYPE', "LIGHT") == "LIGHT"
+        not_dark = self.header.get("IMG_TYPE", "LIGHT") == "LIGHT"
         not_weak = self.header.get("EXPTIME", 10.0) >= 0.9
         set_to_make = self.params.remake_norm_curves() or self.reprocess_mode()
-        not_made_yet = not os.path.exists(self.params.curve_path()) or self.outer_min is None
+        not_made_yet = (
+            not os.path.exists(self.params.curve_path()) or self.outer_min is None
+        )
         frame_is_not_loaded = self.params.raw_image is None
-        self.go_ahead = not_weak & not_dark and (set_to_make or not_made_yet or frame_is_not_loaded)
+        self.go_ahead = not_weak & not_dark and (
+            set_to_make or not_made_yet or frame_is_not_loaded
+        )
         if not self.go_ahead:
-            problem = "Weak" if not not_weak else "dark" if not not_dark else "incomprehensible"
+            problem = (
+                "Weak"
+                if not not_weak
+                else "dark"
+                if not not_dark
+                else "incomprehensible"
+            )
             print("Skipping because the file is {}".format(problem))
+            self.skipped += 1
         return self.go_ahead
 
-
-
     @staticmethod
-    def force_delete(file, root='', do=True):
+    def force_delete(file, root="", do=True):
         if do:
             if not os.path.isdir(file):
                 os.remove(os.path.join(root, file))
             else:
                 shutil.rmtree(file)
+
     # def delete_temp_folder(self, folder):
     #     if os.path.isdir(folder):
     #         shutil.rmtree(folder)
@@ -266,7 +285,6 @@ class RHEProcessor(Processor):
             self.coronaLearn()
             self.add_to_keyframes()  # Update the running curves
 
-
     ###################
     ## Keyframes ##
     ###################
@@ -274,7 +292,6 @@ class RHEProcessor(Processor):
     def add_to_keyframes(self):
         """Records the current analysis as one of the radial samples"""
         self.update_keyframe_counters()
-
 
     def coronaLearn(self):
         """Perform the actual analysis"""
@@ -301,15 +318,13 @@ class RHEProcessor(Processor):
         # self.init_frame_curves()
         self.init_statistics()
 
-    def init_modified_image(self): ## TODO POTENTIAL BREAK POINT
+    def init_modified_image(self):  ## TODO POTENTIAL BREAK POINT
         # mod = self.params.modified_image
         # if mod is None or not mod:
         self.params.modified_image = self.params.raw_image + 0
 
-
-
     def do_rhe_plot(self):
-        fig, axArray = plt.subplots(2, 3, sharex='row', sharey="row")
+        fig, axArray = plt.subplots(2, 3, sharex="row", sharey="row")
         ((axA, axB, axC), (ax1, ax2, ax3)) = (top_axes, bot_axes) = axArray
         self.plot_quantilize_points(bot_axes)
         self.plot_quantilize_images(top_axes)
@@ -326,22 +341,28 @@ class RHEProcessor(Processor):
         flat_quantilize = self.params.rhe_image.flatten() + 0
 
         # Take a short subset of the points
-        absiss = self.n2r(self.rad_flat[::self.skip_points])
+        absiss = self.n2r(self.rad_flat[:: self.skip_points])
 
-        raw_short_points = self.orig_smasher(flat_raw[::self.skip_points])
-        sunback_short_points = flat_sunback[::self.skip_points]
-        rhe_short_points = flat_quantilize[::self.skip_points]
+        raw_short_points = self.orig_smasher(flat_raw[:: self.skip_points])
+        sunback_short_points = flat_sunback[:: self.skip_points]
+        rhe_short_points = flat_quantilize[:: self.skip_points]
 
         # Plot Scatter Plots
         blk_alpha = 0.4
         axA.set_title("log10(raw)/2")
-        axA.scatter(absiss, raw_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
+        axA.scatter(
+            absiss, raw_short_points, c="k", s=4, alpha=blk_alpha, edgecolors="none"
+        )
 
         axB.set_title("Sunback")
-        axB.scatter(absiss, sunback_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
+        axB.scatter(
+            absiss, sunback_short_points, c="k", s=4, alpha=blk_alpha, edgecolors="none"
+        )
 
         axC.set_title("Quantilize")
-        axC.scatter(absiss, rhe_short_points, c='k', s=4, alpha=blk_alpha, edgecolors='none')
+        axC.scatter(
+            absiss, rhe_short_points, c="k", s=4, alpha=blk_alpha, edgecolors="none"
+        )
 
         # ## Plot Formatting
 
@@ -380,16 +401,24 @@ class RHEProcessor(Processor):
         ## Plot Images
         ax1, ax2, ax3 = axes
 
-        ax1.imshow(self.orig_smasher(self.params.raw_image2), origin='lower', cmap='gray', vmin=0, vmax=1)
-        ax2.imshow(self.params.modified_image, origin='lower', cmap='gray', vmin=0, vmax=1)
-        ax3.imshow(self.params.rhe_image, origin='lower', cmap='gray', vmin=0, vmax=1)
+        ax1.imshow(
+            self.orig_smasher(self.params.raw_image2),
+            origin="lower",
+            cmap="gray",
+            vmin=0,
+            vmax=1,
+        )
+        ax2.imshow(
+            self.params.modified_image, origin="lower", cmap="gray", vmin=0, vmax=1
+        )
+        ax3.imshow(self.params.rhe_image, origin="lower", cmap="gray", vmin=0, vmax=1)
 
     ###################################
     ## Raw Normalization Curve Stuff ##
     ###################################
 
     def bin_radially(self):  # TODO Make the save to fits work
-        """Bin the intensities by radius """
+        """Bin the intensities by radius"""
         do_cache = False
         if do_cache:
             if not self.there_is_cached_data:
@@ -404,11 +433,9 @@ class RHEProcessor(Processor):
         # sz = (self.params.rez, self.params.rez)
         sz = self.params.raw_image.shape
 
-
-        self.modified_image = self.params.modified_image = self.params.rhe_image = \
-            self.params.rhe_image.reshape((sz[1],sz[0]))
-
-
+        self.modified_image = self.params.modified_image = self.params.rhe_image = (
+            self.params.rhe_image.reshape((sz[1], sz[0]))
+        )
 
     # def do_binning(self, skip=1):  # Bin the intensities by radius
     #     self.cut_pixels = skip
@@ -425,7 +452,6 @@ class RHEProcessor(Processor):
     #         self.radBins_ind[binI].append(ind)
     #
     def make_annular_rings(self, R1=32):
-
         RLast = self.params.rez
         num_bins = np.min((int(np.round((RLast / R1) ** 2)), RLast * 2))
         self.RN = np.zeros(num_bins)
@@ -439,10 +465,9 @@ class RHEProcessor(Processor):
         xy = (self.params.rez // 2, self.params.rez // 2)
         angle = np.linspace(0, 2 * np.pi, 150)
         cos, sin = np.cos(angle), np.sin(angle)
-        plt.style.use('dark_background')
+        plt.style.use("dark_background")
         fig, ax = plt.subplots()
         for N, rr in enumerate(self.RN):
-
             xx = rr * cos + xy[0]
             yy = rr * sin + xy[1]
 
@@ -452,18 +477,18 @@ class RHEProcessor(Processor):
                 ax.plot(xx, yy, lw=2)
             elif N < cut * 2:
                 if not N % 5:
-                    ax.plot(xx, yy, c='lightgrey', lw=1)
+                    ax.plot(xx, yy, c="lightgrey", lw=1)
                     pass
 
         rr = self.found_limb_radius
         xx = rr * cos + xy[0]
         yy = rr * sin + xy[1]
-        ax.plot(xx, yy, c='k', lw='3', ls=":")
+        ax.plot(xx, yy, c="k", lw="3", ls=":")
 
         rr = self.params.rez // 2
         xx = rr * cos + xy[0]
         yy = rr * sin + xy[1]
-        ax.plot(xx, yy, c='w', lw='2', ls="--", zorder=100000)
+        ax.plot(xx, yy, c="w", lw="2", ls="--", zorder=100000)
 
         to_plot = np.sqrt(self.params.modified_image)
 
@@ -486,17 +511,19 @@ class RHEProcessor(Processor):
     def save_cached_data(self, radBins=None):
         if radBins is not None:
             self.radBins = radBins
-        self.save_frame_to_fits_file(fits_path=self.fits_path, frame=np.asarray(self.radBins), out_name='radBins')
+        self.save_frame_to_fits_file(
+            fits_path=self.fits_path, frame=np.asarray(self.radBins), out_name="radBins"
+        )
         pass
 
-    def load_cached_data(self, in_name='radBins'):
-        self.load_a_fits_attribute(fits_path=self.fits_path, field='radBins')
+    def load_cached_data(self, in_name="radBins"):
+        self.load_a_fits_attribute(fits_path=self.fits_path, field="radBins")
         pass
 
     def radial_statistics(self):  # TODO Make this much faster
-        """ Find the statistics in each radial bin"""
+        """Find the statistics in each radial bin"""
         # self.params.modified_image = copy(self.params.raw_image.flatten())
-        self.params.mod_flat =self.params.modified_image.flatten()
+        self.params.mod_flat = self.params.modified_image.flatten()
         for ii, bin_list in enumerate(self.radBins):
             self.store_bin_array(ii)
         self.finalize_radial_statistics()
@@ -516,18 +543,16 @@ class RHEProcessor(Processor):
     def rhe_func(self, bin_array):
         return stats.rankdata(bin_array, "average") / len(bin_array)
 
-
     def finalize_radial_statistics(self):
         """Clean up the radial statistics to be used"""
 
         use_shape = self.params.modified_image.shape
-        self.params.modified_image = self.params.mod_flat.reshape(use_shape[1], use_shape[0])
+        self.params.modified_image = self.params.mod_flat.reshape(
+            use_shape[1], use_shape[0]
+        )
 
         # from src.utils.stretch_intensity_module import norm_stretch
         # self.params.modified_image = norm_stretch(self.params.modified_image, alpha=self.params.alpha)
-
-
-
 
     ########################
     ## Plotting Stuff ##
@@ -535,8 +560,8 @@ class RHEProcessor(Processor):
 
     def peek_norm(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
-            overlaid with the norm curves as determined elsewhere"""
-        vprint(" *    Plotting Analysis...     ", end='')
+        overlaid with the norm curves as determined elsewhere"""
+        vprint(" *    Plotting Analysis...     ", end="")
         the_alpha = 0.05
 
         # Init the Figure
@@ -548,12 +573,20 @@ class RHEProcessor(Processor):
         ########################
         ##  Plot 0: Absolute  ##
         ########################
-        self.plot_norm_curves(fig=fig, ax=ax0, save=False, smooth=True, extra=False, raw=False)
+        self.plot_norm_curves(
+            fig=fig, ax=ax0, save=False, smooth=True, extra=False, raw=False
+        )
 
         # Plot Scattered Points from the raw image_path in midnightblue
         orig_abs = self.params.raw_image.flatten()
-        ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
-                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
+        ax0.scatter(
+            self.n2r(self.rad_flat[:: self.skip_points]),
+            orig_abs[:: self.skip_points],
+            alpha=the_alpha,
+            edgecolors="none",
+            c="midnightblue",
+            s=3,
+        )
 
         # Vertical Lines
         # ax0.axvline(1, lw=3)
@@ -593,32 +626,52 @@ class RHEProcessor(Processor):
 
         full = True
         if full:
-            ax0.set_ylim((-10 ** 1, 10 ** 4))
+            ax0.set_ylim((-(10**1), 10**4))
             ax0.set_xlim((0, 1.85))
         else:
             ax0.set_ylim((0, 1000))
             ax0.set_xlim((0.85, 1.15))
 
-        ax0.axvline(self.vig_radius_rr, ls=':', c='lightgrey', label='Vignette')
+        ax0.axvline(self.vig_radius_rr, ls=":", c="lightgrey", label="Vignette")
 
         if self.flatten_up:
-            ax0.axvline(self.flatten_up, ls=':', c='grey', label='Flattening')
-            ax0.axvline(self.flatten_down, ls=':', c='grey')
+            ax0.axvline(self.flatten_up, ls=":", c="grey", label="Flattening")
+            ax0.axvline(self.flatten_down, ls=":", c="grey")
 
-        ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-        ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.025, 0.2),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        ax0.annotate(
+            "Top Curve L:\n{}".format(self.norm_curve_max_bottom_name),
+            (0.025, 0.3),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
+        ax0.annotate(
+            "Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name),
+            (0.025, 0.2),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
 
-        ax0.annotate("Top Curve R:\n{}".format(self.norm_curve_max_top_name), (0.725, 0.7),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-        ax0.annotate("Bot Curve R:\n{}".format(self.norm_curve_min_top_name), (0.725, 0.6),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        ax0.annotate(
+            "Top Curve R:\n{}".format(self.norm_curve_max_top_name),
+            (0.725, 0.7),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
+        ax0.annotate(
+            "Bot Curve R:\n{}".format(self.norm_curve_min_top_name),
+            (0.725, 0.6),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
 
         # ax0.legend()
         # import matplotlib as mpl
 
-        ax0.set_yscale('symlog')
+        ax0.set_yscale("symlog")
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
 
         # ## Plot 1 Formatting
@@ -659,9 +712,9 @@ class RHEProcessor(Processor):
 
     def plot_full_normalization(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
-               overlaid with the norm curves as determined elsewhere"""
+        overlaid with the norm curves as determined elsewhere"""
 
-        vprint(" *    Plotting Analysis...     ", end='')
+        vprint(" *    Plotting Analysis...     ", end="")
         blu_alpha = 0.15
         red_alpha = 0.15
         blk_alpha = 0.4
@@ -696,45 +749,89 @@ class RHEProcessor(Processor):
         # Plot Scattered Points from the raw image_path in midnightblue
         do_raw_scatter = False
         if do_raw_scatter:
-            ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-                        alpha=blu_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int")
+            ax1.scatter(
+                self.n2r(self.rad_flat[:: self.skip_points]),
+                orig_abs[:: self.skip_points],
+                zorder=-1,
+                alpha=blu_alpha,
+                edgecolors="none",
+                c="midnightblue",
+                s=3,
+                label="1. t_int",
+            )
 
         # Plot Scattered Points from the raw image_path but rooted, in red
         do_red_points = False
         if do_red_points:
             scat2 = self.params.raw_image.flatten()
-            ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
-                        alpha=red_alpha, edgecolors='none', c='r', s=3, zorder=0, label="1. INT+ROOT")
+            ax1.scatter(
+                self.n2r(self.rad_flat[:: self.skip_points]),
+                scat2[:: self.skip_points],
+                alpha=red_alpha,
+                edgecolors="none",
+                c="r",
+                s=3,
+                zorder=0,
+                label="1. INT+ROOT",
+            )
 
         # Plot Scattered Points from the final modified image_path, in black
         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
-        ax1.scatter(self.n2r(self.rad_flat[::blk_skip]), points[::blk_skip], c='k', s=3, alpha=blk_alpha, edgecolors='none', label="2. QRN")
+        ax1.scatter(
+            self.n2r(self.rad_flat[::blk_skip]),
+            points[::blk_skip],
+            c="k",
+            s=3,
+            alpha=blk_alpha,
+            edgecolors="none",
+            label="2. QRN",
+        )
 
         # Extra Lines
-        ax1.axhline(2, c='lightgrey', ls=':', zorder=-1)
-        ax1.axhline(1, c='k', ls=':', zorder=-1)
-        ax1.axhline(0, c='k', ls=':', zorder=-1)
+        ax1.axhline(2, c="lightgrey", ls=":", zorder=-1)
+        ax1.axhline(1, c="k", ls=":", zorder=-1)
+        ax1.axhline(0, c="k", ls=":", zorder=-1)
 
         ## Plot 0 Formatting
         ax0.set_title("Various Norm Curves in Absolute Scale")
-        ax0.set_ylim((-10 ** 1, 10 ** 4))
+        ax0.set_ylim((-(10**1), 10**4))
         ax0.set_xlim((0, 1.85))
 
-        ax0.axvline(self.vig_radius_rr, ls=':', c='lightgrey')
+        ax0.axvline(self.vig_radius_rr, ls=":", c="lightgrey")
 
-        ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-        ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.025, 0.2),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-        ax0.annotate("Top Curve R:\n{}".format(self.norm_curve_max_top_name), (0.65, 0.9),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-        ax0.annotate("Bot Curve R:\n{}".format(self.norm_curve_min_top_name), (0.65, 0.8),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        ax0.annotate(
+            "Top Curve L:\n{}".format(self.norm_curve_max_bottom_name),
+            (0.025, 0.3),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
+        ax0.annotate(
+            "Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name),
+            (0.025, 0.2),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
+        ax0.annotate(
+            "Top Curve R:\n{}".format(self.norm_curve_max_top_name),
+            (0.65, 0.9),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
+        ax0.annotate(
+            "Bot Curve R:\n{}".format(self.norm_curve_min_top_name),
+            (0.65, 0.8),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
 
         # ax0.legend()
         # import matplotlib as mpl
 
-        ax0.set_yscale('symlog')
+        ax0.set_yscale("symlog")
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
 
         ## Plot 1 Formatting
@@ -743,10 +840,18 @@ class RHEProcessor(Processor):
         ax1.set_title("")
         ax1.set_yscale("symlog")
         ax1.set_ylim((-0.5, 2))
-        ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
+        ax1.legend(
+            markerscale=4.0,
+            handletextpad=0.2,
+            borderaxespad=0.3,
+            scatteryoffsets=[0.55],
+        )
 
         import matplotlib as mpl
-        ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x >= 1 else x))
+
+        ax1.yaxis.set_major_formatter(
+            mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x >= 1 else x)
+        )
         fig.set_size_inches(11, 9)
         #         fig.set_size_inches(7, 14)
 
@@ -775,7 +880,7 @@ class RHEProcessor(Processor):
 
     def plot_full_normalization_server(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
-                overlaid with the norm curves as determined elsewhere"""
+        overlaid with the norm curves as determined elsewhere"""
         the_alpha = 0.5
         # Init the Figure
         fig, (ax0, ax1) = plt.subplots(1, 2, sharex="all", num="Radial Statistics")
@@ -797,8 +902,14 @@ class RHEProcessor(Processor):
 
         # Plot Scattered Points from the raw image_path in midnightblue
         flat_raw = self.params.raw_image.flatten()
-        ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), flat_raw[::self.skip_points],
-                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
+        ax0.scatter(
+            self.n2r(self.rad_flat[:: self.skip_points]),
+            flat_raw[:: self.skip_points],
+            alpha=the_alpha,
+            edgecolors="none",
+            c="midnightblue",
+            s=3,
+        )
 
         ########################
         ## Plot 1: Normalized ##
@@ -816,31 +927,51 @@ class RHEProcessor(Processor):
 
         # Plot Scattered Points from the final modified image_path, in black
         self.touchup_TUNE(self.params.modified_image)
-        flat_modified_image = np.array(self.params.modified_image.flatten(), dtype=np.float32)
-        ax1.scatter(self.n2r(self.rad_flat[::skip]), flat_modified_image[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. QRN")
+        flat_modified_image = np.array(
+            self.params.modified_image.flatten(), dtype=np.float32
+        )
+        ax1.scatter(
+            self.n2r(self.rad_flat[::skip]),
+            flat_modified_image[::skip],
+            c="k",
+            s=3,
+            alpha=the_alpha,
+            edgecolors="none",
+            label="3. QRN",
+        )
         #         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
         #         ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="")
 
         # Extra Lines
-        ax1.axhline(2, c='lightgrey', ls=':', zorder=-1)
-        ax1.axhline(1, c='k', ls=':', zorder=-1)
-        ax1.axhline(0, c='k', ls=':', zorder=-1)
+        ax1.axhline(2, c="lightgrey", ls=":", zorder=-1)
+        ax1.axhline(1, c="k", ls=":", zorder=-1)
+        ax1.axhline(0, c="k", ls=":", zorder=-1)
         #         ax1.axvline(0.5)
 
         ## Plot 0 Formatting
         ax0.set_title("Various Norm Curves in Absolute Scale")
-        ax0.set_ylim((-10 ** 0, 10 ** 2.2))
+        ax0.set_ylim((-(10**0), 10**2.2))
         ax0.set_xlim((0, 1.85))
 
-        ax0.axvline(self.vig_radius_rr, ls=':', c='lightgrey')
-        ax0.annotate("Top Curve:\n{}".format(self.norm_curve_max_name), (0.025, 0.3),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-        ax0.annotate("Bot Curve:\n{}".format(self.norm_curve_min_name), (0.025, 0.2),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        ax0.axvline(self.vig_radius_rr, ls=":", c="lightgrey")
+        ax0.annotate(
+            "Top Curve:\n{}".format(self.norm_curve_max_name),
+            (0.025, 0.3),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
+        ax0.annotate(
+            "Bot Curve:\n{}".format(self.norm_curve_min_name),
+            (0.025, 0.2),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
         # ax0.legend()
         import matplotlib as mpl
 
-        ax0.set_yscale('symlog')
+        ax0.set_yscale("symlog")
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
 
         ## Plot 1 Formatting
@@ -849,8 +980,17 @@ class RHEProcessor(Processor):
         ax1.set_title("")
         ax1.set_yscale("symlog")
         ax1.set_ylim((-0.5, 1.5))
-        ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
-        ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x >= 2 else "{:0.1f}".format(x)))
+        ax1.legend(
+            markerscale=4.0,
+            handletextpad=0.2,
+            borderaxespad=0.3,
+            scatteryoffsets=[0.55],
+        )
+        ax1.yaxis.set_major_formatter(
+            mpl.ticker.FuncFormatter(
+                lambda x, pos: int(x) if x >= 2 else "{:0.1f}".format(x)
+            )
+        )
         fig0.set_size_inches(10, 5)
         plt.tight_layout()
         plt.show()
@@ -859,7 +999,7 @@ class RHEProcessor(Processor):
 
     def plot_full_normalization_orig(self, do=False, show=False, save=True):
         """This plot is in radius and has a scatter plot
-            overlaid with the norm curves as determined elsewhere"""
+        overlaid with the norm curves as determined elsewhere"""
         the_alpha = 0.05
 
         # Init the Figure
@@ -881,52 +1021,102 @@ class RHEProcessor(Processor):
 
         # Plot Scattered Points from the raw image_path in midnightblue
         orig_abs = self.params.raw_image.flatten()
-        ax0.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points],
-                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3)
+        ax0.scatter(
+            self.n2r(self.rad_flat[:: self.skip_points]),
+            orig_abs[:: self.skip_points],
+            alpha=the_alpha,
+            edgecolors="none",
+            c="midnightblue",
+            s=3,
+        )
 
         ########################
         ## Plot 1: Normalized ##
         ########################
 
         # Plot Scattered Points from the raw image_path in midnightblue
-        ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), orig_abs[::self.skip_points], zorder=-1,
-                    alpha=the_alpha, edgecolors='none', c='midnightblue', s=3, label="1. t_int")
+        ax1.scatter(
+            self.n2r(self.rad_flat[:: self.skip_points]),
+            orig_abs[:: self.skip_points],
+            zorder=-1,
+            alpha=the_alpha,
+            edgecolors="none",
+            c="midnightblue",
+            s=3,
+            label="1. t_int",
+        )
 
         # Plot Scattered Points from the raw image_path but rooted, in red
         self.touchup_TUNE(self.params.raw_image)
         scat2 = self.params.raw_image.flatten()
-        ax1.scatter(self.n2r(self.rad_flat[::self.skip_points]), scat2[::self.skip_points],
-                    alpha=the_alpha, edgecolors='none', c='r', s=3, zorder=0, label="2. ROOT")
+        ax1.scatter(
+            self.n2r(self.rad_flat[:: self.skip_points]),
+            scat2[:: self.skip_points],
+            alpha=the_alpha,
+            edgecolors="none",
+            c="r",
+            s=3,
+            zorder=0,
+            label="2. ROOT",
+        )
 
         # Plot Scattered Points from the final modified image_path, in black
         self.touchup_TUNE(self.params.modified_image)
         points = np.array(self.params.modified_image.flatten(), dtype=np.float32)
-        ax1.scatter(self.n2r(self.rad_flat[::skip]), points[::skip], c='k', s=3, alpha=the_alpha, edgecolors='none', label="3. QRN")
+        ax1.scatter(
+            self.n2r(self.rad_flat[::skip]),
+            points[::skip],
+            c="k",
+            s=3,
+            alpha=the_alpha,
+            edgecolors="none",
+            label="3. QRN",
+        )
 
         # Extra Lines
-        ax1.axhline(2, c='lightgrey', ls=':', zorder=-1)
-        ax1.axhline(1, c='k', ls=':', zorder=-1)
-        ax1.axhline(0, c='k', ls=':', zorder=-1)
+        ax1.axhline(2, c="lightgrey", ls=":", zorder=-1)
+        ax1.axhline(1, c="k", ls=":", zorder=-1)
+        ax1.axhline(0, c="k", ls=":", zorder=-1)
 
         ## Plot 0 Formatting
         ax0.set_title("Various Norm Curves in Absolute Scale")
-        ax0.set_ylim((-10 ** 0, 10 ** 2.2))
+        ax0.set_ylim((-(10**0), 10**2.2))
         ax0.set_xlim((0, 1.85))
 
-        ax0.axvline(self.vig_radius_rr, ls=':', c='lightgrey')
-        ax0.annotate("Top Curve L:\n{}".format(self.norm_curve_max_bottom_name), (0.025, 0.3),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-        ax0.annotate("Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name), (0.025, 0.2),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-        ax0.annotate("Top Curve R:\n{}".format(self.norm_curve_max_top_name), (0.65, 0.9),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
-        ax0.annotate("Bot Curve R:\n{}".format(self.norm_curve_min_top_name), (0.65, 0.8),
-                     xycoords='axes fraction', fontsize='medium', color='k')  # , horizontalalignment='center')
+        ax0.axvline(self.vig_radius_rr, ls=":", c="lightgrey")
+        ax0.annotate(
+            "Top Curve L:\n{}".format(self.norm_curve_max_bottom_name),
+            (0.025, 0.3),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
+        ax0.annotate(
+            "Bot Curve L:\n{}".format(self.norm_curve_min_bottom_name),
+            (0.025, 0.2),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
+        ax0.annotate(
+            "Top Curve R:\n{}".format(self.norm_curve_max_top_name),
+            (0.65, 0.9),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
+        ax0.annotate(
+            "Bot Curve R:\n{}".format(self.norm_curve_min_top_name),
+            (0.65, 0.8),
+            xycoords="axes fraction",
+            fontsize="medium",
+            color="k",
+        )  # , horizontalalignment='center')
 
         # ax0.legend()
         import matplotlib as mpl
 
-        ax0.set_yscale('symlog')
+        ax0.set_yscale("symlog")
         ax0.set_ylabel(r"Absolute Intensity (Counts)")
 
         ## Plot 1 Formatting
@@ -935,9 +1125,16 @@ class RHEProcessor(Processor):
         ax1.set_title("")
         ax1.set_yscale("symlog")
         ax1.set_ylim((-0.5, 20))
-        ax1.legend(markerscale=4., handletextpad=0.2, borderaxespad=0.3, scatteryoffsets=[0.55])
+        ax1.legend(
+            markerscale=4.0,
+            handletextpad=0.2,
+            borderaxespad=0.3,
+            scatteryoffsets=[0.55],
+        )
 
-        ax1.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x >= 1 else x))
+        ax1.yaxis.set_major_formatter(
+            mpl.ticker.FuncFormatter(lambda x, pos: int(x) if x >= 1 else x)
+        )
         fig.set_size_inches(7, 11)
         #         fig.set_size_inches(7, 14)
 
@@ -955,12 +1152,11 @@ class RHEProcessor(Processor):
             except OSError as e:
                 if first:
                     print("\n\n", e)
-                    print("  !!!!!!! Close the Dang Plot!", end='')
+                    print("  !!!!!!! Close the Dang Plot!", end="")
                     first = False
-                print('.', end='')
+                print(".", end="")
 
     def save_radial_figures(self, do=False, fig=None, ax=None, show=False):
-
         if do:
             save_path_1, save_path_2 = self.params.get_pre_radial_fig_paths()
 
@@ -990,4 +1186,3 @@ class RHEProcessor(Processor):
 
         out = np.array((xBox, yBox))
         return out
-

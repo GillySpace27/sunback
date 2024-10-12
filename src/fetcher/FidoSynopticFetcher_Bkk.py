@@ -15,10 +15,12 @@ from src.utils.time_util import (
     define_recent_range,
 )
 from src.fetcher.Fetcher import Fetcher
+from src.fetcher.FidoFetcher import FidoFetcher
+
 from src.processor.SunPyProcessor import AIA_PREP_Processor
 
 # Constants
-default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"
+default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/"
 jsoc_email = "chris.gilly@colorado.edu"
 global_verbosity = False
 
@@ -28,10 +30,11 @@ def vprint(message, verbose=None, global_verbosity=global_verbosity, *args, **kw
         print(message, *args, **kwargs)
 
 
-class FidoFetcher(Fetcher):
+class FidoSynopticFetcher(Fetcher):
     description = "Get Fits Files from the Internet using Fido"
     verbose = True
-    filt_name = "Fido Fetcher"
+    verb = True
+    filt_name = "Fido Synoptic Fetcher"
     num_files_needed = None
     batch_id = 0
     needed_files = None
@@ -78,6 +81,7 @@ class FidoFetcher(Fetcher):
         pass
 
     def fido_get_fits(self, current_wave, temp=False):
+        print("Synoptic Fetcher")
         self.load(self.params, wave=current_wave)
         have_file = self.determine_image_path() is not False
         # vprint("\r          ")
@@ -112,12 +116,13 @@ class FidoFetcher(Fetcher):
             print("\n     No Images Found\n")
 
     def fido_check_for_fits(self, verb=None):
-        """Find the science images"""
+        """Find the synoptic science images using Fido."""
         from astropy import units as u
+        from sunpy.net import Fido, attrs as a
 
         self.verb = self.verb or verb
         vprint(
-            "\n *   Looking for Images of {} from {} to {} with {:0.3} or {:0.3} cadence...".format(
+            "\n *   Looking for Synoptic Images of {} from {} to {} with {:0.3} or {:0.3} cadence...".format(
                 self.params.current_wave(),
                 self.params.start_time_string,
                 self.params.end_time_string,
@@ -128,25 +133,30 @@ class FidoFetcher(Fetcher):
             end="",
             verb=self.verb,
         )
-        jsoc_email = "chris.gilly@colorado.edu"
-
-        # Make the base required attributes
-        time_attr = attrs.Time(self.params.start_time, self.params.end_time)
-        wave_attr = attrs.Wavelength(int(self.params.current_wave()) * u.angstrom)
-        sample_attr = attrs.Sample(self.params.cadence_minutes())
+        # Define the base required attributes
+        time_attr = a.Time(self.params.start_time, self.params.end_time)
+        wave_attr = a.Wavelength(int(self.params.current_wave()) * u.angstrom)
+        sample_attr = a.Sample(self.params.cadence_minutes())
         base_attrs = time_attr & wave_attr & sample_attr
 
-        if self.params.do_recent():
-            inst_attr = attrs.Instrument.aia
-        else:
-            inst_attr = (
-                attrs.jsoc.Series.aia_lev1_euv_12s
-                & attrs.jsoc.Notify(jsoc_email)
-                & attrs.jsoc.Segment.image
-            )
+        from src.fetcher.AIASynopticClient import AIASynopticData
+
+        # Define the instrument attribute based on the data requirements
+        # if self.params.do_recent():
+        inst_attr = (
+            a.Instrument("AIA") & AIASynopticData()
+        )  # Ensuring we use low-resolution synoptic data
+        # else:
+        #     inst_attr = (
+        #         a.jsoc.Series("aia_synoptic")
+        #         a.jsoc.Notify(jsoc_email)
+        #         & a.jsoc.Segment.image
+        #     )
 
         print(".", end=None)
         fido_search_result = Fido.search(base_attrs, inst_attr)
+        if self.verb:
+            print(fido_search_result)
         self.fido_search_result = fido_search_result
         self.fido_search_found_num = self.fido_search_result.file_num
 
@@ -211,8 +221,10 @@ class FidoFetcher(Fetcher):
 
     def fido_download_fits_ensured(self, temp=False, hold=False, ensured=True):
         """Download the files from fido_search_result"""
-
-        self.SubDownloader = Downloader(progress=True, max_conn=10, overwrite=False)
+        print("A second downloader script")
+        self.SubDownloader = Downloader(
+            progress=True, max_conn=50, overwrite=self.reprocess_mode
+        )
 
         self.out_path = (
             self.params.temp_directory() if temp else self.params.fits_directory()
@@ -344,16 +356,26 @@ class FidoFetcher(Fetcher):
             all_times = all_times[0]
 
         for result in all_times:
-            try:
-                try:
-                    start_time_list.append(result["T_REC"])
-                except Exception as e:
-                    start_time_list.append(result["T_REC"][0])
-                    raise e
-            except KeyError:
-                start_time_list.append(result["Start Time"].value)
+            print(
+                f"Available keys: {result.keys()}"
+            )  # This will list all the fields in the result
 
-            # end_time_list.append(result.time.pointing_end)
+            try:
+                start_time_list.append(result["T_REC"])
+            except KeyError:
+                print("KeyError: 'T_REC' not found, trying alternative keys.")
+                try:
+                    start_time_list.append(result["DATE-OBS"])
+                except KeyError:
+                    print(
+                        "KeyError: 'DATE-OBS' also not found, checking other possible keys."
+                    )
+                    try:
+                        start_time_list.append(result["Start Time"].value)
+                    except KeyError:
+                        print(
+                            f"No suitable time field found in the result: {result.keys()}"
+                        )
 
         times = sorted(start_time_list)
         time_start = times[0]
