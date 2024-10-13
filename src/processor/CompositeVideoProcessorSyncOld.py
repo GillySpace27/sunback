@@ -9,8 +9,6 @@ from skimage.transform import resize
 from collections import defaultdict
 from src.processor.Processor import Processor
 from datetime import datetime
-from pathlib import Path
-import logging
 
 
 class CompositeVideoProcessor(Processor):
@@ -23,7 +21,6 @@ class CompositeVideoProcessor(Processor):
     progress_unit = "frames"
     progress_text = progress_string
     process_done = False  # Flag to indicate if the process has completed
-    ii = 0
 
     def __init__(
         self,
@@ -56,40 +53,65 @@ class CompositeVideoProcessor(Processor):
             if match:
                 date = match.group(1)  # YYYYMMDD part
                 time = match.group(2)  # HHMM part
-                return datetime.strptime(f"{date}T{time[:2]}", "%Y%m%dT%H")
-        return datetime.strptime(match.group(0), "%Y-%m-%dT%H") if match else None
+                return f"{date[:4]}-{date[4:6]}-{date[6:8]}T{time[:2]}"
+        return match.group(0) if match else None
 
     def collect_fits_paths(self, wavelengths, cadence_threshold_minutes=5):
         """Collect paths to FITS files from each wavelength's 'fits' directory."""
-        base_dir = Path(self.params.base_directory()).parent
-        logging.info(f"Looking for FITS files in base directory: {base_dir}")
+        base_dir = os.path.dirname(self.params.base_directory())
 
         # Step 1: Collect files and timestamps for each wavelength
         for wavelength in wavelengths:
-            fits_dir = base_dir / f"{wavelength:04d}" / "imgs" / "fits"
-            logging.info(f"Checking FITS directory: {fits_dir}")
-
-            if fits_dir.exists():
+            fits_dir = os.path.join(base_dir, f"{wavelength:04d}", "imgs", "fits")
+            if os.path.exists(fits_dir):
                 fits_files = sorted(
-                    fits_dir.glob("*.fits")
-                )  # Directly glob for .fits files
-                logging.info(f"Found {len(fits_files)} FITS files in {fits_dir}")
-
+                    [
+                        os.path.join(fits_dir, f)
+                        for f in os.listdir(fits_dir)
+                        if f.endswith(".fits")
+                    ]
+                )
                 for file_path in fits_files:
-                    logging.info(f"Processing file: {file_path}")
-                    timestamp = self.extract_timestamp(file_path.name)
+                    timestamp = self.extract_timestamp(file_path)
                     if timestamp:
-                        timestamp_str = timestamp.strftime("%Y-%m-%dT%H")
-                        if timestamp_str not in self.good_paths:
-                            self.good_paths[timestamp_str] = {}
-                        self.good_paths[timestamp_str][wavelength] = str(file_path)
-                    else:
-                        logging.warning(f"Timestamp extraction failed for {file_path}")
+                        # Initialize the timestamp key if not already present
+                        if timestamp not in self.good_paths:
+                            self.good_paths[timestamp] = {}
+                        self.good_paths[timestamp][wavelength] = file_path
 
-        if not self.good_paths:
-            logging.error("No valid FITS paths were found after collection.")
-        else:
-            logging.info(f"Collected FITS paths for {len(self.good_paths)} timestamps.")
+        # Step 2: Filter out timestamps missing files from any wavelength
+        complete_timestamps = {
+            timestamp: paths
+            for timestamp, paths in self.good_paths.items()
+            if len(paths) == 3  # Ensure all wavelengths have a file at this timestamp
+        }
+
+        # Step 3: Check if the timestamps are within the cadence threshold
+        def parse_timestamp(ts):
+            """Helper function to convert timestamp strings to datetime objects."""
+            return datetime.strptime(ts, "%Y-%m-%dT%H")
+
+        valid_timestamps = {}
+        for timestamp, paths in complete_timestamps.items():
+            timestamps = [
+                parse_timestamp(ts)
+                for ts in self.good_paths.keys()
+                if len(self.good_paths[ts]) == 3
+            ]
+            timestamps.sort()
+
+            # Check that all timestamps are within the cadence threshold
+            for i in range(1, len(timestamps)):
+                time_diff = (
+                    timestamps[i] - timestamps[i - 1]
+                ).total_seconds() / 60  # Convert to minutes
+                if time_diff <= cadence_threshold_minutes:
+                    valid_timestamps[timestamp] = paths
+
+        # Step 4: Update good_paths to only keep valid timestamps
+        self.good_paths = valid_timestamps
+
+        return self.good_paths  # Return the synchronized paths for further use
 
     def do_work(self):
         """Main method to execute the composite video generation process."""
@@ -98,19 +120,7 @@ class CompositeVideoProcessor(Processor):
             return
 
         wavelengths = [self.iR, self.iG, self.iB]  # Use dynamically set wavelengths
-        logging.info(f"Collecting FITS paths for wavelengths: {wavelengths}")
-
-        # Collect the FITS paths to process
-        self.collect_fits_paths(wavelengths)
-
-        # Check if valid paths were collected
-        if not self.good_paths:
-            logging.error("No valid FITS paths were found after collection.")
-            return
-
-        # Log the number of valid timestamps found
-        logging.info(f"Found {len(self.good_paths)} valid timestamps with FITS files.")
-
+        self.collect_fits_paths(wavelengths)  # Collect the FITS paths to process
         video_writer = self.init_writer()
         if video_writer:
             self.run_composite_video_writer(video_writer)
@@ -123,16 +133,12 @@ class CompositeVideoProcessor(Processor):
         if not self.frame_shape:
             if len(self.good_paths) > 0:
                 # Use the first valid file to set the frame shape
-                sample_file = list(self.good_paths.values())[0].get(self.iR)
-                if sample_file:
-                    with fits.open(sample_file) as hdul:
-                        data = hdul[-1].data
-                        self.frame_shape = (data.shape[1], data.shape[0])
-                else:
-                    logging.error("No valid FITS files found to determine frame shape.")
-                    return None
+                sample_file = list(self.good_paths.values())[0][self.iR]
+                with fits.open(sample_file) as hdul:
+                    data = hdul[-1].data
+                    self.frame_shape = (data.shape[1], data.shape[0])
             else:
-                logging.error("No valid FITS paths to determine frame shape.")
+                print("Error: No valid FITS files found to determine frame shape.")
                 return None
 
         return cv2.VideoWriter(
@@ -146,14 +152,21 @@ class CompositeVideoProcessor(Processor):
         """Build the path to the composite video."""
         batch_name = self.params.config["name"]
         file_name = f"{batch_name}_composite_video.{self.mov_type}"
-        self.final_output_path = Path(self.params.movs_directory()).parent / file_name
-        self.rainbow_path = self.final_output_path.parent / "rainbow"
-        self.rainbow_path.mkdir(parents=True, exist_ok=True)
+        self.final_output_path = os.path.abspath(
+            os.path.join(self.params.movs_directory(), "../../", file_name)
+        )
+        thepath = os.path.dirname(self.final_output_path)
+        self.rainbow_path = f"{thepath}/rainbow"
+        os.makedirs(self.rainbow_path, exist_ok=True)
         return self.final_output_path
 
     def run_composite_video_writer(self, video_writer):
         """Generate the composite video file using the synchronized frames."""
-        last_valid_data = {self.iR: None, self.iG: None, self.iB: None}
+        last_valid_data = {
+            self.iR: None,
+            self.iG: None,
+            self.iB: None,
+        }  # Store last valid frame data for each wavelength
 
         for timestamp, paths in tqdm(
             self.good_paths.items(), desc=self.progress_text, unit="frames"
@@ -191,16 +204,12 @@ class CompositeVideoProcessor(Processor):
                 img_8bit = img_rgb.astype(np.uint8)  # Convert to 8-bit
 
                 video_writer.write(img_8bit)
-
-                # if os.path.exists(self.final_output_path):
-                print(f"Saved to: {self.final_output_path}")
-
             except Exception as e:
-                logging.error(f"Error processing frame for timestamp {timestamp}: {e}")
+                print(f"Error processing frame for timestamp {timestamp}: {e}")
                 self.skipped += 1
 
         video_writer.release()
-        logging.info(
+        print(
             f" ^    Successfully {self.finished_verb} with {len(self.good_paths) - self.skipped} frames! ({self.skipped} skipped)"
         )
 
@@ -230,11 +239,18 @@ class CompositeVideoProcessor(Processor):
         """Resize data to match the target shape using block_reduce for efficiency."""
         from skimage.measure import block_reduce
 
-        target_shape = (sz, sz) if sz else self.frame_shape
+        # Determine the target shape for resizing, defaulting to self.frame_shape if sz is not provided
+        target_shape = (
+            (sz, sz) if sz is not None else (self.frame_shape[0], self.frame_shape[1])
+        )
+
+        # Calculate the block size for block_reduce based on the target shape
         blk_reduce = (
             data.shape[0] // target_shape[0],
             data.shape[1] // target_shape[1],
         )
 
+        # Use block_reduce for efficient resizing
         data_resized = block_reduce(data, blk_reduce, np.mean)
+
         return data_resized

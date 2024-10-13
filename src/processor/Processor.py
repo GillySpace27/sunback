@@ -639,14 +639,19 @@ class Processor:
 
             # Step 3: Attempt to create and verify the SunPy Map
             try:
-                self.raw_map = sunpy.map.Map(
-                    (self.params.raw_image, self.params.header)
-                )
+                # with fits.open(fits_path) as hdul:
+                #     # Access the header from the primary HDU
+                #     header = hdul[0].header
+
+                #     # Verify and fix any issues with the header
+                #     header.verify("fix")
+
+                self.raw_map = sunpy.map.Map(fits_path)[-1]
                 # self.raw_map.validate()
                 # self.raw_map.verify("fix")
 
             except Exception as e:  # (MetaDataMissingError, MetaDataParseError):
-                print(e)
+                print("thing: " + str(e))
                 # Attempt to fix the FITS header
                 if self.fix_fits_header(fits_path):
                     self.fixed_fits_count += 1  # Increment fixed files counter

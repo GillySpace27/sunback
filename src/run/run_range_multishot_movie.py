@@ -52,10 +52,11 @@ all_wavelengths = [
     "0304",
     "0171",
 ]
-do_wavelengths = all_wavelengths  # ['0211']
-do_wavelengths = ["0304", "0335", "1600"]  # , "0193", "0211"]
+# do_wavelengths = all_wavelengths  # ['0211']
+# do_wavelengths = ["0304", "0335", "1600"]  # , "0193", "0211"]
 do_wavelengths = ["0171", "0304", "0211"]  # , "0193", "0211"]
 PNG_FRAME_NAME = "rhef"
+RHE_TARGETS = "compressed_image"
 # wave_to_use = '0211'
 
 
@@ -71,14 +72,14 @@ def run_range_multishot_movie(
     p.destroy = True
     p.do_parallel = False
     p.do_orig = False
-    p.rhe_targets(["compressed_image"])
+    p.rhe_targets([RHE_TARGETS])
     # p.init_pool(6)
 
     # Set the Processes
     # p.fetchers(FidoFetcher, rp=True)  # Gets Fits FIDO
     # p.fetchers(FidoSynopticFetcher, rp=True)  # Gets Fits FIDO
     # p.processors([RHEFProcessor], rp=False)
-    # p.processors([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
+    # p.processors([ImageProcessorCV], rp=False)  # Makes the PNGs from Fits
     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
     # p.putters([CompositeVideoProcessor], rp=False)  # Makes the PNGs into a Movie
 
@@ -94,6 +95,21 @@ def run_range_multishot_movie(
 def make_configs(wave_to_use):
     c19 = {
         "name": "Smol2",
+        "debug": True,
+        "do_one": None,
+        "stop": False,
+        "tstart": "2014/01/01 07:00:00",
+        "tend": "2014/12/31 07:00:00",
+        "cadence_minutes": 60 * 6,
+        "fps": 12,
+        "exposure_time": 12 * 10,
+        "key_fixed_cadence": None,
+        "key_fixed_number": 100,
+        "time_preset": None,
+    }
+
+    c20 = {
+        "name": "HDT",
         "debug": True,
         "do_one": "0304",
         "stop": True,
@@ -438,6 +454,7 @@ def make_configs(wave_to_use):
         c18["name"]: c18,
         c18["name"]: c18,
         c19["name"]: c19,
+        c20["name"]: c20,
         c100["name"]: c100,
     }
     return ConfigDict

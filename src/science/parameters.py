@@ -44,8 +44,8 @@ class Parameters:
             "lev1p5",
             "t_int",
             "lev1p0",
-            "primary",
             "compressed_image",
+            "primary",
             "",
         ]
         self.master_frame_list_oldest = [

@@ -207,7 +207,7 @@ class ImageProcessorCV(ImageProcessor):
 
         self.frame = np.flipud(frame)
         alpha = None
-        if False:
+        if False:  # UPSILON HERE
             self.params.alpha_high = self.params.alpha_low = alpha = 1.1
             self.frame = norm_stretch(self.frame, alpha=alpha)
 
