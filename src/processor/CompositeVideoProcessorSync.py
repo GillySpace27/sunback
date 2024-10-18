@@ -12,6 +12,8 @@ from datetime import datetime
 from pathlib import Path
 import logging
 
+from datetime import timedelta
+
 
 class CompositeVideoProcessor(Processor):
     mov_type = "avi"
@@ -31,8 +33,8 @@ class CompositeVideoProcessor(Processor):
         quick=False,
         rp=None,
         fill_missing_frames=False,
-        iR=304,
-        iG=171,
+        iR=171,
+        iG=193,
         iB=211,
     ):
         super().__init__(params, quick, rp)
@@ -56,18 +58,30 @@ class CompositeVideoProcessor(Processor):
             if match:
                 date = match.group(1)  # YYYYMMDD part
                 time = match.group(2)  # HHMM part
-                return datetime.strptime(f"{date}T{time[:2]}", "%Y%m%dT%H")
-        return datetime.strptime(match.group(0), "%Y-%m-%dT%H") if match else None
+                return datetime.strptime(f"{date}T{time[:2]}", "%Y%m%dT%H%M")
+        return datetime.strptime(match.group(0), "%Y-%m-%dT%H%M") if match else None
 
-    def collect_fits_paths(self, wavelengths, cadence_threshold_minutes=5):
+    @staticmethod
+    def round_to_nearest_cadence(timestamp, cadence_minutes=2):
+        """Round timestamp to the nearest specified cadence in minutes."""
+        cadence = timedelta(minutes=cadence_minutes)
+        # Calculate the difference in seconds and round
+        seconds_since_epoch = (timestamp - datetime(1970, 1, 1)).total_seconds()
+        rounded_seconds = (
+            round(seconds_since_epoch / cadence.total_seconds())
+            * cadence.total_seconds()
+        )
+        return datetime(1970, 1, 1) + timedelta(seconds=rounded_seconds)
+
+    def collect_fits_paths(self, wavelengths, cadence_threshold_minutes=2):
         """Collect paths to FITS files from each wavelength's 'fits' directory."""
         base_dir = Path(self.params.base_directory()).parent
-        logging.info(f"Looking for FITS files in base directory: {base_dir}")
+        logging.debug(f"Looking for FITS files in base directory: {base_dir}")
 
         # Step 1: Collect files and timestamps for each wavelength
         for wavelength in wavelengths:
             fits_dir = base_dir / f"{wavelength:04d}" / "imgs" / "fits"
-            logging.info(f"Checking FITS directory: {fits_dir}")
+            logging.debug(f"Checking FITS directory: {fits_dir}")
 
             if fits_dir.exists():
                 fits_files = sorted(
@@ -76,13 +90,16 @@ class CompositeVideoProcessor(Processor):
                 logging.info(f"Found {len(fits_files)} FITS files in {fits_dir}")
 
                 for file_path in fits_files:
-                    logging.info(f"Processing file: {file_path}")
+                    logging.debug(f"Processing file: {file_path}")
                     timestamp = self.extract_timestamp(file_path.name)
                     if timestamp:
-                        timestamp_str = timestamp.strftime("%Y-%m-%dT%H")
-                        if timestamp_str not in self.good_paths:
-                            self.good_paths[timestamp_str] = {}
-                        self.good_paths[timestamp_str][wavelength] = str(file_path)
+                        # Round timestamp to the nearest 2-minute cadence
+                        rounded_timestamp = self.round_to_nearest_cadence(
+                            timestamp, cadence_threshold_minutes
+                        )
+                        if rounded_timestamp not in self.good_paths:
+                            self.good_paths[rounded_timestamp] = {}
+                        self.good_paths[rounded_timestamp][wavelength] = str(file_path)
                     else:
                         logging.warning(f"Timestamp extraction failed for {file_path}")
 
@@ -90,6 +107,38 @@ class CompositeVideoProcessor(Processor):
             logging.error("No valid FITS paths were found after collection.")
         else:
             logging.info(f"Collected FITS paths for {len(self.good_paths)} timestamps.")
+
+    # def collect_fits_paths(self, wavelengths, cadence_threshold_minutes=5):
+    #     """Collect paths to FITS files from each wavelength's 'fits' directory."""
+    #     base_dir = Path(self.params.base_directory()).parent
+    #     logging.debug(f"Looking for FITS files in base directory: {base_dir}")
+
+    #     # Step 1: Collect files and timestamps for each wavelength
+    #     for wavelength in wavelengths:
+    #         fits_dir = base_dir / f"{wavelength:04d}" / "imgs" / "fits"
+    #         logging.debug(f"Checking FITS directory: {fits_dir}")
+
+    #         if fits_dir.exists():
+    #             fits_files = sorted(
+    #                 fits_dir.glob("*.fits")
+    #             )  # Directly glob for .fits files
+    #             logging.info(f"Found {len(fits_files)} FITS files in {fits_dir}")
+
+    #             for file_path in fits_files:
+    #                 logging.debug(f"Processing file: {file_path}")
+    #                 timestamp = self.extract_timestamp(file_path.name)
+    #                 if timestamp:
+    #                     timestamp_str = timestamp.strftime("%Y%m%d%H%M")
+    #                     if timestamp_str not in self.good_paths:
+    #                         self.good_paths[timestamp_str] = {}
+    #                     self.good_paths[timestamp_str][wavelength] = str(file_path)
+    #                 else:
+    #                     logging.warning(f"Timestamp extraction failed for {file_path}")
+
+    #     if not self.good_paths:
+    #         logging.error("No valid FITS paths were found after collection.")
+    #     else:
+    #         logging.info(f"Collected FITS paths for {len(self.good_paths)} timestamps.")
 
     def do_work(self):
         """Main method to execute the composite video generation process."""
@@ -147,8 +196,9 @@ class CompositeVideoProcessor(Processor):
         batch_name = self.params.config["name"]
         file_name = f"{batch_name}_composite_video.{self.mov_type}"
         self.final_output_path = Path(self.params.movs_directory()).parent / file_name
-        self.rainbow_path = self.final_output_path.parent / "rainbow"
+        self.rainbow_path = self.final_output_path.parent.parent / "rainbow"
         self.rainbow_path.mkdir(parents=True, exist_ok=True)
+        self.final_output_path = self.rainbow_path
         return self.final_output_path
 
     def run_composite_video_writer(self, video_writer):

@@ -54,21 +54,25 @@ all_wavelengths = [
 ]
 # do_wavelengths = all_wavelengths  # ['0211']
 # do_wavelengths = ["0304", "0335", "1600"]  # , "0193", "0211"]
-do_wavelengths = ["0171", "0304", "0211"]  # , "0193", "0211"]
+do_wavelengths = ["0211"]  # , "0193", "0211"]
 PNG_FRAME_NAME = "rhef"
 RHE_TARGETS = "compressed_image"
 # wave_to_use = '0211'
 
 
 def run_range_multishot_movie(
-    batch_name="Smol2", wave=None, config=None, wave_to_use=None, alpha=0.35
+    batch_name="Synoptic_Composite",
+    wave=None,
+    config=None,
+    wave_to_use=None,
+    alpha=0.35,
 ):
     # Set the Parameters
     p = make_params(batch_name, wave, config, wave_to_use)
     p.do_recent(False)
     p.do_prep = False  # do AIA prep upon download of each frame
     p.alpha = alpha
-
+    p.do_one(wave_to_use, True)
     p.destroy = True
     p.do_parallel = False
     p.do_orig = False
@@ -77,11 +81,11 @@ def run_range_multishot_movie(
 
     # Set the Processes
     # p.fetchers(FidoFetcher, rp=True)  # Gets Fits FIDO
-    # p.fetchers(FidoSynopticFetcher, rp=True)  # Gets Fits FIDO
+    # p.fetchers(FidoSynopticFetcher, rp=False)  # Gets Fits FIDO
     # p.processors([RHEFProcessor], rp=False)
-    # p.processors([ImageProcessorCV], rp=False)  # Makes the PNGs from Fits
-    p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
-    # p.putters([CompositeVideoProcessor], rp=False)  # Makes the PNGs into a Movie
+    # p.processors([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
+    # p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
+    p.putters([CompositeVideoProcessor], rp=False)  # Makes the PNGs into a Movie
 
     # p.processors([FidoTimeIntProcessor],    rp=False)   # Integrate several frames for S/N
 
@@ -93,6 +97,21 @@ def run_range_multishot_movie(
 
 
 def make_configs(wave_to_use):
+    c21 = {
+        "name": "Synoptic_Composite",
+        "debug": True,
+        "do_one": None,
+        "stop": True,
+        "tstart": "2013/10/31 07:00:00",
+        "tend": "2013/11/01 07:00:00",
+        "cadence_minutes": 60 * 6,
+        "fps": 90,
+        "exposure_time": 12 * 10,
+        "key_fixed_cadence": None,
+        "key_fixed_number": 100,
+        "time_preset": None,
+    }
+
     c19 = {
         "name": "Smol2",
         "debug": True,
@@ -113,9 +132,9 @@ def make_configs(wave_to_use):
         "debug": True,
         "do_one": "0304",
         "stop": True,
-        "tstart": "2014/01/01 07:00:00",
-        "tend": "2014/12/31 07:00:00",
-        "cadence_minutes": 60 * 6,
+        "tstart": "2013/01/01 07:00:00",
+        "tend": "2013/01/02 07:00:00",
+        "cadence_minutes": 2,
         "fps": 12,
         "exposure_time": 12 * 10,
         "key_fixed_cadence": None,
@@ -455,6 +474,7 @@ def make_configs(wave_to_use):
         c18["name"]: c18,
         c19["name"]: c19,
         c20["name"]: c20,
+        c21["name"]: c21,
         c100["name"]: c100,
     }
     return ConfigDict
@@ -507,14 +527,14 @@ def make_params(batch_name=None, wave=None, config=None, wave_to_use=None):
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    import numpy as np
+    # import numpy as np
 
     for wave_to_use in do_wavelengths:
-        #     for alpha in np.linspace(0.25,0.5,20):
-        #         run_range_multishot_movie(wave_to_use=wave_to_use, alpha=alpha)
-        #         # break
         run_range_multishot_movie(wave_to_use=wave_to_use)
-        break
+    #     for alpha in np.linspace(0.25,0.5,20):
+    #         run_range_multishot_movie(wave_to_use=wave_to_use, alpha=alpha)
+    #         # break
+    # break
 
 
 # def run_range_multishot_movie(debug=True, do_one='0304', stop=True,
