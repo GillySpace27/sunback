@@ -677,7 +677,8 @@ class Processor:
             # Step 4: Perform the designated processing work
             out = self.do_work()
             return out
-
+        except StopIteration as e:
+            raise e
         except Exception as e:
             raise e
             # Catch-all for any unexpected errors; optionally, you can log these
@@ -781,14 +782,16 @@ class Processor:
         """Apply the function to all necessary fits files"""
         n_fits_path = len(self.keyframes)
         self.skipped = 0
-
-        if n_fits_path > 0:
-            self.setup()
-            parallel = self.params.do_parallel
-            if parallel:
-                self.parallel_fits_series()
-            else:
-                self.serial_fits_series()
+        try:
+            if n_fits_path > 0:
+                self.setup()
+                parallel = self.params.do_parallel
+                if parallel:
+                    self.parallel_fits_series()
+                else:
+                    self.serial_fits_series()
+        except StopIteration:
+            return
 
     def print_success(self):
         if not self.do_print_success:
