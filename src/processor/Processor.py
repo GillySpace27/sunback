@@ -646,7 +646,11 @@ class Processor:
                 #     # Verify and fix any issues with the header
                 #     header.verify("fix")
 
-                self.raw_map = sunpy.map.Map(fits_path)[-1]
+                self.raw_map = sunpy.map.Map(fits_path)
+                if isinstance(self.raw_map, list):
+                    self.raw_map = self.raw_map[-1]
+
+                # self.raw_map = sunpy.map.Map(fits_path)  # [-1]
                 # self.raw_map.validate()
                 # self.raw_map.verify("fix")
 
