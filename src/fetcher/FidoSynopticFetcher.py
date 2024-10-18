@@ -87,9 +87,9 @@ class FidoSynopticFetcher(Fetcher):
         time_attr = a.Time(self.params.start_time, self.params.end_time)
         wave_attr = a.Wavelength(int(self.params.current_wave()) * u.angstrom)
         sample_attr = a.Sample(self.params.cadence_minutes())
-        inst_attr = a.Instrument("AIA") & AIASynopticData()
+        inst_attr = a.Instrument("AIASynoptic")
 
-        query = time_attr & wave_attr & sample_attr & inst_attr
+        query = time_attr & wave_attr & inst_attr
         fido_search_result = Fido.search(query)
 
         if self.verb:
@@ -254,7 +254,7 @@ class FidoSynopticFetcher(Fetcher):
 
         # Estimate total download size
         total_size_bytes = 0
-        estimated_size_per_file = 0.5 * 1024 * 1024  # 0.5 MB in bytes
+        estimated_size_per_file = 1.15 * 1024 * 1024  # 0.5 MB in bytes
         total_size_bytes = self.fido_search_found_num * estimated_size_per_file
         total_size_mb = total_size_bytes / (1024 * 1024)  # Convert bytes to megabytes
 
