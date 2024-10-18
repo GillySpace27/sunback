@@ -140,3 +140,4 @@ settings.json
 
 rainbow/*.png
 *.fits
+.git-backup/*

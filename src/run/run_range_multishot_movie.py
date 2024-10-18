@@ -22,7 +22,7 @@ from src.processor.SunPyProcessor import AIA_PREP_Processor, RHEFProcessor
 from src.processor.ValidationProcessor import ValidationProcessor
 from src.processor.VideoProcessor import VideoProcessor
 from src.processor.Processor import Processor
-from src.processor.CompositeVideoProcessorSync import CompositeVideoProcessor
+from src.processor.CompositeVideoProcessorSync import RGBImageProcessor, RGBVideoWriterProcessor
 
 wv = Processor.write_video_in_directory
 from src.science.parameters import Parameters
@@ -54,7 +54,8 @@ all_wavelengths = [
 ]
 # do_wavelengths = all_wavelengths  # ['0211']
 # do_wavelengths = ["0304", "0335", "1600"]  # , "0193", "0211"]
-do_wavelengths = ["0211"]  # , "0193", "0211"]
+do_wavelengths_str = ["0171", "0193", "0171"]
+do_wavelengths = [f"{int(wv):04d}" for wv in do_wavelengths_str]
 PNG_FRAME_NAME = "rhef"
 RHE_TARGETS = "compressed_image"
 # wave_to_use = '0211'
@@ -77,7 +78,7 @@ def run_range_multishot_movie(
     p.do_parallel = False
     p.do_orig = False
     p.rhe_targets([RHE_TARGETS])
-    # p.init_pool(6)
+    p.init_pool(10)
 
     # Set the Processes
     # p.fetchers(FidoFetcher, rp=True)  # Gets Fits FIDO
@@ -85,7 +86,8 @@ def run_range_multishot_movie(
     # p.processors([RHEFProcessor], rp=False)
     # p.processors([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
     # p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
-    p.putters([CompositeVideoProcessor], rp=False)  # Makes the PNGs into a Movie
+    # p.putters([RGBImageProcessor], rp=True)  # Makes the PNGs into a Movie
+    p.putters([RGBVideoWriterProcessor], rp=True)  # Makes the PNGs into a Movie
 
     # p.processors([FidoTimeIntProcessor],    rp=False)   # Integrate several frames for S/N
 
@@ -97,6 +99,21 @@ def run_range_multishot_movie(
 
 
 def make_configs(wave_to_use):
+    c22 = {
+        "name": "Lowder_Frame",
+        "debug": True,
+        "do_one": "0171",
+        "stop": True,
+        "tstart": "2014/04/18 12:52:16",
+        "tend": "2014/04/18 12:52:20",
+        "cadence_minutes": 60 * 6,
+        "fps": 45,
+        "exposure_time": 12 * 10,
+        "key_fixed_cadence": None,
+        "key_fixed_number": 100,
+        "time_preset": None,
+    }
+
     c21 = {
         "name": "Synoptic_Composite",
         "debug": True,
@@ -105,7 +122,7 @@ def make_configs(wave_to_use):
         "tstart": "2013/10/31 07:00:00",
         "tend": "2013/11/01 07:00:00",
         "cadence_minutes": 60 * 6,
-        "fps": 90,
+        "fps": 45,
         "exposure_time": 12 * 10,
         "key_fixed_cadence": None,
         "key_fixed_number": 100,
@@ -475,6 +492,7 @@ def make_configs(wave_to_use):
         c19["name"]: c19,
         c20["name"]: c20,
         c21["name"]: c21,
+        c22["name"]: c22,
         c100["name"]: c100,
     }
     return ConfigDict

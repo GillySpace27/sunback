@@ -83,7 +83,7 @@ class ImageProcessor(Processor):
         if True:  # self.params.raw_image is None:
             list_of_inputs = self.params.master_frame_list_oldest
             # frame0, _, _, _, _, name0 = self.load_this_fits_frame(fits_path, list_of_inputs)
-            self.raw_name = self.frame_name + ""
+            self.raw_name = str(self.frame_name)
             frame1, wave1, t_rec1, center1, int_time, name1 = self.load_this_fits_frame(
                 fits_path, str(self.frame_name).casefold()
             )
@@ -110,7 +110,7 @@ class ImageProcessor(Processor):
         else:
             from matplotlib import cm
 
-            self.params.cmap = cm.gray
+            self.params.cmap = cm.gray if self.cmap is None else self.cmap
 
     def image_is_plottable(self, frame_name):
         # return True
@@ -196,7 +196,7 @@ class ImageProcessor(Processor):
             return False  # Don't Skip
         else:
             # If you don't want to overwrite
-            if self.params.png_save_path in self.params.local_imgs_paths():
+            if self.params.png_save_path() in self.params.local_imgs_paths():
                 # Make images you don't already have
                 self.skipped += 1
                 return True  # do skip

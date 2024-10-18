@@ -280,6 +280,7 @@ def many_alphas():
 
 if __name__ == "__main__":
     many_alphas()
+    # demo_plot_many_alphas()
     # many_alphas()
 
     # pass

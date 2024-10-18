@@ -198,6 +198,7 @@ class Processor:
     #         print('      {:15} : \t{:20} : \t{:15}'.format(self.filt_name, self.description, self.duration))
     def put(self, params=None):
         self.process(params)
+        pass
 
     def fetch(self, params=None):
         self.process(params)

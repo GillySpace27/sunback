@@ -42,7 +42,10 @@ class ImageProcessorCV(ImageProcessor):
         self.shrink_factor = 1
         super().__init__(params, quick, rp)
         self.frame_name = self.params.png_frame_name
-        self.params.cmap = aia_color_table(int(self.current_wave) * u.angstrom)
+        self.params.cmap = self.cmap = aia_color_table(
+            int(self.params.current_wave()) * u.angstrom
+        )
+        pass
 
     def do_fits_function(self, fits_path, in_name=None):
         """Main Call on the Fits Path"""
@@ -200,6 +203,7 @@ class ImageProcessorCV(ImageProcessor):
             frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(
                 self.fits_path, frame_name
             )
+
             self.out_path = self.get_changed_path()
             os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
         else:
@@ -656,7 +660,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         else:
             from matplotlib import cm
 
-            self.params.cmap = cm.gray
+            self.params.cmap = cm.greens
 
         # try:
         #     lev1p5_mask = ['lev1p5' in x for x in self.good_frames]
@@ -723,7 +727,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
                 origin="lower",
                 vmin=vmin,
                 vmax=vmax,
-                cmap="grey",  # self.params.cmap,
+                cmap=self.params.cmap,
                 interpolation="None",
             )
 
