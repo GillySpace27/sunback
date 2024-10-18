@@ -42,6 +42,7 @@ class ImageProcessorCV(ImageProcessor):
         self.shrink_factor = 1
         super().__init__(params, quick, rp)
         self.frame_name = self.params.png_frame_name
+        self.params.cmap = aia_color_table(int(self.current_wave) * u.angstrom)
 
     def do_fits_function(self, fits_path, in_name=None):
         """Main Call on the Fits Path"""
