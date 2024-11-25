@@ -4,7 +4,6 @@ import numpy as np
 from astropy.io import fits
 from tqdm import tqdm
 from sunpy.net import Fido, attrs as a
-from parfive import Downloader
 import astropy.units as u
 import warnings
 from contextlib import redirect_stdout, redirect_stderr
@@ -12,15 +11,17 @@ from src.utils.time_util import parse_time_string_to_local
 from src.fetcher.Fetcher import Fetcher
 from src.fetcher.FidoFetcher import FidoFetcher
 from src.fetcher.AIASynopticClient import AIASynopticData, AIASynopticClient
+import asyncio
+import aiohttp
+import time
+import random
 
 # Constants
 global_verbosity = False
 
-
 def vprint(message, verbose=None, global_verbosity=global_verbosity, *args, **kwargs):
     if verbose or global_verbosity:
         print(message, *args, **kwargs)
-
 
 class FidoSynopticFetcher(Fetcher):
     description = "Get FITS Files from the Internet using Fido"
@@ -31,21 +32,20 @@ class FidoSynopticFetcher(Fetcher):
     results = None
     temp_folder = None
     fits_path = None
+    can_do_parallel = True  # Enable parallel processing
 
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
-
-    def setup_fetcher(self, params=None, quick=False, rp=None):
-        self.SubDownloader = None
-        self.reprocess_mode(rp)
-        self.params.load_preset_time_settings()
-        self.set_output_path()  # Set up the output path using batching logic
+        self.urls = []  # To store the list of URLs for parallel processing
 
     def fetch(self, params=None, quick=False, rp=None, verb=True):
         if verb is not None:
             self.verb = verb
+        self.params.do_parallel_init = self.params.do_parallel and True
+        self.params.do_parallel = False
         self.setup_fetcher(params, quick, rp)
         self.fido_get_fits(self.params.current_wave())
+        self.params.do_parallel = self.params.do_parallel_init
 
     def fido_get_fits(self, current_wave):
         """
@@ -70,77 +70,79 @@ class FidoSynopticFetcher(Fetcher):
             vprint(" *\n ^ Using {} Cached FITS Files".format(prnt), self.verb)
 
     def download_fits_series(self):
-        self.params.define_range()
-        self.fido_check_for_fits()
-        if self.fido_search_found_num:
-            self.fido_parse_result()
-            self.download_files_with_retry()
-            self.validate_download()
-        else:
-            print("\n     No Images Found\n")
-
-    def fido_check_for_fits(self, verb=None):
-        """
-        Uses Fido to search for FITS files matching the specified parameters.
-        """
-        self.verb = self.verb or verb
-        time_attr = a.Time(self.params.start_time, self.params.end_time)
-        wave_attr = a.Wavelength(int(self.params.current_wave()) * u.angstrom)
-        sample_attr = a.Sample(self.params.cadence_minutes())
-        inst_attr = a.Instrument("AIASynoptic")
-
-        query = time_attr & wave_attr & inst_attr
-        fido_search_result = Fido.search(query)
-
-        if self.verb:
-            print(fido_search_result)
-        self.fido_search_result = fido_search_result
-        self.fido_search_found_num = len(self.fido_search_result[0])
-
-    def download_files_with_retry(self, max_retries=20, overwrite=True):
-        """Download the files using Fido with retry logic for missed files."""
-        self.SubDownloader = Downloader(
-            progress=True,
-            max_conn=10,
-            overwrite=overwrite,  # self.reprocess_mode
-        )
-        self.set_output_path()  # Use the batching logic to determine the output path
-
+        """Prepare the list of URLs for parallel downloading."""
+        self.set_output_path()
         if not os.path.exists(self.out_path):
             os.makedirs(self.out_path)
 
-        # Use os.path.join to construct the pattern without an f-string
-        pattern = os.path.join(self.out_path, "{file}")
-        print("Pattern: ", pattern)  # For debugging purposes
-        retry_count = 0
-        while retry_count < max_retries:
-            try:
-                self.results = Fido.fetch(
-                    self.fido_search_result,
-                    path=pattern,
-                    downloader=self.SubDownloader,
-                )
-                if len(self.results) == self.fido_search_found_num:
-                    break  # Stop retrying if all files are successfully downloaded
-                else:
-                    vprint(
-                        f"Retrying download: attempt {retry_count + 1}/{max_retries}",
-                        self.verb,
-                    )
-                    self.fido_search_result = self.results
-                    # self.validate_and_cleanup_files()  # Validate the files and retry missing ones
-                    retry_count += 1
-            except KeyboardInterrupt:
-                break
-            except Exception as e:
-                retry_count += 1
-                self.fido_search_result = self.results
-                if retry_count >= max_retries:
-                    print(f"Max retries reached. Error: {e}")
-                else:
-                    print(f"Error encountered, retrying: {e}")
+        # Extract URLs from the Fido search result
+        self.urls = [result_item['url'] for result_item in self.fido_search_result[0]]
 
-        self.multi_banner()
+        # Use parallel_fits_series if parallel processing is enabled
+        if self.params.do_parallel:
+            self.parallel_fits_series()
+        else:
+            self.serial_fits_series()
+
+    def parallel_fits_series(self):
+        """Run parallel downloading using a process pool."""
+        print("Running in Parallel Mode...", end="")
+        self.init_pool_if_needed()
+
+        try:
+            # Using imap_unordered for parallel processing of each URL
+            iter = self.params.multi_pool.imap_unordered(self.download_one_file, self.urls)
+
+            pbar = self.init_pbar_now(total=len(self.urls))
+            for _, result in enumerate(iter):
+                pbar.update()
+                if result is None:
+                    self.skipped += 1
+            print("Finished", flush=True)
+        except Exception as e:
+            print("Parallel Run Failed:", e)
+            self.serial_fits_series()
+
+    def download_one_file(self, url):
+        """Download a single FITS file."""
+        try:
+            # Create the save path based on the output directory
+            file_name = os.path.basename(url)
+            save_path = os.path.join(self.out_path, file_name)
+
+            # Perform the download
+            asyncio.run(self.download_file_task(url, save_path))
+
+            return True  # Indicate success
+        except Exception as e:
+            print(f"Error downloading {url}: {e}")
+            return None  # Indicate failure
+
+    async def download_file_task(self, url, save_path):
+        """Asynchronously download a single file."""
+        async with aiohttp.ClientSession() as session:
+            retries = 0
+            while retries < 5:
+                try:
+                    async with session.get(url) as response:
+                        if response.status == 200:
+                            with open(save_path, 'wb') as f:
+                                while chunk := await response.content.read(1024):
+                                    f.write(chunk)
+                            return
+                        else:
+                            print(f"Failed to download {url}. Status: {response.status}")
+                            break
+                except Exception as e:
+                    print(f"Error downloading {url}: {e}")
+
+                retries += 1
+                await asyncio.sleep(0.5 * 2**retries)  # Exponential backoff
+
+    def serial_fits_series(self):
+        """Run the download process serially."""
+        for url in tqdm(self.urls, desc="Downloading files"):
+            self.download_one_file(url)
 
     def set_output_path(self):
         """Sets the output path for downloaded files using batch logic."""
@@ -161,131 +163,3 @@ class FidoSynopticFetcher(Fetcher):
                 return file_path  # Return the full path if the file exists
 
         return False  # Return False if the file is not found
-
-    def validate_and_cleanup_files(self):
-        to_destroy = self.validate_fits()
-        if to_destroy:
-            self.destroy_files(to_destroy)
-
-    def validate_fits(self):
-        """Validate the downloaded FITS files and mark any corrupted files for redownload."""
-        self.load_fits_paths()
-        all_fits_paths = self.params.local_fits_paths()
-        to_redownload = []
-
-        for local_fits_path in tqdm(
-            all_fits_paths, desc=" > Validating FITS Files", unit="imgs"
-        ):
-            delete = False
-            with fits.open(local_fits_path, ignore_missing_end=True) as hdul:
-                hdul.verify("silentfix+warn")
-                img_type = hdul[1].header.get("IMG_TYPE", "").casefold()
-                if img_type == "dark" or not np.isfinite(hdul[-1].data).any():
-                    delete = True
-            if delete:
-                to_redownload.append(local_fits_path)
-
-        # Attempt to redownload the corrupted or missing files at least once
-        if to_redownload:
-            vprint(f"Found {len(to_redownload)} files to redownload.", self.verb)
-            self.redownload_missing_files(to_redownload)
-
-        return to_redownload
-
-    def redownload_missing_files(self, to_redownload):
-        """Attempt to redownload the missing or corrupted files before marking them for destruction."""
-        # Create a new Fido search result for the files to redownload
-        redownload_result = Fido.search(
-            a.Query([{"url": url} for url in to_redownload])
-        )
-
-        retry_results = Fido.fetch(
-            redownload_result,
-            path=os.path.join(self.out_path, ""),  # "{file}"),
-            downloader=self.SubDownloader,
-        )
-        successfully_downloaded = [
-            file for file in retry_results if os.path.exists(file)
-        ]
-
-        for file in successfully_downloaded:
-            if file in to_redownload:
-                to_redownload.remove(file)
-
-        if to_redownload:
-            vprint(
-                f"Failed to redownload {len(to_redownload)} files. Marking them for deletion.",
-                self.verb,
-            )
-            self.destroy_files(to_redownload)
-
-    def destroy_files(self, to_destroy):
-        for path in to_destroy:
-            try:
-                os.remove(path)
-            except (PermissionError, FileNotFoundError):
-                pass
-
-    def get_start_and_end_times_from_result(self):
-        all_times = []
-
-        # Iterate over each QueryResponse in the UnifiedResponse
-        for response in self.fido_search_result:
-            if "Start Time" in response.colnames:
-                times = response["Start Time"]
-                all_times.extend(times)
-
-        if all_times:
-            all_times.sort()
-            return all_times[0], all_times[-1]
-        else:
-            return None, None
-
-    def fido_parse_result(self):
-        self.start_time, self.end_time = self.get_start_and_end_times_from_result()
-        try:
-            begin_time = self.start_time.strftime("%I:%M:%S%p %m/%d/%Y").lower()
-            end_time = self.end_time.strftime("%I:%M:%S%p %m/%d/%Y").lower()
-        except (ValueError, AttributeError):
-            begin_time = str(self.start_time)
-            end_time = str(self.end_time)
-
-        self.extra_string = "from {} to {}".format(begin_time, end_time)
-
-        # Estimate total download size
-        total_size_bytes = 0
-        estimated_size_per_file = 1.15 * 1024 * 1024  # 0.5 MB in bytes
-        total_size_bytes = self.fido_search_found_num * estimated_size_per_file
-        total_size_mb = total_size_bytes / (1024 * 1024)  # Convert bytes to megabytes
-
-        print(f"Using output path: {self.out_path}")
-
-        if self.fido_search_found_num > 200:
-            response = input(
-                "\nThis download will be approximately {:.2f} MB. Do you still want to download all {} images? [y]/n > ".format(
-                    total_size_mb, self.fido_search_found_num
-                )
-            )
-            if "n" in response.casefold():
-                print("Stopping!\n\n")
-                raise StopIteration
-
-    def multi_banner(self):
-        print("\r   [\\~~~~~~~~~~~~~~~~~~~~~~~~~~~FIDO~~~~~~~~~~~~~~~~~~~~~~~~~~~//]\n")
-        if self.results and len(self.results) == self.fido_search_found_num:
-            print(
-                f"\r ^     Successfully Downloaded all {len(self.results)} Files\n",
-                flush=True,
-            )
-        elif self.results:
-            print(
-                f" ^     Downloaded {len(self.results)} Files out of {self.fido_search_found_num}\n",
-                flush=True,
-            )
-        else:
-            print(" ^     Unable to Download...Try again Later.")
-            raise ConnectionRefusedError(" Unable to Download...Try again Later.")
-
-    def validate_download(self):
-        # Implement any validation after download if needed
-        pass
