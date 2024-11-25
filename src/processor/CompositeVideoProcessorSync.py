@@ -1,4 +1,5 @@
 import cv2
+import os
 import numpy as np
 from tqdm import tqdm
 from astropy.io import fits
@@ -6,12 +7,11 @@ from astropy.visualization import make_lupton_rgb
 from collections import defaultdict
 from pathlib import Path
 import logging
-logging.basicConfig(level=logging.DEBUG)
 import re
 import datetime
 from src.processor.Processor import Processor
-from src.processor.ImageProcessor import ImageProcessor
-from src.processor.VideoProcessor import VideoProcessor
+
+logging.basicConfig(level=logging.DEBUG)
 
 class RGBImageProcessor(Processor):
     """Processor for generating RGB images from FITS files."""
@@ -22,26 +22,31 @@ class RGBImageProcessor(Processor):
     progress_unit = "Images"
     finished_verb = "Written to Disk"
     out_name = "rgb"
+    can_do_parallel = True
 
-    def __init__(self, params=None, quick=None, iR=171, iG=193, iB=211, rp=None):
-        super().__init__(params, quick, rp)  # Call the parent constructor
-
+    def __init__(self, params=None, quick=None, iR=211, iG=193, iB=171, rp=None):
+        super().__init__(params, quick, rp)
         self.params = params
         self.iR = iR
         self.iG = iG
         self.iB = iB
         self.good_paths = defaultdict(list)
+        self.incomplete = []
+        self.missing_files = defaultdict(list)  # To track missing files for each wavelength
+        self.missing_counts = defaultdict(int)  # To count missing files for each wavelength
 
     def do_work(self):
         if self.complete:
             raise StopIteration
         self.collect_fits_paths()
+        self.sync_frames_by_timestamp()
         self.create_rgb_images()
         self.complete = True
+        self.report_missing_files()
 
     def collect_fits_paths(self):
         """Collect paths to FITS files from each wavelength's 'fits' directory."""
-        base_dir = Path(self.params.base_directory()).parent  # Use params to get base directory
+        base_dir = Path(self.params.base_directory()).parent
         logging.debug(f"Looking for FITS files in base directory: {base_dir}")
 
         for wavelength in [self.iR, self.iG, self.iB]:
@@ -52,10 +57,112 @@ class RGBImageProcessor(Processor):
                 fits_files = sorted(fits_dir.glob("*.fits"))
                 logging.info(f"Found {len(fits_files)} FITS files in {fits_dir}")
 
-                # Store the paths without any syncing or timestamp logic
-                self.good_paths[wavelength] = [str(file_path) for file_path in fits_files]
+                # Store the paths with corresponding timestamps only if the "rhef" HDU is present
+                for file_path in fits_files:
+                    timestamp = self.extract_timestamp(file_path.name)
+                    if self.is_valid_fits_file(file_path, "rhef"):
+                        self.good_paths[wavelength].append((timestamp, str(file_path)))
+                    else:
+                        # Record the missing file
+                        self.missing_files[wavelength].append(str(file_path))
+                        self.missing_counts[wavelength] += 1
             else:
                 logging.warning(f"Directory does not exist: {fits_dir}")
+
+    def is_valid_fits_file(self, file_path, hdu_name):
+        """Check if the FITS file contains the specified HDU."""
+        try:
+            with fits.open(file_path) as hdul:
+                for hdu in hdul:
+                    if hdu.name.casefold() == hdu_name.casefold():
+                        return True
+        except Exception as e:
+            logging.error(f"Error checking FITS file {file_path}: {e}")
+        return False
+
+    def extract_timestamp(self, filename):
+        """Extract timestamp from the FITS filename using a regex pattern."""
+        # Try matching 'YYYYMMDD_HHMMSS' format
+        match = re.search(r'(\d{8}_\d{6})', filename)
+        if match:
+            return datetime.datetime.strptime(match.group(1), '%Y%m%d_%H%M%S')
+
+        # Fallback to 'YYYYMMDD_HHMM' format
+        match = re.search(r'(\d{8}_\d{4})', filename)
+        if match:
+            return datetime.datetime.strptime(match.group(1), '%Y%m%d_%H%M')
+
+        # Raise an error if no timestamp found
+        raise ValueError(f"Could not extract timestamp from {filename}")
+
+    def sync_frames_by_timestamp(self):
+        """Sync frames across wavelengths by matching timestamps."""
+        # Collect timestamps for each wavelength
+        all_timestamps = {
+            wavelength: {ts for ts, _ in self.good_paths[wavelength]}
+            for wavelength in [self.iR, self.iG, self.iB]
+        }
+
+        # Find common timestamps across all wavelengths
+        common_timestamps = set.intersection(
+            all_timestamps[self.iR], all_timestamps[self.iG], all_timestamps[self.iB]
+        )
+
+        # Filter paths to keep only synced timestamps
+        for wavelength in [self.iR, self.iG, self.iB]:
+            self.good_paths[wavelength] = [
+                (ts, path) for ts, path in self.good_paths[wavelength] if ts in common_timestamps
+            ]
+
+        logging.info(f"Synced {len(common_timestamps)} frames across wavelengths")
+
+    def report_missing_files(self):
+        """Report the wavelength with the most missing files and list them."""
+        # Determine which wavelength has the most missing files
+        most_lossy_wavelength = max(self.missing_counts, key=self.missing_counts.get, default=None)
+        if most_lossy_wavelength is not None:
+            logging.info(f"Wavelength {most_lossy_wavelength} had the most missing files: {self.missing_counts[most_lossy_wavelength]} out of {len(self.good_paths[most_lossy_wavelength]) + self.missing_counts[most_lossy_wavelength]}")
+        else:
+            logging.info("No missing files were detected.")
+
+        # Log details of all missing files if there are any
+        for wavelength, files in self.missing_files.items():
+            missing_count = len(files)
+            total_count = missing_count + len(self.good_paths[wavelength])
+            percentage_missing = (missing_count / total_count) * 100 if total_count > 0 else 0
+            logging.info(f"Wavelength {wavelength}: {missing_count}/{total_count} files missing ({percentage_missing:.2f}%)")
+            if missing_count > 0:
+                for file_path in files[:10]:  # Limit to first 10 files for logging
+                    logging.info(f"  - {file_path}")
+                if missing_count > 10:
+                    logging.info(f"  ...and {missing_count - 10} more files.")
+
+    def load_fits_data(self, file_path, hdu_name_or_index="rhef"):
+        """Load data from a specified HDU of a FITS file by name or index."""
+        if not os.path.exists(file_path):
+            logging.error(f"FITS file not found: {file_path}")
+            return None
+        try:
+            with fits.open(file_path) as hdul:
+                if isinstance(hdu_name_or_index, str):
+                    for hdu in hdul:
+                        if hdu.name.casefold() == hdu_name_or_index.casefold():
+                            if hdu.data is None or hdu.data.size == 0:
+                                logging.error(f"HDU 'rhef' in file {file_path} is empty.")
+                                return None
+                            return hdu.data
+                elif isinstance(hdu_name_or_index, int):
+                    if -len(hdul) <= hdu_name_or_index < len(hdul):
+                        hdu = hdul[hdu_name_or_index]
+                        if hdu.data is None or hdu.data.size == 0:
+                            logging.error(f"HDU index {hdu_name_or_index} in file {file_path} is empty.")
+                            return None
+                        return hdu.data
+                else:
+                    logging.error("HDU identifier must be either an integer index or a string name.")
+        except Exception as e:
+            logging.error(f"Error loading FITS file {file_path}: {e}")
+        return None
 
     def create_rgb_images(self):
         """Create RGB images and save them in the output folder."""
@@ -63,112 +170,72 @@ class RGBImageProcessor(Processor):
         output_folder = Path(self.params.base_directory()).parent / output_folder_name / "imgs"
         output_folder.mkdir(parents=True, exist_ok=True)
 
-        num_frames = min(
-            len(self.good_paths[self.iR]),
-            len(self.good_paths[self.iG]),
-            len(self.good_paths[self.iB]),
-        )
+        # Ensure the timestamps across the channels are synchronized
+        num_frames = len(self.good_paths[self.iR])  # Assumes the channels are synced
 
         for i in tqdm(range(num_frames), desc="Creating RGB images", unit="images"):
             try:
-                # Load data for each wavelength
-                data_R = self.load_fits_data(self.good_paths[self.iR][i])
-                data_G = self.load_fits_data(self.good_paths[self.iG][i])
-                data_B = self.load_fits_data(self.good_paths[self.iB][i])
+                # Get the synchronized timestamp and file paths for R, G, B
+                timestamp_R, file_path_R = self.good_paths[self.iR][i]
+                timestamp_G, file_path_G = self.good_paths[self.iG][i]
+                timestamp_B, file_path_B = self.good_paths[self.iB][i]
 
-                # Check for missing data
+                # Load the actual data from the file paths
+                data_R = self.load_fits_data(file_path_R)
+                data_G = self.load_fits_data(file_path_G)
+                data_B = self.load_fits_data(file_path_B)
+
+                # Skip if any data is missing or invalid
                 if data_R is None or data_G is None or data_B is None:
-                    logging.error(
-                        "Missing data for wavelengths: "
-                        f"{'R' if data_R is None else ''} "
-                        f"{'G' if data_G is None else ''} "
-                        f"{'B' if data_B is None else ''}"
-                    )
+                    logging.warning(f"Missing or invalid data for frame {i}. Skipping RGB creation.")
                     continue
 
-                # Create RGB composite image
-                img_rgb = make_lupton_rgb(data_R, data_G, data_B, Q=0, stretch=1)
-                img_8bit = (img_rgb).astype(np.uint8)  # Convert to 8-bit
+                # Ensure data has the expected shape (e.g., 1024x1024)
+                expected_shape = (1024, 1024)
+                if data_R.shape != expected_shape or data_G.shape != expected_shape or data_B.shape != expected_shape:
+                    logging.error(f"Data shape mismatch for frame {i}. Expected {expected_shape}, got R: {data_R.shape}, G: {data_G.shape}, B: {data_B.shape}. Skipping.")
+                    continue
 
-                # Save the RGB image
+                # Create timestamp string for overlay
+                timestamp_str = timestamp_R.strftime('%Y-%m-%d %H:%M:%S')
+
+                # Create the RGB image
+                img_rgb = self.make_unscaled_rgb(data_R, data_G, data_B)
+                img_8bit = (img_rgb).astype(np.uint8)
+
+                # Add timestamp text to the image
+                cv2.putText(img_8bit, timestamp_str, (10, img_8bit.shape[0] - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+                # Save the output image
                 output_path = output_folder / f"RGB_{i:04d}.png"
                 cv2.imwrite(str(output_path), img_8bit)
 
             except Exception as e:
                 logging.error(f"Error processing frame {i}: {e}")
 
-    def load_fits_data(self, file_path):
-        """Load data from the last HDU of a FITS file."""
-        with fits.open(file_path) as hdul:
-            return hdul[-1].data
+    @staticmethod
+    def make_unscaled_rgb(image_r, image_g, image_b, filename=None):
+        """Create an RGB image from three channels."""
+        def to_int8(image):
+            if image.dtype == np.int8:
+                return image
+            elif np.issubdtype(image.dtype, np.floating) and 0 <= np.nanmin(image) <= 1 and 0 <= np.nanmax(image) <= 1:
+                return (image * 255).astype(np.int8)
+            else:
+                raise ValueError("Input images must be of dtype int8 or convertible to int8 (float values between 0 and 1).")
 
+        # Convert to int8 if necessary
+        image_r = to_int8(image_r)
+        image_g = to_int8(image_g)
+        image_b = to_int8(image_b)
 
-class RGBVideoWriterProcessor(Processor):
-    """Processor for creating a video from generated RGB images."""
-    filt_name = "RGB Video Writer"
-    description = "Turn all the png files into a video"
-    progress_verb = "Encoding"
-    progress_unit = "Images"
-    finished_verb = "Written to Disk"
-    out_name = "png"
-    complete = False
+        # Stack to form RGB
+        rgb = np.stack((image_r, image_g, image_b), axis=-1)
 
-    def __init__(self, params=None, quick=None, iR=171, iG=193, iB=211, fps=30, rp=False):
-        super().__init__(params, quick, rp)  # Call the parent constructor
-        self.iR = iR
-        self.iG = iG
-        self.iB = iB
-        self.fps = fps
+        # Optionally save to file
+        if filename:
+            import matplotlib.image
+            matplotlib.image.imsave(filename, rgb, origin="lower")
 
-    def process(self, params):
-        if self.complete:
-            raise StopIteration
-        self.create_video_from_images()
-        self.complete = True
-
-    def create_video_from_images(self):
-        """Create a video from RGB images saved in the output folder."""
-        output_folder_name = f"{self.iR}_{self.iG}_{self.iB}_RGB"
-        output_folder = Path(self.params.base_directory()).parent / output_folder_name / "imgs"
-        video_path = output_folder.parent / "composite_video.avi"
-        import os.path
-        if os.path.exists(video_path):
-            raise StopIteration
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')  # Codec for AVI
-
-        # Get the first image to determine the dimensions
-        img_files = sorted(output_folder.glob("*.png"))
-        if not img_files:
-            logging.error("No RGB images found to create video.")
-            return
-
-        first_img = cv2.imread(str(img_files[0]))
-        height, width = first_img.shape[:2]
-
-        # Initialize the VideoWriter
-        video_writer = cv2.VideoWriter(str(video_path), fourcc, self.fps, (width, height))
-
-        for img_file in tqdm(img_files, desc=self.progress_verb+" "+self.progress_unit, unit="frames"):
-            img = cv2.imread(str(img_file))
-            video_writer.write(img)
-
-        # Release the VideoWriter
-        video_writer.release()
-        logging.info(f"Video saved as {video_path}")
-
-
-# Example usage
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-
-    # Parameters would be initialized appropriately in your actual code
-    params = None  # Replace with actual parameter object
-
-    # Create RGB images
-    rgb_processor = RGBImageProcessor(params)
-    rgb_processor.collect_fits_paths()
-    rgb_processor.create_rgb_images()
-
-    # Create video from RGB images
-    video_processor = RGBVideoWriterProcessor(params)
-    video_processor.create_video_from_images()
+        return rgb
