@@ -1,10 +1,6 @@
 import os
 
 from src.fetcher.FidoFetcher import FidoFetcher
-from src.fetcher.FidoSynopticFetcher_bkk2 import FidoSynopticFetcher
-# from src.fetcher.FidoFetcher_complete import FidoFetcher
-
-# from src.fetcher.FidoFetcher_refactored import FidoFetcher
 from src.fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from src.fetcher.LocalFetcher import LocalFetcher
 from src.processor.ImageProcessorCV import ImageProcessorCV
@@ -18,19 +14,15 @@ from src.processor.RHEProcessor import RHEProcessor
 
 # from src.processor.QRNProcessor import QRNradialFiltProcessor, QRNpreProcessor
 from src.processor.ScienceProcessor import ScienceProcessor
-from src.processor.SunPyProcessor import AIA_PREP_Processor, RHEFProcessor
+from src.processor.SunPyProcessor import AIA_PREP_Processor
 from src.processor.ValidationProcessor import ValidationProcessor
 from src.processor.VideoProcessor import VideoProcessor
 from src.processor.Processor import Processor
-from src.processor.CompositeRainbowImageProcessor import RGBImageProcessor, RGBVideoWriterProcessor
-# from src.processor.CompositeVideoProcessorSyncOld import
-import logging
-logging.basicConfig(level=logging.DEBUG)
 
 wv = Processor.write_video_in_directory
 from src.science.parameters import Parameters
 import run
-from astropy import units as u
+
 # import matplotlib as mpl
 
 # try:
@@ -55,48 +47,38 @@ all_wavelengths = [
     "0304",
     "0171",
 ]
-# do_wavelengths = all_wavelengths  # ['0211']
-# do_wavelengths = ["0304", "0335", "1600"]  # , "0193", "0211"]
-do_wavelengths_str = ["0211", "0193", "0171"]
-# do_wavelengths_str = ["0211"]
-do_wavelengths = [f"{int(wv):04d}" for wv in do_wavelengths_str]
-PNG_FRAME_NAME = "rhef"
-RHE_TARGETS = "compressed_image"
-stop = False
+do_wavelengths = all_wavelengths  # ['0211']
+do_wavelengths = ["0171", "0193", "0211"]
+PNG_FRAME_NAME = "rhe"
 # wave_to_use = '0211'
 
 
 def run_range_multishot_movie(
-    batch_name="Decade_13_23_most",
-    wave=None,
-    config=None,
-    wave_to_use=None,
-    upsilon=(0.8, 0.8),
+    batch_name="Solar_Cycle3", wave=None, config=None, wave_to_use=None, alpha=0.35
 ):
     # Set the Parameters
     p = make_params(batch_name, wave, config, wave_to_use)
     p.do_recent(False)
-    p.do_prep = False  # do AIA prep upon download of each frame
-    p.upsilon = upsilon
-    p.do_one(wave_to_use, True)
+    p.do_prep = True  # Won't do AIA prep upon download of each frame
+    p.alpha = alpha
     p.destroy = True
-    p.do_parallel = True
-    p.do_orig = False
-    p.rhe_targets([RHE_TARGETS])
-    p.init_pool(20)
+    p.do_parallel = False
+    # p.rhe_targets(["compressed_image"])
+    # p.init_pool(6)
 
     # Set the Processes
-    # p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
-    # p.fetchers(FidoSynopticFetcher, rp=False)  # Gets Fits FIDO
-    p.processors([RHEFProcessor], rp=False)
-    # p.processors([ImageProcessorCV], rp=False)  # Makes the PNGs from Fits
-    # p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
-    # p.putters([RGBImageProcessor], rp=True)  # Makes the PNGs into a Composite PNG
-    # p.putters([RGBVideoWriterProcessor], rp=True)  # Makes the PNGs into a Movie
+    p.fetchers(FidoFetcher, rp=True)  # Gets Fits FIDO
+    p.processors([RHEProcessor], rp=True)
+    p.processors([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
+    p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
 
     # p.processors([FidoTimeIntProcessor],    rp=False)   # Integrate several frames for S/N
+    # p.processors([AIA_PREP_Processor],      rp=False)   # Do Sunpy Things # This happens in the fetcher now
+    # p.qrn_targets(["primary"])
+    # p.processors([QRNpreProcessor],            rp=True)  # Applies the RHE Processor
+    # p.processors([QRNradialFiltProcessor],     rp=True)  # Applies the RHE Processor
 
-    # # p.putters([ScienceyProcessor],             rp=True)  # Makes the PNGs into a Movie
+    # # p.putters([ScienceProcessor],             rp=True)  # Makes the PNGs into a Movie
 
     # Run the Code
     # print(p.do_one())
@@ -104,135 +86,15 @@ def run_range_multishot_movie(
 
 
 def make_configs(wave_to_use):
-
-    c24 = {
-        "name": "Solar_Min_19b",
-        "debug": True,
-        "do_one": None,
-        "stop": True,
-        "tstart": "2019/06/01 00:00:00",
-        "tend": "2019/07/01 00:00:00",
-        "cadence_minutes": 1 * u.hour,
-        "fps": 10,
-        "exposure_time": 12 * 10,
-        "key_fixed_cadence": None,
-        "key_fixed_number": 100,
-        "time_preset": None,
-    }
-
-    c25 = {
-        "name": "Solar_Max_24",
-        "debug": True,
-        "do_one": None,
-        "stop": True,
-        "tstart": "2024/06/01 00:00:00",
-        "tend": "2024/07/01 00:00:00",
-        "cadence_minutes": 60 * 3,
-        "fps": 10,
-        "exposure_time": 12 * 10,
-        "key_fixed_cadence": None,
-        "key_fixed_number": 100,
-        "time_preset": None,
-    }
-    c26 = {
-        "name": "Decade_13_23_most",
-        "debug": True,
-        "do_one": None,
-        "stop": True,
-        "tstart": "2013/01/01 00:00:00",
-        "tend": "2023/01/01 00:00:00",
-        "cadence_minutes": 6*u.hour,
-        "fps": 10,
-        "exposure_time": 12 * 10,
-        "key_fixed_cadence": None,
-        "key_fixed_number": 100,
-        "time_preset": None,
-    }
-
-    c23 = {
-        "name": "Eclipse",
-        "debug": True,
-        "do_one": None,
-        "stop": True,
-        "tstart": "2024/04/07 00:00:00",
-        "tend": "2024/04/09 23:59:00",
-        "cadence_minutes": 60,
-        "fps": 10,
-        "exposure_time": 12 * 10,
-        "key_fixed_cadence": None,
-        "key_fixed_number": 100,
-        "time_preset": None,
-    }
-
-    c22 = {
-        "name": "Lowder_Frame",
-        "debug": True,
-        "do_one": "0171",
-        "stop": True,
-        "tstart": "2014/04/18 12:52:16",
-        "tend": "2014/04/18 12:52:20",
-        "cadence_minutes": 60 * 6,
-        "fps": 45,
-        "exposure_time": 12 * 10,
-        "key_fixed_cadence": None,
-        "key_fixed_number": 100,
-        "time_preset": None,
-    }
-
-    c21 = {
-        "name": "Synoptic_Composite",
-        "debug": True,
-        "do_one": None,
-        "stop": True,
-        "tstart": "2013/10/31 07:00:00",
-        "tend": "2013/11/01 07:00:00",
-        "cadence_minutes": 60 * 6,
-        "fps": 90,
-        "exposure_time": 12 * 10,
-        "key_fixed_cadence": None,
-        "key_fixed_number": 100,
-        "time_preset": None,
-    }
-
-    c19 = {
-        "name": "Smol2",
-        "debug": True,
-        "do_one": None,
-        "stop": False,
-        "tstart": "2014/01/01 07:00:00",
-        "tend": "2014/12/31 07:00:00",
-        "cadence_minutes": 60 * 6,
-        "fps": 12,
-        "exposure_time": 12 * 10,
-        "key_fixed_cadence": None,
-        "key_fixed_number": 100,
-        "time_preset": None,
-    }
-
-    c20 = {
-        "name": "HDT",
-        "debug": True,
-        "do_one": "0304",
-        "stop": True,
-        "tstart": "2013/01/01 07:00:00",
-        "tend": "2013/01/02 07:00:00",
-        "cadence_minutes": 2,
-        "fps": 12,
-        "exposure_time": 12 * 10,
-        "key_fixed_cadence": None,
-        "key_fixed_number": 100,
-        "time_preset": None,
-    }
-
-    c18 = {
+    c17 = {
         "name": "2013_12h",
         "debug": True,
-        "do_one": "0193",
+        "do_one": "0171",
         "stop": True,
         "tstart": "2013/01/01 07:00:00",
         "tend": "2014/01/01 07:00:00",
         "cadence_minutes": 12 * 60,
-        "fps": 6,
+        "fps": 11,
         "exposure_time": 12 * 10,
         "key_fixed_cadence": None,
         "key_fixed_number": 100,
@@ -240,14 +102,14 @@ def make_configs(wave_to_use):
     }
 
     c17 = {
-        "name": "Solar_Cycle5",
+        "name": "Solar_Cycle3",
         "debug": True,
-        "do_one": "0211",
+        "do_one": "0171",
         "stop": True,
-        "tstart": "2010/01/01 00:00:00",
-        "tend": "2020/01/01 00:00:00",
-        "cadence_minutes": 30 * 24 * 60,  # Monthly  # -1,  # 25 * 24 * 60,
-        # "carrington": (2193, 2203, 10),
+        "tstart": None,
+        "tend": None,
+        "cadence_minutes": 0,  # -1,  # 25 * 24 * 60,
+        "carrington": (2100, 2110, 6),
         "fps": 5,
         "exposure_time": 12 * 10,
         "key_fixed_cadence": None,
@@ -334,12 +196,11 @@ def make_configs(wave_to_use):
     c8 = {
         "name": "Liftoff",
         "debug": True,
-        "do_one": None,
-        "stop": True,
-        "tend": '2013/09/30 23:59:59',
+        "do_one": wave_to_use,
+        "stop": True,  # "tend": '2013/09/30 23:59:59',
         "tstart": "2013/09/28 00:00:10",
-        # "tend": "2013/09/28 00:00:22",
-        "cadence_minutes": 2,
+        "tend": "2013/09/28 00:00:22",
+        "cadence_minutes": 10,
         "fps": 10,
         "exposure_time": 60,
         "key_fixed_cadence": 1,
@@ -553,16 +414,6 @@ def make_configs(wave_to_use):
         c15["name"]: c15,
         c16["name"]: c16,
         c17["name"]: c17,
-        c18["name"]: c18,
-        c18["name"]: c18,
-        c19["name"]: c19,
-        c20["name"]: c20,
-        c21["name"]: c21,
-        c22["name"]: c22,
-        c23["name"]: c23,
-        c24["name"]: c24,
-        c25["name"]: c25,
-        c26["name"]: c26,
         c100["name"]: c100,
     }
     return ConfigDict
@@ -595,36 +446,34 @@ def make_params(batch_name=None, wave=None, config=None, wave_to_use=None):
     p.do_one(config["do_one"], config["stop"])
     p.is_debug(config["debug"])
     p.do_cat = True
-    p.png_frame_name = [PNG_FRAME_NAME]
-    p.do_recent(False)
+    p.png_frame_name = PNG_FRAME_NAME
+    # p.do_recent(True)
     p.currently_local = True
     p.use_drive = "G"
 
     # Set the Times
-    # if not p.load_preset_time_settings(config.get("time_preset", None)):
-    p.cadence_minutes(config.get("cadence_minutes", None))
-    p.exposure_time_seconds(config.get("exposure_time", None))
-    p.frames_per_second(config.get("fps", None))
-    p.fixed_cadence_keyframes(config.get("key_fixed_cadence", None))
-    p.fixed_number_keyframes(config.get("key_fixed_number", None))
-    p.time_period(period=[config.get("tstart", None), config.get("tend", None)])
-    # p.carrington(config.get("carrington", None))  # p.compare_fits_frames()
+    # if not p.load_preset_time_settings(config["time_preset"]):
+    p.cadence_minutes(config["cadence_minutes"])
+    p.exposure_time_seconds(config["exposure_time"])
+    p.frames_per_second(config["fps"])
+    p.fixed_cadence_keyframes(config["key_fixed_cadence"])
+    p.fixed_number_keyframes(config["key_fixed_number"])
+    p.time_period(period=[config["tstart"], config["tend"]])
+    p.carrington(config["carrington"])
+    # p.compare_fits_frames()
 
     return p
 
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    # import numpy as np
+    import numpy as np
 
     for wave_to_use in do_wavelengths:
+        #     for alpha in np.linspace(0.25,0.5,20):
+        #         run_range_multishot_movie(wave_to_use=wave_to_use, alpha=alpha)
+        #         # break
         run_range_multishot_movie(wave_to_use=wave_to_use)
-        if stop:
-            break
-    #     for upsilon in np.linspace(0.25,0.5,20):
-    #         run_range_multishot_movie(wave_to_use=wave_to_use, upsilon=upsilon)
-    #         # break
-    # break
 
 
 # def run_range_multishot_movie(debug=True, do_one='0304', stop=True,

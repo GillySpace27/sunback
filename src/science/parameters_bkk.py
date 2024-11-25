@@ -30,6 +30,9 @@ class Parameters:
     n_pool = 10
 
     def __init__(self):
+        self.use_carrington = False  # Default value
+        self.carrington_start = None
+        self.carrington_end = None
         """Sets all the attributes to None"""
 
         # Initialize Variables
@@ -44,7 +47,6 @@ class Parameters:
             "lev1p5",
             "t_int",
             "lev1p0",
-            "compressed_image",
             "primary",
             "",
         ]
@@ -119,7 +121,7 @@ class Parameters:
         self.raw_image = None
         self.modified_image = None
         self.rhe_image = None
-        self.upsilon = (0.6, 0.35)
+        self.alpha = 0.35
         self.hdu_name = None
         self.start_time = time()
         self.is_first_run = True
@@ -149,6 +151,7 @@ class Parameters:
         self._time_period = None
         self._range_in_days = 4
         self._cadence = 10 * u.minute
+        self._carrington = None
         self._exposure_time = 60  # seconds
 
         self._frames_per_second = 30
@@ -172,8 +175,8 @@ class Parameters:
         self._use_default_directories = True
         self.do_orig = False
         self.do_compare = True
-        self.upsilon_low = None
-        self.upsilon_high = None
+        self.alpha_low = 0.35
+        self.alpha_high = 0.35
         self.do_cat = False
         self.do_single = False
         self.got_JPEG = False
@@ -227,7 +230,7 @@ class Parameters:
     def do_standard_RHE(self):
         self.msgn_targets(["lev1p5"])  # , 'rhe(lev1p5)'
         self.rhe_targets(["lev1p5", "msgn(lev1p5)"])  # "lev1p5",
-        self.png_frame_name = ["rhef(lev1p5)"]  # ['rhe(lev1p5)']
+        self.png_frame_name = ["rhe(msgn)"]  # ['rhe(lev1p5)']
 
     def init_pool(self, n_cores=10):
         if self.multi_pool is None and self.do_parallel is True:
@@ -540,11 +543,14 @@ class Parameters:
         return self._do_multishot
 
     def cadence_minutes(self, cad=None):
-        if isinstance(cad, u.Quantity):
-            self._cadence = cad.to(u.minute)
-        elif cad is not None:
+        if cad is not None:
             self._cadence = cad * u.minute
         return self._cadence
+
+    def carrington(self, cad=None):
+        if cad is not None:
+            self._carrington = cad
+        return self._carrington
 
     def exposure_time_seconds(self, _exposure_time=None):
         if _exposure_time is not None:
@@ -761,18 +767,36 @@ class Parameters:
         return [t_start_out, t_end_out]
 
     def define_range(self):
-        """Defines the time range of imagery desired"""
+        """Defines the time range of imagery desired."""
         if self.do_recent():
             self.unpack_time_strings(*define_recent_range(self.range()))
+        elif self.carrington():
+            # Use Carrington rotations to define the time range
+            times = self.carrington_to_time(
+                self.carrington()[0],
+                self.carrington()[1],
+                self.carrington()[-1],
+            )
+            self.unpack_time_strings(times[0], times[-1])
+            self.time_steps = times  # Store the list of time steps for further use
         else:
             self.unpack_time_strings(*define_time_range(*self.time_period()))
 
-    def unpack_time_strings(self, start, end):
-        """Unpacks the time lists"""
-        self.start_time, self.start_time_long, self.start_time_string = start
-        self.end_time, self.end_time_long, self.end_time_string = end
+    def carrington_period(self, var):
+        """Set up the time strings correctly"""
+        pass
 
-        # self.radial_hist_path = abspath(join(self.analysis_directory, param_file_name))
+    def unpack_time_strings(self, start, end):
+        """Unpacks the time lists into different formats for easier access."""
+        self.start_time = start
+        self.end_time = end
+        # Convert to string representations
+        self.start_time_string = self.start_time.strftime("%Y-%m-%dT%H:%M:%S")
+        self.end_time_string = self.end_time.strftime("%Y-%m-%dT%H:%M:%S")
+
+        # Long format for readability or for use in logs
+        self.start_time_long = self.start_time.strftime("%B %d, %Y %H:%M:%S")
+        self.end_time_long = self.end_time.strftime("%B %d, %Y %H:%M:%S")
 
     def make_directories(self):
         # Make Directories

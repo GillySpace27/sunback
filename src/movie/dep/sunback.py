@@ -16,6 +16,7 @@ from calendar import timegm
 
 
 from sunpy.net import Fido, attrs
+
 # import sunpy.map
 from threading import Barrier
 
@@ -27,11 +28,12 @@ import matplotlib as mpl
 from src.science.parameters import Parameters
 
 try:
-    mpl.use('qt5agg')
+    mpl.use("qt5agg")
 except Exception as e:
     print(e)
 
 import matplotlib.pyplot as plt
+
 plt.ioff()
 
 bbb = Barrier(3, timeout=100)
@@ -61,6 +63,7 @@ debugg = True
 
 def tr():
     import pdb
+
     pdb.set_trace()
 
 
@@ -99,8 +102,8 @@ class Sunback:
     def mr_get(self):
         """Download the images if there are new ones"""
         local_dir = self.params.discover_best_default_directory()
-        local_time_path = abspath(local_dir+r"/times.txt")
-        local_fileBox_path = abspath(local_dir + r'/fileBox.dat')
+        local_time_path = abspath(local_dir + r"/times.txt")
+        local_fileBox_path = abspath(local_dir + r"/fileBox.dat")
 
         # Retrieve the file names
         web_path = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"
@@ -115,10 +118,10 @@ class Sunback:
                 header = fp.readline()
                 _, old_datetime = header.split()
         except:
-            old_datetime = '20200101_000000'
+            old_datetime = "20200101_000000"
 
         # Find the time of the newest images
-        print("Checking for New Images...", end='', flush=True)
+        print("Checking for New Images...", end="", flush=True)
         urlretrieve(web_path + "image_times", local_time_path)
 
         with open(local_time_path) as fp:
@@ -133,7 +136,7 @@ class Sunback:
                 # Use old images
                 self.new_images = False
                 try:
-                    with open(local_fileBox_path, 'r') as fp2:
+                    with open(local_fileBox_path, "r") as fp2:
                         for line in fp2:
                             a, b = line.split()
                             self.fileBox.append([a, b])
@@ -164,8 +167,9 @@ class Sunback:
             labels = [94, 131, 171, 193, 211, 304, 335, 1600, 1700]
             import urllib
 
-            for name in tqdm(labels, unit="img", desc="Downloading Images", total=len(labels)):
-
+            for name in tqdm(
+                labels, unit="img", desc="Downloading Images", total=len(labels)
+            ):
                 # Ingest new images
                 label = "{:04d}".format(int(name))
                 webfile_name = r"AIAsynoptic{}.fits".format(label)
@@ -175,7 +179,7 @@ class Sunback:
                 tries = 3
                 for ii in np.arange(tries):
                     try:
-                        urlretrieve(web_path+webfile_name, local_path)
+                        urlretrieve(web_path + webfile_name, local_path)
                         break
                     except urllib.error.ContentTooShortError:
                         print("Failed Download...Retrying {} / {}".format(ii, tries))
@@ -184,11 +188,13 @@ class Sunback:
                 self.fileBox.append([label, local_path])
             used = []
             # self.fileBox = list(set(self.fileBox))
-            self.fileBox = [x for x in self.fileBox if x not in used and (used.append(x) or True)]
+            self.fileBox = [
+                x for x in self.fileBox if x not in used and (used.append(x) or True)
+            ]
             self.fileBox = sorted(self.fileBox, key=lambda x: x[0])
-            with open(local_fileBox_path, 'w') as fp:
+            with open(local_fileBox_path, "w") as fp:
                 for a, b in self.fileBox:
-                    fp.write('{} {}\n'.format(a, b))
+                    fp.write("{} {}\n".format(a, b))
         return self.fileBox
 
     def mr_run(self):
@@ -215,7 +221,7 @@ class Sunback:
             if self.params.stop_after_one():
                 sys.exit()
 
-            print('')
+            print("")
 
     def mr_modify(self, this_name, file_path):
         """Load the image, modify it, then plot and save"""
@@ -237,10 +243,10 @@ class Sunback:
             try:
                 # Parse Inputs
                 with fits.open(file_path) as hdul:
-                    hdul.verify('silentfix+warn')
+                    hdul.verify("silentfix+warn")
 
-                    wave = hdul[0].header['WAVELNTH']
-                    t_rec = hdul[0].header['T_OBS']
+                    wave = hdul[0].header["WAVELNTH"]
+                    t_rec = hdul[0].header["T_OBS"]
                     data = hdul[0].data
                     # print(wave, t_rec)
 
@@ -264,7 +270,6 @@ class Sunback:
         self.jp_run()
 
     def jp_get(self):
-
         # Retrieve the file names
         web_path = "http://jsoc2.stanford.edu/data/aia/images/image_times"
         local_path = "times.txt"
@@ -276,7 +281,7 @@ class Sunback:
                 header = fp.readline()
                 _, old_datetime = header.split()
         except:
-            old_datetime = '20200101_000000'
+            old_datetime = "20200101_000000"
 
         # Find the time of the newest images
         urlretrieve(web_path, local_path)
@@ -286,11 +291,11 @@ class Sunback:
             line = fp.readline()
             name, now = line.split()
             self.time_stamp = now
-            print("Checking for New Images...", end='', flush=True)
+            print("Checking for New Images...", end="", flush=True)
             if now <= old_datetime and self.params.download_images():
                 self.new_images = False
                 try:
-                    with open('data/images/fileBox.dat', 'r') as fp2:
+                    with open("data/images/fileBox.dat", "r") as fp2:
                         for line in fp2:
                             a, b = line.split()
                             self.fileBox.append([a, b])
@@ -298,7 +303,7 @@ class Sunback:
 
                     need = False
                     for label, file in self.fileBox:
-                        if exists(file[:-3]+"png"):
+                        if exists(file[:-3] + "png"):
                             pass
                         else:
                             need = True
@@ -314,7 +319,9 @@ class Sunback:
             print("New images found!\n", flush=True)
             self.new_images = True
 
-            for line in tqdm(fp, unit="img", desc="Downloading Images", total=number_of_lines):
+            for line in tqdm(
+                fp, unit="img", desc="Downloading Images", total=number_of_lines
+            ):
                 name, value = line.split()
 
                 # Ingest new images
@@ -326,15 +333,16 @@ class Sunback:
                 self.fileBox.append([label, file_name])
             used = []
             # self.fileBox = list(set(self.fileBox))
-            self.fileBox = [x for x in self.fileBox if x not in used and (used.append(x) or True)]
+            self.fileBox = [
+                x for x in self.fileBox if x not in used and (used.append(x) or True)
+            ]
             self.fileBox = sorted(self.fileBox, key=lambda x: x[0])
-            with open('data/images/fileBox.dat', 'w') as fp:
+            with open("data/images/fileBox.dat", "w") as fp:
                 for a, b in self.fileBox:
-                    fp.write('{} {}\n'.format(a, b))
+                    fp.write("{} {}\n".format(a, b))
         return self.fileBox
 
     def jp_run(self):
-
         for this_name, file_path in self.fileBox:
             self.params.start_time = time()
             self.name = this_name
@@ -355,13 +363,13 @@ class Sunback:
             if self.params.stop_after_one():
                 sys.exit()
 
-            print('')
+            print("")
 
     def jp_open(self, this_name, file_path):
-
         from PIL import Image
+
         originalData = np.asarray(Image.open(file_path))
-        save_path = file_path[:-3]+".png"
+        save_path = file_path[:-3] + ".png"
         time_string = self.time_stamp
         image_data = this_name, save_path, time_string, 0
         return originalData, image_data
@@ -387,8 +395,9 @@ class Sunback:
 
     def save_raw(self, label, file_name):
         from PIL import Image
+
         data = Image.open(file_name)
-        save_path = file_name[:-3]+".png"
+        save_path = file_name[:-3] + ".png"
         name = self.clean_name_string(label)
         time_string = self.time_stamp
 
@@ -402,46 +411,64 @@ class Sunback:
         pixels = data.size[0]
         dpi = pixels / inches
 
-        if 'hmi' in name.casefold():
+        if "hmi" in name.casefold():
             inst = ""
-            plt.imshow(data, origin='upper', interpolation=None)
+            plt.imshow(data, origin="upper", interpolation=None)
             # plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.1)
             plt.tight_layout(pad=5.5)
             height = 1.05
 
         else:
-            inst = '  AIA'
-            plt.imshow(data, cmap='sdoaia{}'.format(name), origin='lower',
-                       interpolation=None, vmin=self.vmin_plot, vmax=self.vmax_plot)
+            inst = "  AIA"
+            plt.imshow(
+                data,
+                cmap="sdoaia{}".format(name),
+                origin="lower",
+                interpolation=None,
+                vmin=self.vmin_plot,
+                vmax=self.vmax_plot,
+            )
             plt.tight_layout(pad=0)
             height = 0.95
 
         # Annotate with Text
-        buffer = '' if len(name) == 3 else '  '
-        buffer2 = '    ' if len(name) == 2 else ''
+        buffer = "" if len(name) == 3 else "  "
+        buffer2 = "    " if len(name) == 2 else ""
 
         title = "{}    {} {}, {}{}".format(buffer2, inst, name, time_string, buffer)
         title2 = "{} {}, {}".format(inst, name, time_string)
-        ax.annotate(title, (0.125, height + 0.02), xycoords='axes fraction', fontsize='large',
-                    color='w', horizontalalignment='center')
+        ax.annotate(
+            title,
+            (0.125, height + 0.02),
+            xycoords="axes fraction",
+            fontsize="large",
+            color="w",
+            horizontalalignment="center",
+        )
         # ax.annotate(title2, (0, 0.05), xycoords='axes fraction', fontsize='large', color='w')
         the_time = strftime("%I:%M%p").lower()
-        if the_time[0] == '0':
+        if the_time[0] == "0":
             the_time = the_time[1:]
-        ax.annotate(the_time, (0.125, height), xycoords='axes fraction', fontsize='large',
-                    color='w', horizontalalignment='center')
+        ax.annotate(
+            the_time,
+            (0.125, height),
+            xycoords="axes fraction",
+            fontsize="large",
+            color="w",
+            horizontalalignment="center",
+        )
 
         # Format the Plot and Save
         self.blankAxis(ax)
-        middle = '' if False else "_orig"
+        middle = "" if False else "_orig"
         new_path = save_path[:-5] + middle + ".png"
 
         try:
-            plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
+            plt.savefig(new_path, facecolor="black", edgecolor="black", dpi=dpi)
             # print("\tSaved {} Image".format('Processed' if False else "Unprocessed"))
         except PermissionError:
             new_path = save_path[:-5] + "_b.png"
-            plt.savefig(new_path, facecolor='black', edgecolor='black', dpi=dpi)
+            plt.savefig(new_path, facecolor="black", edgecolor="black", dpi=dpi)
             print("Success")
         except Exception as e:
             print("Failed...using Cached")
@@ -511,7 +538,7 @@ class Sunback:
         if self.params.stop_after_one():
             sys.exit()
 
-        print('')
+        print("")
 
     def main_loop(self, ii):
         """The Main Loop"""
@@ -535,7 +562,7 @@ class Sunback:
         # # if this_name not in ['211']:
         # #     return
 
-        if this_name not in ['304']:
+        if this_name not in ["304"]:
             return
 
         print("Image: {}".format(this_name))
@@ -550,7 +577,7 @@ class Sunback:
         # Update the Background
         # self.update_background(image_path)
 
-        print('')
+        print("")
 
     def run_HMI(self):
         """The Secondary Loop"""
@@ -559,7 +586,7 @@ class Sunback:
 
         self.params.start_time = time()
 
-        print("Image: {}".format('HMIBC'))
+        print("Image: {}".format("HMIBC"))
         # Define the Image
         self.hmi_path = normpath(join(self.params.local_directory, "HMIBC_Now.jpg"))
 
@@ -568,7 +595,11 @@ class Sunback:
 
         # Modify the Image
         print("Modifying Image...", end="")
-        new_path = self.plot_and_save(mpimg.imread(self.hmi_path), ('HMI', self.hmi_path, "Magnetic Field", -1), None)
+        new_path = self.plot_and_save(
+            mpimg.imread(self.hmi_path),
+            ("HMI", self.hmi_path, "Magnetic Field", -1),
+            None,
+        )
 
         # Wait for a bit
         self.params.sleep_until_delay_elapsed()
@@ -576,7 +607,7 @@ class Sunback:
         # Update the Background
         self.update_background(new_path)
 
-        print('')
+        print("")
 
     def run_HMI_white(self):
         """The Secondary Loop"""
@@ -585,7 +616,7 @@ class Sunback:
 
         self.params.start_time = time()
 
-        print("Image: {}".format('HMIF'))
+        print("Image: {}".format("HMIF"))
         # Define the Image
         self.hmi_path = normpath(join(self.params.local_directory, "HMIF_Now.jpg"))
 
@@ -594,7 +625,9 @@ class Sunback:
 
         # Modify the Image
         print("Modifying Image...", end="")
-        new_path = self.plot_and_save(mpimg.imread(self.hmi_path), ('HMI', self.hmi_path, "White Light", -1))
+        new_path = self.plot_and_save(
+            mpimg.imread(self.hmi_path), ("HMI", self.hmi_path, "White Light", -1)
+        )
 
         # Wait for a bit
         self.params.sleep_until_delay_elapsed()
@@ -602,7 +635,7 @@ class Sunback:
         # Update the Background
         self.update_background(new_path)
 
-        print('')
+        print("")
 
     def download_image(self, local_path, web_path):
         """
@@ -622,7 +655,7 @@ class Sunback:
 
         for ii in range(tries):
             try:
-                print("Downloading Image...", end='', flush=True)
+                print("Downloading Image...", end="", flush=True)
                 urlretrieve(web_path, local_path)
                 print("Success", flush=True)
                 return 0
@@ -636,7 +669,7 @@ class Sunback:
     # # Level 2 ##
 
     def fido_range(self):
-        """ Find the a certain image """
+        """Find the a certain image"""
         self.renew_mask = True
         self.fido_num = 0
         tries = 0
@@ -644,19 +677,22 @@ class Sunback:
         if self.params.time_period():
             early = self.params.time_period()
         else:
-            fmt_str = '%Y.%m.%d_%H:%M/{}m@{}m'.format(minute_range, int(minute_range/2))
+            fmt_str = "%Y.%m.%d_%H:%M/{}m@{}m".format(
+                minute_range, int(minute_range / 2)
+            )
             early = strftime(fmt_str, localtime(time() - minute_range * 60 + timezone))
             # print(early)
             # now = strftime(fmt_str, localtime(time() + timezone))
 
         import drms
+
         K = drms.Client()
         series = r"aia.lev1_euv_12s"
         segment = "image"
         # SO I CAN ONLY GET THE 4 DAY OLD VERSION HERE
         # SET THIS UP LIKE BELOW
         time_query = "2020.08.12_TAI/1d@1d"  # /1d@6h"
-        wavelength = ''
+        wavelength = ""
 
         query_string = series + "[{}][{}]".format(time_query, wavelength)
         print(query_string)
@@ -668,6 +704,7 @@ class Sunback:
         else:
             print(ss)
         import pdb
+
         pdb.set_trace()
 
         # import pdb;
@@ -684,14 +721,14 @@ class Sunback:
         from astropy.io import fits
 
         for file in list_of_files:
-            url = 'http://jsoc.stanford.edu' + file
+            url = "http://jsoc.stanford.edu" + file
             ret = urlretrieve(url)
             # print(ret)
             # with fits.open(ret[0]) as hdul:
             hdul = fits.open(ret[0])
-            hdul.verify('fix')
-            wave = hdul[1].header['WAVELNTH']
-            t_rec = hdul[1].header['T_REC']
+            hdul.verify("fix")
+            wave = hdul[1].header["WAVELNTH"]
+            t_rec = hdul[1].header["T_REC"]
             img = hdul[1].data
             print(wave, t_rec)
 
@@ -792,7 +829,7 @@ class Sunback:
         #         # print(self.fido_result)
 
     def fido_search(self):
-        """ Find the Most Recent Images """
+        """Find the Most Recent Images"""
         self.renew_mask = True
         self.fido_num = 0
         tries = 0
@@ -808,16 +845,21 @@ class Sunback:
                 break
             try:
                 # Define Time Range
-                fmt_str = '%Y/%m/%d %H:%M'
-                early = strftime(fmt_str, localtime(time() - minute_range * 60 + timezone))
+                fmt_str = "%Y/%m/%d %H:%M"
+                early = strftime(
+                    fmt_str, localtime(time() - minute_range * 60 + timezone)
+                )
                 now = strftime(fmt_str, localtime(time() + timezone))
                 override = False
                 if override:
-                    early = '2020/05/26 00:00'
-                    now = '2020/05/30 00:00'
+                    early = "2020/05/26 00:00"
+                    now = "2020/05/30 00:00"
                     # Find Results
-                    self.fido_result = Fido.search(attrs.Time(early, now), attrs.Instrument(
-                        'aia'), attrs.Resolution(self.params.resolution()))
+                    self.fido_search_result = self.fido_result = Fido.search(
+                        attrs.Time(early, now),
+                        attrs.Instrument("aia"),
+                        attrs.Resolution(self.params.resolution()),
+                    )
                     self.fido_num = self.fido_result.file_num
                     self.new_images = True
                     self.this_time = int(self.fido_result.get_response(0)[0].time.start)
@@ -825,10 +867,12 @@ class Sunback:
                     break
                 else:
                     # Find Results
-                    self.fido_result = Fido.search(attrs.Time(early, now), attrs.Instrument('aia'))
+                    self.fido_result = Fido.search(
+                        attrs.Time(early, now), attrs.Instrument("aia")
+                    )
                     self.fido_num = self.fido_result.file_num
                     if self.params.is_debug():
-                        print(self.fido_num, '\t', minute_range)
+                        print(self.fido_num, "\t", minute_range)
                     # Change time range if wrong number of records
                     if self.fido_num > max_num:
                         # tries += 1
@@ -855,20 +899,25 @@ class Sunback:
                 break
 
         if self.new_images and self.params.download_images():
-            print("Search Found {} new images at {}".format(self.fido_num,
-                                                            self.parse_time_string_to_local(str(self.this_time), 2)), flush=True)
+            print(
+                "Search Found {} new images at {}".format(
+                    self.fido_num,
+                    self.parse_time_string_to_local(str(self.this_time), 2),
+                ),
+                flush=True,
+            )
             self.last_time = self.this_time
 
-            with open(self.params.time_file, 'w') as fp:
-                fp.write(str(self.this_time) + '\n')
-                fp.write(str(self.fido_num) + '\n')
+            with open(self.params.time_file, "w") as fp:
+                fp.write(str(self.this_time) + "\n")
+                fp.write(str(self.fido_num) + "\n")
                 fp.write(str(self.fido_result.get_response(0)))
         else:
             print("No New Images, using Cached Data\n")
             self.fido_result = []
             self.new_images = False
 
-            with open(self.params.time_file, 'r') as fp:
+            with open(self.params.time_file, "r") as fp:
                 self.this_time = int(fp.readline())
                 self.fido_num = int(fp.readline())
                 fp.readline()
@@ -891,12 +940,12 @@ class Sunback:
             name = self.fido_result[0, ind].get_response(0)[0].wave.wavemin
         else:
             name = self.fido_result[ind][-6:-2]
-            if name[-1] == '.':
+            if name[-1] == ".":
                 name = name[:-1]
-            if name[0] == ' ':
+            if name[0] == " ":
                 name = name[1:]
         while len(name) < 4:
-            name = '0' + name
+            name = "0" + name
         return name
 
     def make_movie(self, ii):
@@ -927,11 +976,10 @@ class Sunback:
         if self.new_images and self.params.download_images():
             for ii in range(tries):
                 try:
-                    print("Downloading Fits Data...", end='', flush=True)
+                    print("Downloading Fits Data...", end="", flush=True)
                     if self.useFido:
                         result = self.fido_retrieve_result(self.fido_result[0, ind])
                     else:
-
                         print("Success", flush=True)
                     break
                 except KeyboardInterrupt:
@@ -977,12 +1025,12 @@ class Sunback:
         return time_string
 
     def use_cached(self, ind):
-        print("Using Cached Data...", end='', flush=True)
-        result = self.list_files1(self.params.local_directory, 'fits')
+        print("Using Cached Data...", end="", flush=True)
+        result = self.list_files1(self.params.local_directory, "fits")
         file_name = [x for x in result][ind]
         full_name = file_name[:4]
 
-        with open(self.params.time_file, 'r') as fp:
+        with open(self.params.time_file, "r") as fp:
             time_stamp = fp.read()
         time_string = self.parse_time_string_to_local(str(time_stamp), 2)
         save_path = join(self.params.local_directory, file_name)
@@ -1026,13 +1074,14 @@ class Sunback:
     @staticmethod
     def list_files1(directory, extension):
         from os import listdir
-        return (f for f in listdir(directory) if f.endswith('.' + extension))
+
+        return (f for f in listdir(directory) if f.endswith("." + extension))
 
     def get_paths(self, this_result):
         self.name = this_result.get_response(0)[0].wave.wavemin
         while len(self.name) < 4:
-            self.name = '0' + self.name
-        file_name = '{}_Now.fits'.format(self.name)
+            self.name = "0" + self.name
+        file_name = "{}_Now.fits".format(self.name)
         save_path = join(self.params.local_directory, file_name)
         return self.name, save_path
 
@@ -1054,13 +1103,25 @@ class Sunback:
             minute = time_string[10:12]
 
         hour = str(hour_raw % 12)
-        if hour == '0':
+        if hour == "0":
             hour = 12
-        suffix = 'pm' if hour_raw > 12 else 'am'
-        struct_time = (int(year), int(month), int(day), hour_raw, int(minute), 0, 0, 0, -1)
+        suffix = "pm" if hour_raw > 12 else "am"
+        struct_time = (
+            int(year),
+            int(month),
+            int(day),
+            hour_raw,
+            int(minute),
+            0,
+            0,
+            0,
+            -1,
+        )
 
-        new_time_string = strftime("%I:%M%p %m/%d/%Y ", localtime(timegm(struct_time))).lower()
-        if new_time_string[0] == '0':
+        new_time_string = strftime(
+            "%I:%M%p %m/%d/%Y ", localtime(timegm(struct_time))
+        ).lower()
+        if new_time_string[0] == "0":
             new_time_string = new_time_string[1:]
 
         # print(year, month, day, hour, minute)
@@ -1070,8 +1131,8 @@ class Sunback:
     @staticmethod
     def clean_name_string(full_name):
         # Make the name strings
-        name = full_name + ''
-        while name[0] == '0':
+        name = full_name + ""
+        while name[0] == "0":
             name = name[1:]
         return name
 
@@ -1080,10 +1141,15 @@ class Sunback:
         # Make the name strings
         from datetime import timezone
         from astropy.time import Time
+
         # import pdb; pdb.set_trace()
         # cleaned = time_string.replace(tzinfo=timezone.utc).astimezone(tz=None)
-        cleaned = Time(time_string).datetime.replace(
-            tzinfo=timezone.utc).astimezone(tz=None).strftime("%I:%M%p, %b-%d, %Y")
+        cleaned = (
+            Time(time_string)
+            .datetime.replace(tzinfo=timezone.utc)
+            .astimezone(tz=None)
+            .strftime("%I:%M%p, %b-%d, %Y")
+        )
 
         return cleaned
         # name = full_name + ''
@@ -1094,20 +1160,26 @@ class Sunback:
     @staticmethod
     def blankAxis(ax):
         ax.patch.set_alpha(0)
-        ax.spines['top'].set_color('none')
-        ax.spines['bottom'].set_color('none')
-        ax.spines['left'].set_color('none')
-        ax.spines['right'].set_color('none')
-        ax.tick_params(labelcolor='none', which='both',
-                       top=False, bottom=False, left=False, right=False)
+        ax.spines["top"].set_color("none")
+        ax.spines["bottom"].set_color("none")
+        ax.spines["left"].set_color("none")
+        ax.spines["right"].set_color("none")
+        ax.tick_params(
+            labelcolor="none",
+            which="both",
+            top=False,
+            bottom=False,
+            left=False,
+            right=False,
+        )
         ax.set_xticklabels([])
         ax.set_yticklabels([])
         ax.set_xticks([])
         ax.set_yticks([])
 
-        ax.set_title('')
-        ax.set_xlabel('')
-        ax.set_ylabel('')
+        ax.set_title("")
+        ax.set_xlabel("")
+        ax.set_ylabel("")
 
     # Data Manipulations
 
@@ -1139,13 +1211,11 @@ class Sunback:
         return (data - lowP) / (highP - lowP)
 
     def vignette(self, data):
-
         mask = self.radius > (int(1.1 * self.rez // 2))  # (3.5 * self.noise_radii)
         data[mask] = np.nan
         return data
 
     def vignette2(self, data):
-
         mask = np.isclose(self.radius, self.tRadius, atol=2)
         data[mask] = 1
 
@@ -1160,15 +1230,16 @@ class Sunback:
         data[data == 0] = np.nan
         radius_bin = np.asarray(np.floor(self.rad_flat), dtype=np.int32)
         # import pdb; pdb.set_trace()
-        dat_corona = (data.flatten() - self.fakeMin[radius_bin]) / \
-                     (self.fakeMax[radius_bin] - self.fakeMin[radius_bin])
+        dat_corona = (data.flatten() - self.fakeMin[radius_bin]) / (
+            self.fakeMax[radius_bin] - self.fakeMin[radius_bin]
+        )
 
         # sys.stderr = original
 
         # Deal with too hot things
         self.vmax = 0.95
         self.vmax_plot = 0.85  # np.max(dat_corona)
-        hotpowr = 1/1.5
+        hotpowr = 1 / 1.5
 
         hot = dat_corona > self.vmax
         # dat_corona[hot] = dat_corona[hot] ** hotpowr
@@ -1176,26 +1247,28 @@ class Sunback:
         # Deal with too cold things
         self.vmin = 0.3
         self.vmin_plot = -0.05  # np.min(dat_corona)# 0.3# -0.03
-        coldpowr = 1/2
+        coldpowr = 1 / 2
 
         cold = dat_corona < self.vmin
-        dat_corona[cold] = -((np.abs(dat_corona[cold] - self.vmin) + 1) ** coldpowr - 1) + self.vmin
+        dat_corona[cold] = (
+            -((np.abs(dat_corona[cold] - self.vmin) + 1) ** coldpowr - 1) + self.vmin
+        )
 
         self.dat_coronagraph = dat_corona
         dat_corona_square = dat_corona.reshape(data.shape)
 
-        if self.renew_mask or self.params.mode() == 'r':
+        if self.renew_mask or self.params.mode() == "r":
             self.corona_mask = self.get_mask(data)
             self.renew_mask = False
 
-        dat_corona_square = dat_corona_square ** (1/5)
+        dat_corona_square = dat_corona_square ** (1 / 5)
         data = self.normalize(data, high=100, low=0)
         dat_corona_square = self.normalize(dat_corona_square, high=100, low=1)
 
         # import pdb; pdb.set_trace()
         if self.params.do_mirror():
             # Do stuff
-            xx, yy = self.corona_mask.shape[0], int(self.corona_mask.shape[1]/2)
+            xx, yy = self.corona_mask.shape[0], int(self.corona_mask.shape[1] / 2)
             # import pdb; pdb.set_trace()
             newDat = data[self.corona_mask]
             grid = newDat.reshape(xx, yy)
@@ -1225,7 +1298,6 @@ class Sunback:
         return data
 
     def get_mask(self, dat_out):
-
         corona_mask = np.full_like(dat_out, False, dtype=bool)
         rezz = corona_mask.shape[0]
         half = int(rezz / 2)
@@ -1234,29 +1306,29 @@ class Sunback:
 
         if type(mode) in [float, int]:
             mask_num = mode
-        elif 'y' in mode:
+        elif "y" in mode:
             mask_num = 1
-        elif 'n' in mode:
+        elif "n" in mode:
             mask_num = 2
         else:
-            if 'r' in mode:
+            if "r" in mode:
                 if len(mode) < 2:
-                    mode += 'a'
+                    mode += "a"
 
-            if 'a' in mode:
+            if "a" in mode:
                 top = 8
                 btm = 1
-            elif 'h' in mode:
+            elif "h" in mode:
                 top = 6
                 btm = 3
-            elif 'd' in mode:
+            elif "d" in mode:
                 top = 8
                 btm = 7
-            elif 'w' in mode:
+            elif "w" in mode:
                 top = 2
                 btm = 1
             else:
-                print('Unrecognized Mode')
+                print("Unrecognized Mode")
                 top = 8
                 btm = 1
 
@@ -1313,7 +1385,6 @@ class Sunback:
         return data
 
     def make_radius(self, data):
-
         self.rez = data.shape[0]
         centerPt = self.rez / 2
         xx, yy = np.meshgrid(np.arange(self.rez), np.arange(self.rez))
@@ -1335,7 +1406,6 @@ class Sunback:
         self.dat_sort = self.dat_flat[inds]
 
     def bin_radially(self):
-
         # Bin the intensities by radius
         self.radBins = [[] for x in np.arange(self.rez)]
         binInds = np.asarray(np.floor(self.rad_sorted), dtype=np.int32)
@@ -1381,8 +1451,8 @@ class Sunback:
         self.highCut = 0.8 * self.rez
 
         # Locate the Limb
-        theMin = int(0.35*self.rez)
-        theMax = int(0.45*self.rez)
+        theMin = int(0.35 * self.rez)
+        theMax = int(0.45 * self.rez)
         near_limb = np.arange(theMin, theMax)
 
         r1 = self.radAbss[np.argmax(self.binMid[near_limb]) + theMin]
@@ -1395,20 +1465,19 @@ class Sunback:
         self.hCut = int(self.limb_radii + 0.01 * self.rez)
 
         # Split into three regions
-        self.low_abs = self.radAbss[:self.lCut]
-        self.low_max = self.binMax[:self.lCut]
-        self.low_min = self.binMin[:self.lCut]
+        self.low_abs = self.radAbss[: self.lCut]
+        self.low_max = self.binMax[: self.lCut]
+        self.low_min = self.binMin[: self.lCut]
 
-        self.mid_abs = self.radAbss[self.lCut:self.hCut]
-        self.mid_max = self.binMax[self.lCut:self.hCut]
-        self.mid_min = self.binMin[self.lCut:self.hCut]
+        self.mid_abs = self.radAbss[self.lCut : self.hCut]
+        self.mid_max = self.binMax[self.lCut : self.hCut]
+        self.mid_min = self.binMin[self.lCut : self.hCut]
 
-        self.high_abs = self.radAbss[self.hCut:]
-        self.high_max = self.binMax[self.hCut:]
-        self.high_min = self.binMin[self.hCut:]
+        self.high_abs = self.radAbss[self.hCut :]
+        self.high_max = self.binMax[self.hCut :]
+        self.high_min = self.binMin[self.hCut :]
 
         if False:
-
             # plt.axvline(r1, c='g')
             # plt.axvline(r2, c='g')
             # plt.axvline(r3, c='g')
@@ -1422,8 +1491,8 @@ class Sunback:
             plt.axvline(theMax)
 
             plt.axvline(self.limb_radii)
-            plt.axvline(self.lCut, ls=':')
-            plt.axvline(self.hCut, ls=':')
+            plt.axvline(self.lCut, ls=":")
+            plt.axvline(self.hCut, ls=":")
             plt.xlim([self.lCut, self.hCut])
             plt.legend()
             plt.show()
@@ -1439,7 +1508,7 @@ class Sunback:
         rank = 3
 
         # print(self.count_nan(self.throw_nan(self.low_max)))
-        mode = 'nearest'
+        mode = "nearest"
         low_max_filt = savgol_filter(self.low_max, lWindow, rank, mode=mode)
         # import pdb; pdb.set_trace()
 
@@ -1480,8 +1549,8 @@ class Sunback:
 
             plt.plot(self.radAbss, self.binMin, label="Min")
 
-            plt.plot(self.low_abs, low_min_fit, c='k')
-            plt.plot(self.low_abs, low_max_fit, c='k')
+            plt.plot(self.low_abs, low_min_fit, c="k")
+            plt.plot(self.low_abs, low_max_fit, c="k")
 
             # plt.plot(self.radAbss, self.binMid, label="Mid")
             # plt.plot(self.radAbss, self.binMed, label="Med")
@@ -1497,8 +1566,12 @@ class Sunback:
         self.fakeMin0 = np.hstack((low_min_fit, mid_min_filt, high_min_filt))
 
         # Filter again to smooth boundaraies
-        self.fakeMax0 = self.fill_end(self.fill_start(savgol_filter(self.fakeMax0, fWindow, rank)))
-        self.fakeMin0 = self.fill_end(self.fill_start(savgol_filter(self.fakeMin0, fWindow, rank)))
+        self.fakeMax0 = self.fill_end(
+            self.fill_start(savgol_filter(self.fakeMax0, fWindow, rank))
+        )
+        self.fakeMin0 = self.fill_end(
+            self.fill_start(savgol_filter(self.fakeMin0, fWindow, rank))
+        )
 
         # Put the nans back in
         self.fakeMax = np.empty(self.rez)
@@ -1548,29 +1621,28 @@ class Sunback:
         return use
 
     def plot_stats(self):
-
         fig, (ax0, ax1) = plt.subplots(2, 1, True)
-        ax0.scatter(self.n2r(self.rad_sorted[::30]), self.dat_sort[::30], c='k', s=2)
-        ax0.axvline(self.n2r(self.limb_radii), ls='--', label="Limb")
+        ax0.scatter(self.n2r(self.rad_sorted[::30]), self.dat_sort[::30], c="k", s=2)
+        ax0.axvline(self.n2r(self.limb_radii), ls="--", label="Limb")
         # ax0.axvline(self.n2r(self.noise_radii), c='r', ls='--', label="Scope Edge")
-        ax0.axvline(self.n2r(self.lCut), ls=':')
-        ax0.axvline(self.n2r(self.hCut), ls=':')
+        ax0.axvline(self.n2r(self.lCut), ls=":")
+        ax0.axvline(self.n2r(self.hCut), ls=":")
         # ax0.axvline(self.tRadius, c='r')
         ax0.axvline(self.n2r(self.highCut))
 
         # plt.plot(self.diff_max_abs + 0.5, self.diff_max, 'r')
         # plt.plot(self.radAbss[:-1] + 0.5, self.diff_mean, 'r:')
 
-        ax0.plot(self.n2r(self.low_abs), self.low_max, 'm', label="Percentile")
-        ax0.plot(self.n2r(self.low_abs), self.low_min, 'm')
+        ax0.plot(self.n2r(self.low_abs), self.low_max, "m", label="Percentile")
+        ax0.plot(self.n2r(self.low_abs), self.low_min, "m")
         # plt.plot(self.low_abs, self.low_max_fit, 'r')
         # plt.plot(self.low_abs, self.low_min_fit, 'r')
 
-        ax0.plot(self.n2r(self.high_abs), self.high_max, 'c', label="Percentile")
-        ax0.plot(self.n2r(self.high_abs), self.high_min, 'c')
+        ax0.plot(self.n2r(self.high_abs), self.high_max, "c", label="Percentile")
+        ax0.plot(self.n2r(self.high_abs), self.high_min, "c")
 
-        ax0.plot(self.n2r(self.mid_abs), self.mid_max, 'y', label="Percentile")
-        ax0.plot(self.n2r(self.mid_abs), self.mid_min, 'y')
+        ax0.plot(self.n2r(self.mid_abs), self.mid_max, "y", label="Percentile")
+        ax0.plot(self.n2r(self.mid_abs), self.mid_min, "y")
         # plt.plot(self.high_abs, self.high_min_fit, 'r')
         # plt.plot(self.high_abs, self.high_max_fit, 'r')
 
@@ -1592,15 +1664,17 @@ class Sunback:
         # ax0.set_xlim((0, self.n2r(self.highCut)))
         ax0.legend()
         fig.set_size_inches((8, 12))
-        ax0.set_yscale('log')
+        ax0.set_yscale("log")
 
-        ax1.scatter(self.n2r(self.rad_flat[::10]), self.dat_coronagraph[::10], c='k', s=2)
+        ax1.scatter(
+            self.n2r(self.rad_flat[::10]), self.dat_coronagraph[::10], c="k", s=2
+        )
         ax1.set_ylim((-0.25, 2))
 
-        ax1.axhline(self.vmax, c='r', label='Confinement')
-        ax1.axhline(self.vmin, c='r')
-        ax1.axhline(self.vmax_plot, c='orange', label='Plot Range')
-        ax1.axhline(self.vmin_plot, c='orange')
+        ax1.axhline(self.vmax, c="r", label="Confinement")
+        ax1.axhline(self.vmin, c="r")
+        ax1.axhline(self.vmax_plot, c="orange", label="Plot Range")
+        ax1.axhline(self.vmin_plot, c="orange")
 
         # locs = np.arange(self.rez)[::int(self.rez/5)]
         # ax1.set_xticks(locs)
@@ -1613,12 +1687,12 @@ class Sunback:
 
         plt.tight_layout()
         if True:  # self.params.is_debug():
-            file_name = '{}_Radial.png'.format(self.name)
+            file_name = "{}_Radial.png".format(self.name)
             # print("Saving {}".format(file_name))
             save_path = join(r"data\images\radial", file_name)
             plt.savefig(save_path)
 
-            file_name = '{}_Radial_zoom.png'.format(self.name)
+            file_name = "{}_Radial_zoom.png".format(self.name)
             ax0.set_xlim((0.9, 1.1))
             save_path = join(r"data\images\radial", file_name)
             plt.savefig(save_path)
@@ -1633,10 +1707,11 @@ class Sunback:
         else:
             return n
 
+
 # Helper Functions
 
 
-def run(delay=60, mode='y', debug=False, do171=False, do304=False):
+def run(delay=60, mode="y", debug=False, do171=False, do304=False):
     p = Parameters()
     p.set_delay_seconds(delay)
     p.do_171(do171)
@@ -1677,7 +1752,7 @@ def where():
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     where()
-    run(10, 'y', debug=debugg)
+    run(10, "y", debug=debugg)
 
 
 # cdef int SINE = 0
