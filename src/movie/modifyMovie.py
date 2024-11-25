@@ -85,50 +85,45 @@ class SunbackMovie:
         a class specifying run options
     """
 
- 
+
+    def run(self, delay=20, mode='all', debug=False):
+        p = Parameters()
+        p.mode(mode)
+        p.set_delay_seconds(delay)
+        p.do_mirror(False)
+        # p.do_171(True)
+
+        if debug:
+            p.is_debug(True)
+            p.set_delay_seconds(10)
+            p.do_HMI(False)
+
+        # p.time_period(period=['2019/12/21 04:20', '2019/12/21 04:40'])
+        p.resolution(1024)
+        p.range(days=3)#0.060)
+        p.download_images(True)
+        p.cadence(30)
+        p.frames_per_second(20)
+        p.bpm(150)
+        # p.download_images(False)
+        # p.overwrite_pngs(False)
+        p.sonify_limit(False)
+        p.remove_old_images(False)
+        p.make_compressed(True)
+        p.sonify_images(True, True)
+        # p.sonify_images(False, False)
+        # p._stop_after_one = True
+        # p.do_171(True)
+        # p.do_304(True)
+
+        # Sunback(p).start()
+        SunbackMovie(p).start()
 
 
-
-
-
-def run(delay=20, mode='all', debug=False):
-    p = Parameters()
-    p.mode(mode)
-    p.set_delay_seconds(delay)
-    p.do_mirror(False)
-    # p.do_171(True)
-
-    if debug:
-        p.is_debug(True)
-        p.set_delay_seconds(10)
-        p.do_HMI(False)
-
-    # p.time_period(period=['2019/12/21 04:20', '2019/12/21 04:40'])
-    p.resolution(1024)
-    p.range(days=3)#0.060)
-    p.download_images(True)
-    p.cadence(30)
-    p.frames_per_second(20)
-    p.bpm(150)
-    # p.download_images(False)
-    # p.overwrite_pngs(False)
-    p.sonify_limit(False)
-    p.remove_old_images(False)
-    p.make_compressed(True)
-    p.sonify_images(True, True)
-    # p.sonify_images(False, False)
-    # p._stop_after_one = True
-    # p.do_171(True)
-    # p.do_304(True)
-
-    # Sunback(p).start()
-    SunbackMovie(p).start()
-
-
-def where():
-    """Prints the location that the images are stored in."""
-    p = Parameters()
-    print(p.discover_best_default_directory())
+    def where():
+        """Prints the location that the images are stored in."""
+        p = Parameters()
+        print(p.discover_best_default_directory())
 
 
 if __name__ == "__main__":

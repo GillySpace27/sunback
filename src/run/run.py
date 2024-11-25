@@ -49,6 +49,7 @@ class Runner:
                 if fail_count < fail_max:
                     out_string = "I failed, but I'm ignoring it. Count: {}/{}\n".format(fail_count, fail_max)
                     print(out_string, error, "\n\n")
+                    raise error
                     continue
                 else:
                     print("Too Many Failures, I Quit!")
@@ -112,8 +113,13 @@ class Runner:
                 for put, rp in zip(self.params.putters(), self.params._put_rp):
                     put_instance = put(params=self.params, rp=rp)
                     put_instance.tic()
-                    put_instance.put()
-                    put_instance.cleanup()
+                    try:
+                        put_instance.put()
+                    except StopIteration:
+                        print("StopIteration Raised")
+                        break
+
+                put_instance.cleanup()
 
             self.print_end_banner()
 

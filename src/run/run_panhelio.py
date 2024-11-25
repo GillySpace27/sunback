@@ -11,7 +11,7 @@ from tqdm import tqdm
 ## Helper Functions  ------------------------------------------------
 def where():
     print("Current Directory: \n{}".format(os.getcwd()))
-    
+
 def change_directory(directory, changed):
 
     dir_out=os.path.join(directory, "src")
@@ -22,7 +22,7 @@ def change_directory(directory, changed):
         os.chdir(new_path)
     changed=True
 #     where()
-    
+
 ## More Imports  ------------------------------------------------
 
 # Change Path
@@ -30,14 +30,14 @@ if not changed:
     change_directory('sunback', changed)
     changed = True
 new_path = os.path.abspath("/srv/data/shared/notebooks/cgilly/sunback/src")
-os.chdir(new_path)    
-    
+os.chdir(new_path)
+
 # Import
-from fetcher.LocalFetcher import LocalSingleFetcher, LocalCdfFetcher
-from processor.ImageProcessorCV import ImageProcessorCV #, ImageProcessorNetCDF
-from processor.QRNProcessor import QRNSingleShotProcessor
-from science.parameters import Parameters
-from run import Runner, SingleRunner
+from src.fetcher.LocalFetcher import LocalSingleFetcher, LocalCdfFetcher
+from src.processor.ImageProcessorCV import ImageProcessorCV #, ImageProcessorNetCDF
+from src.processor.QRNProcessor import QRNSingleShotProcessor
+from src.science.parameters import Parameters
+from src.run import Runner, SingleRunner
 
 
 def run(img_path, verb=False, confirm=True):
@@ -77,21 +77,21 @@ def run_batch(batch_directory, verb=False, confirm=False):
     print("    Found {} images".format(len(raw_cdf)), flush=True)
     if verb:
         print("   ", raw_cdf, flush=True)
-        
+
     # Run the code on the images:
     if not verb:
         std = os.sys.stdout
         os.sys.stdout = open("log.txt", "w+")
-        
+
     for im_path in tqdm(abs_cdf):
         run(im_path, verb=verb, confirm=confirm)
-        
+
     if not verb:
         os.sys.stdout = std
-    
+
 if __name__ == "__main__":
-    # Do something if this file is invoked on its own   
-    
+    # Do something if this file is invoked on its own
+
     # Go to the directory with the single image_path
     use_directory = r"/srv/data/shared/notebooks/cgilly/sunback/src/sunback_images/Single/"
     use_image_name = r"AIA20210923_172100.nc"

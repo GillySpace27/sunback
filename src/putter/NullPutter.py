@@ -1,5 +1,5 @@
 from time import sleep
-from putter.Putter import Putter
+from src.putter.Putter import Putter
 
 class NullPutter(Putter):
     description = "Print the Name of the Image Folder"
@@ -10,7 +10,6 @@ class NullPutter(Putter):
         self.load(params)
         # n_files = len(self.params.local_imgs_paths()) + len(self.params.local_fits_paths())
         print(" {}\n".format(self.params.base_directory()))
-        
+
         # print("   No Output Selected\n")
-        
-        
+

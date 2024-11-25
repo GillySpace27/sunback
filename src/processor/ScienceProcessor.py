@@ -2,8 +2,9 @@
 # from os import makedirs
 # from os.path import join, dirname
 import numpy as np
+
 # from scipy.signal import savgol_filter
-# from processor.Processor import Processor
+# from src.processor.Processor import Processor
 #
 # import warnings
 #
@@ -13,6 +14,7 @@ import matplotlib as mpl
 # mpl.use("qt5agg")
 
 import matplotlib.pyplot as plt
+
 #
 # plt.ioff()
 #
@@ -31,23 +33,34 @@ from astropy.io import fits
 from matplotlib.colors import LinearSegmentedColormap
 from tqdm import tqdm
 
-from processor.Processor import Processor
+from src.processor.Processor import Processor
 
 
 class ScienceProcessor(Processor):
-    filt_name = 'Scientist'
+    filt_name = "Scientist"
     description = "Examine the files"
     progress_verb = "Examining"
     progress_unit = "Fits Files"
-    
-    def __init__(self, fits_path=None, in_name=-1, orig=False, show=False, verb=False, quick=False, rp=None, params=None):
+
+    def __init__(
+        self,
+        fits_path=None,
+        in_name=-1,
+        orig=False,
+        show=False,
+        verb=False,
+        quick=False,
+        rp=None,
+        params=None,
+    ):
         """Initialize the main class"""
         self.save_to_fits = False
         self.current_frame_name = None
         self.flat_im = None
         self.do_png = False
         super().__init__(params, quick, rp)
-        self.params.do_single=False
+        self.params.do_single = False
+
     #         # Parse Inputs
     #
     #     ###################
@@ -56,8 +69,7 @@ class ScienceProcessor(Processor):
     #
     def setup(self):
         """Do prep work once before the main algorithm"""
-        print('Setup ran!')
-        
+        print("Setup ran!")
 
         self.ii = 0
         self.n_hist = 50
@@ -65,33 +77,29 @@ class ScienceProcessor(Processor):
         self.vals = []
         self.annulus_width = 5
         self.rr = 1.25
-    
+
         # n_heights = 20
         # viridis = mpl.colormaps['viridis']#.resampled(n_lines)
         # LinearSegmentedColormap
         # annulus = 0
-    
+
     def cleanup(self):
-        
         print("Cleanup time!")
-        
-        fig, axes = plt.subplots(1, sharex='all')
+
+        fig, axes = plt.subplots(1, sharex="all")
         # fig.suptitle("Annulus Width: {}".format(self.annulus_width))
-        
+
         array = np.asarray(self.vals).T
         xx, yy = np.meshgrid(self.locs, self.bins)
-        hhist = axes.pcolormesh(xx, yy, array, cmap='YlOrRd', label="Sim Hist")
+        hhist = axes.pcolormesh(xx, yy, array, cmap="YlOrRd", label="Sim Hist")
         axes.set_ylabel("QRN Normalized Intensity")
         axes.set_xlabel("Days of January 2019")
         axes.set_title(r"Height = {} $R_\odot$".format(self.rr))
         plt.show(block=True)
-        a=1
+        a = 1
         super().cleanup()
 
-        
-    
     def do_work(self):
-        
         # print("I did work!")
         # rr = 1.2
         #
@@ -101,13 +109,15 @@ class ScienceProcessor(Processor):
         # clr =viridis(idx/n_heights)
         if self.ii == 0:
             self.init_radius_array()
-        
-        good_coord, bin_array, radii, the_mean, the_std, want_bin = self.get_annulus(self.rr, 'qrn', width=self.annulus_width, load=False)
-        n, self.bins = np.histogram(bin_array, range=(0,1), bins=self.n_hist)
+
+        good_coord, bin_array, radii, the_mean, the_std, want_bin = self.get_annulus(
+            self.rr, "qrn", width=self.annulus_width, load=False
+        )
+        n, self.bins = np.histogram(bin_array, range=(0, 1), bins=self.n_hist)
         nn = n.tolist()
         nn.append(0)
         nnn = np.asarray(nn)
-        normed_nnn = nnn/np.nansum(nnn)
+        normed_nnn = nnn / np.nansum(nnn)
         # axes[0].plot(bins, normed_nnn, color=clr, label=str(rr))
         self.locs.append(self.ii)
         self.vals.append(normed_nnn)
@@ -149,7 +159,7 @@ class ScienceProcessor(Processor):
         # a=1
         #
         pass
-    
+
     #
     # def do_work_2(self):
     #     fig, axes = plt.subplots(2, sharex='all')
@@ -217,7 +227,7 @@ class ScienceProcessor(Processor):
     #     # self.params.raw_image
     #     # self.params.modified_image
     #
-    def get_annulus(self, r=1.2, name='qrn', want_bin=None, width=0, load=True):
+    def get_annulus(self, r=1.2, name="qrn", want_bin=None, width=0, load=True):
         # if not self.current_frame_name == name or self.flat_im is None:
         if load:
             frame, _, _, _, _, _ = self.load_this_fits_frame(self.fits_path, name)
@@ -225,26 +235,30 @@ class ScienceProcessor(Processor):
             frame = self.params.modified_image
         else:
             raise FileNotFoundError
-        
-        self.flat_im=np.flipud(frame).flatten()
-        
-        want_bin = int(r * self.limb_radius_from_fit_shrunken) if want_bin is None else want_bin
-        
+
+        self.flat_im = np.flipud(frame).flatten()
+
+        want_bin = (
+            int(r * self.limb_radius_from_fit_shrunken)
+            if want_bin is None
+            else want_bin
+        )
+
         if width:
             the_bin_list = []
-            want_range = (want_bin-width, want_bin+width)
+            want_range = (want_bin - width, want_bin + width)
             indices = np.arange(*want_range, 1)
             for ii in indices:
                 entries, the_mean, the_std = self.get_bin_entries(ii, self.flat_im)
                 (good_coord, bin_array, radii) = entries.T
                 the_bin_list.append(bin_array)
-            
+
             arraysize = np.nanmax([len(x) for x in the_bin_list])
             binsize = len(the_bin_list)
-            newbox = np.empty((binsize,arraysize))
+            newbox = np.empty((binsize, arraysize))
             newbox.fill(np.nan)
             for ii, thing in enumerate(the_bin_list):
-                newbox[ii, np.arange(0,len(thing))] = thing
+                newbox[ii, np.arange(0, len(thing))] = thing
             bin_array = newbox
         else:
             entries, the_mean, the_std = self.get_bin_entries(want_bin, self.flat_im)

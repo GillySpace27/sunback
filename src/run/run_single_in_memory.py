@@ -1,23 +1,27 @@
-from fetcher.LocalFetcher import LocalSingleFetcher
-from processor.ImageProcessorCV import ImageProcessorCV
-from science.parameters import Parameters
-from run import SingleRunner
+from src.fetcher.LocalFetcher import LocalSingleFetcher
+from src.processor.ImageProcessorCV import ImageProcessorCV
+from src.science.parameters import Parameters
+from src.run import SingleRunner
 import matplotlib.pyplot as plt
+from src.processor.RHEProcessor import RHEProcessor
+from src.processor.SunPyProcessor import MSGNProcessor
 
 plt.ioff()
 
 
-def run_single_in_memory(image=None):
+def run_single_in_memory(image, center=(900, 1200)):
     # Set the Parameters
     p = make_params()
     p.use_image_path(image)
-    
+    p.center = center
+
     # Set the Processes
     p.fetchers(LocalSingleFetcher,                rp=True)  # Gets the desired file
-    # p.processors([QRNpreProcessor],  rp=True)  # Applies the QRN Filter
-    # p.processors([QRNradialFiltProcessor],  rp=True)  # Applies the QRN Filter
+    p.processors([RHEProcessor],        rp=True)
+    p.processors([MSGNProcessor],        rp=True)  # Makes the PNGs from Fits
     p.putters(ImageProcessorCV,           rp=True)  # Makes the PNGs from Fits
-    
+
+
     # Run the Code
     aa = SingleRunner(p)
     aa.start()
@@ -27,7 +31,7 @@ def make_params():
     p.config = None
     p.destroy = False
     p.batch_name("Single")
-    p.png_frame_name = 'QRN'
+    p.png_frame_name = 'RHE'
     p.run_type("Process a Single Image")
     p.do_single = True
     p.do_one(True, True)
@@ -39,9 +43,19 @@ def make_params():
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-09-29T120009Z.304.image_lev1.fits"
+    # test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-09-29T120009Z.304.image_lev1.fits"
     # test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-10-02T162012Z.171.image_lev1.fits"
-    run_single_in_memory(image=test_image)
+    # test_image = "/Users/cgilbert/vscode/sunback_data/PXL_20240408_184406528.jpg"
+    # test_image, center = "/Users/cgilbert/vscode/sunback_data/eclipse/Photos-001 (3)/PXL_20240408_184359057.jpg",  (1210, 706)
+    # test_image, center = "/Users/cgilbert/vscode/sunback_data/eclipse/Photos-001 (3)/PXL_20240408_184406528.jpg", (2080, 1820),
+    test_image, center = "/Users/cgilbert/vscode/sunback_data/cosmic_background_studios_1.jpg", (720, 899, ),
+
+
+
+    # test_image = "/Users/cgilbert/vscode/sunback_data/eclipse.fits"
+    # run_single_in_memory(test_image, (1234, 1086))
+    run_single_in_memory(test_image, center)
+    # run_single_in_memory(test_image, None)
 
 
 

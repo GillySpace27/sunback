@@ -3,12 +3,12 @@ from os import makedirs
 from time import time
 
 from tqdm import tqdm
-from putter.Putter import Putter
+from src.putter.Putter import Putter
 import boto3
 
 # Select Amazon Resources
-# from utils.file_util import get_thumblinks
-from utils.array_util import get_thumblinks, make_thumbs
+# from src.utils.file_util import get_thumblinks
+from src.utils.array_util import get_thumblinks, make_thumbs
 import os
 S3_UPLOAD_ARGS = {'ACL': 'public-read', "ContentDisposition": "inline"}
 
@@ -60,7 +60,7 @@ class AwsPutter(Putter):
         # to_upload = self.params.local_imgs_paths()
 
         if self.to_upload is None or force:
-            self.to_upload = [file for file in self.params.local_imgs_paths() if ("aH" not in file and "aL" not in file and "_orig" not in file)]
+            self.to_upload = [file for file in self.params.local_imgs_paths() if ("_orig" not in file)]
             # for file in self.to_upload:
             #     file.replace("synoptic", "gilly")
 
@@ -74,7 +74,7 @@ class AwsPutter(Putter):
                     self.to_upload.append(os.path.join(comp_dir, file))
 
             # print(" V Uploading Files")
-            self.pbar = tqdm(self.to_upload, desc="\r\t* Uploading Files", ncols=120)
+        self.pbar = tqdm(self.to_upload, desc="\r\t* Uploading Files", ncols=120)
         # [print(x) for x in self.to_upload]
         return self.to_upload, self.pbar
 

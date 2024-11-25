@@ -1,10 +1,10 @@
 """ Sets your desktop background to the most recent images of the Sun.
 Solar Background Updater
-A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series. 
+A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series.
 """
 import sys
 from setuptools import setup, find_packages
-from movie.dep.sunback import versioneer
+# from src.movie.dep.sunback import versioneer
 
 short_description = __doc__.split("\n")
 
@@ -20,16 +20,16 @@ except:
 
 setup(
     # Self-descriptive entries which should always be present
-    name='Sunback',
+    name='sunback',
     author='C. R. Gilly',
     author_email='chris.gilly@colorado.edu',
     description=short_description[0],
     long_description=long_description,
     long_description_content_type="text/markdown",
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    version="0.5.0",  # versioneer.get_version(),
+    # cmdclass=100,  # versioneer.get_cmdclass(),
     license='BSD-3-Clause',
-    url='https://github.com/GillySpace27/sunback', # Website
+    url='https://github.com/GillySpace27/sunback',  # Website
 
     # Which Python importable modules should be included when your package is installed
     # Handled automatically by setuptools. Use 'exclude' to prevent some specific
@@ -47,10 +47,11 @@ setup(
     # Required packages, pulls from pip if needed; do not use for Conda deployment
     # install_requires=["sunpy[net]>=1.1"]
     install_requires=["boto3", "matplotlib", "twine", "pillow", "appscript;platform_system=='Darwin'",
-                      "moviepy", 'pippi', 'parfive', 'playsound', 'opencv-python', 'numba', "bs4", "sunpy", "scipy", "astropy", "html5lib", "numpy"],
+                      "moviepy", 'parfive', 'playsound', 'opencv-python', 'numba', "bs4",
+                      "sunpy", "scipy", "astropy", "html5lib", "numpy", 'sunkit-image', 'aiapy', 'xarray'],
 
     platforms=['Windows', 'Linux', 'Mac OS-X'],            # Valid platforms your code works on, adjust to your flavor
-                                        #'Linux','Mac OS-X','Unix',
+    # 'Linux','Mac OS-X','Unix',
 
     python_requires=">=3.0",          # Python version restrictions
 

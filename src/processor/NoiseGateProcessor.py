@@ -1,6 +1,6 @@
 from os import listdir
 from os.path import join
-from processor.Processor import Processor
+from src.processor.Processor import Processor
 import noisegate.tools as ngt
 import numpy as np
 from tqdm import tqdm
@@ -14,7 +14,7 @@ class NoiseGateProcessor(Processor):
     finished_verb = "Noise Gated"
     out_name = "Gated"
     in_name = "lev1p0"
-    
+
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         if self.params.do_single:
@@ -23,12 +23,12 @@ class NoiseGateProcessor(Processor):
             raise NotImplementedError
         self.noise_gate()
         return self.params.modified_image
-    
+
     def load_fits_images_single(self):
         print(r"Loading Data Cube of {} A...".format(self.params.current_wave()), end='')
         use_path = self.fits_path or self.params.use_image_path()
         raw_dir = use_path[:-5]
-        
+
         fits_in_paths = [join(raw_dir, x) for x in listdir(raw_dir) if ".fits" in x]
         frames = []
         # pairs = []
@@ -36,19 +36,19 @@ class NoiseGateProcessor(Processor):
             frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(path, self.in_name, quiet=True)
             frames.append(frame)
             # pairs.append((frame,header))
-        
+
         self.n_loaded = len(frames)
         print(" *      Successfully loaded {} frames!".format(self.n_loaded))
-        
+
         self.frameCube = np.asarray(frames, dtype=np.float64)
         # self.frameSequence = sunpy.map.Map(pairs, sequence=True)
-    
+
     def noise_gate(self):
         print(" *    Beginning Noise Gating Procedure...", end='')
         out = ngt.noise_gate_batch(self.frameCube)  # , cubesize=12, model='hybrid', factor=2.0)
         self.params.modified_image = bigOut = np.sum(out, axis=0)
         print("Noise Gating Complete!")
-        
+
         return bigOut
 
 #

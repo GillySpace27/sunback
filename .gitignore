@@ -138,3 +138,6 @@ image_times*
 settings.json
 *.idea/*
 
+rainbow/*.png
+*.fits
+.git-backup/*

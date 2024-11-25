@@ -1,16 +1,16 @@
 """This is the script to test all the run cases"""
 
-# from fetcher.WebFitsFetcher import WebFitsFetcher
-# from processor.RadialFiltProcessor import QRNradialFiltProcessor
-# from putter.AwsPutter import AwsPutter
-# from putter.DesktopPutter import DesktopPutter
-from run_background import run_background
-from run_recent_movie import run_recent_movie
-from run_server import run_server
-from run_range_movie import run_range_movie
-# from science.parameters import Parameters
-# from run import Runner
-from run_range_multishot_movie import run_range_multishot_movie
+# from src.fetcher.WebFitsFetcher import WebFitsFetcher
+# from src.processor.RadialFiltProcessor import QRNradialFiltProcessor
+# from src.putter.AwsPutter import AwsPutter
+# from src.putter.DesktopPutter import DesktopPutter
+from src.run.run_background import run_background
+from src.run.run_recent_movie import run_recent_movie
+from src.run.run_server import run_server
+from src.run.run_range_movie import run_range_movie
+# from src.science.parameters import Parameters
+# from src.run import Runner
+from src.run.run_range_multishot_movie import run_range_multishot_movie
 
 
 def run_all_test(debug=True):

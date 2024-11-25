@@ -6,20 +6,23 @@ from time import time, sleep, strftime, asctime, strptime, mktime
 
 import numpy as np
 from astropy import units as u
-from fetcher.LocalFetcher import LocalFetcher
-from processor.Processor import Processor
-from processor.ValidationProcessor import ValidationProcessor
-from putter.NullPutter import NullPutter
+from src.fetcher.LocalFetcher import LocalFetcher
+from src.processor.Processor import Processor
+from src.processor.ValidationProcessor import ValidationProcessor
+from src.putter.NullPutter import NullPutter
 import matplotlib.pyplot as plt
 
-from utils.time_util import define_time_range, define_recent_range
+from src.utils.time_util import define_time_range, define_recent_range
+
 global multi_pool
 multi_pool = None
+
 
 class Parameters:
     """
     A container class for the run parameters of the program
     """
+
     seconds = 1
     minutes = 60 * seconds
     hours = 60 * minutes
@@ -34,8 +37,20 @@ class Parameters:
         self._rhe_targets = []
         self.multi_pool = None
         self.do_parallel = True
-        self.master_frame_list_newest = ["msgn", "rhe", "lev1p5", "t_int", "lev1p0", "primary", '']
-        self.master_frame_list_oldest = [ x for x in reversed(self.master_frame_list_newest)]
+        self.master_frame_list_newest = [
+            "rhef",
+            "msgn",
+            "rhe",
+            "lev1p5",
+            "t_int",
+            "lev1p0",
+            "compressed_image",
+            "primary",
+            "",
+        ]
+        self.master_frame_list_oldest = [
+            x for x in reversed(self.master_frame_list_newest)
+        ]
         self.short_circuit = False
         self.durList = []
         self.aftereffects_in_name = "rhe"
@@ -47,8 +62,8 @@ class Parameters:
         self.use_drive = "D"
         self.file_basename = None
         self.orig_path = None
-        self.cat_path  = None
-        self.mod_path  = None
+        self.cat_path = None
+        self.mod_path = None
         self.last_wave = None
         self.analysis_directory = None
         self._imgs_top_directory = None
@@ -65,17 +80,17 @@ class Parameters:
         self.int_tm_tot = 0
         self.do_temp = False
         self.do_prep = False
-        self.confirm_save=False
-        self.speak_save=False
-        self.tend = ''
-        self.tstart = ''
+        self.confirm_save = False
+        self.speak_save = False
+        self.tend = ""
+        self.tstart = ""
         self._remake_norm_curves = False
         self._params_path = None
         self._curve_path = None
         self._write_video = False
         self._overwrite_pngs = False
         self._reprocess_mode = None
-        self._current_wave = 'rainbow'
+        self._current_wave = "rainbow"
         self._imgs_directory = None
         self._fits_directory = None
         self._movs_directory = None
@@ -87,8 +102,8 @@ class Parameters:
         self.found_limb_radius = 800
         self.time_multiplier_for_long_display = None
         self.local_directory = None
-        self.all_wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
-        self.use_wavelengths = ['0171', '0193', '0211', '0304', '0131', '0335', '0094']
+        self.all_wavelengths = ["0171", "0193", "0211", "0304", "0131", "0335", "0094"]
+        self.use_wavelengths = ["0171", "0193", "0211", "0304", "0131", "0335", "0094"]
         self._resolution = 4096
         self.web_image_frame = None
         self.web_image_location = None
@@ -100,16 +115,16 @@ class Parameters:
         self.debug_mode = False
         self.did_print = False
         self.Force_init = False
-        self.list_of_default_hdus = ['t_int', "lev1p0", 0, 1]
+        self.list_of_default_hdus = ["t_int", "lev1p0", 0, 1]
         self.raw_image = None
-        self.modified_image=None
-        self.rhe_image=None
-        self.alpha=0.35
+        self.modified_image = None
+        self.rhe_image = None
+        self.upsilon = (0.6, 0.35)
         self.hdu_name = None
         self.start_time = time()
         self.is_first_run = True
         self._do_HMI = True
-        self._mode = 'all'
+        self._mode = "all"
         self._do_mirror = False
         self.use_cdf = False
         self.processors_ran = []
@@ -157,8 +172,8 @@ class Parameters:
         self._use_default_directories = True
         self.do_orig = False
         self.do_compare = True
-        self.alpha_low = 0.35
-        self.alpha_high = 0.35
+        self.upsilon_low = None
+        self.upsilon_high = None
         self.do_cat = False
         self.do_single = False
         self.got_JPEG = False
@@ -177,8 +192,8 @@ class Parameters:
 
         # self.multi_pool = self.init_pool(self.n_pool)
 
-        self._msgn_targets = [] #['primary', 'rhe(primary)']
-        self._qrn_targets = [] #['primary', 'rhe(primary)']
+        self._msgn_targets = []  # ['primary', 'rhe(primary)']
+        self._qrn_targets = []  # ['primary', 'rhe(primary)']
 
         # self.set_default_values()
 
@@ -203,24 +218,32 @@ class Parameters:
     def __getstate__(self):
         self_dict = self.__dict__.copy()
         try:
-            del self_dict['multi_pool']
+            del self_dict["multi_pool"]
         except KeyError:
-            a=1
+            a = 1
 
         return self_dict
+
+    def do_standard_RHE(self):
+        self.msgn_targets(["lev1p5"])  # , 'rhe(lev1p5)'
+        self.rhe_targets(["lev1p5", "msgn(lev1p5)"])  # "lev1p5",
+        self.png_frame_name = ["rhef(lev1p5)"]  # ['rhe(lev1p5)']
 
     def init_pool(self, n_cores=10):
         if self.multi_pool is None and self.do_parallel is True:
             print("$$$$$$$$$$$$$   Initializing Pool of {}...".format(n_cores))
             try:
                 from multiprocessing import set_start_method
+
                 set_start_method("spawn")
             except RuntimeError:
                 pass
             from multiprocessing import Pool
+
             the_pool = Pool(n_cores)
             from time import sleep
-            sleep(2+n_cores/2)
+
+            sleep(2 + n_cores / 2)
             print("$$$$$$$$$$$$$   Pool Initialized!!", flush=True)
             self.multi_pool = the_pool
         return self.multi_pool
@@ -256,7 +279,7 @@ class Parameters:
     def putters(self, _putters=None, rp=None):
         if _putters is not None:
             if type(_putters) not in [list]:
-                self._putters =  [_putters]
+                self._putters = [_putters]
                 self._put_rp = [rp]
             else:
                 self._putters.extend(_putters)
@@ -264,7 +287,7 @@ class Parameters:
 
         return self._putters
 
-    ## Other
+    # Other
 
     # Directories
 
@@ -272,7 +295,6 @@ class Parameters:
         if _image is not None:
             self._image = _image
         return self._image
-
 
     def base_directory(self, _base_directory=None):
         if _base_directory is not None:
@@ -331,9 +353,6 @@ class Parameters:
         if make:
             makedirs(self._movs_directory, exist_ok=True)
         return self._movs_directory
-
-
-
 
     def time_path(self, _time_path=None):
         if _time_path is not None:
@@ -521,7 +540,9 @@ class Parameters:
         return self._do_multishot
 
     def cadence_minutes(self, cad=None):
-        if cad is not None:
+        if isinstance(cad, u.Quantity):
+            self._cadence = cad.to(u.minute)
+        elif cad is not None:
             self._cadence = cad * u.minute
         return self._cadence
 
@@ -549,7 +570,6 @@ class Parameters:
         return self._bpm
 
     def set_waves_to_do(self, waves=None):
-
         if waves is not None:
             self.waves_to_do = [waves]
         elif self.do_one():
@@ -560,13 +580,12 @@ class Parameters:
 
     def reset_frames(self):
         self.modified_image = np.zeros_like(self.modified_image)
-        self.raw_image = self.modified_image +0
-        self.raw_image2 = self.modified_image +0
+        self.raw_image = self.modified_image + 0
+        self.raw_image2 = self.modified_image + 0
 
     def set_current_wave(self, wave=None):
         """Set the current wave parameter correctly"""
         self.reset_frames()
-
 
         if self.do_one():
             self.current_wave(self.do_one())
@@ -579,38 +598,38 @@ class Parameters:
             self.set_current_wave_paths()
         # self.make_directories()
 
-
     def get_wave_directory(self):
         """Define the root folder"""
         if self.do_single:
             base_directory = join(self.find_root_directory(), self.batch_name())
         else:
-            last = ''
+            last = ""
             if type(self.current_wave()) is str:
                 last = self.current_wave()
             base_directory = join(self.find_root_directory(), self.batch_name(), last)
 
         return self.base_directory(base_directory)
 
-    def find_root_directory(self, root_directory_name = None):
+    def find_root_directory(self, root_directory_name=None):
         """Determine where to store the images"""
 
         if root_directory_name is None:
-            root_directory_name = "/Users/cgilbert/PycharmProjects/sunback/renders"
+            root_directory_name = "/Users/cgilbert/vscode/sunback_data/renders"
 
         import platform
+
         self.os(platform.system())
 
         if self.os() == "Windows":
-            self.root_directory = abspath(join(self.use_drive + "://", root_directory_name))
+            self.root_directory = abspath(
+                join(self.use_drive + "://", root_directory_name)
+            )
         elif self.os() == "Linux":
             self.root_directory = root_directory_name
         elif self.os() == "Darwin":
             self.root_directory = root_directory_name
         else:
             raise OSError("Operating System Not Supported")
-
-
 
         # self.currently_local = False
         # if self.currently_local: # True when run locally, False when run in panHelio
@@ -643,40 +662,40 @@ class Parameters:
         # Define and Set Directories
         # print("Target: {}".format(self.current_wave))
 
-        ## \\>Batch<\\>Wavelength<\\
+        # \\>Batch<\\>Wavelength<\\
         self.base_directory(abspath(self.get_wave_directory()))
 
-
         # Top Folders
-        self.shortcut_directory(    abspath(join(self.base_directory(), '..', 'MOVS')))
-        self.time_path(             abspath(join(self.base_directory(), "image_times.txt")))
-        self.imgs_top_directory(    abspath(join(self.base_directory(), 'imgs')))
-        self.movs_directory(        abspath(join(self.base_directory(), 'video')))
-        self.analysis_directory =   abspath(join(self.base_directory(), "analysis"))
+        self.shortcut_directory(abspath(join(self.base_directory(), "..", "MOVS")))
+        self.time_path(abspath(join(self.base_directory(), "image_times.txt")))
+        self.imgs_top_directory(abspath(join(self.base_directory(), "imgs")))
+        self.movs_directory(abspath(join(self.base_directory(), "video")))
+        self.analysis_directory = abspath(join(self.base_directory(), "analysis"))
 
         # Fits Folders
         if not self.do_single:
-            self.fits_directory(        abspath(join(self.imgs_top_directory(), 'fits')))
+            self.fits_directory(abspath(join(self.imgs_top_directory(), "fits")))
         else:
-            self.fits_directory(        abspath(join(self.imgs_top_directory())))
+            self.fits_directory(abspath(join(self.imgs_top_directory())))
 
         if not self.temp_directory():
-            self.temp_directory(        abspath(join(self.fits_directory(), "temp")))
+            self.temp_directory(abspath(join(self.fits_directory(), "temp")))
 
         # Png Folders
-        self.mods_directory(        abspath(join(self.imgs_top_directory(), 'mod')))
-        self.orig_directory =       abspath(join(self.imgs_top_directory(), "orig"))
-        self.cat_directory =        abspath(join(self.imgs_top_directory(), "cat"))
+        self.mods_directory(abspath(join(self.imgs_top_directory(), "mod")))
+        self.orig_directory = abspath(join(self.imgs_top_directory(), "orig"))
+        self.cat_directory = abspath(join(self.imgs_top_directory(), "cat"))
 
         # Analysis Folders
 
-        norm_curves_name =      self.norm_curves_name or '{}_curves.txt'.format(self.current_wave())
-        self.curve_path(        abspath(join(self.analysis_directory, norm_curves_name)))
-
+        norm_curves_name = self.norm_curves_name or "{}_curves.txt".format(
+            self.current_wave()
+        )
+        self.curve_path(abspath(join(self.analysis_directory, norm_curves_name)))
 
         wave = "Rainbow" if self.do_single else self.current_wave()
-        param_file_name =       '{}_params.txt'.format(wave)
-        self.params_path(       abspath(join(self.analysis_directory, param_file_name)))
+        param_file_name = "{}_params.txt".format(wave)
+        self.params_path(abspath(join(self.analysis_directory, param_file_name)))
         if not self.do_single:
             self.save_to_txt()
 
@@ -691,28 +710,27 @@ class Parameters:
         # Define and Set Directories
         # print("Target: {}".format(self.current_wave))
 
-        ## \\>Batch<\\>Wavelength<\\
+        # \\>Batch<\\>Wavelength<\\
         new_root = self.temp_directory()
 
         # Top Folders
-        self.analysis_directory =   abspath(join(new_root, "analysis"))
+        self.analysis_directory = abspath(join(new_root, "analysis"))
 
         # Fits Folders
-        self.fits_directory(        abspath(join(self.imgs_top_directory())))
+        self.fits_directory(abspath(join(self.imgs_top_directory())))
 
         # Png Folders
-        self.mods_directory(        abspath(join(self.imgs_top_directory())))
-        self.orig_directory =       abspath(join(self.imgs_top_directory()))
-        self.cat_directory =        abspath(join(self.imgs_top_directory()))
+        self.mods_directory(abspath(join(self.imgs_top_directory())))
+        self.orig_directory = abspath(join(self.imgs_top_directory()))
+        self.cat_directory = abspath(join(self.imgs_top_directory()))
 
         # Analysis Folders
-        param_file_name =       '{}_params.txt'.format("Rainbow")
-        self.params_path(       abspath(join(self.analysis_directory, param_file_name)))
+        param_file_name = "{}_params.txt".format("Rainbow")
+        self.params_path(abspath(join(self.analysis_directory, param_file_name)))
         self.save_to_txt()
 
     ## Time Range ##
     def set_time_range_duration(self, t_start, duration_seconds=14):
-
         # Get a start_timestamp datetime
         try:
             t_start_struct = strptime(t_start[:-4], "%Y-%m-%dT%H:%M:%S")
@@ -727,15 +745,15 @@ class Parameters:
         # delta = max(duration_seconds - slide, 1)
         delta = duration_seconds
         duration = datetime.timedelta(seconds=delta)
-        shift = datetime.timedelta(seconds=-1)# -slide//2 ) #delta/1.5)
+        shift = datetime.timedelta(seconds=-1)  # -slide//2 ) #delta/1.5)
         # Pokemon this is where I am working 2-9-22
 
         t_start_dt = t_start_dt + shift
-        t_end_dt   = t_start_dt + shift + duration
+        t_end_dt = t_start_dt + shift + duration
 
         # Get the formatted outputs
-        t_start_out = t_start_dt.strftime('%Y/%m/%d %H:%M:%S')
-        t_end_out = t_end_dt.strftime('%Y/%m/%d %H:%M:%S')
+        t_start_out = t_start_dt.strftime("%Y/%m/%d %H:%M:%S")
+        t_end_out = t_end_dt.strftime("%Y/%m/%d %H:%M:%S")
 
         # Set to parameters object
         self.time_period(period=[t_start_out, t_end_out])
@@ -754,18 +772,16 @@ class Parameters:
         self.start_time, self.start_time_long, self.start_time_string = start
         self.end_time, self.end_time_long, self.end_time_string = end
 
-
-
         # self.radial_hist_path = abspath(join(self.analysis_directory, param_file_name))
 
     def make_directories(self):
         # Make Directories
-        makedirs(self.analysis_directory,   exist_ok=True)
+        makedirs(self.analysis_directory, exist_ok=True)
         makedirs(self.imgs_top_directory(), exist_ok=True)
-        makedirs(self.fits_directory(),     exist_ok=True)
-        makedirs(self.orig_directory,       exist_ok=True)
-        makedirs(self.mods_directory(),     exist_ok=True)
-        makedirs(self.movs_directory(),     exist_ok=True)
+        makedirs(self.fits_directory(), exist_ok=True)
+        makedirs(self.orig_directory, exist_ok=True)
+        makedirs(self.mods_directory(), exist_ok=True)
+        makedirs(self.movs_directory(), exist_ok=True)
         # makedirs(self.cat_directory,        exist_ok=True)
         # Save Parameters
         # self.save_to_txt()
@@ -773,7 +789,7 @@ class Parameters:
     def make_file_paths(self, image_data):
         _, self.fits_save_path, _, _ = image_data
         fits_name = os.path.basename(self.fits_save_path)
-        png_name =  fits_name.replace('fits', 'png')
+        png_name = fits_name.replace("fits", "png")
         self.mod_path = join(self.mods_directory(), png_name)
         self.cat_path = self.mod_path.replace("mod", "cat")
         self.orig_path = self.mod_path
@@ -783,18 +799,18 @@ class Parameters:
 
         return self.mod_path, self.cat_path, self.orig_path
 
-
     def get_pre_radial_fig_paths(self):
-
-        file_basename = self.file_basename or os.path.basename(self.use_image_path(self.image_data[1]))
+        file_basename = self.file_basename or os.path.basename(
+            self.use_image_path(self.image_data[1])
+        )
         file_name = file_basename[:-5]
 
         bs = self.analysis_directory
         folder_name = "radial_hist_pre"
-        file_name_1 = 'full_{}.png'.format(file_name)
+        file_name_1 = "full_{}.png".format(file_name)
         save_path_1 = join(bs, folder_name, file_name_1)
 
-        file_name_2 = 'zoom\\full_zoom_{}.png'.format(file_name)
+        file_name_2 = "zoom\\full_zoom_{}.png".format(file_name)
         save_path_2 = join(bs, folder_name, file_name_2)
 
         makedirs(dirname(save_path_1), exist_ok=True)
@@ -803,15 +819,16 @@ class Parameters:
         return save_path_1, save_path_2
 
     def get_post_radial_fig_paths(self):
-
-        file_basename = self.file_basename or os.path.basename(self.use_image_path(self.image_data[1]))
+        file_basename = self.file_basename or os.path.basename(
+            self.use_image_path(self.image_data[1])
+        )
         file_name = file_basename[:-5]
         bs = self.analysis_directory
         folder_name = "radial_hist_post"
-        file_name_1 = 'full_{}.png'.format(self.ii)
+        file_name_1 = "full_{}.png".format(self.ii)
         save_path_1 = join(bs, folder_name, file_name_1)
 
-        file_name_2 = 'zoom\\full_zoom_{}.png'.format(file_name)
+        file_name_2 = "zoom\\full_zoom_{}.png".format(file_name)
         save_path_2 = join(bs, folder_name, file_name_2)
 
         makedirs(dirname(save_path_1), exist_ok=True)
@@ -820,14 +837,11 @@ class Parameters:
 
         return save_path_1, save_path_2
 
-
-
-
     def current_wave(self, _current_wave=None):
         if _current_wave is not None:
             self._current_wave = _current_wave
             if not self._current_wave:
-                self._current_wave ='rainbow'
+                self._current_wave = "rainbow"
         return self._current_wave
 
     def check_real_number(self, number):
@@ -842,68 +856,71 @@ class Parameters:
             # name = self.current_wave(current_wave)
             os.makedirs(os.path.dirname(self.params_path()), exist_ok=True)
             infoEnv = self
-            with open(self.params_path(), 'w') as output:
-                output.write(asctime() + '\n\n')
+            with open(self.params_path(), "w") as output:
+                output.write(asctime() + "\n\n")
                 myVars = (infoEnv.__class__.__dict__, vars(infoEnv))
                 for pile in myVars:
                     for ii in sorted(pile.keys()):
                         if not callable(pile[ii]):
-                            string = str(ii) + " : " + str(pile[ii]) + '\n'
+                            string = str(ii) + " : " + str(pile[ii]) + "\n"
                             output.write(string)
-                    output.write('\n\n')
+                    output.write("\n\n")
         except Exception as e:
             print("Failed to print to text: {}".format(e))
-
 
     def load_preset_time_settings(self, selection=None):
         """Load one of a few presets for the time settings"""
         if selection is not None:
             self.selection = selection.casefold()
 
-        if self.selection in ['false', 'f', "False", None, False]:
+        if self.selection in ["false", "f", "False", None, False]:
             return False
 
         key_fixed_cadence = 1
         key_fixed_number = None
-        switch =self.selection.casefold()
+        switch = self.selection.casefold()
         # print("Loading {} cadence.".format(self.selection))
-        if switch in ['slow', 's', 1, "1"]:
-            cadence_minutes = 10 # One Forty Four Frames Per Day
-            exposure_time_secs = 180 # Fifteen Frames per Frame
-            self.selection = 'slow'
+        if switch in ["slow", "s", 1, "1"]:
+            cadence_minutes = 10  # One Forty Four Frames Per Day
+            exposure_time_secs = 180  # Fifteen Frames per Frame
+            self.selection = "slow"
 
-        elif switch in ['medium', 'm', 2, "2"]:
-            cadence_minutes = 20 # Seventy Two Frames Per Day
+        elif switch in ["medium", "m", 2, "2"]:
+            cadence_minutes = 20  # Seventy Two Frames Per Day
             exposure_time_secs = 120  # Ten Frames per Frame
-            self.selection = 'medium'
+            self.selection = "medium"
 
-        elif switch in ['quick', 'q', 3, "3"]:
-            cadence_minutes = 60 # Twenty Four Frames Per Day
+        elif switch in ["quick", "q", 3, "3"]:
+            cadence_minutes = 60  # Twenty Four Frames Per Day
             exposure_time_secs = 60  # Five Frames per Frame
-            self.selection = 'quick'
+            self.selection = "quick"
 
-        elif switch in ['ludacris', "ludicrous ", 'l', 4, "4"]:
-            cadence_minutes = 3 * 60 # Eight Frames Per Day
+        elif switch in ["ludacris", "ludicrous ", "l", 4, "4"]:
+            cadence_minutes = 3 * 60  # Eight Frames Per Day
             exposure_time_secs = 36  # Three Frames per Frame
-            self.selection = 'ludacris'
+            self.selection = "ludacris"
 
-        elif switch in ['ludacris', "ludicrous ", 'l2', 4, "4"]:
-            cadence_minutes = 60 # 24 Frames Per Day
+        elif switch in ["ludacris", "ludicrous ", "l2", 4, "4"]:
+            cadence_minutes = 60  # 24 Frames Per Day
             exposure_time_secs = 36  # Three Frames per Frame
-            self.selection = 'ludacris'
+            self.selection = "ludacris"
 
-        elif switch in ['plaid', 'p', 5, "5"]:
+        elif switch in ["plaid", "p", 5, "5"]:
             cadence_minutes = 6 * 60  # Four Frames per Day
             exposure_time_secs = 36  # Three Frames per Frame
-            self.selection = 'plaid'
+            self.selection = "plaid"
 
         else:
             return False
 
         if not self.did_print:
-            print("Settings: {}".format(self.selection),
-                  "\n  Cadence = {} Minutes ({} hours), [{}] per day".format(cadence_minutes, cadence_minutes/60, 24*60/cadence_minutes),
-                  "\n  Exposure = {} Seconds".format(exposure_time_secs),)
+            print(
+                "Settings: {}".format(self.selection),
+                "\n  Cadence = {} Minutes ({} hours), [{}] per day".format(
+                    cadence_minutes, cadence_minutes / 60, 24 * 60 / cadence_minutes
+                ),
+                "\n  Exposure = {} Seconds".format(exposure_time_secs),
+            )
             self.did_print = True
 
         # Set the Parameters
@@ -926,11 +943,17 @@ class Parameters:
         full_path1 = join(self.fits_directory(), path1)
         full_path2 = join(self.fits_directory(), path2)
 
-        frame, wave, t_rec, center, int_time, name = Processor.load_last_fits_field(self_proc, full_path1)
+        frame, wave, t_rec, center, int_time, name = Processor.load_last_fits_field(
+            self_proc, full_path1
+        )
         if compare_two_files:
-            frame2, wave2, t_rec2, center2, int_time2, name = Processor.load_last_fits_field(self_proc, full_path2)
+            frame2, wave2, t_rec2, center2, int_time2, name = (
+                Processor.load_last_fits_field(self_proc, full_path2)
+            )
         else:
-            frame2, wave2, t_rec2, center2, int_time2, name = Processor.load_first_fits_field(self_proc, full_path1)
+            frame2, wave2, t_rec2, center2, int_time2, name = (
+                Processor.load_first_fits_field(self_proc, full_path1)
+            )
 
             # Modifying
         frame3 = abs(frame2 - frame)
@@ -982,12 +1005,12 @@ class Parameters:
 
     def reprocess_mode(self, _reprocess_mode=None):
         """Pick how it should handle frames that already exist
-            options are:
-                skip    - do nothing
-                redo    - pull from prev out_array to recompute same as last time
-                add     - pull from prev out_array to recompute but store seperately
-                reset   - pull from first out_array to recompute from scratch
-                double  - pull from current out_array to double the filter
+        options are:
+            skip    - do nothing
+            redo    - pull from prev out_array to recompute same as last time
+            add     - pull from prev out_array to recompute but store seperately
+            reset   - pull from first out_array to recompute from scratch
+            double  - pull from current out_array to double the filter
 
         """
         if _reprocess_mode is not None:
@@ -1031,14 +1054,20 @@ class Parameters:
 
     def set_download_resolution(self, resolution):
         self.check_real_number(resolution)
-        self._resolution = min([170, 256, 512, 1024, 2048, 3072, 4096], key=lambda x: np.abs(x - resolution))
+        self._resolution = min(
+            [170, 256, 512, 1024, 2048, 3072, 4096],
+            key=lambda x: np.abs(x - resolution),
+        )
         if self.has_all_necessary_data():
             self.make_web_paths()
 
     def resolution(self, resolution=None):
         if resolution is not None:
             self.check_real_number(resolution)
-            self._resolution = min([170, 256, 512, 1024, 2048, 3072, 4096], key=lambda x: np.abs(x - resolution))
+            self._resolution = min(
+                [170, 256, 512, 1024, 2048, 3072, 4096],
+                key=lambda x: np.abs(x - resolution),
+            )
         return self._resolution
 
     def set_web_image_frame(self, path):
@@ -1053,9 +1082,11 @@ class Parameters:
 
     def make_web_paths(self):
         self.web_image_location = self.web_image_frame.format(self.resolution, "{}.jpg")
-        self.web_paths = [self.web_image_location.format(wave) for wave in self.use_wavelengths]
+        self.web_paths = [
+            self.web_image_location.format(wave) for wave in self.use_wavelengths
+        ]
 
-    def append_to_web_paths(self, path, wave=' '):
+    def append_to_web_paths(self, path, wave=" "):
         self.web_paths.append(path)
         self.use_wavelengths.append(wave)
 
@@ -1071,7 +1102,7 @@ class Parameters:
         return normpath(join(self.local_directory, self.file_ending.format(wave)))
 
     def determine_delay(self):
-        """ Determine how long to wait """
+        """Determine how long to wait"""
 
         delay = self.delay_seconds + 0
         # import pdb; pdb.set_trace()
@@ -1084,23 +1115,28 @@ class Parameters:
         return delay
 
     def wait_if_required(self, delay):
-        """ Wait if Required """
+        """Wait if Required"""
 
         if delay <= 0:
             pass
         else:
-            print("Waiting for {:0.0f} seconds ({} total)".format(delay, self.delay_seconds),
-                  flush=True, end='')
+            print(
+                "Waiting for {:0.0f} seconds ({} total)".format(
+                    delay, self.delay_seconds
+                ),
+                flush=True,
+                end="",
+            )
 
             fps = 3
-            for ii in (range(int(fps * delay))):
+            for ii in range(int(fps * delay)):
                 sleep(1 / fps)
-                print('.', end='', flush=True)
+                print(".", end="", flush=True)
                 # self.check_for_skip()
             # print('Done')
 
     def sleep_until_delay_elapsed(self):
-        """ Make sure that the loop takes the right amount of time """
+        """Make sure that the loop takes the right amount of time"""
         self.wait_if_required(self.determine_delay())
 
     def is_debug(self, debug=None):

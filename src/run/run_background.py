@@ -1,9 +1,9 @@
 """This is the script to run to get pics from AWS and set them to the desktop background"""
 
-from fetcher.AwsImgFetcher import AwsImgFetcher
-from putter.DesktopPutter import DesktopPutter
-from science.parameters import Parameters
-from run import Runner
+from src.fetcher.AwsImgFetcher import AwsImgFetcher
+from src.putter.DesktopPutter import DesktopPutter
+from src.science.parameters import Parameters
+from src.run import Runner
 
 
 def run_background(delay=60, debug=True, stop=False):
@@ -13,10 +13,10 @@ def run_background(delay=60, debug=True, stop=False):
     p.delay_seconds(10 if debug else delay)
     p.batch_name("background_client")
     p.run_type("Background Updator")
-    
+
     p.fetchers(AwsImgFetcher())   # Gets PNGs from S3 Daemon
     p.putters(DesktopPutter())    # Runs the Desktop Background Sequence on PNGs
-    
+
     Runner(p).start()
 
 

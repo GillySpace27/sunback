@@ -1,21 +1,19 @@
-from fetcher.FidoFetcher import FidoFetcher
-from processor.ImageProcessor import ImageProcessor
-# from processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
-from processor.ImageProcessorCV import ImageProcessorCV
-from processor.QRNProcessor import QRNSingleShotProcessor #, QRNpreProcessor, QRNradialFiltProcessor
-
-from processor.VideoProcessor import VideoProcessor
-from science.parameters import Parameters
+from src.fetcher.FidoFetcher import FidoFetcher
+from src.fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
+from src.processor.ImageProcessorCV import ImageProcessorCV
+from src.processor.SunPyProcessor import RHEFProcessor
+from src.processor.VideoProcessor import VideoProcessor
+from src.science.parameters import Parameters
 import run
 import matplotlib.pyplot as plt
 plt.ioff()
 
 
-def run_recent_movie(delay=10, debug=True, do_one="0211", stop=True, cadence_minutes=20, fps=23, range_days=3, range_hours=12):
+def run_recent_movie(delay=10, debug=True, do_one="304", stop=True, cadence_minutes=5, fps=24, range_days=7, exposure=12*10):
     # Set the Parameters
     p = Parameters()
     # p.delay_seconds(delay)
-    p.batch_name("Recent_Movie")
+    p.batch_name("Recent_Movie_304_11_24")
     p.run_type("Generate Recent Movie")
     p.do_one(do_one, stop)
     p.verb = False
@@ -23,37 +21,35 @@ def run_recent_movie(delay=10, debug=True, do_one="0211", stop=True, cadence_min
     p.do_cat = False
     # p.stop_after_one(stop)
     p.is_debug(debug)
-    p.do_recent(True)
-    
+
     p.download_files(True)
     # p.overwrite_pngs(True)
     # p.delete_old(True)
-    
+
     # Set the Times
     debug_hours = 36 # Range in Hours
     debug_cadence = 60 # Cadence in Minutes
+    # p.set_time_range_duration()
+
     p.range(days=range_days, hours=None)
     p.cadence_minutes(cadence_minutes)
     p.frames_per_second(fps)
+    p.exposure_time_seconds(exposure)
+    p.do_parallel = True
+    p.init_pool(20)
+    p.png_frame_name =["-1"]
 
-    # # Set the Processes
-    # # if p.download_files():
-    # p.fetchers(FidoFetcher())      # Gets Fits FIDO
-    #
-    #
-    # p.putters([ImageProcessor])
-    # p.putters([VideoProcessor])
-    
     # Set the Processes
-    p.fetchers(FidoFetcher, rp=None)                                     # Gets Fits FIDO
+    # p.fetchers(FidoFetcher, rp=True)                                     # Gets Fits FIDO
     # p.processors([FidoTimeIntProcessor], rp=None)                        # Integrate several frames for S/N
-    
-    p.processors([QRNSingleShotProcessor])
-    # p.processors([QRNpreProcessor],     rp=True)  # Learns the bounds of the dataset for QRN
-    # p.processors([QRNradialFiltProcessor], rp=True)  # Applies the QRN Filter
+
+    # p.processors([RHEFProcessor],            rp=True)  # Applies the Radial Filtering
+
     #
-    p.putters([ImageProcessorCV], rp=True)  # Makes the PNGs from Fits
+    # p.putters([ImageProcessorCV], rp=False)  # Makes the PNGs from Fits
     p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
+    p.do_recent(True)
+
     # Run the Code
     run.Runner(p).start()
 
@@ -61,10 +57,10 @@ def run_recent_movie(delay=10, debug=True, do_one="0211", stop=True, cadence_min
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     run_recent_movie()
-    
-    
+
+
     #, VideoProcessor(p)])  #
-    
+
     # p.processors([RadialFiltProcessor(p), NoiseGateProcessor(p), VideoProcessor(p)])  #
 
     # p.putter(AwsPutter(p))        # Uploads the PNGs to AWS
@@ -79,84 +75,90 @@ if __name__ == "__main__":
     # p.sonify_images(False, False)
     # p.do_171(True)
     # p.do_304(True)
-    
+
     # # p.bpm(150)
     #
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+    # # Set the Processes
+    # # if p.download_files():
+    # p.fetchers(FidoFetcher())      # Gets Fits FIDO
+    #
+    #
+    # p.putters([ImageProcessor])
+    # p.putters([VideoProcessor])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
