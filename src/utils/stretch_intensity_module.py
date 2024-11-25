@@ -8,39 +8,39 @@ CurveString = "Multi-Root"
 ## Main Function --------------------------------------------------------------
 
 
-def make_one_curve(alpha=0.35, xprime=None, alpha_high=None, eq_num=1):
-    """Given an exponent alpha and an in_array array, return a single curve
-    :param alpha: scalar
+def make_one_curve(upsilon=0.35, xprime=None, upsilon_high=None, eq_num=4):
+    """Given an exponent upsilon and an in_array array, return a single curve
+    :param upsilon: scalar
     :param xprime: array of length N
     :return: norm curve of length N
     """
     if xprime is None:  # Defaults
         xprime = demo_make_xprime()
-    alpha_high = alpha_high or alpha
+    upsilon_high = upsilon_high or upsilon
 
-    # print("Using alpha = {:0.5f}".format(alpha))
-
+    # print("Using upsilon = {:0.5f}".format(upsilon))
+    # print("Equation Number", eq_num)
     # And this makes the curve!
     if eq_num == 1:
         # f(x,a) = 1/2 + 2^(a-1) * s(x) * |x|^a
-        # alpha /= 10
-        out_curve = 0.5 + (2.0 ** (alpha - 1.0)) * np.sign(xprime - 0.5) * (
-            np.abs(xprime - 0.5) ** alpha
+        # upsilon /= 10
+        out_curve = 0.5 + (2.0 ** (upsilon - 1.0)) * np.sign(xprime - 0.5) * (
+            np.abs(xprime - 0.5) ** upsilon
         )
     elif eq_num == 2:
-        out_curve = 0.5 + (np.abs(2.0 * xprime - 1.0) ** (alpha - 1.0)) * (xprime - 0.5)
+        out_curve = 0.5 + (np.abs(2.0 * xprime - 1.0) ** (upsilon - 1.0)) * (xprime - 0.5)
     elif eq_num == 3:
-        alpha = -0.75
-        out_curve = 0.5 + xprime**3 - alpha * xprime
-    elif eq_num == 4:
+        upsilon = -0.75
+        out_curve = 0.5 + xprime**3 - upsilon * xprime
+    else:
         lows = xprime < 0.5
         highs = xprime >= 0.5
 
         x_low = xprime[lows]
         x_high = xprime[highs]
 
-        curve_low = ((2 * x_low) ** alpha) / 2
-        curve_high = -(((2 - 2 * x_high) ** alpha_high) / 2 - 1)
+        curve_low = ((2 * x_low) ** upsilon) / 2
+        curve_high = -(((2 - 2 * x_high) ** upsilon_high) / 2 - 1)
 
         out_curve = np.zeros_like(xprime)
         out_curve[lows] = curve_low
@@ -67,92 +67,91 @@ def demo_make_xprime(nx=10001, eq_num=1):
     return xprime
 
 
-def demo_make_alpha_array(nalpha=6, range=2.0, eq_num=1):
-    """Prepare the alpha array"""
+def demo_make_upsilon_array(nupsilon=6, range=2.0, eq_num=1):
+    """Prepare the upsilon array"""
     print(f"Eqn #: {eq_num}")
     if eq_num == 1:
-        # alpha_array = np.linspace(1., range, num=nalpha)
-        alpha_array = np.logspace(0, np.log10(range), num=nalpha)
+        # upsilon_array = np.linspace(1., range, num=nupsilon)
+        upsilon_array = np.logspace(0, np.log10(range), num=nupsilon)
     elif eq_num == 2:
-        alpha_array = np.linspace(1.0, range, num=10)
+        upsilon_array = np.linspace(1.0, range, num=10)
     elif eq_num == 3:
-        alpha_array = np.linspace(-0.73, -0.76, num=10)
+        upsilon_array = np.linspace(-0.73, -0.76, num=10)
     elif eq_num == 4:
-        alpha_array = np.logspace(0, -1, num=nalpha)
-        alpha_list = list(alpha_array)
-        if 1 not in alpha_list:
-            alpha_list.append(1)
-            alpha_list.sort()
-            alpha_array = np.asarray(alpha_list)
+        upsilon_array = np.logspace(0, -1, num=nupsilon)
+        upsilon_list = list(upsilon_array)
+        if 1 not in upsilon_list:
+            upsilon_list.append(1)
+            upsilon_list.sort()
+            upsilon_array = np.asarray(upsilon_list)
     else:
-        alpha_array = [1]
-    # alpha_array = np.linspace(1, 2, 5)
-    print(alpha_array)
-    return alpha_array
+        upsilon_array = [1]
+    # upsilon_array = np.linspace(1, 2, 5)
+    print(upsilon_array)
+    return upsilon_array
 
 
-def demo_make_all_curves(alphas_list=None, xprime=None, eq_num=None):
-    """Make a set of curves at a number of alphas"""
-    # if alphas_list is None:  # Defaults
-    #     alphas_list = demo_make_alpha_array(eq_num=eq_num)
+def demo_make_all_curves(upsilons_list=None, xprime=None, eq_num=None):
+    """Make a set of curves at a number of upsilons"""
+    # if upsilons_list is None:  # Defaults
+    #     upsilons_list = demo_make_upsilon_array(eq_num=eq_num)
 
     # Make the Curves
     curve_list = []
-    for alph in alphas_list:
-        curve = make_one_curve(alpha=alph, xprime=xprime, eq_num=eq_num)
+    for alph in upsilons_list:
+        curve = make_one_curve(upsilon=alph, xprime=xprime, eq_num=eq_num)
         curve_list.append(curve)
     return curve_list
 
 
-def demo_plot_many_alphas(
+def demo_plot_many_upsilons(
     curve_list=None,
-    alphas_list=None,
+    upsilons_list=None,
     xprime=None,
     axis=None,
     first0=True,
     eq_num=None,
     **kwargs,
 ):
-    """Demonstrate the Effect of the Alpha Parameter"""
+    """Demonstrate the Effect of the upsilon Parameter"""
 
-    if alphas_list is None:  # Defaults
-        alphas_list = demo_make_alpha_array(eq_num=eq_num) * 10
+    if upsilons_list is None:  # Defaults
+        upsilons_list = demo_make_upsilon_array(eq_num=eq_num) * 10
     if xprime is None:  # Defaults
         xprime = demo_make_xprime(eq_num=eq_num)
     if curve_list is None:  # Defaults
-        curve_list = demo_make_all_curves(alphas_list, xprime, eq_num=eq_num)
+        curve_list = demo_make_all_curves(upsilons_list, xprime, eq_num=eq_num)
 
     wid = 3
     off = 0 if first0 else wid
     torun = axis if axis else plt
     lbl = r"$\gamma$ Curves"
-    for curve, alpha in zip(reversed(curve_list), reversed(alphas_list)):
-        # kwargs['ls'] = (off, (wid,wid)) if alpha == 1 else kwargs['ls']
-        kwargs["ls"] = "-" if alpha == 1 else kwargs["ls"]
+    for curve, upsilon in zip(reversed(curve_list), reversed(upsilons_list)):
+        # kwargs['ls'] = (off, (wid,wid)) if upsilon == 1 else kwargs['ls']
+        kwargs["ls"] = "-" if upsilon == 1 else kwargs["ls"]
         torun.plot(xprime, curve, **kwargs)
         kwargs["label"] = None
 
     use_color = "darkred" if first0 else "navy"
-    alpha = 3.5 if first0 else 0.35
-    # alpha = 0.1 if first0 else 0.01
-    use_curve1 = make_one_curve(alpha=alpha * 10, xprime=xprime, eq_num=eq_num)
+    upsilon = 3.5 if first0 else 0.35
+    # upsilon = 0.1 if first0 else 0.01
+    use_curve1 = make_one_curve(upsilon=upsilon * 10, xprime=xprime, eq_num=eq_num)
     # plt.figure()
     torun.plot(xprime, use_curve1, ls="-", c=use_color, lw=4, zorder=10000)
 
-    for curve, alpha in zip(reversed(curve_list), reversed(alphas_list)):
-        # lls = ":" if alpha==1 else ":"
-        print(alpha)
+    for curve, upsilon in zip(reversed(curve_list), reversed(upsilons_list)):
+        # lls = ":" if upsilon==1 else ":"
+        # print(upsilon)
         plt.plot(
             xprime,
-            (xprime) ** alpha,
+            (xprime) ** upsilon,
             c="coral",
             ls=":",
-            alpha=0.75,
             zorder=-10,
             label=lbl,
         )
         plt.plot(
-            xprime, (xprime) ** (alpha / 10), c="coral", ls=":", alpha=0.75, zorder=-10
+            xprime, (xprime) ** (upsilon / 10), c="coral", ls=":", zorder=-10
         )
         lbl = None
 
@@ -160,11 +159,11 @@ def demo_plot_many_alphas(
     return xprime
 
 
-def demo_plot_white_noise(alpha=0.35):
+def demo_plot_white_noise(upsilon=0.35):
     """Demonstrate the Algorithm on Random Input"""
 
     in_array = np.random.random_sample(size=50) - 0.5
-    out_array = norm_stretch(in_array, alpha=alpha)
+    out_array = norm_stretch(in_array, upsilon=upsilon)
 
     plt.scatter(in_array, out_array)
     plt.title("Demonstration of the Algorithm on Random Input")
@@ -172,20 +171,20 @@ def demo_plot_white_noise(alpha=0.35):
     plt.show()
 
 
-def demo_plot_2D_method(in_array=None, alpha=0.35, do_plot=True):
+def demo_plot_2D_method(in_array=None, upsilon=0.35, do_plot=True):
     if in_array is None:
         in_array = np.random.random_sample(size=(400, 400)) - 0.5
-    out_array = norm_stretch(in_array, alpha=alpha)
+    out_array = norm_stretch(in_array, upsilon=upsilon)
     if do_plot:
         plot_2d(in_array, out_array)
     return out_array
 
 
-def plot_2d(in_array=None, out_array=None, alpha=None, do_plot=True):
+def plot_2d(in_array=None, out_array=None, upsilon=None, do_plot=True):
     if in_array is None:
         in_array = np.random.random_sample(size=(100, 100)) - 0.5
     if out_array is None:
-        out_array = norm_stretch(in_array, alpha=alpha)
+        out_array = norm_stretch(in_array, upsilon=upsilon)
 
     if do_plot:
         fig, (ax0, ax1) = plt.subplots(1, 2, sharex="all", sharey="all")
@@ -199,20 +198,20 @@ def plot_2d(in_array=None, out_array=None, alpha=None, do_plot=True):
         plt.colorbar(im1, ax=ax1)
 
         fig.set_size_inches(8, 4)
-        plt.suptitle("Alpha = {}".format(alpha))
+        plt.suptitle("upsilon = {}".format(upsilon))
         plt.tight_layout()
         plt.show()
     return out_array
 
 
-def norm_stretch(in_array, alpha=0.35, alpha_high=None, eq_num=4):
+def norm_stretch(in_array, upsilon=0.35, upsilon_high=None, eq_num=4):
     """The only function anyone outside will ever see"""
     return make_one_curve(
-        xprime=in_array, alpha=alpha, alpha_high=alpha_high, eq_num=eq_num
+        xprime=in_array, upsilon=upsilon, upsilon_high=upsilon_high, eq_num=eq_num
     )
 
 
-def many_alphas():
+def many_upsilons():
     fig, ax = plt.subplots(1, 1)
     first0 = False
     for eq_num, CurveString, ls, c in zip(
@@ -221,7 +220,7 @@ def many_alphas():
         ["-", "--"],
         ["dodgerblue", "tomato"],
     ):
-        xprime = demo_plot_many_alphas(
+        xprime = demo_plot_many_upsilons(
             axis=ax, ls=ls, c=c, first0=first0, label=CurveString, eq_num=eq_num
         )
 
@@ -279,15 +278,15 @@ def many_alphas():
 
 
 if __name__ == "__main__":
-    many_alphas()
-    # demo_plot_many_alphas()
-    # many_alphas()
+    # many_upsilons()
+    demo_plot_many_upsilons()
+    # many_upsilons()
 
     # pass
     # fig, ax = plt.subplots(1,1)
     # first0 = True
     # for eq_num, CurveString, ls, c in zip([1, 4], ["lev1p0", "New Roots Idea"], ["-", "-"], ["r", "b"]):
-    #     demo_plot_many_alphas(axis=ax, ls=ls, c=c, first0=first0, label=CurveString)
+    #     demo_plot_many_upsilons(axis=ax, ls=ls, c=c, first0=first0, label=CurveString)
     #     first0 = False
     #
     #
@@ -299,18 +298,18 @@ if __name__ == "__main__":
     # # demo_plot_white_noise()
     # # demo_plot_2D_method()
 
-    # for alpha in np.linspace(1,2,10):
-    #     plot_2d(alpha=alpha)
+    # for upsilon in np.linspace(1,2,10):
+    #     plot_2d(upsilon=upsilon)
 #
 #
-# The stretching parameter is "alpha".
+# The stretching parameter is "upsilon".
 #
-# alpha=1 is linear... alpha>1 is stretched.   The largest values in the plot (like 7 or 8) are probably way too extreme.
+# upsilon=1 is linear... upsilon>1 is stretched.   The largest values in the plot (like 7 or 8) are probably way too extreme.
 #
 #
 
 # #original implimentation
 # for i in range(nx):
-#     for j in range(nalpha):
+#     for j in range(nupsilon):
 #         xprime = x_input_array[i] - 0.5
-#         y_output_array[i, j] = 0.5 + (2. ** (alpha[j] - 1.)) * np.sign(xprime) * (np.abs(xprime) ** alpha[j])
+#         y_output_array[i, j] = 0.5 + (2. ** (upsilon[j] - 1.)) * np.sign(xprime) * (np.abs(xprime) ** upsilon[j])
