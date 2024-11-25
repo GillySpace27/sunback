@@ -136,8 +136,9 @@ class FidoFetcher(Fetcher):
         sample_attr = attrs.Sample(self.params.cadence_minutes())
         base_attrs = time_attr & wave_attr & sample_attr
 
-        if self.params.do_recent():
+        if self.params.do_recent() and False:
             inst_attr = attrs.Instrument.aia
+
         else:
             inst_attr = (
                 attrs.jsoc.Series.aia_lev1_euv_12s
@@ -191,6 +192,7 @@ class FidoFetcher(Fetcher):
             self.name = "0" + self.name
 
         if self.fido_search_found_num > 200:
+            print(f"Estimated size is {self.fido_search_found_num * 64} Mb"),
             response = input(
                 "Do you still want to download all {} images? [y]/n > ".format(
                     self.fido_search_found_num

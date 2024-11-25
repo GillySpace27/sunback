@@ -44,7 +44,6 @@ def _set_time(_input_time):
 
 def parse_time_string_to_local(input_string, which=0, local=True):
     from astropy.time import Time
-
     if isinstance(input_string, Time):
         input_string = input_string.iso
 
@@ -56,7 +55,7 @@ def parse_time_string_to_local(input_string, which=0, local=True):
         time_string = input_string
     else:
         time_string = (
-            input_string.split(" ")[0]
+            str(input_string).split(" ")[0]
             .replace("-", "")
             .replace(":", "")
             .replace("T", "")

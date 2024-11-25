@@ -36,7 +36,7 @@ class LocalFetcher(Fetcher):
     progress_verb = "Locating"
     progress_unit = "Files"
     progress_string = progress_stem.format(progress_verb, progress_unit)
-    finished_verb = "Loaded"
+    finished_verb = "Found"
 
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)

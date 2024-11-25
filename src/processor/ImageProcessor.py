@@ -72,45 +72,99 @@ class ImageProcessor(Processor):
             self.export_files()
         return self
 
-    def init_frame(self, fits_path=None, in_name=None):
-        """Load the fits file from disk and get a in_name or two"""
-        # self.load_curves()
-        # import pdb; pdb.set_trace()
-        if in_name is not None:
-            self.frame_name = in_name
-        self.fits_path = fits_path or self.fits_path
-        self.params.fits_path = self.fits_path
-        if True:  # self.params.raw_image is None:
-            list_of_inputs = self.params.master_frame_list_oldest
-            # frame0, _, _, _, _, name0 = self.load_this_fits_frame(fits_path, list_of_inputs)
-            self.raw_name = str(self.frame_name)
-            frame1, wave1, t_rec1, center1, int_time, name1 = self.load_this_fits_frame(
-                fits_path, str(self.frame_name).casefold()
-            )
-            # import pdb; pdb.set_trace()
-            self.wave1 = wave1
-            self.t_rec1 = t_rec1
-            self.mod_name = self.frame_name + ""
-            self.params.raw_image, self.params.modified_image = frame1, frame1
-            self.frame = np.zeros_like(self.params.raw_image)
+    def init_rainbow_frame(self):
+        # Update current_frame and fits_path if provided
 
-        # self.peek_frames()
-        try:
-            shp = frame1.shape
-        except AttributeError:
-            shp = (self.params.rez, self.params.rez)
-        self.image_data = str(self.wave1), fits_path, self.t_rec1, shp
-        self.params.make_file_paths(self.image_data)
+        # self.fits_path = self.fits_path
+        # self.params.fits_path = self.fits_path
+
+        # # Find available frames at the specified path
+        # self.find_frames_at_path(self.params.fits_path)
+
+        # Load the specified FITS frame
+        # self.raw_name = str(self.current_frame)
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(
+            self.keyframes[0], self.params.png_frame_name
+        )
+
+        # Store loaded frame data into parameters
+        self.wave1 = wave
+        self.t_rec1 = t_rec
+        self.mod_name = name
+        self.params.raw_image = self.params.modified_image = frame
+        self.frame = np.zeros_like(frame)
+
+        # Determine the shape of the frame
+        shp = getattr(frame, 'shape', (self.params.rez, self.params.rez))
+        self.image_data = str(self.wave1), self.fits_path, self.t_rec1, shp
+
+        # Generate file paths based on image data
+        # self.params.make_file_paths(self.image_data)
+
+        # Initialize empty lists for figure and path boxes
         self.figure_box = []
         self.path_box = []
+
+        # Clean and parse the image data for display
         self.name, self.wave = self.clean_name_string(self.image_data[0])
+        self.wave = self.params.current_wave()
+
+    def init_frame(self, fits_path=None, in_name=None):
+        """Load the fits file from disk and get an in_name or two"""
+
+        # Update current_frame and fits_path if provided
+        if in_name is not None:
+            self.current_frame = in_name
+
+        self.fits_path = fits_path or self.fits_path
+        self.params.fits_path = self.fits_path
+
+        # Find available frames at the specified path
+        self.find_frames_at_path(self.params.fits_path)
+
+        # Load the specified FITS frame
+        self.raw_name = str(self.current_frame)
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(
+            self.fits_path, self.raw_name.casefold()
+        )
+
+        # Store loaded frame data into parameters
+        self.wave1 = wave
+        self.t_rec1 = t_rec
+        self.mod_name = self.current_frame
+        self.params.raw_image = self.params.modified_image = frame
+        self.frame = np.zeros_like(frame)
+
+        # Determine the shape of the frame
+        shp = getattr(frame, 'shape', (self.params.rez, self.params.rez))
+        self.image_data = str(self.wave1), self.fits_path, self.t_rec1, shp
+
+        # Generate file paths based on image data
+        self.params.make_file_paths(self.image_data)
+
+        # Initialize empty lists for figure and path boxes
+        self.figure_box = []
+        self.path_box = []
+
+        # Clean and parse the image data for display
+        self.name, self.wave = self.clean_name_string(self.image_data[0])
+        self.wave = self.params.current_wave()
+
+        # Set the color map based on the wavelength or default to grayscale
         use_cmap = True
         if use_cmap and self.wave:
-            self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
+            if not str(self.wave).isdigit():
+                for wv in self.params.all_wavelengths:
+                    if wv in self.fits_path:
+                        self.params.cmap = self.cmap = aia_color_table(int(wv) * u.angstrom)
+                        self.wave = wv
+                        break
+            else:
+                self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
         else:
             from matplotlib import cm
+            self.params.cmap = cm.gray
 
-            self.params.cmap = cm.gray if self.cmap is None else self.cmap
 
     def image_is_plottable(self, frame_name):
         # return True
@@ -356,7 +410,7 @@ class ImageProcessor(Processor):
                 frame = self.power_mod(frame)
 
         # Maxima Stretching
-        do_maxima_scrunch = True
+        do_maxima_scrunch = False
         if do_maxima_scrunch:
             if "rhe" in frame_name2:
                 frame = self.maxima_scrunch(frame, num2=0.0)
@@ -392,50 +446,55 @@ class ImageProcessor(Processor):
                 dont_vminmax = True
 
         if not dont_vminmax:
-            frame[frame > 1.0] = 1.0
-            frame[frame < 0.0] = 0.0
+            # frame[frame > 1.0] = 1.0
+            # frame[frame < 0.0] = 0.0
+            # frame = np.clip(frame, 0.05, 0.99)
+            pass
 
         self.dont_vminmax = dont_vminmax
         return frame
 
     def do_norm_stretch(self, frame, frame_name, do=True):
-        if do and "rhe" in frame_name.casefold():
+        if do and "rhef" in frame_name.casefold():
             aL, aH = self.get_alphas()
-            frame = norm_stretch(frame, alpha=aL, alpha_high=aH)
+            frame = norm_stretch(frame, upsilon=aL, upsilon_high=aH)
             # frame_name = 'UP_' + frame_name
         return frame, frame_name
 
     def get_alphas(self):
         # import pdb; pdb.set_trace()
-        name = self.image_data[0]
+        if self.image_data is None:
+            name = "None"
+        else:
+            name = self.image_data[0]
 
         if name is None or "None" in name:
-            self.params.alpha_low, self.params.alpha_high = 0.5, 0.5
-            return self.params.alpha_low, self.params.alpha_high
+            self.params.upsilon_low, self.params.upsilon_high = 0.8, 0.4
+            return self.params.upsilon_low, self.params.upsilon_high
 
-        wave = self.params.current_wave(self.image_data[0])
-        wave = "{:04}".format(int(wave))
+        self.wave = self.params.current_wave(self.image_data[0])
+        self.wave = wave = "{:04}".format(int(self.wave))
 
         wave_list = [
-            {"wave": "0094", "aL": 0.50, "aH": 0.35},
-            {"wave": "0131", "aL": 0.50, "aH": 0.30},
-            {"wave": "0171", "aL": 0.50, "aH": 0.50},
-            {"wave": "0193", "aL": 0.50, "aH": 0.45},
-            {"wave": "0211", "aL": 0.50, "aH": 0.40},
-            {"wave": "0304", "aL": 0.50, "aH": 0.40},
-            {"wave": "0335", "aL": 0.50, "aH": 0.40},
-            {"wave": "1600", "aL": 0.50, "aH": 0.40},
-            {"wave": "1700", "aL": 0.50, "aH": 0.40},
-            {"wave": "jpeg", "aL": 0.50, "aH": 0.35},
+            {"wave": "0094", "aL": 1.0, "aH": 0.4},
+            {"wave": "0131", "aL": 0.6, "aH": 0.25},
+            {"wave": "0171", "aL": 0.6, "aH": 0.4},
+            {"wave": "0193", "aL": 0.7, "aH": 0.4},
+            {"wave": "0211", "aL": 0.7, "aH": 0.35},
+            {"wave": "0304", "aL": 0.9, "aH": 0.5},
+            {"wave": "0335", "aL": 0.85, "aH": 0.4},
+            {"wave": "1600", "aL": 0.8, "aH": 0.4},
+            {"wave": "1700", "aL": 0.8, "aH": 0.4},
+            {"wave": "jpeg", "aL": 0.8, "aH": 0.4},
         ]
 
         dictdict = {}
         for wv in wave_list:
             dictdict[wv["wave"]] = wv
 
-        self.params.alpha_low = dictdict[wave]["aL"]
-        self.params.alpha_high = dictdict[wave]["aH"]
-        return self.params.alpha_low, self.params.alpha_high
+        self.params.upsilon_low = dictdict[wave]["aL"]
+        self.params.upsilon_high = dictdict[wave]["aH"]
+        return self.params.upsilon_low, self.params.upsilon_high
 
         # frame = 0.95 * frame
 

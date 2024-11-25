@@ -1,28 +1,16 @@
 import os
 import shutil
 import time
-
 import cv2
 from astropy.io import fits
 from astropy.nddata import block_reduce
 from tqdm import tqdm
-
-from src.processor.ImageProcessor import ImageProcessor
 import numpy as np
 import matplotlib.pyplot as plt
 import astropy.units as u
-
+from src.processor.ImageProcessor import ImageProcessor
 from src.science.color_tables import aia_color_table
 from src.utils.stretch_intensity_module import norm_stretch
-
-
-# """This class holds the code for the Radial Histogram Equalization Processor"""
-# name = filt_name = "RHE Processor"
-# description = "Apply the single-shot RHE to images"
-# progress_verb = "Filtering"
-# finished_verb = "Radially Filtered"
-# out_name = "RHE"
-
 
 class ImageProcessorCV(ImageProcessor):
     filt_name = "CV Image Writer"
@@ -32,58 +20,57 @@ class ImageProcessorCV(ImageProcessor):
     finished_verb = "Written to Disk"
     out_name = "final"
 
-    frame_name = None
-    img_frame = None
-    out_path = None
-    in_name = None
-
     def __init__(self, params=None, quick=False, rp=None):
-        self.rhe_count = 0
-        self.shrink_factor = 1
         super().__init__(params, quick, rp)
         self.frame_name = self.params.png_frame_name
-        self.params.cmap = self.cmap = aia_color_table(
-            int(self.params.current_wave()) * u.angstrom
-        )
-        pass
+        self.rhe_count = 0
+        self.shrink_factor = 1
 
     def do_fits_function(self, fits_path, in_name=None):
-        """Main Call on the Fits Path"""
         self.params.double_rhe_flag = False
+        self.fits_path = fits_path
         target = "rhe(lev1p5)"
+        out = None
 
-        if type(in_name) is int:
-            self.params.png_frame_name = self.find_frames_at_path(fits_path)[in_name]
+        if self.params.current_wave() in [None, "rainbow"]:
+            try:
+                self.wave = self.params.current_wave(int(self.fits_path.split('.')[0][-4:]))
+            except Exception as e:
+                print(38, int(self.params.current_wave()))
+                raise e
 
-        if "all" in self.params.png_frame_name:
-            self.params.png_frame_name = self.find_frames_at_path(fits_path)
+        try:
+            self.params.cmap = self.cmap = aia_color_table(int(self.params.current_wave()) * u.angstrom)
+        except ValueError:
+            for wv in self.params.all_wavelengths:
+                if wv in fits_path:
+                    self.wave = wv
+                    self.params.cmap = self.cmap = aia_color_table(int(self.wave) * u.angstrom)
+                    self.params.current_wave(int(self.wave))
+                    break
+
+        if isinstance(in_name, (int, str)) and str(in_name).isdigit():
+            in_name = int(in_name)
+            self.params.png_frame_name = self.find_frames_at_path(self.fits_path)[in_name]
+
+        if "all" in str(self.params.png_frame_name):
+            self.params.png_frame_name = self.find_frames_at_path(self.fits_path)
 
         if target in self.params.png_frame_name:
             self.params.png_frame_name.append("mgn_" + target)
             self.params.double_rhe_flag = True
 
-        if type(self.params.png_frame_name) in [list]:
+        if isinstance(self.params.png_frame_name, list) and len(self.params.png_frame_name):
             for name in self.params.png_frame_name:
-                self.frame_name = name
-                self.init_frame(fits_path, name)
+                self.current_frame = name
+                self.wave = self.params.current_wave()
+                self.init_frame(self.fits_path, self.current_frame)
                 out = self.render_all(reference=False)
         else:
-            self.init_frame(fits_path)
+            self.init_frame(self.fits_path)
             out = self.render_all(reference=False)
 
-        if out is not None:
-            return out
-        return self
-
-    # def do_img_function(self):
-    #     """ Main Call on the Fits Path """
-    #     if False:
-    #         self.plot_two()
-    #         self.plot_two("Less Zoomed", True)
-    #         # self.display_all()
-    #
-    #     # self.init_image_frame()
-    #     raise NotImplementedError
+        return out or self
 
     def display_all(self):
         self.display_raw()
@@ -106,19 +93,15 @@ class ImageProcessorCV(ImageProcessor):
         plt.show(block=True)
 
     def render_all(self, reference=False):
-        """Render one image_path"""
-
-        reference = False
         if reference:
             self.plot_aia_orig()
-            # self.plot_aia_log()
-        try:
-            return self.plot_aia_changed()
-        except ValueError:
-            pass
-        # self.save_concatinated()
 
-        # self.do_shortcut()
+        try:
+            out = self.plot_aia_changed(self.frame_name)
+            return out
+        except ValueError as e:
+            print(e)
+            self.skipped += 1
 
     def do_shortcut(self):
         cat_png_path = self.cat_path
@@ -126,42 +109,23 @@ class ImageProcessorCV(ImageProcessor):
         fits_folder = os.path.dirname(self.params.use_image_path())
         cat_png_filename = os.path.basename(cat_png_path)
         shorts_folder = os.path.join(root_folder, "shorts")
-        # short_path = os.path.join(shorts_folder, cat_png_filename.replace(".png", ".lnk"))
 
         timestamp = self.image_data[2]
-        short_path = os.path.join(
-            shorts_folder,
-            "{}_{}.png".format(self.params.current_wave(), timestamp.split(".")[0]),
-        )
+        short_path = os.path.join(shorts_folder, "{}_{}.png".format(self.params.current_wave(), timestamp.split(".")[0]))
         os.makedirs(shorts_folder, exist_ok=True)
-
-        src_file = cat_png_path
-        dest_file = os.path.normpath(short_path)
-        shutil.copyfile(src_file, dest_file, follow_symlinks=True)
-        # self.make_shortcut(src_file,dest_file , False)
+        shutil.copyfile(cat_png_path, os.path.normpath(short_path), follow_symlinks=True)
 
     def plot_aia_orig(self):
-        """Plot the raw_image data from AIA"""
-        # Get the Frame and Path
-        if True:  # self.params.raw_image is None:
-            self.frame_name = "compressed_image"  # self.params.master_frame_list_oldest
-            frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(
-                self.fits_path, self.frame_name
-            )
-            self.params.raw_image = self.frame = np.flipud(frame)
-
-            self.out_path = self.get_orig_path(mod="orig")
-            os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
-        # self.out_path = self.params.orig_path
+        self.frame_name = "compressed_image"
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
+        self.params.raw_image = self.frame = np.flipud(frame)
+        self.out_path = self.get_orig_path(mod="orig")
+        os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
         self.do_save()
 
     def plot_aia_log(self):
-        """Plot the raw_image data from AIA"""
-        # Get the Frame and Path
         self.frame_name = self.params.master_frame_list_oldest
-        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(
-            self.fits_path, self.frame_name
-        )
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
 
         frame = np.log10(frame)
         frame = frame / np.nanpercentile(frame, 50) / 2
@@ -169,132 +133,38 @@ class ImageProcessorCV(ImageProcessor):
         self.frame = np.flipud(frame)
         self.out_path = self.get_orig_path(mod="log")
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
-
         self.do_save()
 
     def do_save(self, do_small=False):
-        # self.vignette()
         self.prep_save(do_small=do_small)
         self.img_save(self.out_path)
 
-    #     """Plot the modified_image data from AIA"""
-    #     # Get the Frame and Path
-    #     self.frame_name = self.params.png_frame_name #.hdu_name_list[-1]
-    #     self.frame = np.flipud(self.params.modified_image)
-    #     self.out_path = self.get_changed_path()
-    #     out_dir = os.path.dirname(self.out_path)
-    #     os.makedirs(out_dir, exist_ok=True)
-    #     print("Saving to {}".format(self.out_path))
-    #     self.vignette()
-    #
-    #     self.prep_save()
-    #     self.img_save(self.out_path)
-    #
     def plot_aia_changed(self, frame_name=None):
-        """Plot the raw_image data from AIA"""
-        # Get the Frame and Path
-        # self.frame_name = "t_int"
-
         if frame_name is None:
             frame_name = self.params.png_frame_name
-        # self.frame_name =   # .hdu_name_list[-1]
 
-        if True:  # self.params.modified_image is None:
-            frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(
-                self.fits_path, frame_name
-            )
-
-            self.out_path = self.get_changed_path()
-            os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
-        else:
-            frame = self.params.modified_image
-            self.out_path = self.params.mod_path
-
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, frame_name)
         self.frame = np.flipud(frame)
-        alpha = None
-        if False:  # UPSILON HERE
-            self.params.alpha_high = self.params.alpha_low = alpha = 1.1
-            self.frame = norm_stretch(self.frame, alpha=alpha)
+        if self.frame.max() > 2 or self.frame.min() < 0:
+            self.frame = self.normalize(self.frame)
 
-        frame_label = self.frame_name
-        if alpha is not None:
-            frame_label += "_{}".format(alpha)
-
-        do_combine = self.params.double_rhe_flag
-        this_run = False
-        if do_combine:
-            # This lets me plot the linear combination of two frames which is awesome
-            target = "rhe(lev1p5)"
-            product = "rhe(msgn)"
-            prod = "mean"
-            if frame_name == target:
-                if self.rhe_count < 1:
-                    self.rhe_count += 1
-                else:
-                    self.params.double_rhe_flag = False
-                    frame2, wave2, t_rec2, center2, int_time2, name2 = (
-                        self.load_this_fits_frame(self.fits_path, product)
-                    )
-                    frame2 = np.flipud(frame2)
-                    self.save_to_fits = True
-                    # self.frame = self.geo_mean([self.frame, frame2])
-                    blend = 0.5
-                    self.frame = np.nanmean(
-                        np.array([blend * self.frame, (1 - blend) * frame2]), axis=0
-                    )
-                    frame_label += "_{}_{}_{:02}".format(prod, product, blend)
-                    self.out_name = "mgn_rhe(lev1p5)"
-                    self.frame_name = self.out_name + ""
-                    for name in self.hdu_name_list:
-                        if self.out_name in name:
-                            do_combine = False
-                    self.frame = np.flipud(self.frame)
-                    this_run = True
-                    self.save_to_fits = True
-                    self.save_frame(
-                        self.frame, self.fits_path, self.out_name, force=True
-                    )
+        upsilon = self.params.upsilon
+        if upsilon:
+            self.params.upsilon_high = upsilon[1] if len(upsilon) > 1 else upsilon
+            self.params.upsilon_low = upsilon[0] if len(upsilon) > 1 else upsilon
+            self.frame = norm_stretch(self.frame, upsilon=self.params.upsilon_low, upsilon_high=self.params.upsilon_high)
 
         self.out_path = self.get_changed_path()
-        # self.out_path=self.out_path.replace("image_lev1", frame_label)
-        self.out_path = self.out_path.replace("synoptic", "_DrGilly_")
-        if False:
-            print(" *       Save_path = {}".format(self.out_path))
-            print(" *           Saving...".format(self.out_path), end="")
+        self.out_path = self.out_path.replace("AIAsynoptic", "DrGilly_").replace(".png", f"_{self.frame_name}.png")
 
-        if this_run:
-            self.frame = np.flipud(self.frame)
-        self.do_save(
-            do_small=True
-            if "MultiImage".casefold() in self.filt_name.casefold()
-            else False
-        )
-        if this_run:
-            self.frame = np.flipud(self.frame)
-        # print("Done!")
-        if do_combine:
-            return self.frame
-        return None
-        #
+        self.do_save(do_small=True if "MultiImage".casefold() in self.filt_name.casefold() else False)
+        self.params.current_wave(None)
+        return self.frame if self.params.double_rhe_flag else None
 
     @staticmethod
     def geo_mean(iterable, axis=0):
         a = np.array(iterable)
-        return a.prod(axis=axis) ** (1.0 / len(a))
-
-    # def plot_aia_changed(self):
-    #     """Plot the modified_image data from AIA"""
-    #     # Get the Frame and Path
-    #     self.frame_name = self.params.png_frame_name #.hdu_name_list[-1]
-    #     self.frame = np.flipud(self.params.modified_image)
-    #     self.out_path = self.get_changed_path()
-    #     out_dir = os.path.dirname(self.out_path)
-    #     os.makedirs(out_dir, exist_ok=True)
-    #     print("Saving to {}".format(self.out_path))
-    #     self.vignette()
-    #
-    #     self.prep_save()
-    #     self.img_save(self.out_path)
+        return np.prod(a, axis=axis) ** (1.0 / len(a))
 
     def prep_save(self, do_small=False):
         self.make_image(do_small)
@@ -304,225 +174,106 @@ class ImageProcessorCV(ImageProcessor):
 
         self.params.rbg_image = []
         self.params.rbg_labels = ["hq"]
+        self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
         frames = [out]
-        # frame = self.label_plot(frame)
 
         if do_small:
-            first = block_reduce(out, 2, np.nanmean)
-            frames.append(first)
-            self.params.rbg_labels.append("lq")
-            second = block_reduce(out, 4, np.nanmean)
-            frames.append(second)
-            self.params.rbg_labels.append("vlq")
+            frames.extend([block_reduce(out, 2, np.nanmean), block_reduce(out, 4, np.nanmean)])
+            self.params.rbg_labels.extend(["lq", "vlq"])
 
         for frame in frames:
             self.img_frame = (self.params.cmap(frame)[:, :, :3] * 255).astype(np.uint8)
             try:
-                fff = self.label_plot(self.img_frame)
+                img = self.label_plot(self.img_frame)
             except (ValueError, AttributeError) as e:
-                # print(e)
-                fff = self.img_frame
-            b, g, r = cv2.split(fff)  # get b,g,r
-            rgb_img = cv2.merge([r, g, b])  # switch it to rgb
-            # plt.imshow(rgb_img)
-            # plt.show(block=True)
+                print(186, e)
+                img = self.img_frame
+            b, g, r = cv2.split(img)
+            rgb_img = cv2.merge([r, g, b])
             self.params.rbg_image.append(rgb_img)
-        self.vignette()
         self.path_box.append(self.out_path)
 
     def img_save(self, path, save=True, stamp=False):
-        if "rhe" in self.frame_name:
-            if stamp:
-                aH = self.params.alpha_high
-                aL = self.params.alpha_low
-                path = path.replace(".png", "_ah-{:0.2f}_aL-{:0.2f}.png".format(aH, aL))
-        master_path = path + ""
+        aH, aL = self.params.upsilon_high, self.params.upsilon_low
+        master_path = path
+        if "rhe" in self.frame_name and stamp:
+            path = path.replace(".png", f"_ah-{aH:0.2f}_aL-{aL:0.2f}.png")
+
         if save:
             for img, rez in zip(self.params.rbg_image, self.params.rbg_labels):
                 if len(self.params.rbg_labels) > 1:
-                    path = master_path.replace(".png", "_{}.png".format(rez))
+                    path = master_path.replace(".png", f"_{rez}.png")
                 cv2.imwrite(path, img)
         else:
-            # cv2.imshow(mat=self.params.rbg_image)
             plt.imshow(self.params.rbg_image)
             plt.show()
 
     def label_plot(self, img_in=None):
-        # return img_in
-        """Annotate with Text"""
-        ## GET LABELS
-        # Get frame
-        # img = self.img_frame
         if img_in is None:
             img = self.params.rbg_image[0]
         else:
             img = img_in + 0
-
-        # Get Time
+        if self.image_data is None:
+            self.init_rainbow_frame()
         full_name, fits_path, time_string_raw, shape = self.image_data
-        time_string = self.clean_time_string(
-            time_string_raw, targetZone="US/Mountain", out_fmt="%m-%d-%Y %I:%M%p %Z"
-        )
-        zone = "MT"
+        time_string = self.clean_time_string(time_string_raw, targetZone="US/Mountain", out_fmt="%m-%d-%Y %I:%M%p %Z")
         time_list = time_string.split()
-        clock = time_list[1].lower()
-        day = time_list[0][:-5]
-        year = time_list[0][-4:]
+        clock, day, year = time_list[1].lower(), time_list[0][:-5], time_list[0][-4:]
 
-        # Get Wavelength
-        inst = "AIA"
-        _, wave = self.clean_name_string(full_name)
-        # wave += ' '
-        # Get Stretch Params
+        inst, wave = "AIA", self.clean_name_string(full_name)[1]
+        fname, frame_name = self.frame_name.casefold(), self.frame_name
+        name, prev = fname.split("(")[0], fname.split("(")[1][:-1] if "(" in fname else "-"
 
-        # Get Frame Name
-        if type(self.frame_name) is list:
-            frame_name = [
-                x for x in self.frame_name if x.casefold() in self.hdu_name_list
-            ][0]
-        else:
-            frame_name = self.frame_name
-        fname = frame_name.casefold()
-        f_length = len(fname)
-        name_split = fname.split("(")
-        name = name_split[0]
-        if len(name_split) > 1:
-            prev = name_split[1][:-1]
-        else:
-            prev = "- "
+        rez = img.shape[0]
+        scale, h, wid_of_char = (6, 120, 60) if rez == 4096 else (3, 60, 30) if rez == 2048 else (1.5, 30, 15)
+        h0, thickness = (100, 4) if rez == 4096 else (50, 2) if rez == 2048 else (25, 2)
 
-        # Scale to Image Size
-        if img.shape[0] == 4096:
-            # Rez is 4k
-            scale = 6
-            h_spacing = 120
-            thickness = 4
-            h0 = 100
-            rez = img.shape[0]
-            wid_of_char = 60
+        positions = [(rez - wid_of_char * len(text) - 10, height) for text, height in zip([name, prev, inst, wave], [h0, h0 + h, h0 + 2 * h, h0 + 3 * h])]
+        for text, (x, y) in zip([name, prev, inst, wave], positions):
+            cv2.putText(img, text, (x, y), 1, scale, (255, 255, 255), thickness)
 
-        elif img.shape[0] == 2048:
-            # rez is 2k
-            scale = 3
-            h_spacing = 60
-            thickness = 2
-            h0 = 50
-            rez = img.shape[0]
-            wid_of_char = 30
+        positions = [(0, height) for height in [h0, h0 + h, h0 + 2 * h, h0 + 3 * h]]
+        for text, (x, y) in zip([clock, day, year, "MT"], positions):
+            cv2.putText(img, text, (x, y), 1, scale, (255, 255, 255), thickness)
 
-        else:
-            # rez is 1K
-            scale = 1.5
-            thickness = 2
-            h_spacing = 30
-            h0 = 25
-            rez = img.shape[0]
-            wid_of_char = 15
+        try:
+            aH = self.params.upsilon_high
+            aL = self.params.upsilon_low
+            cv2.putText(img, f"aH: {aH}", (0, int(0.97 * rez)), 1, scale, (255, 255, 255), thickness)
+            cv2.putText(img, f"aL: {aL}", (0, int(0.99 * rez)), 1, scale, (255, 255, 255), thickness)
+        except (SystemError, ValueError) as e:
+            print(238, e)
 
-        # Calculate Locations of Labels
-        h1 = h0 + h_spacing
-        h2 = h1 + h_spacing
-        h3 = h2 + h_spacing
-
-        x0 = rez - wid_of_char * len(name) - 10
-        x1 = rez - wid_of_char * len(prev)
-        x2 = rez - wid_of_char * len(inst) - 5
-        x3 = rez - wid_of_char * len(wave) - 10
-
-        ## APPLY LABELS
-        font = 1
-        # Right Side
-        # brightest = np.nanmax(img)
-
-        cv2.putText(img, name, (x0, h0), font, scale, (255, 255, 255), thickness)
-        cv2.putText(img, prev, (x1, h1), font, scale, (255, 255, 255), thickness)
-        cv2.putText(img, inst, (x2, h2), font, scale, (255, 255, 255), thickness)
-        cv2.putText(img, wave, (x3, h3), font, scale, (255, 255, 255), thickness)
-
-        # Left Side
-        cv2.putText(img, clock, (0, h0), font, scale, (255, 255, 255), thickness)
-        cv2.putText(img, day, (0, h1), font, scale, (255, 255, 255), thickness)
-        cv2.putText(img, year, (0, h2), font, scale, (255, 255, 255), thickness)
-        cv2.putText(img, zone, (0, h3), font, scale, (255, 255, 255), thickness)
-
-        # Bottom Corners
-        # try:
-        #     aH = "aH: {}".format(self.params.alpha_high)
-        #     aL = "aL: {}".format(self.params.alpha_low)
-        #     cv2.putText(img, aH, (0, 990*siz), font, scale, (255, 255, 255), thickness)
-        #     cv2.putText(img, aL, (0, 1015*siz), font, scale, (255, 255, 255), thickness)
-        # except SystemError as e:
-        #     print(e)
-
-        reticle = False
-        if reticle:
-            self.draw_reticle(img)
-
-        # if self.params.alpha is not None:
-        #     cv2.putText(img, "a={:0.3f}".format(self.params.alpha), (int(x0*0.95), h3), 0,   scale, (255, 255, 255), 3)
         return img
 
     def draw_reticle(self, img):
-        cv2.circle(
-            img,
-            (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
-            int(self.params.header["R_SUN"]),
-            (255, 255, 255),
-            3,
-        )
+        cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])), int(self.params.header["R_SUN"]), (255, 255, 255), 3)
+        cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])), 10, (255, 0, 0), 10)
 
-        cv2.circle(
-            img,
-            (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
-            int(10),
-            (255, 0, 0),
-            10,
-        )
+    # def cleanup(self):
+    #     try:
+    #         print("Writing Video...", end="")
+    #         radial_hist_path = "analysis\\radial_hist_post"
+    #         hist_path_0 = os.path.join(self.params.base_directory(), radial_hist_path)
+    #         hist_path_1 = hist_path_0[:-5]
 
-    def cleanup(self):
-        # self.make_intermediate_videos()
-        super().cleanup()
-        pass
-
-    def make_intermediate_videos(self):
-        try:
-            print("Writing Video...", end="")
-            radial_hist_path = "analysis\\radial_hist_post"
-            hist_path_0 = os.path.join(self.params.base_directory(), radial_hist_path)
-            hist_path_1 = hist_path_0[:-5]
-
-            n_hist_0 = len(os.listdir(hist_path_0))
-            n_hist_1 = len(os.listdir(hist_path_1))
-
-            if n_hist_0:
-                self.write_video_in_directory(
-                    directory=hist_path_0, fps=15, destroy=False
-                )
-            if n_hist_1:
-                self.write_video_in_directory(
-                    directory=hist_path_1, fps=15, destroy=False
-                )
-            if self.params.do_cat:
-                self.write_video_in_directory(
-                    directory=self.params.cat_directory,
-                    file_name="concatinated.avi",
-                    fps=15,
-                    destroy=False,
-                )
-            print("Success!")
-        except (FileNotFoundError, AttributeError) as e:
-            print("ImageProcessorCV")
-            raise (e)
-
-        # destroy = False
-        # if destroy:
-        #     shutil.rmtree(self.orig_directory)
+    #         if len(os.listdir(hist_path_0)):
+    #             self.write_video_in_directory(directory=hist_path_0, fps=15, destroy=False)
+    #         if len(os.listdir(hist_path_1)):
+    #             self.write_video_in_directory(directory=hist_path_1, fps=15, destroy=False)
+    #         if self.params.do_cat:
+    #             self.write_video_in_directory(directory=self.params.cat_directory, file_name="concatinated.avi", fps=15, destroy=False)
+    #         print("Success!")
+    #     except (FileNotFoundError, AttributeError) as e:
+    #         print("ImageProcessorCV")
+    #         raise e
+    #     super().cleanup()
 
     @staticmethod
     def peek_frame(img):
-        shrink = 5
-        cv2.imshow("win2", img[::shrink, ::shrink, ::shrink])
+        cv2.imshow("win2", img[::5, ::5, ::5])
         cv2.waitKey(0)
+
 
 
 class MultiImageProcessorCv(ImageProcessorCV):

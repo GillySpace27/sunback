@@ -87,6 +87,7 @@ class Processor:
     base_absolute = None
     save_to_fits = True
     can_use_keyframes = False
+    can_do_parallel = False
     this_file_name = os.path.basename(__file__)
     paper_out = []
 
@@ -666,7 +667,7 @@ class Processor:
                             (self.params.raw_image, self.params.header)
                         )
                         # self.raw_map.verify("silentfix")
-                    except VerifyError:
+                    except (VerifyError, OSError):
                         # If verification still fails, record the failure and skip processing
                         self.failed_fits.append(fits_path)
                         return None
@@ -786,7 +787,7 @@ class Processor:
         try:
             if n_fits_path > 0:
                 self.setup()
-                parallel = self.params.do_parallel
+                parallel = self.params.do_parallel and self.can_do_parallel
                 if parallel:
                     self.parallel_fits_series()
                 else:
@@ -827,7 +828,7 @@ class Processor:
             print(e)
 
     def serial_fits_series(self):
-        print("Running in Serial Mode...", end="", flush=True)
+        # print("Running in Serial Mode...", flush=True)
         pbar = self.init_pbar_now()
         sys.stdout.flush()
         for self.ii, fits_path in enumerate(pbar):
@@ -837,7 +838,7 @@ class Processor:
         # print("Finished", flush=True)
 
     def parallel_fits_series(self):
-        print("Running in Parallel Mode...", end="")
+        # print("Running in Parallel Mode...", end="")
         self.init_pool_if_needed()
         try:
             iter = self.params.multi_pool.imap_unordered(
@@ -853,6 +854,8 @@ class Processor:
         except PicklingError as e:
             print("Parallel Run Failed: ", e)
             self.serial_fits_series()
+        except (TypeError, ValueError) as e:
+            self.skipped += 1
 
     def init_pbar_now(self, position=0):
         pbar = tqdm(
@@ -891,6 +894,7 @@ class Processor:
         self.in_name = self.in_name or self.params.master_frame_list_newest
         # return True
         try:
+
             output = self.do_fits_function(fits_path, self.in_name)
             # output=None
             self.ii += 1
@@ -911,7 +915,7 @@ class Processor:
                 use_name = self.frame_name
             else:
                 use_name = self.out_name
-        self.save_frame(frame, fits_path, use_name)
+        self.save_frame(frame, fits_path, self.frame_name)
         return frame
 
     def save_frame(self, frame, fits_path, out_name=None, force=False):
@@ -2430,6 +2434,7 @@ class Processor:
                 ignore_missing_simple=True,
                 memmap=False,
             ) as hdul:
+                self.hdu_name_list = self.list_hdus(hdul)
                 self.in_name = self.set_in_frame_name(
                     in_name=in_name, fits_path=fits_path, hdul=hdul
                 )
@@ -2443,13 +2448,17 @@ class Processor:
                 )
                 hdul.verify()
             return frame, wave, t_rec, center, int_time, self.in_name
-        except FileNotFoundError as e:
-            print(f"File Not Found!: {e}")
+        except (FileNotFoundError, FileExistsError) as e:
+            print("\n", e)
+            print("HDU's found: ", self.hdu_name_list, "\n")
             pass
         except (OSError, RuntimeError) as e:
+            pass
             print("\n", e)
-            print("Unable to load Frame!")
-
+            # print("Unable to load Frame!")
+        except (TypeError, Exception) as e:
+            print("\n", e)
+        self.skipped += 1
         return None, None, None, None, None, None
 
     def set_in_frame_name(self, in_name=None, fits_path=None, hdul=None):
@@ -2465,8 +2474,11 @@ class Processor:
             str: The determined frame name.
         """
         if isinstance(in_name, str):
+            if in_name.isdigit():
+                in_name = self.hdu_name_list[int(in_name)]
             self.in_name = self.frame_name = in_name
             return self.in_name
+
 
         if hdul is None:
             with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
@@ -2566,7 +2578,7 @@ class Processor:
         reprocess_mode = self.params.reprocess_mode(repo)
 
         # List all the various Names
-        # self.hdu_name_list = self.list_hdus(hdul)
+        self.hdu_name_list = self.list_hdus(hdul)
         requested_input_name = self.determine_in_frame_name(hdul, name)
         requested_output_name = self.outer(self.determine_out_frame_name())
 
@@ -2589,7 +2601,7 @@ class Processor:
             if reprocess_mode in ["skip", False]:
                 # Skip it
                 self.in_name = None
-                # raise FileExistsError("Skipping File")
+                raise FileExistsError
             elif reprocess_mode in ["redo", None, True]:
                 # Go to the previous out_array and remake
                 self.in_name = prev_name
@@ -2858,17 +2870,18 @@ class Processor:
             self.frame_name = frame_name
         cleaned_frame_name = self._get_cleaned_frame_name()
 
-        # Iterate through the HDUs to find the desired one
+        special_names = ["primary", "compressed_image", "lev1p5"]
+        found_hdu = None
+        found_idx = -1
+
         for idx, hdu in enumerate(hdul):
             hduname = hdu.name.casefold()
-            # print(hduname)
             cleaned_hdu_name = hduname.split("(")[0]
-            if (
-                hduname == self.frame_name.casefold()
-                or cleaned_hdu_name == cleaned_frame_name.casefold()
-            ):
+
+            # Check if current HDU matches the requested frame name
+            if hduname == self.frame_name.casefold() or cleaned_hdu_name == cleaned_frame_name.casefold():
                 if hdu.data is None:
-                    if hduname in ["primary"] or cleaned_hdu_name in ["primary"]:
+                    if hduname in special_names or cleaned_hdu_name in special_names:
                         self.frame_name = "compressed_image"
                         continue
                     raise FileNotFoundError(
@@ -2878,12 +2891,22 @@ class Processor:
                     )
                 return hdu, hdu.name, idx
 
-        # If the desired HDU is not found, raise an exception
+            # Track the last HDU matching special names
+            if hduname in special_names or cleaned_hdu_name in special_names:
+                found_hdu = hdu
+                found_idx = idx
+
+        # Return the last matching special name HDU if found
+        if found_hdu is not None:
+            return found_hdu, found_hdu.name, found_idx
+
+        # Raise an error if no appropriate HDU was found
         raise FileNotFoundError(
             "The specified HDU '{}' was not found.".format(self.frame_name)
         )
 
-    def open_fits_hdul(self, hdul, quiet=True, frame_name=None):
+
+    def open_fits_hdul(self, hdul, quiet=True, frame_name=None, peek=False):
         """
         Load data and header from a specific HDU in a FITS file.
 
@@ -2904,6 +2927,11 @@ class Processor:
         field_hdu, frame_name, _ = self.get_field_hdu(hdul, frame_name)
         data = field_hdu.data
         header = field_hdu.header
+
+        if peek:
+            plt.imshow(data, cmap="viridis")
+            plt.title(frame_name)
+            plt.show(block=True)
         return data, header
 
     def list_hdus(self, hdul):
@@ -2918,6 +2946,7 @@ class Processor:
         """
         hdul.verify("silentfix+ignore")  # Verify the FITS HDU list
         hdu_name_list = [hdu.name.casefold() for hdu in hdul]
+        self.hdu_name_list = hdu_name_list
         return hdu_name_list
 
     def determine_penultimate_frame_name(self):
@@ -3295,7 +3324,7 @@ class Processor:
         return n
 
     @staticmethod
-    def normalize(image, high=98.0, low=15.0):
+    def normalize(image, high=99.99, low=5.0):
         """Normalize the Array"""
         lowP, highP = np.nanpercentile(image, [low, high])
 

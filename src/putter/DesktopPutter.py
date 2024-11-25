@@ -26,10 +26,13 @@ class DesktopPutter(Putter):
         print("\r V Setting Desktop Background to...(ctrl-c to skip)", flush=True)
         self.super_flush()
 
-        to_display = sorted([file for file in self.params.local_imgs_paths()
-                            if ("aH" not in file and "aL" not in file)])
-        im_171 = [file for file in to_display if "171" in file][0]
-        to_display.append(im_171)
+        to_display = sorted([file for file in self.params.local_imgs_paths()])
+        try:
+            im_171 = [file for file in to_display if "171" in file][0]
+            to_display.append(im_171)
+        except IndexError:
+            print("171A not found")
+            pass
         self.ii = 0
         for png_path in to_display:
             self.ii += 1

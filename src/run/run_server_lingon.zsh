@@ -3,7 +3,6 @@
 echo $'\n>>>Bootstrapping Sunback<<<'
 
 echo $'\n\t>Initing zsh...'
-source /opt/homebrew/anaconda3/etc/profile.d/conda.sh
 source ~/.zshrc
 
 # Run the remaining commands in a sub-shell
@@ -12,8 +11,8 @@ source ~/.zshrc
   cd /Users/cgilbert/vscode/sunback/src/
   echo $'\t\t'$PWD
 
-  echo $'\n\t>Activating Sunback_env_arm...'
-  conda activate sunback_env_arm
+  echo $'\n\t>Activating Environment...'
+  source ../.venv/bin/activate
   echo $'\t\t'$(which python)
 
   echo $'\n\t>Prepending CWD to Paths...'
@@ -22,11 +21,23 @@ source ~/.zshrc
 
   echo $'\n\t>Running Server file: "run_server_lingon.zsh"...\n'
 
- # append a timestamp to another file for reference
-  date >> /Users/cgilbert/vscode/sunback/src/run/run_server_lingon.timestamp
+  # Path to the timestamp file
+  timestamp_file="/Users/cgilbert/vscode/sunback/src/run/run_server_lingon.timestamp"
+
+  # Append the current date to the file
+  date=$(date)
+  echo -n "$date " >> "$timestamp_file"
 
   # save all the output from the following command to a log file, and also print to console
-  /opt/homebrew/anaconda3/envs/sunback_env_arm/bin/python /Users/cgilbert/vscode/sunback/src/run/run_server_lingon.py | tee /Users/cgilbert/vscode/sunback/src/run/run_server_lingon.log
+  /Users/cgilbert/vscode/sunback/.venv/bin/python /Users/cgilbert/vscode/sunback/src/run/run_server_lingon.py | tee /Users/cgilbert/vscode/sunback/src/run/run_server_lingon.log
+  code_status=$?
+
+  # Append success or failure flag based on command execution status
+  if [[ $code_status -eq 0 ]]; then
+      echo "SUCCESS" >> "$timestamp_file"
+  else
+      echo "FAIL" >> "$timestamp_file"
+  fi
 
   echo Job Complete!
 )

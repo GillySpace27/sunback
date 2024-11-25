@@ -20,13 +20,13 @@ except:
 
 setup(
     # Self-descriptive entries which should always be present
-    name='Sunback',
+    name='sunback',
     author='C. R. Gilly',
     author_email='chris.gilly@colorado.edu',
     description=short_description[0],
     long_description=long_description,
     long_description_content_type="text/markdown",
-    version=100,  # versioneer.get_version(),
+    version="0.5.0",  # versioneer.get_version(),
     # cmdclass=100,  # versioneer.get_cmdclass(),
     license='BSD-3-Clause',
     url='https://github.com/GillySpace27/sunback',  # Website

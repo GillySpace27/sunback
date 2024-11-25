@@ -69,8 +69,10 @@ class VideoProcessor(Processor):
         ]
 
         # Build File Name
-        batch_name = self.params.config["name"]
-
+        try:
+            batch_name = self.params.config["name"]
+        except (KeyError, AttributeError):
+            batch_name = self.params.batch_name()
         file_name = "{}_video_{}.{}".format(batch_name, "1___raw", self.mov_type)
         self.final_output_path = join(self.params.movs_directory(), file_name)
 
@@ -134,16 +136,17 @@ class VideoProcessor(Processor):
         for img_path in tqdm(
             sorted(self.good_paths), desc=self.progress_text, unit="frames"
         ):
+
             if "orig" not in img_path and "cat" not in img_path:
-                img = cv2.imread(img_path)
-                img_small = cv2.resize(img, (1024, 1024), interpolation=cv2.INTER_AREA)
-                if self.reprocess_mode() or True:  # TODO THis is a like truth
+                try:
+                    img = cv2.imread(img_path)
+                    # img_small = cv2.resize(img, (1024, 1024), interpolation=cv2.INTER_AREA)
                     w1, w2, w3 = video_avi
                     w1.write(img)
                     w2.write(img)
-                    w3.write(img_small)
+                    # w3.write(img_small)
                     ii += 1
-                else:
+                except Exception as e:
                     self.skipped += 1
             if self.destroy:
                 os.remove(img_path)

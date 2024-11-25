@@ -40,8 +40,8 @@ class WebFitsFetcher(Fetcher):
         if self.params.download_files():
             self.__get_img_time()
             paths = self.fetch_fits_files()
-            jpaths = self.fetch_jpegs()
-            return jpaths
+            # jpaths = self.fetch_jpegs()
+            return paths
         else:
             print("Skipping download!")
             ()

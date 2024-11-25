@@ -119,7 +119,7 @@ class Parameters:
         self.raw_image = None
         self.modified_image = None
         self.rhe_image = None
-        self.alpha = 0.35
+        self.upsilon = (0.6, 0.35)
         self.hdu_name = None
         self.start_time = time()
         self.is_first_run = True
@@ -172,8 +172,8 @@ class Parameters:
         self._use_default_directories = True
         self.do_orig = False
         self.do_compare = True
-        self.alpha_low = 0.35
-        self.alpha_high = 0.35
+        self.upsilon_low = None
+        self.upsilon_high = None
         self.do_cat = False
         self.do_single = False
         self.got_JPEG = False
@@ -227,7 +227,7 @@ class Parameters:
     def do_standard_RHE(self):
         self.msgn_targets(["lev1p5"])  # , 'rhe(lev1p5)'
         self.rhe_targets(["lev1p5", "msgn(lev1p5)"])  # "lev1p5",
-        self.png_frame_name = ["rhe(msgn)"]  # ['rhe(lev1p5)']
+        self.png_frame_name = ["rhef(lev1p5)"]  # ['rhe(lev1p5)']
 
     def init_pool(self, n_cores=10):
         if self.multi_pool is None and self.do_parallel is True:
@@ -540,7 +540,9 @@ class Parameters:
         return self._do_multishot
 
     def cadence_minutes(self, cad=None):
-        if cad is not None:
+        if isinstance(cad, u.Quantity):
+            self._cadence = cad.to(u.minute)
+        elif cad is not None:
             self._cadence = cad * u.minute
         return self._cadence
 
