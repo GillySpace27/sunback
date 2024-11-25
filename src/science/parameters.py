@@ -227,7 +227,7 @@ class Parameters:
     def do_standard_RHE(self):
         self.msgn_targets(["lev1p5"])  # , 'rhe(lev1p5)'
         self.rhe_targets(["lev1p5", "msgn(lev1p5)"])  # "lev1p5",
-        self.png_frame_name = ["rhef(lev1p5)"]  # ['rhe(lev1p5)']
+        self.png_frame_name = ["RHEF"]  # ['rhe(lev1p5)']
 
     def init_pool(self, n_cores=10):
         if self.multi_pool is None and self.do_parallel is True:
