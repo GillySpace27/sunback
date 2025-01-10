@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sunback"
-version = "0.6.0"
+version = "0.6.01"
 description = "Sets your desktop background to the most recent images of the Sun."
 readme = "README.md"
 license = { text = "BSD-3-Clause" }
@@ -36,7 +36,6 @@ dependencies = [
   "appscript; platform_system == 'Darwin'",
   "moviepy",
   "parfive",
-  "playsound",
   "opencv-python",
   "numba",
   "beautifulsoup4",
