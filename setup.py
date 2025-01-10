@@ -29,8 +29,8 @@ setup(
     url="https://github.com/GillySpace27/sunback",
 
     # Tell setuptools to look for packages in src/
-    package_dir={"": "src"},
-    packages=find_packages(where="src"),
+    package_dir={"": "sunback"},
+    packages=find_packages(where="sunback"),
 
     include_package_data=True,
     setup_requires=[] + pytest_runner,
@@ -74,7 +74,7 @@ setup(
 
     entry_points={
         "console_scripts": [
-            "sunback-run = src.run.run_client_background:run_client",
+            "sunback-run = sunback.run.run_client_background:run_client",
         ]
     },
 )

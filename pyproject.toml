@@ -51,13 +51,13 @@ dependencies = [
 ]
 
 [project.scripts]
-sunback-run = "src.run.run_client_background:run_client"
+sunback-run = "sunback.run.run_client_background:run_client"
 
 [project.optional-dependencies]
 test = ["pytest", "pytest-runner"]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["sunback"]
 
 [tool.setuptools.package-data]
 "*" = ["*"]
