@@ -18,14 +18,14 @@ Solar Background Updater
 <a href="https://codecov.io/gh/GillySpace27/sunback/branch/master" target="_blank">![codecov](https://codecov.io/gh/GillySpace27/sunback/branch/master/graph/badge.svg)</a>
 
 
-This program is the core analysis package that Dr. Gilly uses for his research. This code updates Gilly's personal website, and allows users to run a daemon on their machines to update the desktop background with a given cadence.
+This program is the core analysis package that Dr. Gilly uses for his research. This code is very modular and can perform many different data pipelines for images with arbitrary and custom filtering steps. Sunback runs analysis on images from AIA, updates Gilly's personal website, and allows users to run a daemon on their machines to update their computer desktop background.
 
 ## Installation
 
 ### Github Installation Instructions
 
 ``` zsh
-git clone <URL>
+git clone https://github.com/GillySpace27/sunback.git
 cd sunback
 python3 -m venv .venv
 source .venv/bin/activate
@@ -33,12 +33,19 @@ pip install .
 sunback-run
 ```
 
-### PyPi Installation Instructions (Depricated for now):
+### PyPi Installation Instructions:
 ``` bash
 pip install sunback
+```
+followed by either
+```
+sunback-run
+```
+in the console, or in python
+```
 python3
-import sunback as sb
-sb.run(delay=20)
+>> from sunback.run.run_client_background import run_client as run
+>> run(delay=20) # Delay in seconds between updates
 ```
 
 Check contribute.md to see how you can help out!

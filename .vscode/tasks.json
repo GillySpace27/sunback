@@ -1,14 +1,30 @@
 {
     "version": "2.0.0",
     "tasks": [
-        {
-            "label": "Run Shell Script in Zsh",
-            "type": "shell",
-            "command": "/bin/zsh",
-            "args": [
-                "${file}"
-            ],
-            "problemMatcher": []
-        }
+      {
+        "label": "Build Dist",
+        "type": "shell",
+        // 1) Activate your virtual environment
+        // 2) Run "python -m build"
+        "command": "source .venv/bin/activate && python -m build",
+        "group": "build",
+        "problemMatcher": []
+      },
+      {
+        "label": "Upload to PyPI",
+        "type": "shell",
+        // 1) Activate your virtual environment
+        // 2) Run "twine upload dist/*"
+        "command": "source .venv/bin/activate && twine upload dist/* --repository pypi",
+        "problemMatcher": []
+      },
+      {
+        "label": "Upload to Test PyPI",
+        "type": "shell",
+        // 1) Activate your virtual environment
+        // 2) Run "twine upload dist/*" against testpypi
+        "command": "source .venv/bin/activate && twine upload dist/* --repository testpypi --verbose",
+        "problemMatcher": []
+      }
     ]
-}
+  }

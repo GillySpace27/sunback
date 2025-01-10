@@ -19,7 +19,7 @@ except OSError:
 
 setup(
     name="sunback",
-    version="0.5.1",
+    version="0.6.0",
     author="C. R. Gilly",
     author_email="chris.gilly@colorado.edu",
     description=docstring.split("\n")[0],
