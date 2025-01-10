@@ -9,7 +9,6 @@ from src.fetcher.WebFitsFetcher import WebFitsFetcher
 from src.processor.ImageProcessorCV import ImageProcessorCV
 from src.processor.CompositeRainbowImageProcessor import RainbowRGBImageProcessor
 
-
 def run_client(delay=60, debug=False, do_one="rainbow", stop=True):
     p = Parameters()
 
