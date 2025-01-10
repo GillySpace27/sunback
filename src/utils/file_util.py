@@ -5,7 +5,7 @@ from time import time, localtime, strftime
 
 from astropy.io import fits
 
-archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
+archive_url = "http://jsoc1.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
 ##  PATHS
 # def build_paths(self):
@@ -121,30 +121,30 @@ archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Defau
 #             pass
 #     return hInd
 #
-    
 
 
 
-    
-    
-    
+
+
+
+
     # hdul.writeto()
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
     # Then Read
     # current_wave, t_rec = hdul[0].header['WAVELNTH'], hdul[0].header['T_OBS']
     # in_object = hdul[0].data
     # image_data = str(current_wave), str(current_wave), t_rec, in_object.shape
-    
+
 # return in_object, image_data

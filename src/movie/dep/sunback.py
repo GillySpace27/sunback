@@ -106,7 +106,7 @@ class Sunback:
         local_fileBox_path = abspath(local_dir + r"/fileBox.dat")
 
         # Retrieve the file names
-        web_path = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"
+        web_path = "http://jsoc1.stanford.edu/data/aia/synoptic/mostrecent/"
         # import pdb; pdb.set_trace()
 
         # local_path = abspath(r"C:\Users\chgi7364\Dropbox\AB_Interesting_Stuff\Projects\sunback_proj\sunback\data\images\times.txt")
@@ -271,7 +271,7 @@ class Sunback:
 
     def jp_get(self):
         # Retrieve the file names
-        web_path = "http://jsoc2.stanford.edu/data/aia/images/image_times"
+        web_path = "http://jsoc1.stanford.edu/data/aia/images/image_times"
         local_path = "times.txt"
         self.fileBox = []
 

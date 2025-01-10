@@ -1,88 +1,106 @@
 import sys
-from os.path import join
-
+import os
+from os.path import join, split
 from tqdm import tqdm
+import boto3
 
 from src.fetcher.Fetcher import Fetcher
-import boto3
-import os
 
 
 class AwsImgFetcher(Fetcher):
+    """
+    Fetch images from an S3 bucket. Downloads any valid PNG files from
+    the specified prefix, placing them into self.params.imgs_top_directory().
+    """
     description = "Get imgs from the Amazon S3 Bucket"
-
+    filt_name = "AWS Image Fetcher"
     def __init__(self, params=None, quick=False, rp=None):
-        # Initialize class variables
         super().__init__(params, quick, rp)
-        if self.params:
-            # self.load(params)
-            s3_resource = boto3.resource('s3')
-            self.my_bucket = s3_resource.Bucket('gillyspace27-test-billboard')
-            self.objects = self.my_bucket.objects.filter(Prefix='renders/')
-            self.n_obj = 0
+        self.load(params)
+        # Set up S3 resources
+        self.s3_resource = boto3.resource('s3')
+
+        # Use user-provided bucket/prefix if they exist. Otherwise, hardcode or pick defaults.
+        self.bucket_name = getattr(self.params, 's3_bucket_name', 'the-sun-now')
+        self.prefix      = getattr(self.params, 's3_prefix',       'renders/')
+
+        self.my_bucket = self.s3_resource.Bucket(self.bucket_name)
+        self.n_obj = 0  # Will keep track of how many valid objects we download
+        self.download_dir = self.params.imgs_top_directory() if self.params else "./downloaded"
+
+        # This sets up the object filter that we'll iterate over
+        self.objects = self.my_bucket.objects.filter(Prefix=self.prefix)
 
     def fetch(self, params=None):
-        """Get all the PNGs from the S3 Bucket
-        :param params:
         """
-        self.__init__(params)
-        sys.stdout.flush()
-        print("   Downloading PNGs from Amazon S3 to {}".format(self.params.imgs_top_directory()), flush=True)
-        for ii, obj in enumerate(self.objects):
-            self.grab_obj(obj)
+        Download all valid PNG files from the S3 bucket and store them
+        in the download directory (self.params.imgs_top_directory()).
+        """
+        # If the user called fetch() with new params, update them
+        if params is not None:
+            self.params = params
+            self.__init__(params=params)  # Re-init so that we pick up any new s3_bucket_name/prefix
 
+        # Ensure the download directory exists
+        os.makedirs(self.download_dir, exist_ok=True)
+
+        print(f"   Downloading PNGs from '{self.bucket_name}/{self.prefix}' to {self.download_dir}", flush=True)
+        sys.stdout.flush()
+
+        valid_keys = self._filter_objects()
+        if not valid_keys:
+            print("   No files found matching the criteria.")
+            return
+
+        # Use tqdm to show progress
+        for obj in tqdm(valid_keys, desc="   Downloading Files", ncols=100):
+            self._grab_obj(obj)
+
+        # Optionally load into memory or do any post-download steps
         self.load()
 
-        if self.n_imgs >= ii:
-            print("\r   All Downloads Complete", flush=True)
-        elif len(self.params.imgs_top_directory()) == 0:
-            print("\r     No Files Loaded", flush=True)
-        else:print("\r     {} Files Loaded".format(self.n_imgs), flush=True)
-
+        # You could do more robust checks here, but for demonstration:
+        print(f"\n   Downloaded {self.n_obj} files in total.")
         sys.stdout.flush()
 
-    def grab_obj(self, obj):
-        """Get a specific object from the S3 Bucket"""
+    def _filter_objects(self):
+        """
+        Filter out anything you do *not* want to download (like 'orig', 'archive', 'thumbs', '4500').
+        Also handle do_one() if the user only wants a single file.
+        Returns a list of S3.ObjectSummary items that pass the filters.
+        """
+        valid_keys = []
+        # wanted_one = self.params.do_one() if hasattr(self.params, 'do_one') else None
 
-        # Exit if not appropriate not_wanted
-        if 'orig' in obj.key or 'archive' in obj.key or "thumbs" in obj.key or "4500" in obj.key:
-            return
-        if self.params.do_one() and self.params.do_one() not in obj.key:
-            return
+        for obj in self.objects:
+            # Exclude known unwanted substrings
+            if any(x in obj.key for x in ['orig', 'archive', 'thumbs', '4500']):
+                continue
 
-        # Identify File
-        path, filename = os.path.split(obj.key)
-        # print(filename, pointing_end=', ')
-        loc = join(self.params.imgs_top_directory(), "dl_" + filename)
+            # If do_one() is set, skip anything that doesn't match
+            # if wanted_one and wanted_one not in obj.key:
+            #     continue
+
+            valid_keys.append(obj)
+
+        return valid_keys
+
+    def _grab_obj(self, obj):
+        """
+        Download a specific S3 object to local disk, prefixed with "dl_" if you like,
+        or place it under the same relative path.
+        """
+        path, filename = split(obj.key)
+        local_filename = f"dl_{filename}"
+        local_path = join(self.download_dir, local_filename)
+
+        # Ensure any subdirectories exist if needed (e.g., if you preserve path structure)
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
         # Download File
-        self.my_bucket.download_file(obj.key, loc)
-        print('\r     ', end='')
-        print(obj.key, end='', flush=True)
-        sys.stdout.flush()
-        return
+        self.my_bucket.download_file(obj.key, local_path)
 
-
-
-    # @staticmethod
-    # def __get_fits_links(url):
-    #     """gets the list of files to pull"""
-    #     # create response object
-    #     r = requests.get(url)
-    #
-    #     # create beautiful-soup object
-    #     soup = BeautifulSoup(r.content, 'html5lib')
-    #
-    #     # not_wanted all links on web-page
-    #     links = soup.findAll('a')
-    #
-    #     # filter the link sending with .fits
-    #     img_links = [archive_url + link['href'] for link in links if link['href'].endswith('fits')]
-    #     img_links = [lnk for lnk in img_links if '4500' not in lnk]
-    #     return img_links
-    #
-    # def __get_img_time(self):
-    #     """Gets the time file"""
-    #     image_time = requests.get(archive_url + "image_times").text[9:25]
-    #     with open(self.params.time_path(), 'w') as fp:
-    #         fp.write(image_time)
+        self.n_obj += 1
+        # If you want to print every file as it downloads:
+        # print(f"Downloaded: {obj.key} -> {local_path}")
+        # sys.stdout.flush()

@@ -19,7 +19,7 @@ from src.processor.SunPyProcessor import AIA_PREP_Processor
 from sunpy.coordinates.sun import carrington_rotation_time
 
 # Constants
-default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"
+default_base_url = "http://jsoc1.stanford.edu/data/aia/synoptic/mostrecent/"
 jsoc_email = "chris.gilly@colorado.edu"
 global_verbosity = False
 

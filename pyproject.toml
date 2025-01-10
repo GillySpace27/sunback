@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sunback"
-version = "0.5.0"
+version = "0.5.1"
 description = "Sets your desktop background to the most recent images of the Sun."
 readme = "README.md"
 license = { text = "BSD-3-Clause" }
@@ -13,6 +13,8 @@ authors = [
 ]
 urls = { "Homepage" = "https://github.com/GillySpace27/sunback" }
 requires-python = ">=3.0"
+
+
 
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -50,6 +52,9 @@ dependencies = [
     "xarray"
 ]
 
+[project.scripts]
+sunback-run = "src.run.run_client_background:run_client"
+
 [project.optional-dependencies]
 test = ["pytest", "pytest-runner"]
 
@@ -57,5 +62,4 @@ test = ["pytest", "pytest-runner"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"*": ["*"]
-
+"*"=["*"]

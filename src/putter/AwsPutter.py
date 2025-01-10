@@ -36,6 +36,7 @@ class AwsPutter(Putter):
 
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         super().__init__(params, quick, rp, in_name)
+        
         self.pbar = None
         self.to_upload = None
 

@@ -20,7 +20,7 @@ from src.fetcher.FidoFetcher import FidoFetcher
 from src.processor.SunPyProcessor import AIA_PREP_Processor
 
 # Constants
-default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/"
+default_base_url = "http://jsoc1.stanford.edu/data/aia/synoptic/"
 jsoc_email = "chris.gilly@colorado.edu"
 global_verbosity = False
 

@@ -17,7 +17,7 @@ bucket = s3.Bucket('gillyspace27-test-billboard')
 s3_client = boto3.client('s3')
 
 #Location of the Solar Images
-archive_url = "http://jsoc2.stanford.edu/data/aia/synoptic/nrt/"
+archive_url = "http://jsoc1.stanford.edu/data/aia/synoptic/nrt/"
 
 #Initialization
 global last_time
@@ -29,9 +29,9 @@ background_update_delay_seconds = 60 #* 60
 
 def lambda_handler_movie(event=None, context=None):
     """is called by aws"""
-    
+
     print_banner()
-    
+
     while True:
         try:
             links = modify_img_series()
@@ -53,7 +53,7 @@ def print_banner():
     print("\nSunback Web: SDO Website and Background Updater \nWritten by Chris R. Gilly")
     print("Check out my website: http://gilly.space\n")
     print("Delay: {} Seconds".format(background_update_delay_seconds))
-    
+
 
 def modify_img_series():
     """Processes the img series"""

@@ -23,7 +23,7 @@ from src.fetcher.Fetcher import Fetcher
 from src.processor.SunPyProcessor import AIA_PREP_Processor
 
 # Constants
-DEFAULT_BASE_URL = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"
+DEFAULT_BASE_URL = "http://jsoc1.stanford.edu/data/aia/synoptic/mostrecent/"
 JSOC_EMAIL = "chris.gilly@colorado.edu"
 
 # Configure logging for verbose output

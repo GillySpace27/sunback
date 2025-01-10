@@ -2,6 +2,7 @@
 from src.run import SingleRunner
 from src.science.parameters import Parameters
 from src.putter.DesktopPutter import DesktopPutter
+from src.fetcher.AwsImgFetcher import AwsImgFetcher
 from src.putter.AwsPutter import AwsPutter
 from src.processor.SunPyProcessor import RHEFProcessor
 from src.fetcher.WebFitsFetcher import WebFitsFetcher
@@ -9,14 +10,14 @@ from src.processor.ImageProcessorCV import ImageProcessorCV
 from src.processor.CompositeRainbowImageProcessor import RainbowRGBImageProcessor
 
 
-def run_server_lingon(delay=60, debug=False, do_one="rainbow", stop=True):
+def run_client(delay=60, debug=False, do_one="rainbow", stop=True):
     p = Parameters()
 
     p.is_debug(debug)
     p.delay_seconds(delay)
     p.do_one(do_one, stop)
     p.batch_name("background_server_lingon")
-    p.run_type("Web Server Daemon")
+    p.run_type("Client Sunback Daemon")
     p.do_orig = True
     p.speak_save = False
     p.use_drive = "G"
@@ -24,21 +25,8 @@ def run_server_lingon(delay=60, debug=False, do_one="rainbow", stop=True):
     # Run Flags
     p.download_files(True)
     p.get_fits = True
-    p.multiplot_all = False
-    p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
-    p.upsilon = None
-    p.do_prep = False
 
-    p.do_standard_RHE()
-
-    # This is the right combination of processors for the server
-    if True:
-        p.fetchers(WebFitsFetcher,)  # Gets Fits from JSOC Most Recent
-        p.processors([RHEFProcessor],  rp=True)  # Applies the Sunpy Radial Filtering
-        # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
-    p.putters([RainbowRGBImageProcessor], rp=True)  # Makes the PNGs into a Composite PNG
-    p.putters([AwsPutter])  # Uploads the PNGs to AWS
+    p.fetchers(AwsImgFetcher,)  # Gets Fits from www.gilly.space/sun
     p.putters([DesktopPutter])  # Sets the PNGs to the Desktop Background
 
     # Imageprocessor -> get_alphas() to adjust Upsilon
@@ -49,4 +37,4 @@ def run_server_lingon(delay=60, debug=False, do_one="rainbow", stop=True):
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run_server_lingon()
+    run_client()

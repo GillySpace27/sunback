@@ -16,7 +16,7 @@ from functools import partial
 
 
 class WebFitsFetcher(Fetcher):
-    base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
+    base_url = "http://jsoc1.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
     jpg_url_stem = "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_{:04}_{:04}.jpg" + "?x=" + str(round(time()))
     description = "Get Fits Files from {}".format(base_url)
     filt_name = "WebFitsFetcher"

@@ -24,7 +24,7 @@ from src.science.color_tables import aia_color_table
 # from os.path import join
 import os.path as path
 
-default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
+default_base_url = "http://jsoc1.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
 
 class LocalFetcher(Fetcher):

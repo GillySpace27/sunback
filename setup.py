@@ -85,9 +85,12 @@ setup(
         'Operating System :: Microsoft :: Windows',
         'Operating System :: POSIX',
         'Operating System :: MacOS',
-    ]
+    ],
 
-    # Manual control if final package is compressible or not, set False to prevent the .egg from being made
-    # zip_safe=False,
+    entry_points={
+        "console_scripts": [
+            "sunback-run = src.run.run_client_background:run_client",
+        ]
+    },
 
 )

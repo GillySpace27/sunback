@@ -17,7 +17,7 @@ jsoc_email = "chris.gilly@colorado.edu"
 
 import datetime
 
-default_base_url = "http://jsoc2.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
+default_base_url = "http://jsoc1.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
 
 global global_verb
 global_verb = False
