@@ -18,11 +18,22 @@ Solar Background Updater
 <a href="https://codecov.io/gh/GillySpace27/sunback/branch/master" target="_blank">![codecov](https://codecov.io/gh/GillySpace27/sunback/branch/master/graph/badge.svg)</a>
 
 
+This program is the core analysis package that Dr. Gilly uses for his research. This code updates Gilly's personal website, and allows users to run a daemon on their machines to update the desktop background with a given cadence.
 
-A program that downloads the most current images of the sun from the SDO satellite, then normalizes them. Then it sets each of the images to the desktop background in series.
+## Installation
 
+### Github Installation Instructions
 
-Basic Usage:
+``` zsh
+git clone <URL>
+cd sunback
+python3 -m venv .venv
+source .venv/bin/activate
+pip install .
+sunback-run
+```
+
+### PyPi Installation Instructions (Depricated for now):
 ``` bash
 pip install sunback
 python3

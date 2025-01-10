@@ -1,90 +1,75 @@
-""" Sets your desktop background to the most recent images of the Sun.
-Solar Background Updater
-A program that downloads the most current images of the sun from the SDO satellite, then finds the most likely temperature in each pixel. Then it sets each of the images to the desktop background in series.
-"""
 import sys
 from setuptools import setup, find_packages
-# from src.movie.dep.sunback import versioneer
 
-short_description = __doc__.split("\n")
+# If you have a docstring describing the package:
+docstring = """Sets your desktop background to the most recent images of the Sun.
+Solar Background Updater
+A program that downloads the most current images of the sun from the SDO satellite,
+then sets each of the images to the desktop background in series.
+"""
 
-# from https://github.com/pytest-dev/pytest-runner#conditional-requirement
-needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
-pytest_runner = ['pytest-runner'] if needs_pytest else []
+needs_pytest = {"pytest", "test", "ptr"}.intersection(sys.argv)
+pytest_runner = ["pytest-runner"] if needs_pytest else []
 
 try:
     with open("README.md", "r") as handle:
         long_description = handle.read()
-except:
-    long_description = "\n".join(short_description[2:])
+except OSError:
+    long_description = docstring
 
 setup(
-    # Self-descriptive entries which should always be present
-    name='sunback',
-    author='C. R. Gilly',
-    author_email='chris.gilly@colorado.edu',
-    description=short_description[0],
+    name="sunback",
+    version="0.5.1",
+    author="C. R. Gilly",
+    author_email="chris.gilly@colorado.edu",
+    description=docstring.split("\n")[0],
     long_description=long_description,
     long_description_content_type="text/markdown",
-    version="0.5.0",  # versioneer.get_version(),
-    # cmdclass=100,  # versioneer.get_cmdclass(),
-    license='BSD-3-Clause',
-    url='https://github.com/GillySpace27/sunback',  # Website
+    license="BSD-3-Clause",
+    url="https://github.com/GillySpace27/sunback",
 
-    # Which Python importable modules should be included when your package is installed
-    # Handled automatically by setuptools. Use 'exclude' to prevent some specific
-    # subpackage(s) from being added, if needed
-    packages=find_packages(),
+    # Tell setuptools to look for packages in src/
+    package_dir={"": "src"},
+    packages=find_packages(where="src"),
 
-    # Optional include package data to ship with your package
-    # Customize MANIFEST.in if the general case does not suit your needs
-    # Comment out this line to prevent the files from being packaged with your software
     include_package_data=True,
-
-    # Allows `setup.py test` to work correctly with pytest
     setup_requires=[] + pytest_runner,
+    python_requires=">=3.0",
 
-    # Required packages, pulls from pip if needed; do not use for Conda deployment
-    # install_requires=["sunpy[net]>=1.1"]
-    install_requires=["boto3", "matplotlib", "twine", "pillow", "appscript;platform_system=='Darwin'",
-                      "moviepy", 'parfive', 'playsound', 'opencv-python', 'numba', "bs4",
-                      "sunpy", "scipy", "astropy", "html5lib", "numpy", 'sunkit-image', 'aiapy', 'xarray'],
-
-    platforms=['Windows', 'Linux', 'Mac OS-X'],            # Valid platforms your code works on, adjust to your flavor
-    # 'Linux','Mac OS-X','Unix',
-
-    python_requires=">=3.0",          # Python version restrictions
+    install_requires=[
+        "boto3",
+        "matplotlib",
+        "twine",
+        "pillow",
+        "appscript;platform_system=='Darwin'",
+        "moviepy",
+        "parfive",
+        "playsound",
+        "opencv-python",
+        "numba",
+        "beautifulsoup4",
+        "sunpy",
+        "scipy",
+        "astropy",
+        "html5lib",
+        "numpy",
+        "sunkit-image",
+        "aiapy",
+        "xarray"
+    ],
 
     classifiers=[
-        # How mature is this project? Common values are
-        #   1 - Planning
-        #   2 - Pre-Alpha
-        #   3 - Alpha
-        #   4 - Beta
-        #   5 - Production/Stable
-        'Development Status :: 4 - Beta',
-
-        # Indicate who your project is intended for
-        'Intended Audience :: End Users/Desktop',
-        'Intended Audience :: Science/Research',
-        'Topic :: Desktop Environment',
-        'Topic :: Desktop Environment :: Screen Savers',
-        'Topic :: Multimedia :: Graphics :: Viewers',
-
-        # Pick your license as you wish (should match "license" above)
-        'License :: OSI Approved :: BSD License',
-
-        # Specify the Python versions you support here. In particular, ensure
-        # that you indicate whether you support Python 2, Python 3 or both.
-        # 'Programming Language :: Python :: 3',
-        # 'Programming Language :: Python :: 3.2',
-        # 'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3 :: Only',
-
-        # Platforms
-        'Operating System :: Microsoft :: Windows',
-        'Operating System :: POSIX',
-        'Operating System :: MacOS',
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: End Users/Desktop",
+        "Intended Audience :: Science/Research",
+        "Topic :: Desktop Environment",
+        "Topic :: Desktop Environment :: Screen Savers",
+        "Topic :: Multimedia :: Graphics :: Viewers",
+        "License :: OSI Approved :: BSD License",
+        "Programming Language :: Python :: 3 :: Only",
+        "Operating System :: Microsoft :: Windows",
+        "Operating System :: POSIX",
+        "Operating System :: MacOS",
     ],
 
     entry_points={
@@ -92,5 +77,4 @@ setup(
             "sunback-run = src.run.run_client_background:run_client",
         ]
     },
-
 )
