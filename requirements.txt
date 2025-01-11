@@ -85,7 +85,6 @@ multidict
 nest-asyncio
 networkx
 nh3
-numba
 numcodecs
 numpy
 opencv-python

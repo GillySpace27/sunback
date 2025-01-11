@@ -119,7 +119,7 @@ def generate_composite(directory, wavelength_sets, operations):
 
 
 # Example usage with your directory
-directory = "/Users/cgilbert/vscode/sunback_data/renders/background_server_lingon/rainbow/imgs/fits"
+directory = "~/sunback_data/renders/background_server_lingon/rainbow/imgs/fits"
 wavelength_sets = [
     [171, 193, 211],
     [171, 193, 211],

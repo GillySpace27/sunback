@@ -2,13 +2,18 @@ include LICENSE
 include MANIFEST.in
 include versioneer.py
 
-graft sunback
+graft sunback/sunback
 global-exclude *.py[cod] sunback/_version.py
 include sunback/_version.py
 include sunback/modify.py
 
 # prune sunback/data/images
 # prune sunback/data/sunback_images
+prune temp
+prune data
+prune renders
+prune rainbow
+prune ./temp
 prune sunback/sunback_images
 prune devtools
 prune sunback/.idea
