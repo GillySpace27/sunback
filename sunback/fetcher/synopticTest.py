@@ -9,4 +9,4 @@ search_result = Fido.search(
     a.Wavelength(171 * u.angstrom),
 )
 
-result = Fido.fetch(search_result, path=r"~/sunback_data/bb2")
+result = Fido.fetch(search_result, path=r"sunback_data/bb2")

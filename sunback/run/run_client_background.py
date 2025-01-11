@@ -3,6 +3,7 @@ from sunback.run import SingleRunner
 from sunback.science.parameters import Parameters
 from sunback.putter.DesktopPutter import DesktopPutter
 from sunback.fetcher.AwsImgFetcher import AwsImgFetcher
+from sunback.fetcher.WebFitsFetcher import WebFitsFetcher
 
 def run_client(delay=60, debug=False, do_one="rainbow", stop=True):
     p = Parameters()

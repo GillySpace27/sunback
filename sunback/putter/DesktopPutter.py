@@ -25,8 +25,12 @@ class DesktopPutter(Putter):
         sys.stdout.flush()
         print("\r V Setting Desktop Background to...(ctrl-c to skip)", flush=True)
         self.super_flush()
-
         to_display = sorted([file for file in self.params.local_imgs_paths()])
+
+        if not len(to_display):
+            filenames = os.listdir(self.params.imgs_top_directory())
+            to_display = sorted([self.params.imgs_top_directory() + os.path.sep + file for file in filenames])
+
         try:
             im_171 = [file for file in to_display if "171" in file][0]
             to_display.append(im_171)

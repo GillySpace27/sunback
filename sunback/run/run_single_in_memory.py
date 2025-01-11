@@ -45,14 +45,14 @@ if __name__ == "__main__":
     # Do something if this file is invoked on its own
     # test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-09-29T120009Z.304.image_lev1.fits"
     # test_image = r"D:\sunback_images\Single\aia.lev1_euv_12s.2013-10-02T162012Z.171.image_lev1.fits"
-    # test_image = "~/sunback_data/PXL_20240408_184406528.jpg"
-    # test_image, center = "~/sunback_data/eclipse/Photos-001 (3)/PXL_20240408_184359057.jpg",  (1210, 706)
-    # test_image, center = "~/sunback_data/eclipse/Photos-001 (3)/PXL_20240408_184406528.jpg", (2080, 1820),
-    test_image, center = "~/sunback_data/cosmic_background_studios_1.jpg", (720, 899, ),
+    # test_image = "sunback_data/PXL_20240408_184406528.jpg"
+    # test_image, center = "sunback_data/eclipse/Photos-001 (3)/PXL_20240408_184359057.jpg",  (1210, 706)
+    # test_image, center = "sunback_data/eclipse/Photos-001 (3)/PXL_20240408_184406528.jpg", (2080, 1820),
+    test_image, center = "sunback_data/cosmic_background_studios_1.jpg", (720, 899, ),
 
 
 
-    # test_image = "~/sunback_data/eclipse.fits"
+    # test_image = "sunback_data/eclipse.fits"
     # run_single_in_memory(test_image, (1234, 1086))
     run_single_in_memory(test_image, center)
     # run_single_in_memory(test_image, None)

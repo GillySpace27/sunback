@@ -620,7 +620,7 @@ class Parameters:
         """Determine where to store the images"""
 
         if root_directory_name is None:
-            root_directory_name = "~/sunback_data/renders"
+            root_directory_name = "sunback_data/renders"
 
         import platform
 
