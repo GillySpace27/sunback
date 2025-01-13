@@ -42,7 +42,9 @@ class S3ImgFetcher(Fetcher):
             print("No images found in the XML content.")
             return
 
-        for img_url in tqdm(img_urls, desc="Downloading images", ncols=100):
+        full_urls = [url for url in img_urls if not "thumb" in url]
+
+        for img_url in tqdm(full_urls, desc="Downloading images", ncols=100):
             self._download_image(img_url)
 
         self.load()

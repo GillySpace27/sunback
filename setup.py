@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sunback",
-    version="0.6.10",
+    version="0.6.12",
     author="C. R. Gilly",
     author_email="chris.gilly@colorado.edu",
     description="Sets your desktop background to the most recent images of the Sun.",

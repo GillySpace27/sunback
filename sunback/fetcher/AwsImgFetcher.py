@@ -91,8 +91,8 @@ class AwsImgFetcher(Fetcher):
         or place it under the same relative path.
         """
         path, filename = split(obj.key)
-        local_filename = f"dl_{filename}"
-        local_path = join(self.download_dir, local_filename)
+        # local_filename = f"dl_{filename}"
+        local_path = join(self.download_dir, filename)
 
         # Ensure any subdirectories exist if needed (e.g., if you preserve path structure)
         os.makedirs(os.path.dirname(local_path), exist_ok=True)

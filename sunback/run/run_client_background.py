@@ -2,11 +2,12 @@
 from sunback.run import SingleRunner
 from sunback.science.parameters import Parameters
 from sunback.putter.DesktopPutter import DesktopPutter
-from sunback.fetcher.AwsImgFetcher import AwsImgFetcher
-from sunback.fetcher.WebFitsFetcher import WebFitsFetcher
-from sunback.fetcher.WebImgFetcher import WebImgFetcher
+# from sunback.fetcher.AwsImgFetcher import AwsImgFetcher
+# from sunback.fetcher.WebFitsFetcher import WebFitsFetcher
+# from sunback.fetcher.WebImgFetcher import WebImgFetcher
+from sunback.fetcher.S3ImgFetcher import S3ImgFetcher
 
-def run_client(delay=60, debug=False, do_one="rainbow", stop=True):
+def run_client(delay=60, debug=False, do_one="rainbow", stop=False):
     p = Parameters()
 
     p.is_debug(debug)
@@ -22,7 +23,7 @@ def run_client(delay=60, debug=False, do_one="rainbow", stop=True):
     p.download_files(True)
     p.get_fits = True
 
-    p.fetchers(WebImgFetcher,)  # Gets Fits from www.gilly.space/sun
+    p.fetchers(S3ImgFetcher,)  # Gets Fits from www.gilly.space/sun
     p.putters([DesktopPutter])  # Sets the PNGs to the Desktop Background
 
     # Imageprocessor -> get_alphas() to adjust Upsilon
