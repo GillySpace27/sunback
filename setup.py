@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sunback",
-    version="0.6.13",
+    version="0.6.14",
     author="C. R. Gilly",
     author_email="chris.gilly@colorado.edu",
     description="Sets your desktop background to the most recent images of the Sun.",
@@ -20,7 +20,9 @@ setup(
     install_requires=[
         "boto3",
         "matplotlib",
-        "twine",
+        "astropy"],
+    extras_require={
+        "server": ["twine",
         "pillow",
         "appscript;platform_system=='Darwin'",
         "moviepy",
@@ -29,13 +31,13 @@ setup(
         "beautifulsoup4",
         "sunpy",
         "scipy",
-        "astropy",
         "html5lib",
         "numpy",
         "sunkit-image",
         "aiapy",
         "xarray"
     ],
+        },
 
     entry_points={
         "console_scripts": [

@@ -1,5 +1,4 @@
 import sys
-from os.path import abspath
 import os
 import platform
 from pathlib import Path

@@ -16,6 +16,7 @@
         // 1) Activate your virtual environment
         // 2) Run "twine upload dist/*"
         "command": "source .venv/bin/activate && twine upload dist/* --repository pypi",
+        "group": "build",
         "problemMatcher": []
       },
       {
@@ -24,6 +25,7 @@
         // 1) Activate your virtual environment
         // 2) Run "twine upload dist/*" against testpypi
         "command": "source .venv/bin/activate && twine upload dist/* --repository testpypi --verbose",
+        "group": "build",
         "problemMatcher": []
       }
     ]
