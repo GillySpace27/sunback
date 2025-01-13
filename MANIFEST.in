@@ -1,28 +1,25 @@
+# Include necessary files
 include LICENSE
-include MANIFEST.in
-include versioneer.py
+include README.md
+include setup.py
+include pyproject.toml
 
-graft sunback/sunback
-global-exclude *.py[cod] sunback/_version.py
-include sunback/_version.py
-include sunback/modify.py
+# Explicitly include modules
+graft sunback
 
-# prune sunback/data/images
-# prune sunback/data/sunback_images
-prune temp
-prune data
-prune renders
-prune rainbow
-prune ./temp
-prune sunback/sunback_images
-prune devtools
-prune sunback/.idea
-prune sunback/data/compare
-prune sunback/data/images
-prune sunback/fits
-prune sunback/renders
+# Exclude specific directories and files
+prune sunback_images
+prune sunback_data/renders
+prune sunback_data
+prune dist
 
-# prune sunback/Images
-# prune images
-# prune data/images
-# prune docs/_build
+global-exclude */renders
+global-exclude **/*.png
+global-exclude **/*.fits
+
+exclude *.log
+exclude *.pyc
+exclude *.pyo
+exclude .DS_Store
+exclude **/__pycache__
+exclude **/*.pyc
