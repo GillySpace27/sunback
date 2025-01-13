@@ -8,6 +8,20 @@ from sunback.fetcher.WebFitsFetcher import WebFitsFetcher
 from sunback.processor.ImageProcessorCV import ImageProcessorCV
 from sunback.processor.CompositeRainbowImageProcessor import RainbowRGBImageProcessor
 
+import logging
+
+# Set the logging level for boto3 and botocore to INFO
+logging.getLogger('root').setLevel(logging.INFO)
+logging.getLogger('PIL').setLevel(logging.INFO)
+logging.getLogger('boto3').setLevel(logging.INFO)
+logging.getLogger('botocore').setLevel(logging.INFO)
+logging.getLogger('s3transfer').setLevel(logging.INFO)
+
+# Optional: Reduce the verbosity of other logs (e.g., urllib3)
+logging.getLogger('urllib3').setLevel(logging.INFO)
+
+# Ensure root logger is also set appropriately
+logging.basicConfig(level=logging.INFO)
 
 def run_server_lingon(delay=60, debug=False, do_one="rainbow", stop=True):
     p = Parameters()

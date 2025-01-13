@@ -1,19 +1,28 @@
 import sys
-from os.path import abspath, split
-from platform import system
+from os.path import abspath
 import os
-from tqdm import tqdm
-import subprocess
-
-from sunback.putter.Putter import Putter
-# Initialization
+import platform
+from pathlib import Path
 from time import time, sleep
+import subprocess
+import logging
+from sunback.putter.Putter import Putter  # Assuming this is a custom import
 
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Initialization
 last_time = time()
 start_time = last_time
 set_local_background = True
 test = False
-# from src.utils.file_util import load_imgs_paths
 
 
 class DesktopPutter(Putter):
@@ -21,102 +30,113 @@ class DesktopPutter(Putter):
     filt_name = "DesktopPutter"
 
     def put(self, params=None):
+        """
+        Loops through the available images and sets them as the desktop background sequentially.
+        """
         self.load(params)
-        sys.stdout.flush()
-        print("\r V Setting Desktop Background to...(ctrl-c to skip)", flush=True)
+        logger.info("Starting to set desktop backgrounds...")
         self.super_flush()
-        to_display = sorted([file for file in self.params.local_imgs_paths()])
 
-        if not len(to_display):
+        # Get list of images to display
+        to_display = sorted(self.params.local_imgs_paths())
+
+        if not to_display:
             filenames = os.listdir(self.params.imgs_top_directory())
-            to_display = sorted([self.params.imgs_top_directory() + os.path.sep + file for file in filenames])
+            to_display = sorted([os.path.join(self.params.imgs_top_directory(), file) for file in filenames])
 
+        # Ensure "171A" image is included, if available
         try:
-            im_171 = [file for file in to_display if "171" in file][0]
+            im_171 = next(file for file in to_display if "171" in file)
             to_display.append(im_171)
-        except IndexError:
-            print("171A not found")
-            pass
+        except StopIteration:
+            logger.warning("'171A' image not found.")
+
+        # Sequentially update desktop background
         self.ii = 0
         for png_path in to_display:
-            self.ii += 1
-            self.update_background(png_path)
-            self.sleep_until_delay_elapsed()
-        print(" ^ Loop Complete", flush=True)
+            try:
+                self.ii += 1
+                self.png_name = png_path
+                self.update_background(png_path)
+                self.sleep_until_delay_elapsed()
+            except Exception as e:
+                logger.error(f"Error updating background to {png_path}: {e}")
+
+        logger.info("Desktop background update loop complete.")
 
     def update_background(self, local_path):
         """
-        Update the System Background
+        Update the system's desktop background.
 
         Parameters
         ----------
         local_path : str
-         The local save location of the in_object
-         :param local_path:
-         :return:
+            The local path to the image file to set as the background.
+
+        Raises
+        ------
+        OSError
+            If the operating system or desktop environment is unsupported.
+        FileNotFoundError
+            If the specified file does not exist.
         """
-        local_path = abspath(local_path)
-        self.png_name = local_path.split("\\")[-1]
-        # self.params.current_wave(self.png_name)
-        # print(local_path)
-        assert isinstance(local_path, str)
-        # print("Updating Background...", pointing_end='', flush=True)
-        this_system = system()
+        # Ensure the path is absolute and valid
+        local_path = Path(local_path).expanduser().resolve()
+        if not local_path.exists():
+            raise FileNotFoundError(f"File not found: {local_path}")
 
-        if this_system == "Darwin":
-            osascript_command = f'tell application "System Events" to set picture of every desktop to "{local_path}"'
-            os.system(f"osascript -e '{osascript_command}'")
+        # Detect the operating system
+        this_system = platform.system()
 
-        elif this_system == "Windows":
-            # Command to change wallpaper on Windows
-            command = f'REG ADD "HKCU\Control Panel\Desktop" /V Wallpaper /T REG_SZ /F /D {local_path}'
-            subprocess.run(command, shell=True)
-            subprocess.run('RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters', shell=True)
+        # Platform-specific logic
+        if this_system == "Darwin":  # macOS
+            try:
+                osascript_command = f'tell application "System Events" to set picture of every desktop to "{local_path}"'
+                subprocess.run(["osascript", "-e", osascript_command], check=True)
+            except subprocess.CalledProcessError as e:
+                raise OSError(f"Failed to update wallpaper on macOS: {e}")
 
-        elif this_system == "Linux":
-            # Command to change wallpaper on Linux (GNOME)
-            command = f"gsettings set org.gnome.desktop.background picture-uri file://{local_path}"
-            subprocess.run(command, shell=True)
+        elif this_system == "Windows":  # Windows
+            try:
+                # Update registry and refresh the wallpaper
+                command = [
+                    "REG",
+                    "ADD",
+                    r"HKCU\Control Panel\Desktop",
+                    "/V",
+                    "Wallpaper",
+                    "/T",
+                    "REG_SZ",
+                    "/F",
+                    "/D",
+                    str(local_path),
+                ]
+                subprocess.run(command, shell=True, check=True)
+                subprocess.run(["RUNDLL32.EXE", "user32.dll,UpdatePerUserSystemParameters"], shell=True, check=True)
+            except subprocess.CalledProcessError as e:
+                raise OSError(f"Failed to update wallpaper on Windows: {e}")
+
+        elif this_system == "Linux":  # Linux
+            try:
+                desktop_env = os.getenv("XDG_CURRENT_DESKTOP", "").lower()
+                if "gnome" in desktop_env:
+                    subprocess.run(
+                        ["gsettings", "set", "org.gnome.desktop.background", "picture-uri", f"file://{local_path}"],
+                        check=True,
+                    )
+                elif "kde" in desktop_env:
+                    raise NotImplementedError("KDE wallpaper update is not implemented.")
+                elif "xfce" in desktop_env:
+                    raise NotImplementedError("XFCE wallpaper update is not implemented.")
+                else:
+                    raise OSError(f"Unsupported desktop environment: {desktop_env}")
+            except subprocess.CalledProcessError as e:
+                raise OSError(f"Failed to update wallpaper on Linux: {e}")
         else:
-            raise OSError("Operating System Not Supported")
+            raise OSError(f"Unsupported operating system: {this_system}")
 
+        logger.debug(f"Wallpaper updated successfully to {local_path}")
 
-
-        # try:
-        #     if this_system == "Windows":
-        #         import ctypes
-        #         SPI_SETDESKWALLPAPER = 0x14  # which command (20)
-        #         SPIF_UPDATEINIFILE = 0x2  # forces instant update
-        #         ctypes.windll.user32.SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, local_path, SPIF_UPDATEINIFILE)
-        #         # for ii in np.arange(100):
-        #         #     ctypes.windll.user32.SystemParametersInfoW(19, 0, 'Fit', SPIF_UPDATEINIFILE)
-        #     elif this_system == "Darwin":
-        #         # print(image_path)
-        #         osascript_command = (
-        #             f'tell application "System Events" to set picture of every desktop to "{local_path}"'
-        #         )
-
-        #         # osascript_command = (
-        #         #     f'tell application "System Events" to '
-        #         #     f'do shell script "sqlite3 ~/Library/Application\\\\ Support/Dock/desktoppicture.db '
-        #         #     f'\\\"UPDATE data SET value = \'{local_path}\'\\\"; killall Dock"'
-        #         #     f' with administrator privileges'
-        #         # )
-
-        #         os.system(f"osascript -e '{osascript_command}'")
-
-        #     elif this_system == "Linux":
-        #         os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-options 'scaled'")
-        #         os.system("/usr/bin/gsettings set org.gnome.desktop.background primary-color 'black'")
-        #         os.system("/usr/bin/gsettings set org.gnome.desktop.background picture-uri {}".format(local_path))
-        #     else:
-        #         raise OSError("Operating System Not Supported")
-        #     # print("Success")
-        # except Exception as e:
-        #     print("Failed")
-        #     raise e
-        #
-        # if self.params.is_debug():
-        #     self.plot_full_normalization()
-
-        return 0
+    def super_flush(self):
+        """Force flush for better output handling."""
+        sys.stdout.flush()
