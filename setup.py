@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sunback",
-    version="0.6.7",
+    version="0.6.8",
     author="C. R. Gilly",
     author_email="chris.gilly@colorado.edu",
     description="Sets your desktop background to the most recent images of the Sun.",
@@ -40,6 +40,7 @@ setup(
     entry_points={
         "console_scripts": [
             "sunback-run = sunback.sunback.run.run_client_background:run_client",
+            "sunback-serve = sunback.sunback.run.run_server_lingon:run_server_lingon"
         ]
     },
 )
