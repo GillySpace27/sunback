@@ -31,29 +31,31 @@ classifiers = [
 ]
 
 dependencies = [
-  "boto3",
-  "matplotlib",
-  "astropy",
-]
+        "boto3",
+        "matplotlib",
+        "sunpy",
+        "astropy",
+        "scipy",
+        "opencv-python",
+        "xarray",
+        "requests",
+        ]
+
 [project.optional-dependencies]
 test = ["pytest", "pytest-runner"]
 
-server = [
-  "twine",
-  "pillow",
-  "appscript; platform_system == 'Darwin'",
-  "moviepy",
-  "parfive",
-  "opencv-python",
-  "beautifulsoup4",
-  "sunpy",
-  "scipy",
-  "html5lib",
-  "numpy",
-  "sunkit-image",
-  "aiapy",
-  "xarray"
-]
+"server"= [
+        "twine",
+        "pillow",
+        "appscript;platform_system=='Darwin'",
+        "moviepy",
+        "parfive",
+        "beautifulsoup4",
+        "html5lib",
+        "numpy",
+        "sunkit-image",
+        "aiapy",
+    ]
 
 [project.scripts]
 sunback-run = "sunback.run.run_client_background:run_client"

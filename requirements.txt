@@ -2,3 +2,8 @@
 boto3
 matplotlib
 astropy
+sunpy
+scipy
+opencv-python
+xarray
+requests

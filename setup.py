@@ -20,22 +20,25 @@ setup(
     install_requires=[
         "boto3",
         "matplotlib",
-        "astropy"],
+        "sunpy",
+        "astropy",
+        "scipy",
+        "opencv-python",
+        "xarray",
+        "requests",
+        ],
     extras_require={
-        "server": ["twine",
+        "server": [
+        "twine",
         "pillow",
         "appscript;platform_system=='Darwin'",
         "moviepy",
         "parfive",
-        "opencv-python",
         "beautifulsoup4",
-        "sunpy",
-        "scipy",
         "html5lib",
         "numpy",
         "sunkit-image",
         "aiapy",
-        "xarray"
     ],
         },
 
