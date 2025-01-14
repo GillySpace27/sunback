@@ -11,9 +11,7 @@ from sunback.putter.Putter import Putter  # Assuming this is a custom import
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
 
@@ -110,9 +108,17 @@ class DesktopPutter(Putter):
                     "/D",
                     str(local_path),
                 ]
-                subprocess.run(command, shell=True, check=True)
-                subprocess.run(["RUNDLL32.EXE", "user32.dll,UpdatePerUserSystemParameters"], shell=True, check=True)
+                logger.info("Executing command: %s", " ".join(command))
+                subprocess.run(command, check=True)
+
+                command_refresh = ["RUNDLL32.EXE", "user32.dll,UpdatePerUserSystemParameters"]
+                logger.info("Executing command: %s", " ".join(command_refresh))
+                subprocess.run(command_refresh, check=True)
+
+                logger.info("Wallpaper updated successfully.")
+
             except subprocess.CalledProcessError as e:
+                logger.error("Failed to update wallpaper on Windows: %s", e)
                 raise OSError(f"Failed to update wallpaper on Windows: {e}")
 
         elif this_system == "Linux":  # Linux

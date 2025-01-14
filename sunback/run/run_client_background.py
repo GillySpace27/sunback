@@ -14,7 +14,7 @@ def run_client(delay=60, debug=False, do_one="rainbow", stop=False):
     p.run_type("Client Sunback Daemon")
     p.do_orig = True
     p.speak_save = False
-    p.use_drive = "G"
+    p.use_drive = "C"
     p.do_parallel = False
     # Run Flags
     p.download_files(True)

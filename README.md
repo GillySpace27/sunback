@@ -47,6 +47,7 @@ python3
 >> from sunback.run.run_client_background import run_client as run
 >> run(delay=20) # Delay in seconds between updates
 ```
+You'll need to give the process access to come computer services when you first install it.
 
 Check contribute.md to see how you can help out!
 

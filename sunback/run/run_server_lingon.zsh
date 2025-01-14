@@ -8,7 +8,7 @@ source ~/.zshrc
 # Run the remaining commands in a sub-shell
 (
   echo $'\t>Changing Directory...'
-  cd /Users/cgilbert/vscode/sunback/src/
+  cd /Users/cgilbert/vscode/sunback/sunback/
   echo $'\t\t'$PWD
 
   echo $'\n\t>Activating Environment...'
@@ -22,14 +22,14 @@ source ~/.zshrc
   echo $'\n\t>Running Server file: "run_server_lingon.zsh"...\n'
 
   # Path to the timestamp file
-  timestamp_file="/Users/cgilbert/vscode/sunback/src/run/run_server_lingon.timestamp"
+  timestamp_file="/Users/cgilbert/vscode/sunback/sunback/run/run_server_lingon.timestamp"
 
   # Append the current date to the file
   date=$(date)
   echo -n "$date " >> "$timestamp_file"
 
   # save all the output from the following command to a log file, and also print to console
-  /Users/cgilbert/vscode/sunback/.venv/bin/python /Users/cgilbert/vscode/sunback/src/run/run_server_lingon.py | tee /Users/cgilbert/vscode/sunback/src/run/run_server_lingon.log
+  /Users/cgilbert/vscode/sunback/.venv/bin/python /Users/cgilbert/vscode/sunback/sunback/run/run_server_lingon.py | tee /Users/cgilbert/vscode/sunback/sunback/run/run_server_lingon.log
   code_status=$?
 
   # Append success or failure flag based on command execution status

@@ -64,3 +64,4 @@ def run_server_lingon(delay=60, debug=False, do_one="rainbow", stop=True):
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     run_server_lingon()
+    
