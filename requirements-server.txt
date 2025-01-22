@@ -159,3 +159,5 @@ yarl
 zarr
 zeep
 zipp
+
+git+https://github.com/sunpy/sunkit-image.git@v0.5.1#egg=sunkit-image
