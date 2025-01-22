@@ -34,7 +34,7 @@ jobs:
 
       - name: Configure AWS credentials for OIDC
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v2-next
+        uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: arn:aws:iam::940506845164:role/Github_Web_Identity
           aws-region: us-east-2  # Change to your bucket's region if it's different
