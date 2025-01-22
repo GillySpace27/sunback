@@ -146,9 +146,13 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
 stack-data==0.6.3
--e git+https://github.com/GillySpace27/sunback.git@d4299bc1cfcb4a3d1e80906ae123f31be0b86b45#egg=sunback
-sunkit_image @ git+https://github.com/sunpy/sunkit-image.git@a0ff02b92870e29f755b5c23789cf355b48c5d73
-sunpy @ git+https://github.com/sunpy/sunpy.git@99d52752a7b7d4dac9553567e6c8054db141de72
+# -e git+https://github.com/GillySpace27/sunback.git@d4299bc1cfcb4a3d1e80906ae123f31be0b86b45#egg=sunback
+# sunkit_image @ git+https://github.com/sunpy/sunkit-image.git@a0ff02b92870e29f755b5c23789cf355b48c5d73
+# sunpy @ git+https://github.com/sunpy/sunpy.git@99d52752a7b7d4dac9553567e6c8054db141de72
+
+git+https://github.com/sunpy/sunpy.git
+git+https://github.com/sunpy/sunkit-image.git
+
 tifffile==2025.1.10
 toolz==1.0.0
 tornado==6.4.2
