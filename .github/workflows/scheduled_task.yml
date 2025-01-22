@@ -7,7 +7,7 @@ on:
 
 jobs:
   run-task:
-    runs-on: macos-14   # Use macos as your runner
+    runs-on: macos-14
 
     permissions:
       id-token: write
@@ -34,7 +34,7 @@ jobs:
 
       - name: Configure AWS credentials for OIDC
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v2-next
         with:
           role-to-assume: arn:aws:iam::940506845164:role/Github_Web_Identity
           aws-region: us-east-2  # Change to your bucket's region if it's different
