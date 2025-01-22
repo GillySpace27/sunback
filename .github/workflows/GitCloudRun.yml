@@ -1,4 +1,4 @@
-name: Scheduled Task
+name: GitCloudRun
 
 on:
   schedule:
