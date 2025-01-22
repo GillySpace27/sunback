@@ -14,31 +14,38 @@ jobs:
       contents: read
 
     steps:
+      # Step 1: Check out the repository code
       - name: Check out repository
         uses: actions/checkout@v4
 
+      # Step 2: Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12.7'  # Specify your required Python version
 
+      # Step 3: Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-exact.txt
 
+      # Step 4: Install the repository itself as a package
       - name: Install repository as a package
         run: |
           pip install .
 
+           # Step 5: Configure AWS credentials using GitHub OIDC
       - name: Configure AWS credentials for OIDC
         id: aws-creds
         uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: arn:aws:iam::940506845164:role/Github_Web_Identity
-          aws-region: us-east-2  # Change to your bucket's region if it's different
+          aws-region: us-east-2  # Change to your bucket's region if different
+          audience: sts.amazonaws.com
 
-      - name: Execute script
+      # Step 6: Execute the required script
+      - name: Execute the script
         run: |
           python sunback/run/run_server_github.py
