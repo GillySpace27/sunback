@@ -99,7 +99,6 @@ pexpect
 pillow
 pkginfo
 platformdirs
-playsound
 prettytable
 proglog
 prompt_toolkit
