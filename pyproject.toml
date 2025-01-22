@@ -39,6 +39,7 @@ dependencies = [
         "opencv-python",
         "xarray",
         "requests",
+        "setuptools",
         ]
 
 [project.optional-dependencies]
