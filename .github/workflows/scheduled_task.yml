@@ -24,6 +24,10 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-server.txt
 
+      - name: Install repository as a package
+        run: |
+          pip install .
+
       - name: Execute script
         run: |
           python sunback/run/run_server_github.py
