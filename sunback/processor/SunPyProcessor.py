@@ -119,7 +119,7 @@ class AIA_PREP_Processor(SunPyProcessor):
 
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
-        if True: #self.should_run():
+        if True:  # self.should_run():
             self.get_aia_prep_data()
             self.do_AIA_PREP()
             # if self.params.destroy:
@@ -193,7 +193,7 @@ class AIA_PREP_Processor(SunPyProcessor):
                         pointing_start, pointing_end
                     )
                 except RuntimeError as e:
-                    print("\r   - > "+str(e))
+                    print("\r   - > " + str(e))
                     pass
                 # The same applies for the correction table.
                 self.params.correction_table = get_correction_table()
@@ -303,7 +303,7 @@ class RHEFProcessor(SunPyProcessor):
         self.params.modified_image = radial.rhef(
             self.raw_map,
             radial_bin_edges=self.radial_bin_edges,
-            upsilon=(None, None),
+            upsilon=(0.5, 0.5),
             progress=False,
         ).data
         return self.params.modified_image

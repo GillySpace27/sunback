@@ -6,7 +6,10 @@ from datetime import datetime
 from os import rename, remove
 from os.path import exists, join
 from time import time
-
+import os
+import urllib.request as ureq
+import certifi
+import ssl
 import numpy as np
 import requests
 from bs4 import BeautifulSoup
@@ -17,12 +20,16 @@ from functools import partial
 
 class WebFitsFetcher(Fetcher):
     base_url = "http://jsoc1.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
-    jpg_url_stem = "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_{:04}_{:04}.jpg" + "?x=" + str(round(time()))
+    jpg_url_stem = (
+        "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_{:04}_{:04}.jpg"
+        + "?x="
+        + str(round(time()))
+    )
     description = "Get Fits Files from {}".format(base_url)
     filt_name = "WebFitsFetcher"
     # out_name = 'QRN'
     # name = filt_name = 'QRN Single Shot Processor'
-    progress_verb = 'Downloading'
+    progress_verb = "Downloading"
     finished_verb = "Acquired"
 
     # show_plots = True
@@ -36,7 +43,7 @@ class WebFitsFetcher(Fetcher):
         :param params:
         """
         self.params = params or self.params
-        self.load(self.params, quietly=True, wave=self.params.current_wave('rainbow'))
+        self.load(self.params, quietly=True, wave=self.params.current_wave("rainbow"))
         if self.params.download_files():
             self.__get_img_time()
             paths = self.fetch_fits_files()
@@ -56,9 +63,11 @@ class WebFitsFetcher(Fetcher):
         rez = None
         for path in self.params.local_fits_paths():
             if rez is None:
-                frame, wave, t_rec, center, int_time, nm = self.load_first_fits_field(fits_path=path)
+                frame, wave, t_rec, center, int_time, nm = self.load_first_fits_field(
+                    fits_path=path
+                )
                 rez = self.params.rez = frame.shape[0]
-            wavenum = int(''.join(i for i in path if i.isdigit()))
+            wavenum = int("".join(i for i in path if i.isdigit()))
             j_urls.append(self.jpg_url_stem.format(self.params.rez, wavenum))
 
         self.j_directory = os.path.join(self.params.imgs_top_directory(), "jpeg")
@@ -68,7 +77,10 @@ class WebFitsFetcher(Fetcher):
         if self.params.get_fits:
             if self.destroy:
                 self.delete_directory_items(self.fits_folder)
-            print(" V  Downloading Fits Files from {}...".format(self.base_url), flush=True)
+            print(
+                " V  Downloading Fits Files from {}...".format(self.base_url),
+                flush=True,
+            )
 
             img_links = self.__get_fits_links(self.base_url)
             pbar_iter = tqdm(img_links, desc=" * Downloading Fits")
@@ -84,7 +96,10 @@ class WebFitsFetcher(Fetcher):
                 paths.append(res)
                 self.rename_start_frames(res)
 
-            print("\r ^  Successfully Downloaded {} Files\n".format(len(paths)), flush=True)
+            print(
+                "\r ^  Successfully Downloaded {} Files\n".format(len(paths)),
+                flush=True,
+            )
             return paths
 
     def fetch_jpegs(self):
@@ -94,7 +109,9 @@ class WebFitsFetcher(Fetcher):
         pbar_iter = tqdm(self.j_paths, desc=" * Downloading JPEGs")
         if self.params.do_parallel:
             # Run in Parallel
-            results = self.params.multi_pool.imap_unordered(self.grab_jpeg, self.j_paths)
+            results = self.params.multi_pool.imap_unordered(
+                self.grab_jpeg, self.j_paths
+            )
         else:
             # Run in Serial
             results = [self.grab_jpeg(j_path) for j_path in pbar_iter]
@@ -114,8 +131,8 @@ class WebFitsFetcher(Fetcher):
     def grab(self, link, directory=None):
         tries = 3
         use_temp = False
-        filename = link.split('/')[-1]
-        filename = filename.split('?')[0]
+        filename = link.split("/")[-1]
+        filename = filename.split("?")[0]
         use_directory = directory or self.params.fits_directory()
         local_path = join(use_directory, filename)
         # local_temp_path = join(use_directory, "temp", "download__" + filename)
@@ -145,7 +162,7 @@ class WebFitsFetcher(Fetcher):
                 self.force_delete(file, root)
 
     @staticmethod
-    def force_delete(file, root='', do=True):
+    def force_delete(file, root="", do=True):
         if do:
             if not os.path.isdir(file):
                 os.remove(os.path.join(root, file))
@@ -155,33 +172,45 @@ class WebFitsFetcher(Fetcher):
         # paths.append(local_path)
 
     def download_url(self, link, filename=None):
+        """
+        Downloads a file from a given URL and saves it to the specified filename.
 
-        # return
+        Args:
+            link (str): The URL to download the file from.
+            filename (str, optional): The path where the file will be saved. If not provided,
+                                    the file will be saved to the current directory with the same name as in the URL.
+
+        Returns:
+            str: The path to the downloaded file.
+        """
+
+        if not filename:
+            filename = os.path.basename(link)
+
+        # make directory if they don't exist
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-        path=None
-        import urllib.request as ureq
-        if False:
-            path = ureq.urlretrieve(link, filename)[0]
-        else:
-            import certifi
-            import ssl
-            # contexter = ssl.create_default_context()
-            if os.path.exists(filename):
-                os.remove(filename)
+
+        # Remove the file if it already exists
+        if os.path.exists(filename):
+            os.remove(filename)
+
+        try:
+            # Open the URL and write the content to the file
+            context = ssl.create_default_context(cafile=certifi.where())
             with open(filename, "wb") as fp:
-                resp = ureq.urlopen(link, cafile=certifi.where()) #context=contexter)
-                fp.write(resp.read())
-            path = filename
-
-
-        return path
+                with ureq.urlopen(link, context=context) as resp:
+                    fp.write(resp.read())
+        except Exception as e:
+            print(f"An error occurred while downloading the file: {e}")
+            return None
+        return filename
 
         # if "fits" in link:
         #     pass
 
-        import shutil
-        import urllib.request
-        import tempfile
+        # import shutil
+        # import urllib.request
+        # import tempfile
 
         # # Create a request object with URL and headers
         # url = link
@@ -226,18 +255,20 @@ class WebFitsFetcher(Fetcher):
         r = requests.get(url)
 
         # create beautiful-soup object
-        soup = BeautifulSoup(r.content, 'html5lib')
+        soup = BeautifulSoup(r.content, "html5lib")
 
         # not_wanted all links on web-page
-        links = soup.findAll('a')
+        links = soup.findAll("a")
 
         # filter the link sending with .fits
-        img_links = [url + link['href'] for link in links if link['href'].endswith('fits')]
-        img_links = [lnk for lnk in img_links if '4500' not in lnk]
+        img_links = [
+            url + link["href"] for link in links if link["href"].endswith("fits")
+        ]
+        img_links = [lnk for lnk in img_links if "4500" not in lnk]
         return img_links
 
     def __get_img_time(self):
         """Gets the time file"""
         image_time = requests.get(self.base_url + "image_times").text[9:25]
-        with open(self.params.time_path(), 'w') as fp:
+        with open(self.params.time_path(), "w") as fp:
             fp.write(image_time)

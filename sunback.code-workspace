@@ -22,6 +22,9 @@
             "titleBar.inactiveBackground": "#8f7c0899",
             "titleBar.inactiveForeground": "#e7e7e799"
         },
-        "peacock.color": "#8f7c08"
+        "peacock.color": "#8f7c08",
+        "github-actions.workflows.pinned.workflows": [
+            ".github/workflows/scheduled_task.yml"
+        ]
     }
 }
