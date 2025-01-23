@@ -46,6 +46,7 @@ def run_server_lingon(delay=60, debug=False, do_one="rainbow", stop=True):
     p.do_prep = False
 
     p.do_standard_RHE()
+    p.png_frame_name = ["RHEF"]  # ['rhe(lev1p5)']
 
     # This is the right combination of processors for the server
     if True:

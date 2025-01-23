@@ -43,7 +43,7 @@ import warnings
 # from src.utils.RHT.rht import rht
 # from src.utils.RHT.rht.convRHT import unsharp_mask
 
-from sunback.utils.stretch_intensity_module import norm_stretch
+from sunback.utils.stretch_intensity_module import upsilon_stretch
 
 warnings.filterwarnings("ignore")
 import matplotlib.pyplot as plt

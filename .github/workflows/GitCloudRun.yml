@@ -1,4 +1,4 @@
-name: GitCloudRun
+name: GitCloudRunHourly
 
 on:
   schedule:

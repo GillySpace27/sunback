@@ -25,13 +25,13 @@ logging.getLogger("urllib3").setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
 
 
-def run_server_lingon(delay=60, debug=False, do_one="rainbow", stop=True):
+def run_server_github(delay=60, debug=False, do_one="rainbow", stop=True):
     p = Parameters()
 
     p.is_debug(debug)
     p.delay_seconds(delay)
     p.do_one(do_one, stop)
-    p.batch_name("background_server")
+    p.batch_name("background_server_lingon")
     p.run_type("Web Server Daemon")
     p.do_orig = True
     p.speak_save = False
@@ -46,6 +46,7 @@ def run_server_lingon(delay=60, debug=False, do_one="rainbow", stop=True):
     p.do_prep = False
 
     p.do_standard_RHE()
+    p.png_frame_name = ["RHEF"]  # ['rhe(lev1p5)']
 
     # This is the right combination of processors for the server
     if True:
@@ -69,4 +70,4 @@ def run_server_lingon(delay=60, debug=False, do_one="rainbow", stop=True):
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    run_server_lingon()
+    run_server_github()

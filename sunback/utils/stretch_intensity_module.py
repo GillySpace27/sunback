@@ -28,7 +28,9 @@ def make_one_curve(upsilon=0.35, xprime=None, upsilon_high=None, eq_num=4):
             np.abs(xprime - 0.5) ** upsilon
         )
     elif eq_num == 2:
-        out_curve = 0.5 + (np.abs(2.0 * xprime - 1.0) ** (upsilon - 1.0)) * (xprime - 0.5)
+        out_curve = 0.5 + (np.abs(2.0 * xprime - 1.0) ** (upsilon - 1.0)) * (
+            xprime - 0.5
+        )
     elif eq_num == 3:
         upsilon = -0.75
         out_curve = 0.5 + xprime**3 - upsilon * xprime
@@ -150,9 +152,7 @@ def demo_plot_many_upsilons(
             zorder=-10,
             label=lbl,
         )
-        plt.plot(
-            xprime, (xprime) ** (upsilon / 10), c="coral", ls=":", zorder=-10
-        )
+        plt.plot(xprime, (xprime) ** (upsilon / 10), c="coral", ls=":", zorder=-10)
         lbl = None
 
     # plt.show(block=True)
@@ -163,7 +163,7 @@ def demo_plot_white_noise(upsilon=0.35):
     """Demonstrate the Algorithm on Random Input"""
 
     in_array = np.random.random_sample(size=50) - 0.5
-    out_array = norm_stretch(in_array, upsilon=upsilon)
+    out_array = upsilon_stretch(in_array, upsilon=upsilon)
 
     plt.scatter(in_array, out_array)
     plt.title("Demonstration of the Algorithm on Random Input")
@@ -174,7 +174,7 @@ def demo_plot_white_noise(upsilon=0.35):
 def demo_plot_2D_method(in_array=None, upsilon=0.35, do_plot=True):
     if in_array is None:
         in_array = np.random.random_sample(size=(400, 400)) - 0.5
-    out_array = norm_stretch(in_array, upsilon=upsilon)
+    out_array = upsilon_stretch(in_array, upsilon=upsilon)
     if do_plot:
         plot_2d(in_array, out_array)
     return out_array
@@ -184,7 +184,7 @@ def plot_2d(in_array=None, out_array=None, upsilon=None, do_plot=True):
     if in_array is None:
         in_array = np.random.random_sample(size=(100, 100)) - 0.5
     if out_array is None:
-        out_array = norm_stretch(in_array, upsilon=upsilon)
+        out_array = upsilon_stretch(in_array, upsilon=upsilon)
 
     if do_plot:
         fig, (ax0, ax1) = plt.subplots(1, 2, sharex="all", sharey="all")
@@ -204,7 +204,7 @@ def plot_2d(in_array=None, out_array=None, upsilon=None, do_plot=True):
     return out_array
 
 
-def norm_stretch(in_array, upsilon=0.35, upsilon_high=None, eq_num=4):
+def upsilon_stretch(in_array, upsilon=1.0, upsilon_high=None, eq_num=4):
     """The only function anyone outside will ever see"""
     return make_one_curve(
         xprime=in_array, upsilon=upsilon, upsilon_high=upsilon_high, eq_num=eq_num

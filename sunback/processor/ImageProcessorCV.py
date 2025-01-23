@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import astropy.units as u
 from sunback.processor.ImageProcessor import ImageProcessor
 from sunback.science.color_tables import aia_color_table
-from sunback.utils.stretch_intensity_module import norm_stretch
+from sunback.utils.stretch_intensity_module import upsilon_stretch
 
 
 class ImageProcessorCV(ImageProcessor):
@@ -26,7 +26,6 @@ class ImageProcessorCV(ImageProcessor):
         self.frame_name = self.params.png_frame_name
         self.rhe_count = 0
         self.shrink_factor = 1
-        # self.make_vignette()
 
     def do_fits_function(self, fits_path, in_name=None):
         self.params.double_rhe_flag = False
@@ -172,10 +171,12 @@ class ImageProcessorCV(ImageProcessor):
             self.frame = self.normalize(self.frame)
 
         upsilon = self.params.upsilon
-        if upsilon:
+        if upsilon is not None:
             self.params.upsilon_high = upsilon[1] if len(upsilon) > 1 else upsilon
             self.params.upsilon_low = upsilon[0] if len(upsilon) > 1 else upsilon
-            self.frame = norm_stretch(
+
+        if upsilon and False:
+            self.frame = upsilon_stretch(
                 self.frame,
                 upsilon=self.params.upsilon_low,
                 upsilon_high=self.params.upsilon_high,
@@ -703,7 +704,8 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
 
             if "rhe" in frame_name:
                 (
-                    images.append(norm_stretch(frame)),
+                    images.append(upsilon_stretch(frame)),
+                    # images.append(frame),
                     names.append(f"upsilon({frame_name})"),
                 )
 

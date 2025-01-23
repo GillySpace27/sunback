@@ -14,7 +14,7 @@ import warnings
 from sunback.science.color_tables import aia_color_table
 import astropy.units as u
 
-from sunback.utils.stretch_intensity_module import norm_stretch
+from sunback.utils.stretch_intensity_module import upsilon_stretch
 
 warnings.filterwarnings("ignore")
 # import matplotlib as mpl
@@ -56,6 +56,7 @@ class RHEProcessor(Processor):
     renew_mask = True
     can_initialize = True
     can_do_parallel = True
+
     # Parse Inputs
     def __init__(
         self,

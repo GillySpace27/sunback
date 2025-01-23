@@ -19,7 +19,7 @@ import numpy as np
 
 from sunback.science.color_tables import aia_color_table
 
-from sunback.utils.stretch_intensity_module import norm_stretch
+from sunback.utils.stretch_intensity_module import upsilon_stretch
 
 
 class ImageProcessor(Processor):
@@ -460,7 +460,7 @@ class ImageProcessor(Processor):
     def do_norm_stretch(self, frame, frame_name, do=True):
         if do and "rhef" in frame_name.casefold():
             aL, aH = self.get_alphas()
-            frame = norm_stretch(frame, upsilon=aL, upsilon_high=aH)
+            frame = upsilon_stretch(frame, upsilon=aL, upsilon_high=aH)
             # frame_name = 'UP_' + frame_name
         return frame, frame_name
 
