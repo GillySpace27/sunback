@@ -12,6 +12,7 @@ from sunback.processor.ImageProcessor import ImageProcessor
 from sunback.science.color_tables import aia_color_table
 from sunback.utils.stretch_intensity_module import norm_stretch
 
+
 class ImageProcessorCV(ImageProcessor):
     filt_name = "CV Image Writer"
     description = "Turn all the fits files into png files"
@@ -25,6 +26,7 @@ class ImageProcessorCV(ImageProcessor):
         self.frame_name = self.params.png_frame_name
         self.rhe_count = 0
         self.shrink_factor = 1
+        # self.make_vignette()
 
     def do_fits_function(self, fits_path, in_name=None):
         self.params.double_rhe_flag = False
@@ -34,24 +36,32 @@ class ImageProcessorCV(ImageProcessor):
 
         if self.params.current_wave() in [None, "rainbow"]:
             try:
-                self.wave = self.params.current_wave(int(self.fits_path.split('.')[0][-4:]))
+                self.wave = self.params.current_wave(
+                    int(self.fits_path.split(".")[0][-4:])
+                )
             except Exception as e:
                 print(38, int(self.params.current_wave()))
                 raise e
 
         try:
-            self.params.cmap = self.cmap = aia_color_table(int(self.params.current_wave()) * u.angstrom)
+            self.params.cmap = self.cmap = aia_color_table(
+                int(self.params.current_wave()) * u.angstrom
+            )
         except ValueError:
             for wv in self.params.all_wavelengths:
                 if wv in fits_path:
                     self.wave = wv
-                    self.params.cmap = self.cmap = aia_color_table(int(self.wave) * u.angstrom)
+                    self.params.cmap = self.cmap = aia_color_table(
+                        int(self.wave) * u.angstrom
+                    )
                     self.params.current_wave(int(self.wave))
                     break
 
         if isinstance(in_name, (int, str)) and str(in_name).isdigit():
             in_name = int(in_name)
-            self.params.png_frame_name = self.find_frames_at_path(self.fits_path)[in_name]
+            self.params.png_frame_name = self.find_frames_at_path(self.fits_path)[
+                in_name
+            ]
 
         if "all" in str(self.params.png_frame_name):
             self.params.png_frame_name = self.find_frames_at_path(self.fits_path)
@@ -60,7 +70,9 @@ class ImageProcessorCV(ImageProcessor):
             self.params.png_frame_name.append("mgn_" + target)
             self.params.double_rhe_flag = True
 
-        if isinstance(self.params.png_frame_name, list) and len(self.params.png_frame_name):
+        if isinstance(self.params.png_frame_name, list) and len(
+            self.params.png_frame_name
+        ):
             for name in self.params.png_frame_name:
                 self.current_frame = name
                 self.wave = self.params.current_wave()
@@ -111,13 +123,20 @@ class ImageProcessorCV(ImageProcessor):
         shorts_folder = os.path.join(root_folder, "shorts")
 
         timestamp = self.image_data[2]
-        short_path = os.path.join(shorts_folder, "{}_{}.png".format(self.params.current_wave(), timestamp.split(".")[0]))
+        short_path = os.path.join(
+            shorts_folder,
+            "{}_{}.png".format(self.params.current_wave(), timestamp.split(".")[0]),
+        )
         os.makedirs(shorts_folder, exist_ok=True)
-        shutil.copyfile(cat_png_path, os.path.normpath(short_path), follow_symlinks=True)
+        shutil.copyfile(
+            cat_png_path, os.path.normpath(short_path), follow_symlinks=True
+        )
 
     def plot_aia_orig(self):
         self.frame_name = "compressed_image"
-        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(
+            self.fits_path, self.frame_name
+        )
         self.params.raw_image = self.frame = np.flipud(frame)
         self.out_path = self.get_orig_path(mod="orig")
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
@@ -125,7 +144,9 @@ class ImageProcessorCV(ImageProcessor):
 
     def plot_aia_log(self):
         self.frame_name = self.params.master_frame_list_oldest
-        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, self.frame_name)
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(
+            self.fits_path, self.frame_name
+        )
 
         frame = np.log10(frame)
         frame = frame / np.nanpercentile(frame, 50) / 2
@@ -143,7 +164,9 @@ class ImageProcessorCV(ImageProcessor):
         if frame_name is None:
             frame_name = self.params.png_frame_name
 
-        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(self.fits_path, frame_name)
+        frame, wave, t_rec, center, int_time, name = self.load_this_fits_frame(
+            self.fits_path, frame_name
+        )
         self.frame = np.flipud(frame)
         if self.frame.max() > 2 or self.frame.min() < 0:
             self.frame = self.normalize(self.frame)
@@ -152,12 +175,22 @@ class ImageProcessorCV(ImageProcessor):
         if upsilon:
             self.params.upsilon_high = upsilon[1] if len(upsilon) > 1 else upsilon
             self.params.upsilon_low = upsilon[0] if len(upsilon) > 1 else upsilon
-            self.frame = norm_stretch(self.frame, upsilon=self.params.upsilon_low, upsilon_high=self.params.upsilon_high)
+            self.frame = norm_stretch(
+                self.frame,
+                upsilon=self.params.upsilon_low,
+                upsilon_high=self.params.upsilon_high,
+            )
 
         self.out_path = self.get_changed_path()
-        self.out_path = self.out_path.replace("AIAsynoptic", "DrGilly_").replace(".png", f"_{self.frame_name}.png")
+        self.out_path = self.out_path.replace("AIAsynoptic", "DrGilly_").replace(
+            ".png", f"_{self.frame_name}.png"
+        )
 
-        self.do_save(do_small=True if "MultiImage".casefold() in self.filt_name.casefold() else False)
+        self.do_save(
+            do_small=True
+            if "MultiImage".casefold() in self.filt_name.casefold()
+            else False
+        )
         self.params.current_wave(None)
         return self.frame if self.params.double_rhe_flag else None
 
@@ -178,7 +211,9 @@ class ImageProcessorCV(ImageProcessor):
         frames = [out]
 
         if do_small:
-            frames.extend([block_reduce(out, 2, np.nanmean), block_reduce(out, 4, np.nanmean)])
+            frames.extend(
+                [block_reduce(out, 2, np.nanmean), block_reduce(out, 4, np.nanmean)]
+            )
             self.params.rbg_labels.extend(["lq", "vlq"])
 
         for frame in frames:
@@ -208,7 +243,7 @@ class ImageProcessorCV(ImageProcessor):
             plt.imshow(self.params.rbg_image)
             plt.show()
 
-    def label_plot(self, img_in=None):
+    def label_plot(self, img_in=None, max=255):
         if img_in is None:
             img = self.params.rbg_image[0]
         else:
@@ -216,39 +251,83 @@ class ImageProcessorCV(ImageProcessor):
         if self.image_data is None:
             self.init_rainbow_frame()
         full_name, fits_path, time_string_raw, shape = self.image_data
-        time_string = self.clean_time_string(time_string_raw, targetZone="US/Mountain", out_fmt="%m-%d-%Y %I:%M%p %Z")
+        time_string = self.clean_time_string(
+            time_string_raw, targetZone="US/Mountain", out_fmt="%m-%d-%Y %I:%M%p %Z"
+        )
         time_list = time_string.split()
         clock, day, year = time_list[1].lower(), time_list[0][:-5], time_list[0][-4:]
 
         inst, wave = "AIA", self.clean_name_string(full_name)[1]
         fname, frame_name = self.frame_name.casefold(), self.frame_name
-        name, prev = fname.split("(")[0], fname.split("(")[1][:-1] if "(" in fname else "-"
+        name, prev = (
+            fname.split("(")[0],
+            fname.split("(")[1][:-1] if "(" in fname else "-",
+        )
 
         rez = img.shape[0]
-        scale, h, wid_of_char = (6, 120, 60) if rez == 4096 else (3, 60, 30) if rez == 2048 else (1.5, 30, 15)
+        scale, h, wid_of_char = (
+            (6, 120, 60)
+            if rez == 4096
+            else (3, 60, 30)
+            if rez == 2048
+            else (1.5, 30, 15)
+        )
         h0, thickness = (100, 4) if rez == 4096 else (50, 2) if rez == 2048 else (25, 2)
 
-        positions = [(rez - wid_of_char * len(text) - 10, height) for text, height in zip([name, prev, inst, wave], [h0, h0 + h, h0 + 2 * h, h0 + 3 * h])]
+        positions = [
+            (rez - wid_of_char * len(text) - 10, height)
+            for text, height in zip(
+                [name, prev, inst, wave], [h0, h0 + h, h0 + 2 * h, h0 + 3 * h]
+            )
+        ]
         for text, (x, y) in zip([name, prev, inst, wave], positions):
-            cv2.putText(img, text, (x, y), 1, scale, (255, 255, 255), thickness)
+            cv2.putText(img, text, (x, y), 1, scale, (max, max, max), thickness)
 
         positions = [(0, height) for height in [h0, h0 + h, h0 + 2 * h, h0 + 3 * h]]
         for text, (x, y) in zip([clock, day, year, "MT"], positions):
-            cv2.putText(img, text, (x, y), 1, scale, (255, 255, 255), thickness)
+            cv2.putText(img, text, (x, y), 1, scale, (max, max, max), thickness)
 
         try:
             aH = self.params.upsilon_high
             aL = self.params.upsilon_low
-            cv2.putText(img, f"aH: {aH}", (0, int(0.97 * rez)), 1, scale, (255, 255, 255), thickness)
-            cv2.putText(img, f"aL: {aL}", (0, int(0.99 * rez)), 1, scale, (255, 255, 255), thickness)
+            cv2.putText(
+                img,
+                f"aH: {aH}",
+                (0, int(0.97 * rez)),
+                1,
+                scale,
+                (max, max, max),
+                thickness,
+            )
+            cv2.putText(
+                img,
+                f"aL: {aL}",
+                (0, int(0.99 * rez)),
+                1,
+                scale,
+                (max, max, max),
+                thickness,
+            )
         except (SystemError, ValueError) as e:
             print(238, e)
 
         return img
 
     def draw_reticle(self, img):
-        cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])), int(self.params.header["R_SUN"]), (255, 255, 255), 3)
-        cv2.circle(img, (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])), 10, (255, 0, 0), 10)
+        cv2.circle(
+            img,
+            (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
+            int(self.params.header["R_SUN"]),
+            (255, 255, 255),
+            3,
+        )
+        cv2.circle(
+            img,
+            (int(self.params.header["X0_MP"]), int(self.params.header["Y0_MP"])),
+            10,
+            (255, 0, 0),
+            10,
+        )
 
     # def cleanup(self):
     #     try:
@@ -273,7 +352,6 @@ class ImageProcessorCV(ImageProcessor):
     def peek_frame(img):
         cv2.imshow("win2", img[::5, ::5, ::5])
         cv2.waitKey(0)
-
 
 
 class MultiImageProcessorCv(ImageProcessorCV):

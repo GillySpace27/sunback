@@ -95,7 +95,7 @@ class ImageProcessor(Processor):
         self.frame = np.zeros_like(frame)
 
         # Determine the shape of the frame
-        shp = getattr(frame, 'shape', (self.params.rez, self.params.rez))
+        shp = getattr(frame, "shape", (self.params.rez, self.params.rez))
         self.image_data = str(self.wave1), self.fits_path, self.t_rec1, shp
 
         # Generate file paths based on image data
@@ -136,7 +136,7 @@ class ImageProcessor(Processor):
         self.frame = np.zeros_like(frame)
 
         # Determine the shape of the frame
-        shp = getattr(frame, 'shape', (self.params.rez, self.params.rez))
+        shp = getattr(frame, "shape", (self.params.rez, self.params.rez))
         self.image_data = str(self.wave1), self.fits_path, self.t_rec1, shp
 
         # Generate file paths based on image data
@@ -156,15 +156,17 @@ class ImageProcessor(Processor):
             if not str(self.wave).isdigit():
                 for wv in self.params.all_wavelengths:
                     if wv in self.fits_path:
-                        self.params.cmap = self.cmap = aia_color_table(int(wv) * u.angstrom)
+                        self.params.cmap = self.cmap = aia_color_table(
+                            int(wv) * u.angstrom
+                        )
                         self.wave = wv
                         break
             else:
                 self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
         else:
             from matplotlib import cm
-            self.params.cmap = cm.gray
 
+            self.params.cmap = cm.gray
 
     def image_is_plottable(self, frame_name):
         # return True
@@ -452,6 +454,7 @@ class ImageProcessor(Processor):
             pass
 
         self.dont_vminmax = dont_vminmax
+        frame = self.vignette(frame)
         return frame
 
     def do_norm_stretch(self, frame, frame_name, do=True):

@@ -305,6 +305,7 @@ class RHEFProcessor(SunPyProcessor):
             radial_bin_edges=self.radial_bin_edges,
             upsilon=(0.5, 0.5),
             progress=False,
+            vignette=1.51 * u.R_sun,
         ).data
         return self.params.modified_image
 

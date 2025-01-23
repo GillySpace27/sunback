@@ -31,11 +31,11 @@ def run_server_lingon(delay=60, debug=False, do_one="rainbow", stop=True):
     p.is_debug(debug)
     p.delay_seconds(delay)
     p.do_one(do_one, stop)
-    p.batch_name("background_server_lingon")
+    p.batch_name("background_server")
     p.run_type("Web Server Daemon")
     p.do_orig = True
     p.speak_save = False
-    p.use_drive = "G"
+    p.use_drive = "C"
     p.do_parallel = False
     # Run Flags
     p.download_files(True)

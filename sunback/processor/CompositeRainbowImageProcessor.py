@@ -7,11 +7,13 @@ from pathlib import Path
 import logging
 from sunback.processor.Processor import Processor
 from sunback.processor.ImageProcessorCV import ImageProcessorCV
+
 logging.basicConfig(level=logging.DEBUG)
 
 
 class RainbowRGBImageProcessor(ImageProcessorCV):
     """Processor for generating RGB images from FITS files."""
+
     complete = False
     filt_name = "RGB Image Writer"
     description = "Generate RGB versions of the images"
@@ -21,7 +23,15 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
     out_name = "rgb"
     can_do_parallel = True
 
-    def __init__(self, params=None, quick=None, rp=False, rgb1=("0171", "0193", "0211"), rgb2=("0094", "0131", "0335"), rgb3=("1600", "1700", "0304")):
+    def __init__(
+        self,
+        params=None,
+        quick=None,
+        rp=False,
+        rgb1=("0171", "0193", "0211"),
+        rgb2=("0094", "0131", "0335"),
+        rgb3=("1600", "1700", "0304"),
+    ):
         super().__init__(params, quick)
         self.params = params
         self.rgb_channels = [rgb1, None, None]
@@ -72,8 +82,14 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
             with fits.open(file_path) as hdul:
                 for hdu in hdul:
                     if hdu.name.casefold() == hdu_name.casefold():
-                        if hdu.data is None or hdu.data.size == 0 or hdu.data.shape != (1024, 1024):
-                            logging.warning(f"HDU '{hdu_name}' in file {file_path} is empty or has an unexpected shape.")
+                        if (
+                            hdu.data is None
+                            or hdu.data.size == 0
+                            or hdu.data.shape != (1024, 1024)
+                        ):
+                            logging.warning(
+                                f"HDU '{hdu_name}' in file {file_path} is empty or has an unexpected shape."
+                            )
                             return False
                         return True
         except Exception as e:
@@ -82,7 +98,9 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
 
     def create_rgb_images(self):
         """Create RGB images and save them in the output folder."""
-        output_folder = Path(self.params.base_directory()).parent / "rainbow" / "imgs" / "mod"
+        output_folder = (
+            Path(self.params.base_directory()).parent / "rainbow" / "imgs" / "mod"
+        )
         output_folder.mkdir(parents=True, exist_ok=True)
 
         try:
@@ -91,7 +109,9 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
                 loaded_data[wavelength] = self.load_fits_data(file_path)
 
             if any(data is None for data in loaded_data.values()):
-                logging.warning("One or more FITS files could not be loaded. Skipping RGB creation.")
+                logging.warning(
+                    "One or more FITS files could not be loaded. Skipping RGB creation."
+                )
                 return
 
             # Create and save the three RGB images
@@ -103,14 +123,20 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
                         data_B = np.flipud(loaded_data[channels[2]])
 
                         if "RHEF" in self.params.png_frame_name:
-                            data_R, _ = self.do_norm_stretch(data_R, self.params.png_frame_name[0])
-                            data_G, _ = self.do_norm_stretch(data_G, self.params.png_frame_name[0])
-                            data_B, _ = self.do_norm_stretch(data_B, self.params.png_frame_name[0])
+                            data_R, _ = self.do_norm_stretch(
+                                data_R, self.params.png_frame_name[0]
+                            )
+                            data_G, _ = self.do_norm_stretch(
+                                data_G, self.params.png_frame_name[0]
+                            )
+                            data_B, _ = self.do_norm_stretch(
+                                data_B, self.params.png_frame_name[0]
+                            )
 
                         try:
-                            data_R = self.label_plot(data_R)
-                            data_G = self.label_plot(data_G)
-                            data_B = self.label_plot(data_B)
+                            data_R = self.label_plot(data_R, max=1.0)
+                            data_G = self.label_plot(data_G, max=1.0)
+                            data_B = self.label_plot(data_B, max=1.0)
                         except (ValueError, AttributeError) as e:
                             print(110, e)
 
@@ -119,11 +145,16 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
                         img_8bit = img_rgb.astype(np.uint8)
 
                         # Save the output image
-                        output_path = output_folder / f"BGR_{channels[0]}_{channels[1]}_{channels[2]}_{self.params.png_frame_name[0]}.png"
+                        output_path = (
+                            output_folder
+                            / f"BGR_{channels[0]}_{channels[1]}_{channels[2]}_{self.params.png_frame_name[0]}.png"
+                        )
                         cv2.imwrite(str(output_path), img_8bit)
                         logging.debug(f"Saved to {output_path} !")
                     except IndexError:
-                        logging.error(f"Error processing channel combination {channels}. Skipping.")
+                        logging.error(
+                            f"Error processing channel combination {channels}. Skipping."
+                        )
                         continue
         except Exception as e:
             logging.error(f"Error processing rainbow frames: {e}")
@@ -131,8 +162,12 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
     def report_missing_files(self):
         """Report the missing FITS files and list them."""
         if self.missing_counts > 0:
-            logging.info(f"Missing files: {self.missing_counts} out of {self.missing_counts + len(self.good_paths)}")
-            for file_path in self.missing_files[:10]:  # Limit to first 10 files for logging
+            logging.info(
+                f"Missing files: {self.missing_counts} out of {self.missing_counts + len(self.good_paths)}"
+            )
+            for file_path in self.missing_files[
+                :10
+            ]:  # Limit to first 10 files for logging
                 logging.info(f"  - {file_path}")
             if self.missing_counts > 10:
                 logging.info(f"  ...and {self.missing_counts - 10} more files.")
@@ -152,27 +187,41 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
                     for hdu in hdul:
                         if hdu.name.casefold() == hdu_name_or_index.casefold():
                             if hdu.data is None or hdu.data.size == 0:
-                                logging.error(f"HDU '{hdu_name_or_index}' in file {file_path} is empty or has an unexpected shape.")
+                                logging.error(
+                                    f"HDU '{hdu_name_or_index}' in file {file_path} is empty or has an unexpected shape."
+                                )
                                 return None
-                            logging.debug(f"Loaded data from HDU '{hdu_name_or_index}' in file {file_path}")
+                            logging.debug(
+                                f"Loaded data from HDU '{hdu_name_or_index}' in file {file_path}"
+                            )
                             return hdu.data
                 elif isinstance(hdu_name_or_index, int):
                     if -len(hdul) <= hdu_name_or_index < len(hdul):
                         hdu = hdul[hdu_name_or_index]
-                        if hdu.data is None or hdu.data.size == 0 or hdu.data.shape != (1024, 1024):
-                            logging.error(f"HDU index {hdu_name_or_index} in file {file_path} is empty or has an unexpected shape.")
+                        if (
+                            hdu.data is None
+                            or hdu.data.size == 0
+                            or hdu.data.shape != (1024, 1024)
+                        ):
+                            logging.error(
+                                f"HDU index {hdu_name_or_index} in file {file_path} is empty or has an unexpected shape."
+                            )
                             return None
-                        logging.debug(f"Loaded data from HDU index {hdu_name_or_index} in file {file_path}")
+                        logging.debug(
+                            f"Loaded data from HDU index {hdu_name_or_index} in file {file_path}"
+                        )
                         return hdu.data
                 else:
-                    logging.error("HDU identifier must be either an integer index or a string name.")
+                    logging.error(
+                        "HDU identifier must be either an integer index or a string name."
+                    )
         except Exception as e:
             logging.error(f"Error loading FITS file {file_path}: {e}")
         return None
 
-
     def make_unscaled_rgb(self, image_r, image_g, image_b):
         """Create an RGB image from three channels."""
+
         def to_int8(image):
             if image.dtype == np.int8:
                 return image
@@ -181,9 +230,9 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
                     pass
                 return (image * 255).astype(np.int8)
             else:
-                raise ValueError("Input images must be of dtype int8 or convertible to int8 (float values between 0 and 1).")
-
-
+                raise ValueError(
+                    "Input images must be of dtype int8 or convertible to int8 (float values between 0 and 1)."
+                )
 
         # Convert to int8 if necessary
         image_r = to_int8(image_r)

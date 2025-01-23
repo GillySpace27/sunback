@@ -894,7 +894,6 @@ class Processor:
         self.in_name = self.in_name or self.params.master_frame_list_newest
         # return True
         try:
-
             output = self.do_fits_function(fits_path, self.in_name)
             # output=None
             self.ii += 1
@@ -1082,7 +1081,7 @@ class Processor:
         self.determine_shrink_factor()
         self.make_radius()
         self.find_limb_radius()
-        # self.make_vignette(vignette_radius)
+        self.make_vignette(vignette_radius)
         if True:  # type(self) is QRNProcessor:
             self.init_bin_array()
 
@@ -2479,7 +2478,6 @@ class Processor:
             self.in_name = self.frame_name = in_name
             return self.in_name
 
-
         if hdul is None:
             with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
                 self.in_name = self.find_correct_in_name(hdul, name=in_name)
@@ -2879,7 +2877,10 @@ class Processor:
             cleaned_hdu_name = hduname.split("(")[0]
 
             # Check if current HDU matches the requested frame name
-            if hduname == self.frame_name.casefold() or cleaned_hdu_name == cleaned_frame_name.casefold():
+            if (
+                hduname == self.frame_name.casefold()
+                or cleaned_hdu_name == cleaned_frame_name.casefold()
+            ):
                 if hdu.data is None:
                     if hduname in special_names or cleaned_hdu_name in special_names:
                         self.frame_name = "compressed_image"
@@ -2904,7 +2905,6 @@ class Processor:
         raise FileNotFoundError(
             "The specified HDU '{}' was not found.".format(self.frame_name)
         )
-
 
     def open_fits_hdul(self, hdul, quiet=True, frame_name=None, peek=False):
         """
@@ -3265,8 +3265,8 @@ class Processor:
 
     def vignette(self, frame=None):
         """Truncate the in_object above a certain radis"""
-        # if self.vignette_mask is None:
-        return frame
+        if self.vignette_mask is None:
+            return frame
 
         if self.radius is None:
             self.init_radius_array()

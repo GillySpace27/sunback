@@ -2,7 +2,7 @@ name: GitCloudRun
 
 on:
   schedule:
-    - cron: '*/10 * * * *'  # Runs every 10 minutes
+    - cron: '* * * * *'  # Runs every hour
   workflow_dispatch:        # Allows manual triggering
 
 jobs:
