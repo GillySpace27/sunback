@@ -440,6 +440,7 @@ class ImageProcessor(Processor):
             #     frame = self.maxima_scrunch(frame)
 
         # Norm Stretching (only runs on rhe)
+        self.frame_name = frame_name
         frame, self.frame_name = self.do_norm_stretch(frame, frame_name, do=do_upsilon)
 
         dont_vminmax = False

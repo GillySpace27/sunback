@@ -300,7 +300,7 @@ class RHEFProcessor(SunPyProcessor):
         super().__init__(params, quick, rp, in_name)
 
     def do_work(self):
-        upsilon = (None, None)
+        upsilon = None
         self.params.modified_image = radial.rhef(
             self.raw_map,
             radial_bin_edges=self.radial_bin_edges,
