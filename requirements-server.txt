@@ -5,7 +5,6 @@ aiohttp
 aiosignal
 alabaster
 appnope
-appscript
 asciitree
 astropy
 astropy-iers-data

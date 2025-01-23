@@ -48,7 +48,6 @@ test = ["pytest", "pytest-runner"]
 "server"= [
         "twine",
         "pillow",
-        "appscript;platform_system=='Darwin'",
         "moviepy",
         "parfive",
         "beautifulsoup4",
