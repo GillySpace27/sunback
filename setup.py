@@ -10,11 +10,9 @@ setup(
     long_description_content_type="text/markdown",
     license="BSD-3-Clause",
     url="https://github.com/GillySpace27/sunback",
-
     # Root-level `sunback` contains the package `sunback`
     package_dir={"": "."},  # Project root contains the first `sunback`
     packages=find_packages(where="."),  # Discover packages starting at the project root
-
     include_package_data=True,
     python_requires=">=3.0",
     install_requires=[
@@ -26,26 +24,24 @@ setup(
         "opencv-python",
         "xarray",
         "requests",
-        ],
+    ],
     extras_require={
         "server": [
-        "twine",
-        "pillow",
-        "appscript;platform_system=='Darwin'",
-        "moviepy",
-        "parfive",
-        "beautifulsoup4",
-        "html5lib",
-        "numpy",
-        "sunkit-image",
-        "aiapy",
-    ],
-        },
-
+            "twine",
+            "pillow",
+            "moviepy",
+            "parfive",
+            "beautifulsoup4",
+            "html5lib",
+            "numpy",
+            "sunkit-image",
+            "aiapy",
+        ],
+    },
     entry_points={
         "console_scripts": [
             "sunback-run = sunback.sunback.run.run_client_background:run_client",
-            "sunback-serve = sunback.sunback.run.run_server_lingon:run_server_lingon"
+            "sunback-serve = sunback.sunback.run.run_server_lingon:run_server_lingon",
         ]
     },
 )
