@@ -33,7 +33,7 @@ class ImageProcessorCV(ImageProcessor):
         target = "rhe(lev1p5)"
         out = None
 
-        if self.params.current_wave() in [None, "rainbow"]:
+        if self.params.current_wave() in [None, "rainbow"] or True:
             try:
                 self.wave = self.params.current_wave(
                     int(self.fits_path.split(".")[0][-4:])
@@ -289,6 +289,7 @@ class ImageProcessorCV(ImageProcessor):
             cv2.putText(img, text, (x, y), 1, scale, (max, max, max), thickness)
 
         try:
+            self.get_alphas(wave=wave)
             aH = self.params.upsilon_high
             aL = self.params.upsilon_low
             cv2.putText(
@@ -706,7 +707,7 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
                 (
                     images.append(upsilon_stretch(frame)),
                     # images.append(frame),
-                    names.append(f"upsilon({frame_name})"),
+                    names.append(f"up_({frame_name})"),
                 )
 
         print(names)

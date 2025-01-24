@@ -4,10 +4,10 @@ import numpy as np
 from tqdm import tqdm
 from astropy.io import fits
 from pathlib import Path
-import logging
 from sunback.processor.Processor import Processor
 from sunback.processor.ImageProcessorCV import ImageProcessorCV
 
+import logging
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -122,15 +122,15 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
                         data_G = np.flipud(loaded_data[channels[1]])
                         data_B = np.flipud(loaded_data[channels[2]])
 
-                        if "RHEF" in self.params.png_frame_name:
+                        if "RHEF" in self.params.png_frame_name and False:
                             data_R, _ = self.do_norm_stretch(
-                                data_R, self.params.png_frame_name[0]
+                                data_R, self.params.png_frame_name[0], wave=channels[0]
                             )
                             data_G, _ = self.do_norm_stretch(
-                                data_G, self.params.png_frame_name[0]
+                                data_G, self.params.png_frame_name[0], wave=channels[1]
                             )
                             data_B, _ = self.do_norm_stretch(
-                                data_B, self.params.png_frame_name[0]
+                                data_B, self.params.png_frame_name[0], wave=channels[2]
                             )
 
                         try:

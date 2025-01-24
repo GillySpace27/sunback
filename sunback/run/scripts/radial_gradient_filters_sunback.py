@@ -29,18 +29,18 @@ def normalize(I):
 
 # Set operations and wavelengths for each of the 4 plots
 operations = [
-    ("RHEF(1p5)", [rhef]),  # RHEF only
-    ("RHEF(NRGF)", [partial(nrgf, fill=np.nan), rhef]),  # NRGF then RHEF
-    ("RHEF(MGN)", [mgn, rhef]),  # MGN then RHEF
-    ("MGN(1p5)", [mgn]),  # MGN only
+    ("RHE(1p5)", [rhef]),  # RHEF only
+    # ("RHE(NRGF)", [partial(nrgf, fill=0, application_radius=0.0), rhef]),  # NRGF then RHEF
+    ("RHE(MGN)", [mgn, rhef]),  # MGN then RHEF
+    # ("RHE(MGN(NRGF))", [partial(nrgf, fill=0, application_radius=0.0), mgn, rhef]),  # MGN only
 ]
 
 # Define wavelengths for each plot
 wavelength_sets = [
-    [171, 193, 211],  # Set for the first plot
-    [171, 193, 211],  # Set for the second plot
-    [171, 193, 211],  # Set for the third plot
-    [171, 193, 211],  # Set for the fourth plot
+    [211, 193, 171],  # Set for the first plot
+    [211, 193, 171],  # Set for the second plot
+    # [171, 193, 211],  # Set for the third plot
+    # [171, 193, 211],  # Set for the fourth plot
 ]
 
 # Define the sample image files for the wavelengths
@@ -57,8 +57,8 @@ image_files = {
 # Create figure with 2x2 layout and shared x and y axes
 fig, axs = plt.subplots(
     2,
-    2,
-    figsize=(8, 8),
+    1,
+    figsize=(4, 8),
     subplot_kw={"projection": Map(image_files[171]).wcs},
     sharex=True,
     sharey=True,
@@ -87,7 +87,7 @@ for i, (filtname, filters) in enumerate(operations):
     )
 
     # Plot the composite
-    ax = axs[row, col]
+    ax = axs[i]
     im = ax.imshow(im_rgb)
     lon, lat = ax.coords
     lon.set_axislabel("Helioprojective Longitude")
@@ -100,17 +100,17 @@ for i, (filtname, filters) in enumerate(operations):
         Line2D([0], [0], color=cmap(2), lw=4),
         Line2D([0], [0], color=cmap(1), lw=4),
     ]
-    legend_labels = [f"AIA {wl}" for wl in wavelengths]
-    if ax is axs[0, 1]:
-        legend = ax.legend(
-            custom_lines, legend_labels, fontsize=9, frameon=False, loc="center"
-        )
-        plt.setp(legend.get_texts(), color="white")
+    # legend_labels = [f"AIA {wl}" for wl in wavelengths]
+    # if ax is axs[0, 1]:
+    #     legend = ax.legend(
+    #         custom_lines, legend_labels, fontsize=9, frameon=False, loc="center"
+    #     )
+    #     plt.setp(legend.get_texts(), color="white")
 
     ax.set_title(f"{filtname}")
 
 # Add supertitle
-supertitle = f"AIA RGB Composite ({', '.join(map(str, wavelengths))} Angstroms)"
+supertitle = f"AIA RGB Composite\n({', '.join(map(str, wavelengths))} Angstroms)"
 fig.suptitle(supertitle)
 
 # Adjust layout and make axes shared

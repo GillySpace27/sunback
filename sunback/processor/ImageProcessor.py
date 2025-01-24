@@ -440,8 +440,9 @@ class ImageProcessor(Processor):
             #     frame = self.maxima_scrunch(frame)
 
         # Norm Stretching (only runs on rhe)
+        # This shouldn't happen at plot time. This should happen at filter time.
         self.frame_name = frame_name
-        frame, self.frame_name = self.do_norm_stretch(frame, frame_name, do=do_upsilon)
+        # frame, self.frame_name = self.do_norm_stretch(frame, frame_name, do=do_upsilon)
 
         dont_vminmax = False
         for name in ["RHT", "legacy"]:
@@ -458,47 +459,7 @@ class ImageProcessor(Processor):
         frame = self.vignette(frame)
         return frame
 
-    def do_norm_stretch(self, frame, frame_name, do=True):
-        if do and "rhef" in frame_name.casefold():
-            aL, aH = self.get_alphas()
-            frame = upsilon_stretch(frame, upsilon=aL, upsilon_high=aH)
-            # frame_name = 'UP_' + frame_name
-        return frame, frame_name
 
-    def get_alphas(self):
-        # import pdb; pdb.set_trace()
-        if self.image_data is None:
-            name = "None"
-        else:
-            name = self.image_data[0]
-
-        if name is None or "None" in name:
-            self.params.upsilon_low, self.params.upsilon_high = 0.8, 0.4
-            return self.params.upsilon_low, self.params.upsilon_high
-
-        self.wave = self.params.current_wave(self.image_data[0])
-        self.wave = wave = "{:04}".format(int(self.wave))
-
-        wave_list = [
-            {"wave": "0094", "aL": 1.0, "aH": 0.4},
-            {"wave": "0131", "aL": 0.6, "aH": 0.25},
-            {"wave": "0171", "aL": 0.6, "aH": 0.4},
-            {"wave": "0193", "aL": 0.7, "aH": 0.4},
-            {"wave": "0211", "aL": 0.7, "aH": 0.35},
-            {"wave": "0304", "aL": 0.9, "aH": 0.5},
-            {"wave": "0335", "aL": 0.85, "aH": 0.4},
-            {"wave": "1600", "aL": 0.8, "aH": 0.4},
-            {"wave": "1700", "aL": 0.8, "aH": 0.4},
-            {"wave": "jpeg", "aL": 0.8, "aH": 0.4},
-        ]
-
-        dictdict = {}
-        for wv in wave_list:
-            dictdict[wv["wave"]] = wv
-
-        self.params.upsilon_low = dictdict[wave]["aL"]
-        self.params.upsilon_high = dictdict[wave]["aH"]
-        return self.params.upsilon_low, self.params.upsilon_high
 
         # frame = 0.95 * frame
 

@@ -4,10 +4,11 @@ from sunback.run import SingleRunner
 from sunback.science.parameters import Parameters
 from sunback.putter.DesktopPutter import DesktopPutter
 from sunback.putter.AwsPutter import AwsPutter
-from sunback.processor.SunPyProcessor import RHEFProcessor
+from sunback.processor.SunPyProcessor import RHEFProcessor, UpsilonProcessor
 from sunback.fetcher.WebFitsFetcher import WebFitsFetcher
 from sunback.processor.ImageProcessorCV import ImageProcessorCV
 from sunback.processor.CompositeRainbowImageProcessor import RainbowRGBImageProcessor
+
 
 import logging
 
@@ -25,7 +26,7 @@ logging.getLogger("urllib3").setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
 
 
-def run_server_github(delay=60, debug=False, do_one="rainbow", stop=True):
+def run_server_github(delay=60, debug=True, do_one="rainbow", stop=True):
     p = Parameters()
 
     p.is_debug(debug)
@@ -54,13 +55,12 @@ def run_server_github(delay=60, debug=False, do_one="rainbow", stop=True):
             WebFitsFetcher,
         )  # Gets Fits from JSOC Most Recent
         p.processors([RHEFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
+        p.processors([UpsilonProcessor], rp=True)
         # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
-    p.putters(
-        [RainbowRGBImageProcessor], rp=True
-    )  # Makes the PNGs into a Composite PNG
+        p.putters([RainbowRGBImageProcessor], rp=True)
     p.putters([AwsPutter])  # Uploads the PNGs to AWS
-    # p.putters([DesktopPutter])  # Sets the PNGs to the Desktop Background
+    p.putters([DesktopPutter])  # Sets the PNGs to the Desktop Background
 
     # Imageprocessor -> get_alphas() to adjust Upsilon
 

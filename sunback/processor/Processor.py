@@ -115,6 +115,7 @@ class Processor:
     frame_name = None
     init_active = False
     do_print_success = True
+    dictdict = None
 
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         self.binInds_forpoints = None
@@ -162,6 +163,7 @@ class Processor:
         self.failed_fits = []
         # Optionally, initialize a counter for fixed FITS files
         self.fixed_fits_count = 0
+        self.init_upsilon_array()
         # self.print_once = True
         # self.tic()
         if self.params:
@@ -3362,6 +3364,56 @@ class Processor:
             val = use[iii]
         use[:iii] = val
         return use
+
+    def do_norm_stretch(self, frame, frame_name, do=True, wave=None):
+        from sunback.utils.stretch_intensity_module import upsilon_stretch
+        if do and "rhef" in frame_name.casefold():
+            aL, aH = self.get_alphas(wave=wave)
+            frame = upsilon_stretch(frame, upsilon=aL, upsilon_high=aH)
+            # frame_name = 'UP_' + frame_name
+        return frame, frame_name
+
+    def init_upsilon_array(self):
+        if self.image_data is None:
+            name = "None"
+        else:
+            name = self.image_data[0]
+
+        if name is None or "None" in name:
+            self.params.upsilon_low, self.params.upsilon_high = 0.8, 0.4
+            return self.params.upsilon_low, self.params.upsilon_high
+
+        wave_list = [
+            {"wave": "0094", "aL": 1.0, "aH": 0.4},
+            {"wave": "0131", "aL": 0.6, "aH": 0.25},
+            {"wave": "0171", "aL": 0.6, "aH": 0.4},
+            {"wave": "0193", "aL": 0.7, "aH": 0.4},
+            {"wave": "0211", "aL": 0.7, "aH": 0.35},
+            {"wave": "0304", "aL": 0.9, "aH": 0.5},
+            {"wave": "0335", "aL": 0.85, "aH": 0.4},
+            {"wave": "1600", "aL": 0.8, "aH": 0.4},
+            {"wave": "1700", "aL": 0.8, "aH": 0.4},
+            {"wave": "jpeg", "aL": 0.8, "aH": 0.4},
+        ]
+
+        self.dictdict = {}
+        for wv in wave_list:
+            self.dictdict[wv["wave"]] = wv
+
+    def get_alphas(self, wave=None):
+        if self.dictdict is None:
+            self.init_upsilon_array()
+
+        self.wave = wave or self.params.current_wave()
+        if wave is None:
+            self.wave = self.params.current_wave(self.image_data[0])
+        else:
+            self.wave = self.params.current_wave(wave)
+        wave = "{:04}".format(int(self.wave))
+        # wave = str(wave)
+        self.params.upsilon_low = self.dictdict[wave]["aL"]
+        self.params.upsilon_high = self.dictdict[wave]["aH"]
+        return self.params.upsilon_low, self.params.upsilon_high
 
         # fail_count = 0
         # img_paths = self.params.local_imgs_paths()

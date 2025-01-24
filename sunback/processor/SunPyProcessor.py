@@ -28,6 +28,9 @@ import sunpy.map.sources as srcs
 from aiapy.calibrate import register, update_pointing
 
 from sunback.processor.Processor import Processor
+from sunback.processor.ImageProcessor import ImageProcessor
+from sunback.utils.stretch_intensity_module import upsilon_stretch
+
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -282,6 +285,45 @@ class FNRGFProcessor(SunPyProcessor):
             self.attenuation_coefficients,
         ).data
         return self.params.modified_image
+
+
+class UpsilonProcessor(SunPyProcessor):
+    """This class template holds the code for the Sunpy Processors"""
+    name = filt_name = "Upsilon Processor"
+    description = "Apply Upsilon images radially"
+    progress_verb = "Normalizing"
+    finished_verb = "Normalized"
+    out_name = "UP_{name}"
+
+    # Parse Inputs
+    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+        """Initialize the main class"""
+        super().__init__(params, quick, rp, in_name)
+
+    def do_work(self):
+        upsilon = self.get_alphas()
+        if isinstance(upsilon, tuple):
+            upsilon = list(upsilon)
+        self.params.modified_image = radial.rhef(
+            self.raw_map,
+            radial_bin_edges=self.radial_bin_edges,
+            upsilon=upsilon,
+            progress=False,
+            vignette=None,
+            method="none",
+        ).data
+        return self.params.modified_image
+
+    def do_norm_stretch(self, frame=None, frame_name=None, do=True):
+        frame_name = frame_name or self.frame_name
+        frame = frame or self.raw_image
+
+        if do and "rhef" in frame_name.casefold():
+            self.out_name = self.out_name.format(frame_name)
+            aL, aH = self.get_alphas()
+            frame = upsilon_stretch(frame, upsilon=aL, upsilon_high=aH)
+            # frame_name = 'UP_' + frame_name
+        return frame, frame_name
 
 
 class RHEFProcessor(SunPyProcessor):
