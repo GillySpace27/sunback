@@ -60,7 +60,7 @@ def run_server_github(delay=60, debug=True, do_one="rainbow", stop=True):
         p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
         p.putters([RainbowRGBImageProcessor], rp=True)
     p.putters([AwsPutter])  # Uploads the PNGs to AWS
-    p.putters([DesktopPutter])  # Sets the PNGs to the Desktop Background
+    # p.putters([DesktopPutter])  # Sets the PNGs to the Desktop Background
 
     # Imageprocessor -> get_alphas() to adjust Upsilon
 
