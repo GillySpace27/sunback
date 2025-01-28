@@ -204,8 +204,8 @@ class ImageProcessorCV(ImageProcessor):
         self.make_image(do_small)
 
     def make_image(self, do_small=False):
-        out = self.frame_touchup(self.frame_name, self.frame + 0)
-
+        # out = self.frame_touchup(self.frame_name, self.frame + 0)
+        out = self.frame + 0.0
         self.params.rbg_image = []
         self.params.rbg_labels = ["hq"]
         self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
@@ -216,7 +216,6 @@ class ImageProcessorCV(ImageProcessor):
                 [block_reduce(out, 2, np.nanmean), block_reduce(out, 4, np.nanmean)]
             )
             self.params.rbg_labels.extend(["lq", "vlq"])
-
         for frame in frames:
             self.img_frame = (self.params.cmap(frame)[:, :, :3] * 255).astype(np.uint8)
             try:
@@ -251,10 +250,12 @@ class ImageProcessorCV(ImageProcessor):
             img = self.params.rbg_image[0]
         else:
             img = img_in + 0
-        if self.image_data is None:
+
+        from sunback.processor.CompositeRainbowImageProcessor import RainbowRGBImageProcessor
+
+        if isinstance(self, RainbowRGBImageProcessor):
             self.init_rainbow_frame()
-        if max is None:
-            max = np.nanmax(img)
+            wave = "-"
 
         full_name, fits_path, time_string_raw, shape = self.image_data
         time_string = self.clean_time_string(
@@ -263,7 +264,11 @@ class ImageProcessorCV(ImageProcessor):
         time_list = time_string.split()
         clock, day, year = time_list[1].lower(), time_list[0][:-5], time_list[0][-4:]
 
-        inst, wave = "AIA", self.clean_name_string(full_name)[1]
+        inst = "AIA"
+
+        if not isinstance(self, RainbowRGBImageProcessor):
+            wave = self.clean_name_string(full_name)[1]
+
         fname, frame_name = self.frame_name.casefold(), self.frame_name
         name, prev = (
             fname.split("(")[0],
@@ -286,12 +291,15 @@ class ImageProcessorCV(ImageProcessor):
                 [name, prev, inst, wave], [h0, h0 + h, h0 + 2 * h, h0 + 3 * h]
             )
         ]
+        max = 255 if np.max(img) > 1 else 1.0
+        max3 = (max, max, max)
+
         for text, (x, y) in zip([name, prev, inst, wave], positions):
-            cv2.putText(img, text, (x, y), 1, scale, (max, max, max), thickness)
+            cv2.putText(img, text, (x, y), 1, scale, max3, thickness)
 
         positions = [(0, height) for height in [h0, h0 + h, h0 + 2 * h, h0 + 3 * h]]
         for text, (x, y) in zip([clock, day, year, "MT"], positions):
-            cv2.putText(img, text, (x, y), 1, scale, (max, max, max), thickness)
+            cv2.putText(img, text, (x, y), 1, scale, max3, thickness)
 
         try:
             self.get_alphas(wave=wave)
@@ -303,7 +311,7 @@ class ImageProcessorCV(ImageProcessor):
                 (0, int(0.97 * rez)),
                 1,
                 scale,
-                (max, max, max),
+                max3,
                 thickness,
             )
             cv2.putText(
@@ -312,7 +320,7 @@ class ImageProcessorCV(ImageProcessor):
                 (0, int(0.99 * rez)),
                 1,
                 scale,
-                (max, max, max),
+                max3,
                 thickness,
             )
         except (SystemError, ValueError) as e:

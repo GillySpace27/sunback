@@ -3365,7 +3365,7 @@ class Processor:
         use[:iii] = val
         return use
 
-    def do_norm_stretch(self, frame, frame_name, do=True, wave=None):
+    def apply_upsilon(self, frame, frame_name, do=True, wave=None):
         from sunback.utils.stretch_intensity_module import upsilon_stretch
         if do and "rhef" in frame_name.casefold():
             aL, aH = self.get_alphas(wave=wave)

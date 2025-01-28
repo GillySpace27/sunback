@@ -54,10 +54,10 @@ def run_server_github(delay=60, debug=True, do_one="rainbow", stop=True):
     # This is the right combination of processors for the server
     if True:
         p.fetchers(WebFitsFetcher,)  # Gets Fits from JSOC Most Recent
-        # p.processors([AIA_PREP_Processor],)
+        # # p.processors([AIA_PREP_Processor],)
         p.processors([RHEFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
         p.processors([UpsilonProcessor], rp=True)
-        # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        # # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
         p.putters([RainbowRGBImageProcessor], rp=True)
     p.putters([AwsPutter])  # Uploads the PNGs to AWS

@@ -317,7 +317,7 @@ class UpsilonProcessor(SunPyProcessor):
         ).data
         return self.params.modified_image
 
-    def do_norm_stretch(self, frame=None, frame_name=None, do=True):
+    def apply_upsilon(self, frame=None, frame_name=None, do=True):
         frame_name = frame_name or self.frame_name
         frame = frame or self.raw_image
 

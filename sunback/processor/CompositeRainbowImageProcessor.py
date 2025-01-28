@@ -123,20 +123,20 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
                         data_B = np.flipud(loaded_data[channels[2]])
 
                         if "RHEF" in self.params.png_frame_name and False:
-                            data_R, _ = self.do_norm_stretch(
+                            data_R, _ = self.apply_upsilon(
                                 data_R, self.params.png_frame_name[0], wave=channels[0]
                             )
-                            data_G, _ = self.do_norm_stretch(
+                            data_G, _ = self.apply_upsilon(
                                 data_G, self.params.png_frame_name[0], wave=channels[1]
                             )
-                            data_B, _ = self.do_norm_stretch(
+                            data_B, _ = self.apply_upsilon(
                                 data_B, self.params.png_frame_name[0], wave=channels[2]
                             )
 
                         try:
-                            data_R = self.label_plot(data_R, max=1.0)
-                            data_G = self.label_plot(data_G, max=1.0)
-                            data_B = self.label_plot(data_B, max=1.0)
+                            data_R = self.label_plot(data_R)
+                            data_G = self.label_plot(data_G)
+                            data_B = self.label_plot(data_B)
                         except (ValueError, AttributeError) as e:
                             print(110, e)
 
@@ -223,12 +223,12 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
         """Create an RGB image from three channels."""
 
         def to_int8(image):
-            if image.dtype == np.int8:
+            if image.dtype in [np.int8, np.uint8]:
                 return image
             elif np.issubdtype(image.dtype, np.floating):
                 if not 0 <= np.nanmin(image) <= 1 or not 0 <= np.nanmax(image) <= 1:
                     pass
-                return (image * 255).astype(np.int8)
+                return (image * 255).astype(np.uint8)
             else:
                 raise ValueError(
                     "Input images must be of dtype int8 or convertible to int8 (float values between 0 and 1)."
