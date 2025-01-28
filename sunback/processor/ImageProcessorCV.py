@@ -244,13 +244,18 @@ class ImageProcessorCV(ImageProcessor):
             plt.imshow(self.params.rbg_image)
             plt.show()
 
-    def label_plot(self, img_in=None, max=255):
+    def label_plot(self, img_in=None, max=None, do=None):
+        if do is False or self.params.label_imgs is False:
+            return img_in
         if img_in is None:
             img = self.params.rbg_image[0]
         else:
             img = img_in + 0
         if self.image_data is None:
             self.init_rainbow_frame()
+        if max is None:
+            max = np.nanmax(img)
+
         full_name, fits_path, time_string_raw, shape = self.image_data
         time_string = self.clean_time_string(
             time_string_raw, targetZone="US/Mountain", out_fmt="%m-%d-%Y %I:%M%p %Z"
@@ -290,8 +295,8 @@ class ImageProcessorCV(ImageProcessor):
 
         try:
             self.get_alphas(wave=wave)
-            aH = self.params.upsilon_high
-            aL = self.params.upsilon_low
+            aH = self.params.upsilon_high if self.params.do_upsilon else None
+            aL = self.params.upsilon_low if self.params.do_upsilon else None
             cv2.putText(
                 img,
                 f"aH: {aH}",

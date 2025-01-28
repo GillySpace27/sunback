@@ -4,7 +4,7 @@ from sunback.run import SingleRunner
 from sunback.science.parameters import Parameters
 from sunback.putter.DesktopPutter import DesktopPutter
 from sunback.putter.AwsPutter import AwsPutter
-from sunback.processor.SunPyProcessor import RHEFProcessor, UpsilonProcessor
+from sunback.processor.SunPyProcessor import RHEFProcessor, UpsilonProcessor, AIA_PREP_Processor
 from sunback.fetcher.WebFitsFetcher import WebFitsFetcher
 from sunback.processor.ImageProcessorCV import ImageProcessorCV
 from sunback.processor.CompositeRainbowImageProcessor import RainbowRGBImageProcessor
@@ -43,17 +43,18 @@ def run_server_github(delay=60, debug=True, do_one="rainbow", stop=True):
     p.get_fits = True
     p.multiplot_all = False
     p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
-    p.upsilon = None
     p.do_prep = False
 
     p.do_standard_RHE()
+    # p.rhe_targets(["AIA_PREP"])
     p.png_frame_name = ["RHEF"]  # ['rhe(lev1p5)']
+    p.label_imgs = True
+    p.do_upsilon = True
 
     # This is the right combination of processors for the server
     if True:
-        p.fetchers(
-            WebFitsFetcher,
-        )  # Gets Fits from JSOC Most Recent
+        p.fetchers(WebFitsFetcher,)  # Gets Fits from JSOC Most Recent
+        # p.processors([AIA_PREP_Processor],)
         p.processors([RHEFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
         p.processors([UpsilonProcessor], rp=True)
         # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm

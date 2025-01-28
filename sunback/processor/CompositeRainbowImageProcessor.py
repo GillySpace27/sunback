@@ -34,7 +34,7 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
     ):
         super().__init__(params, quick)
         self.params = params
-        self.rgb_channels = [rgb1, None, None]
+        self.rgb_channels = [rgb1, rgb2, None]
         self.good_paths = {}
         self.missing_files = []
         self.missing_counts = 0

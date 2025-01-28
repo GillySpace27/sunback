@@ -12,18 +12,13 @@ def run_client(delay=60, debug=False, do_one="rainbow", stop=False):
     p.do_one(do_one, stop)
     p.batch_name("background_server_lingon")
     p.run_type("Client Sunback Daemon")
-    p.do_orig = True
-    p.speak_save = False
     p.use_drive = "C"
-    p.do_parallel = False
     # Run Flags
     p.download_files(True)
     p.get_fits = True
 
     p.fetchers(S3ImgFetcher,)  # Gets Fits from www.gilly.space/sun
     p.putters([DesktopPutter])  # Sets the PNGs to the Desktop Background
-
-    # Imageprocessor -> get_alphas() to adjust Upsilon
 
     # # Run the Code
     SingleRunner(p).start()

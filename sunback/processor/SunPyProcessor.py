@@ -192,14 +192,14 @@ class AIA_PREP_Processor(SunPyProcessor):
                 pointing_end = self.level_1_maps[-1].date + 3 * u.h
                 try:
                     # with partial(print, "  ") as print:
-                    self.params.pointing_table = get_pointing_table(
-                        pointing_start, pointing_end
+                    self.params.pointing_table = get_pointing_table("lmsal",
+                        time_range=(pointing_start, pointing_end)
                     )
                 except RuntimeError as e:
                     print("\r   - > " + str(e))
                     pass
                 # The same applies for the correction table.
-                self.params.correction_table = get_correction_table()
+                self.params.correction_table = get_correction_table("jsoc")
             # print("\r   ^ Prep Loaded!")
 
     def deconvolve_psf(self, a_map):
@@ -301,6 +301,9 @@ class UpsilonProcessor(SunPyProcessor):
         super().__init__(params, quick, rp, in_name)
 
     def do_work(self):
+        if self.params.do_upsilon is False:
+            return self.raw_map.data
+
         upsilon = self.get_alphas()
         if isinstance(upsilon, tuple):
             upsilon = list(upsilon)

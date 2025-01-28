@@ -76,6 +76,8 @@ class Parameters:
         self.paper_out = []
         self.png_frame_name = None
         self.multiplot_all = False
+        self.label_imgs = True
+        self.do_upsilon = True
 
         self.int_tm_tot = 0
         self.do_temp = False

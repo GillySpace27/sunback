@@ -160,4 +160,4 @@ zeep
 zipp
 
 git+https://github.com/sunpy/sunpy.git
-git+https://github.com/sunpy/sunkit-image.git
+git+https://github.com/GillySpace27/sunkit-image.git@rhe-bugfix#egg=sunkit-image
