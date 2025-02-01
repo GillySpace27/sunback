@@ -30,7 +30,7 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
         rp=False,
         rgb1=("0171", "0193", "0211"),
         rgb2=("0094", "0131", "0335"),
-        rgb3=("0211", "0193", "0335"),
+        rgb3=("1700", "1600", "0304"),
     ):
         super().__init__(params, quick)
         self.params = params
