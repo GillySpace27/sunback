@@ -209,7 +209,7 @@ def plot_2d(in_array=None, out_array=None, upsilon=None, do_plot=True):
 
 def upsilon_stretch(in_array, upsilon=1.0, upsilon_high=None, eq_num=4):
     """The only function anyone outside will ever see"""
-    logger.info(f"Stretching {upsilon = :0.2f}, {upsilon_high = :0.2f}")
+    logger.info(f"Stretching {upsilon = }, {upsilon_high = }")
     return make_one_curve(
         xprime=in_array, upsilon=upsilon, upsilon_high=upsilon_high, eq_num=eq_num
     )

@@ -191,7 +191,7 @@ class RHEProcessor(Processor):
         self.norm_avg_min = None
         self.cut_pixels = None
 
-    def select_input_frame(self, in_name="LEV1P5(T_INT)"):
+    def select_input_frame(self, in_name="LEV1P5"):
         self.in_name = "COMPRESSED_IMAGE"
         self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
 

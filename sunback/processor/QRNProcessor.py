@@ -80,7 +80,7 @@ class QRNProcessor(Processor):
     norm_curve_outer_min = None
     norm_curve_absol_min = None
 
-    def __init__(self, fits_path=None, in_name="LEV1P5(T_INT)", orig=False, show=False, verb=False, quick=False, rp=None, params=None):
+    def __init__(self, fits_path=None, in_name="LEV1P5", orig=False, show=False, verb=False, quick=False, rp=None, params=None):
         """Initialize the main class"""
         super().__init__(params=params, quick=quick, rp=rp)
         # Parse Inputs

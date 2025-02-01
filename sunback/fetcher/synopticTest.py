@@ -5,8 +5,10 @@ from AIASynopticClient import AIASynopticData
 search_result = Fido.search(
     a.Time("2015-06-06", "2015-06-07"),
     AIASynopticData(),
+    # a.Level("synoptic"),
     a.Sample(1 * u.hour),
     a.Wavelength(171 * u.angstrom),
 )
+print(search_result)
 
-result = Fido.fetch(search_result, path=r"sunback_data/bb2")
+# result = Fido.fetch(search_result, path=r"sunback_data/bb2")

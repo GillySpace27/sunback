@@ -42,7 +42,7 @@ class Parameters:
             "msgn",
             "rhe",
             "lev1p5",
-            "t_int",
+            # "t_int",
             "lev1p0",
             "compressed_image",
             "primary",
@@ -58,6 +58,7 @@ class Parameters:
         self.do_archive = False
         self.doing_jpeg = True
         self.do_orig = False
+        self.do_vignette = True
         self.fits_save_path = None
         self.use_drive = "D"
         self.file_basename = None
@@ -117,7 +118,7 @@ class Parameters:
         self.debug_mode = False
         self.did_print = False
         self.Force_init = False
-        self.list_of_default_hdus = ["t_int", "lev1p0", 0, 1]
+        # self.list_of_default_hdus = ["t_int", "lev1p0", 0, 1]
         self.raw_image = None
         self.modified_image = None
         self.rhe_image = None

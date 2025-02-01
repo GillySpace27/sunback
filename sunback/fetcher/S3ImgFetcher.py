@@ -20,7 +20,7 @@ class S3ImgFetcher(Fetcher):
 
         # Resolve the download directory
         self.download_dir = os.path.abspath(
-            os.path.expanduser(self.params.imgs_top_directory()) if self.params else "./images"
+            os.path.expanduser(self.params.imgs_top_directory()+"/mod") if self.params else "./images"
         )
 
         # Log the resolved directory for debugging

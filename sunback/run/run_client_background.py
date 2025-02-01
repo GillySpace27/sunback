@@ -1,4 +1,4 @@
-"""This is the script to run on a server somewhere to process the images"""
+"""This is the script to run on a client somewhere to download and set the images"""
 from sunback.run import SingleRunner
 from sunback.science.parameters import Parameters
 from sunback.putter.DesktopPutter import DesktopPutter
@@ -8,7 +8,7 @@ def run_client(delay=60, debug=False, do_one="rainbow", stop=False):
     p = Parameters()
 
     p.is_debug(debug)
-    p.delay_seconds(delay)
+    p.delay_seconds(delay)     
     p.do_one(do_one, stop)
     p.batch_name("background_server_lingon")
     p.run_type("Client Sunback Daemon")

@@ -69,7 +69,7 @@ class SunPyProcessor(Processor):
     raw_map = None
 
     # Parse Inputs
-    def __init__(self, params=None, quick=False, rp=None, in_name="LEV1P5(t_int)"):
+    def __init__(self, params=None, quick=False, rp=None, in_name="LEV1P5"):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
         # self.tm = time.time()
@@ -256,7 +256,7 @@ class NRGFProcessor(SunPyProcessor):
         import sunkit_image.radial as radial
 
         self.params.modified_image = radial.nrgf(
-            self.raw_map, radial_bin_edges, application_radius=0.00 * u.R_sun
+            self.raw_map, radial_bin_edges=radial_bin_edges, application_radius=0.00 * u.R_sun
         ).data
         return self.params.modified_image
 
@@ -293,12 +293,14 @@ class UpsilonProcessor(SunPyProcessor):
     description = "Apply Upsilon images radially"
     progress_verb = "Normalizing"
     finished_verb = "Normalized"
-    out_name = "UP_{name}"
+    out_name = "UP_{}"
+    can_do_parallel = True
 
     # Parse Inputs
-    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+    def __init__(self, params=None, quick=False, rp=None, in_name="rhef"):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
+        self.out_name = self.out_name.format(self.in_name)
 
     def do_work(self):
         if self.params.do_upsilon is False:
@@ -317,16 +319,16 @@ class UpsilonProcessor(SunPyProcessor):
         ).data
         return self.params.modified_image
 
-    def apply_upsilon(self, frame=None, frame_name=None, do=True):
-        frame_name = frame_name or self.frame_name
-        frame = frame or self.raw_image
+    # def apply_upsilon(self, frame=None, frame_name=None, do=True):
+    #     frame_name = frame_name or self.frame_name
+    #     frame = frame or self.raw_image
 
-        if do and "rhef" in frame_name.casefold():
-            self.out_name = self.out_name.format(frame_name)
-            aL, aH = self.get_alphas()
-            frame = upsilon_stretch(frame, upsilon=aL, upsilon_high=aH)
-            # frame_name = 'UP_' + frame_name
-        return frame, frame_name
+    #     if do and "rhef" in frame_name.casefold():
+    #         self.out_name = self.out_name.format(frame_name)
+    #         aL, aH = self.get_alphas()
+    #         frame = upsilon_stretch(frame, upsilon=aL, upsilon_high=aH)
+    #         # frame_name = 'UP_' + frame_name
+    #     return frame, frame_name
 
 
 class RHEFProcessor(SunPyProcessor):
@@ -351,7 +353,7 @@ class RHEFProcessor(SunPyProcessor):
             radial_bin_edges=self.radial_bin_edges,
             upsilon=upsilon,
             progress=False,
-            vignette=1.51 * u.R_sun,
+            vignette=1.51 * u.R_sun if self.params.do_vignette else None,
             method="scipy",
         ).data
         return self.params.modified_image

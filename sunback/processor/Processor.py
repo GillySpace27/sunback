@@ -916,7 +916,7 @@ class Processor:
                 use_name = self.frame_name
             else:
                 use_name = self.out_name
-        self.save_frame(frame, fits_path, self.frame_name)
+        self.save_frame(frame, fits_path, use_name)
         return frame
 
     def save_frame(self, frame, fits_path, out_name=None, force=False):
@@ -1523,7 +1523,7 @@ class Processor:
         # return binRad, binInts
 
     def do_compare_histogramplot(
-        self, frames=None, names=None, even_points=100, use_cmap=False
+        self, frames=None, names=None, even_points=50, use_cmap=False
     ):
         # self.prep_histograms()
         frames = (
@@ -1572,22 +1572,26 @@ class Processor:
         # print("HELLO WORLD")
         # plt.savefig(
         #     os.path.expanduser(
-        #         r"~/vscode/sunback_data/renders/Single_Test/imgs/mod/histograms_all_hq.png",
+        #         r"~/vscode/sunback/sunback_data/renders/Single_Test/imgs/mod/histograms_all_hq.png",
         #     ),
         #     dpi=600,
         # )
         # plt.savefig(
         #     os.path.expanduser(
-        #         r"~/vscode/sunback_data/renders/Single_Test/imgs/mod/histograms_all_lq.png",
+        #         r"~/vscode/sunback/sunback_data/renders/Single_Test/imgs/mod/histograms_all_lq.png",
         #     ),
         #     dpi=400,
         # )
-        plt.savefig(
-            os.path.expanduser(
-                f"~/vscode/sunback_data/renders/{self.params.batch_name()}/imgs/mod/histograms_all_vlq.pdf",
-            ),
-            dpi=300,
-        )
+
+
+        pth = os.path.expanduser(
+                f"~/vscode/sunback/sunback_data/renders/{self.params.batch_name()}/imgs/mod/histograms_all_vlq.pdf",
+            )
+        if not os.path.exists(os.path.dirname(pth)):
+            os.makedirs(os.path.dirname(pth))
+        print(pth)
+        plt.savefig(pth, dpi=100)
+        plt.savefig(pth.replace(".pdf", ".png"), dpi=100)
         plt.close(fig)
         # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.pdf", dpi=400)
         # plt.show()
@@ -1654,20 +1658,20 @@ class Processor:
         print("I'M PLOTTING")
         plt.savefig(
             os.path.expanduser(
-                r"~/vscode/sunback_data/renders/Single_Test/imgs/mod/histograms_rhe2_hq.png"
+                r"~/vscode/sunback/sunback_data/renders/Single_Test/imgs/mod/histograms_rhe2_hq.png"
             ),
             dpi=600,
         )
 
         plt.savefig(
             os.path.expanduser(
-                r"~/vscode/sunback_data/renders/Single_Test/imgs/mod/histograms_rhe2_lq.png"
+                r"~/vscode/sunback/sunback_data/renders/Single_Test/imgs/mod/histograms_rhe2_lq.png"
             ),
             dpi=400,
         )
         plt.savefig(
             os.path.expanduser(
-                r"~/vscode/sunback_data/renders/Single_Test/imgs/mod/histograms_rhe2_vlq.png"
+                r"~/vscode/sunback/sunback_data/renders/Single_Test/imgs/mod/histograms_rhe2_vlq.png"
             ),
             dpi=300,
         )
@@ -1731,7 +1735,7 @@ class Processor:
             hspace=0,
             top=0.97,
         )
-        pth = f"~/vscode/sunback_data/renders/{self.batch_name}/imgs/mod"
+        pth = f"~/vscode/sunback/sunback_data/renders/{self.batch_name}/imgs/mod"
         os.makedirs(pth, exist_ok=True)
 
         plt.savefig(
@@ -1748,7 +1752,7 @@ class Processor:
         )
 
         plt.close(fig)
-        # plt.savefig(r"~/vscode/sunback_data/renders/Single_Test/imgs/mod\histograms.pdf", dpi=400)
+        # plt.savefig(r"~/vscode/sunback/sunback_data/renders/Single_Test/imgs/mod\histograms.pdf", dpi=400)
         # plt.show()
         # self.maximizePlot()
         # plt.tight_layout()
@@ -1797,7 +1801,7 @@ class Processor:
 
         # if not self.cmap and self.params.wave:
         from sunpy.visualization.colormaps import color_tables as ct
-
+        self.wave = self.params.current_wave()
         self.cmap = ct.aia_color_table(int(self.wave) * u.angstrom)
 
         ax.imshow(frame, origin="lower", cmap=self.cmap, vmin=0, vmax=1)
@@ -1941,6 +1945,14 @@ class Processor:
 
         if not isdir(directory):
             makedirs(directory)
+
+        pth = os.path.expanduser(
+            f"~/vscode/sunback/sunback_data/renders/{self.params.batch_name()}/imgs/mod/",
+        )
+        if not os.path.exists(os.path.dirname(pth)):
+            os.makedirs(os.path.dirname(pth))
+        print(pth)
+
         return directory
 
     ############################
@@ -2008,7 +2020,7 @@ class Processor:
                 hdul.append(fit_frame)  # Write
             else:
                 hdul[field] = fit_frame  # Write
-            # import pdb; pdb.set_trace()
+            # print(f"{field = }")
             hdul.writeto(fits_path, output_verify="fix", overwrite=True)
 
             hdul.close(output_verify="fix")
@@ -2892,6 +2904,7 @@ class Processor:
                             self.frame_name
                         )
                     )
+                # print(f"{hdu.name =}")
                 return hdu, hdu.name, idx
 
             # Track the last HDU matching special names
@@ -3405,14 +3418,14 @@ class Processor:
             self.init_upsilon_array()
 
         self.wave = wave or self.params.current_wave()
-        if wave is None:
+        if self.wave is None:
             self.wave = self.params.current_wave(self.image_data[0])
-        else:
-            self.wave = self.params.current_wave(wave)
-        wave = "{:04}".format(int(self.wave))
+        # else:
+        #     self.wave = self.params.current_wave(wave)
+        wave_str = "{:04}".format(int(self.wave))
         # wave = str(wave)
-        self.params.upsilon_low = self.dictdict[wave]["aL"]
-        self.params.upsilon_high = self.dictdict[wave]["aH"]
+        self.params.upsilon_low = self.dictdict[wave_str]["aL"]
+        self.params.upsilon_high = self.dictdict[wave_str]["aH"]
         return self.params.upsilon_low, self.params.upsilon_high
 
         # fail_count = 0

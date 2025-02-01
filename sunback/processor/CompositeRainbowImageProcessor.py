@@ -30,11 +30,11 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
         rp=False,
         rgb1=("0171", "0193", "0211"),
         rgb2=("0094", "0131", "0335"),
-        rgb3=("1600", "1700", "0304"),
+        rgb3=("0211", "0193", "0335"),
     ):
         super().__init__(params, quick)
         self.params = params
-        self.rgb_channels = [rgb1, rgb2, None]
+        self.rgb_channels = [rgb1, rgb2, rgb3]
         self.good_paths = {}
         self.missing_files = []
         self.missing_counts = 0
@@ -66,7 +66,7 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
             fits_files = sorted(fits_dir.glob("AIAsynoptic*.fits"))
             for file_path in fits_files:
                 wavelength = file_path.stem.split("AIAsynoptic")[1]
-                if self.is_valid_fits_file(file_path, "rhef"):
+                if self.is_valid_fits_file(file_path, "up_rhef"):
                     logging.debug(f"Valid FITS file: {file_path}")
                     self.good_paths[wavelength] = str(file_path)
                 else:
@@ -174,7 +174,7 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
         else:
             logging.debug("No missing files were detected.")
 
-    def load_fits_data(self, file_path, hdu_name_or_index="rhef"):
+    def load_fits_data(self, file_path, hdu_name_or_index="up_rhef"):
         """Load data from a specified HDU of a FITS file by name or index."""
         logging.debug(f"Loading FITS file: {file_path}")
         if not os.path.exists(file_path):

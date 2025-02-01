@@ -6,7 +6,7 @@ from sunpy.map import Map
 import numpy as np
 import astropy.units as u
 from sunkit_image.enhance import mgn
-from sunkit_image.radial import rhef, nrgf
+from sunkit_image.radial import rhef, nrgf, apply_upsilon
 from functools import partial
 import os
 
@@ -58,7 +58,7 @@ image_files = {
 fig, axs = plt.subplots(
     2,
     1,
-    figsize=(4, 8),
+    figsize=(4, 7),
     subplot_kw={"projection": Map(image_files[171]).wcs},
     sharex=True,
     sharey=True,
@@ -79,9 +79,9 @@ for i, (filtname, filters) in enumerate(operations):
 
     # Create the RGB composite
     im_rgb = make_lupton_rgb(
-        maps_filtered[0].data,
-        maps_filtered[1].data,
-        maps_filtered[2].data,
+        (maps_filtered[0].data),
+        (maps_filtered[1].data),
+        (maps_filtered[2].data),
         Q=0,
         stretch=1,
     )
@@ -110,8 +110,8 @@ for i, (filtname, filters) in enumerate(operations):
     ax.set_title(f"{filtname}")
 
 # Add supertitle
-supertitle = f"AIA RGB Composite\n({', '.join(map(str, wavelengths))} Angstroms)"
-fig.suptitle(supertitle)
+# supertitle = f"AIA RGB Composite\n({', '.join(map(str, wavelengths))} Angstroms)"
+# fig.suptitle(supertitle)
 
 # Adjust layout and make axes shared
 fig.tight_layout()
@@ -120,7 +120,7 @@ fig.tight_layout()
 if not os.path.exists("renders"):
     os.makedirs("renders")
 
-file_name = "renders/composite_grid_1.pdf"
+file_name = "renders/composite_grid_2.pdf"
 print(f"Saving to {os.path.abspath(file_name)}")
 plt.savefig(file_name, dpi=400)
 plt.show()

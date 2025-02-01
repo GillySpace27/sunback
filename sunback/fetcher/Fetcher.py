@@ -130,6 +130,7 @@ class Fetcher(Processor):
         matching_files = fits_files
 
         if not matching_files:
+            return False
             raise FileNotFoundError("No matching files found in the given time period.")
 
         # Filter based on wave criteria

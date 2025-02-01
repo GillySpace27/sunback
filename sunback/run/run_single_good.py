@@ -11,11 +11,11 @@ os.system('echo $PYTHONPATH')
 # exec(f"echo $PYTHONPATH")
 
 from sunback.science.parameters import Parameters
-from sunback.processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor
+from sunback.processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor, RHEFProcessor
 from sunback.processor.ScienceProcessor import ScienceProcessor
 from sunback.processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
 from sunback.processor.RHTProcessor import RHTProcessor
-from sunback.processor.RHEProcessor import RHEProcessor
+# from sunback.processor.RHEProcessor import RHEProcessor
 # from src.processor.NoiseGateProcessor import NoiseGateProcessor
 from sunback.processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv, MultiHistogramProcessorCv
 from sunback.fetcher.LocalFetcher import LocalSingleFetcher
@@ -46,7 +46,7 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
     # Set the Parameters
     name = "Single_Test2"
     p = default_run_single_params(wave, tstart, duration_seconds, frames, name)
-
+    p.do_vignette = False
     # p.download_files(False)
     # p.multiplot_all = True
     master = True
@@ -68,12 +68,12 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
     if radial_norms:
         pass
         # p.processors([QRNSingleShotProcessor], rp=True)
-        p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
-        p.processors([RHEProcessor],            rp=True)  # Applies the RHE Filter
-        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        p.processors([RHEProcessor],            rp=True)  # Applies the RHE Filter
-        p.processors([ImageProcessorCV])
+        # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
+        p.processors([RHEFProcessor],            rp=True)  # Applies the RHE Filter
+        # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        # p.processors([RHEFProcessor],            rp=True)  # Applies the RHE Filter
+    p.processors([ImageProcessorCV])
 
     p.aftereffects_in_name = ["rhe(lev1p5)",]
     aftereffects = False and master
@@ -81,9 +81,9 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
         pass
         p.processors([RHTProcessor],            rp='redo')  # Applies the Rolling Hough Transform+
         # p.processors([RHTProcessor],            rp="redo")  # Applies the Rolling Hough Transform+
-    use_putters = False and master
+    use_putters = True and master
     if use_putters:
-        p.putters(MultiImageProcessorCv,            rp=True)  # Makes the PNGs from Fits
+        # p.putters(MultiImageProcessorCv,            rp=True)  # Makes the PNGs from Fits
         # p.putters(ScienceProcessor,            rp=True)  # Makes the PNGs from Fits
         p.putters(MultiHistogramProcessorCv,            rp=True)  # Makes the PNGs from Fits
 

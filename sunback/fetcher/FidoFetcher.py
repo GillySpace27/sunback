@@ -136,7 +136,7 @@ class FidoFetcher(Fetcher):
         sample_attr = attrs.Sample(self.params.cadence_minutes())
         base_attrs = time_attr & wave_attr & sample_attr
 
-        if self.params.do_recent() and False:
+        if self.params.do_recent() or True:
             inst_attr = attrs.Instrument.aia
 
         else:

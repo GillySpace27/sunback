@@ -30,19 +30,19 @@ class ImageProcessorCV(ImageProcessor):
     def do_fits_function(self, fits_path, in_name=None):
         self.params.double_rhe_flag = False
         self.fits_path = fits_path
-        target = "rhe(lev1p5)"
+        target = -1
         out = None
 
-        if self.params.current_wave() in [None, "rainbow"] or True:
-            try:
-                self.wave = self.params.current_wave(
-                    int(self.fits_path.split(".")[0][-4:])
-                )
-            except Exception as e:
-                print(38, int(self.params.current_wave()))
-                raise e
+        try:
+            self.wave = self.params.current_wave(
+                int(self.fits_path.split(".")[0][-4:])
+            )
+        except Exception as e:
+            print(38, int(self.params.current_wave()))
+            # raise e
 
         try:
+            print(f"{self.params.current_wave()}")
             self.params.cmap = self.cmap = aia_color_table(
                 int(self.params.current_wave()) * u.angstrom
             )
@@ -597,6 +597,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         )
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         self.main_save_path = save_path
+        print(self.save_path)
         self.fig.savefig(save_path, dpi=dpi)
         # plt.show(block=True)
         if False:
@@ -691,6 +692,7 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         #     self.hdu_name_list = self.list_hdus(hdul)
         self.good_frames = self.find_frames_at_path(fits_path)
 
+        print(self.hdu_name_list)
         print(self.good_frames)
 
         self.max_width = np.max([len(x) for x in self.good_frames])
@@ -717,11 +719,11 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
                 images.append(frame), names.append(frame_name)
 
             if "rhe" in frame_name:
-                (
-                    images.append(upsilon_stretch(frame)),
-                    # images.append(frame),
-                    names.append(f"up_({frame_name})"),
-                )
+                (aL, aH) = self.get_alphas()
+                images.append(upsilon_stretch(frame, aL, aH)),
+                # images.append(frame),
+                names.append(f"up_({frame_name})"),
+
 
         print(names)
 
@@ -930,7 +932,7 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
     #
     # def does_have_right_string(self, frame_name, right_string=None):
     #
-    #     right_string = right_string or ["lev1p5(t_int)", "final(rhe)", "rht(lev1p5)", "rht(final)"]
+    #     right_string = right_string or ["lev1p5", "final(rhe)", "rht(lev1p5)", "rht(final)"]
     #
     #     for goods in right_string:
     #         if frame_name.casefold() == goods:

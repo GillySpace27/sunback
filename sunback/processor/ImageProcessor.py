@@ -151,31 +151,42 @@ class ImageProcessor(Processor):
         self.wave = self.params.current_wave()
 
         # Set the color map based on the wavelength or default to grayscale
-        use_cmap = True
-        if use_cmap and self.wave:
-            if not str(self.wave).isdigit():
-                for wv in self.params.all_wavelengths:
-                    if wv in self.fits_path:
-                        self.params.cmap = self.cmap = aia_color_table(
-                            int(wv) * u.angstrom
-                        )
-                        self.wave = wv
-                        break
-            else:
-                self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
-        else:
-            from matplotlib import cm
+        self.set_color_map()
 
+    def set_color_map(self):
+        """Set the color map based on the wavelength."""
+        # Check if self.wave is a digit or string representation of a digit
+        is_wave_digit = str(self.wave).isdigit()
+
+        # Convert to int if self.wave is a digit, or try to find a matching wavelength in the path
+        if is_wave_digit:
+            wavelength = int(self.wave)
+        else:
+            matching_wave = next((wv for wv in self.params.all_wavelengths if wv in self.fits_path), None)
+            if matching_wave:
+                self.wave = matching_wave
+                wavelength = int(matching_wave)
+            else:
+                # If no matching wavelength is found, use grayscale by default
+                from matplotlib import cm
+                self.params.cmap = cm.gray
+                return
+
+        try:
+            self.params.cmap = aia_color_table(wavelength * u.angstrom)
+        except (ValueError, KeyError):
+            # If the wavelength is not recognized, fall back to grayscale
+            from matplotlib import cm
             self.params.cmap = cm.gray
 
     def image_is_plottable(self, frame_name):
-        # return True
+        return True
         return self.doesnt_have_wrong_string(frame_name)
         return self.does_have_right_string(frame_name)
 
     def does_have_right_string(self, frame_name, right_string=None):
         right_string = right_string or [
-            "lev1p5(t_int)",
+            "lev1p5",
             "final(rhe)",
             "rht(lev1p5)",
             "rht(final)",
