@@ -94,7 +94,7 @@ class WebFitsFetcher(Fetcher):
             for res in results:
                 self.ii += 1
                 paths.append(res)
-                self.rename_start_frames(res)
+                # self.rename_start_frames(res)
 
             print(
                 "\r ^  Successfully Downloaded {} Files\n".format(len(paths)),
