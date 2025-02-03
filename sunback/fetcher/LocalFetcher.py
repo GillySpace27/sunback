@@ -71,15 +71,8 @@ class LocalSingleFetcher(Fetcher):
         fits_path = self.determine_image_path()
         self.params.use_image_path(fits_path)
         print(fits_path)
-        # if not fits_path:
-        #     self.params.fits_directory(path.join(self.params.fits_directory(), "raw"))
-        #     raw_path = self.determine_image_path()
-        #     self.params.fits_directory(path.join(self.params.fits_directory(), "..", path.basename(fits_path)))
-        #     fits_path = self.determine_image_path()
-        #     shutil.copy(raw_path, fits_path)
-        # # raise e
-        # self.fetch()
-        # return
+        self.ii = 1
+
         if fits_path.endswith(".fits"):
             try:
                 with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:

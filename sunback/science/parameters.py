@@ -407,7 +407,8 @@ class Parameters:
             self.current_wave(which)
             # self.batch_name(which)
             self.stop_after_one(stop)
-
+            if self.ii is None:
+                self.ii = 1
         return self._do_one
 
     def download_files(self, boolean=None):

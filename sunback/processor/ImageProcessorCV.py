@@ -663,9 +663,9 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
 
     def modify_one_fits(self, fits_path):
         """Apply the given funtion to the given fits path"""
-        # self.ii += 1
         self.confirm_fits_file(fits_path)
         self.do_fits_function(fits_path)
+        self.ii = 1 if self.ii is None else self.ii + 1
         return False
 
     def do_fits_function(self, fits_path, in_name=None, doBar=False):
@@ -692,8 +692,8 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         #     self.hdu_name_list = self.list_hdus(hdul)
         self.good_frames = self.find_frames_at_path(fits_path)
 
-        print(self.hdu_name_list)
-        print(self.good_frames)
+        # print(self.hdu_name_list)
+        # print(self.good_frames)
 
         self.max_width = np.max([len(x) for x in self.good_frames])
         iterable = tqdm(self.good_frames, desc="") if doBar else self.good_frames
