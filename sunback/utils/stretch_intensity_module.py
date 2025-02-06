@@ -121,7 +121,7 @@ def demo_plot_many_upsilons(
     """Demonstrate the Effect of the upsilon Parameter"""
 
     if upsilons_list is None:  # Defaults
-        upsilons_list = demo_make_upsilon_array(eq_num=eq_num) * 10
+        upsilons_list = demo_make_upsilon_array(eq_num=eq_num)
     if xprime is None:  # Defaults
         xprime = demo_make_xprime(eq_num=eq_num)
     if curve_list is None:  # Defaults
@@ -138,24 +138,24 @@ def demo_plot_many_upsilons(
         kwargs["label"] = None
 
     use_color = "darkred" if first0 else "navy"
-    upsilon = 3.5 if first0 else 0.35
+    upsilon = 0.35 if first0 else 0.35
     # upsilon = 0.1 if first0 else 0.01
-    use_curve1 = make_one_curve(upsilon=upsilon * 10, xprime=xprime, eq_num=eq_num)
+    use_curve1 = make_one_curve(upsilon=upsilon, xprime=xprime, eq_num=eq_num)
     # plt.figure()
     torun.plot(xprime, use_curve1, ls="-", c=use_color, lw=4, zorder=10000)
 
     for curve, upsilon in zip(reversed(curve_list), reversed(upsilons_list)):
         # lls = ":" if upsilon==1 else ":"
         # print(upsilon)
-        plt.plot(
-            xprime,
-            (xprime) ** upsilon,
-            c="coral",
-            ls=":",
-            zorder=-10,
-            label=lbl,
-        )
-        plt.plot(xprime, (xprime) ** (upsilon / 10), c="coral", ls=":", zorder=-10)
+        # plt.plot(
+        #     xprime,
+        #     (xprime) ** upsilon,
+        #     c="coral",
+        #     ls=":",
+        #     zorder=-10,
+        #     label=lbl,
+        # )
+        plt.plot(xprime, (xprime) ** (upsilon), c="coral", ls=":", zorder=-10)
         lbl = None
 
     # plt.show(block=True)
@@ -215,8 +215,12 @@ def upsilon_stretch(in_array, upsilon=1.0, upsilon_high=None, eq_num=4):
     )
 
 
+
 def many_upsilons():
+    # Create a figure and one subplot with a specified width and height
     fig, ax = plt.subplots(1, 1)
+    fig.set_size_inches((4, 4))  # specifying a larger figure size for better visibility
+
     first0 = False
     for eq_num, CurveString, ls, c in zip(
         [4, 2],
@@ -225,7 +229,7 @@ def many_upsilons():
         ["dodgerblue", "tomato"],
     ):
         xprime = demo_plot_many_upsilons(
-            axis=ax, ls=ls, c=c, first0=first0, label=CurveString, eq_num=eq_num
+            axis=ax, ls=ls, c=c, first0=first0, label=CurveString, eq_num=4
         )
 
         first0 = True
@@ -272,19 +276,20 @@ def many_upsilons():
     # plt.legend(ncol=2)
     # plt.show(block=True)
 
-    ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(0.01, 0.99))
-    fig.set_size_inches((8, 8))
+    # ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(0.01, 0.99))
+    # fig.set_size_inches((8, 8))
     plt.tight_layout()
-    # plt.savefig(r"C:\Users\chgi7364\Dropbox\All School\CU\My Research\My Papers\Sunback\fig\redistribution_both.pdf")
+    plt.savefig("sunback_data/renders/redistribution_both.pdf")
+    plt.savefig("sunback_data/renders/redistribution_both.png")
     # plt.savefig(r"C:\Users\chgi7364\Dropbox\All School\CU\My Research\My Papers\Sunback\fig\redistribution_both.png")
 
-    plt.show(block=True)
+    # plt.show(block=True)
 
 
 if __name__ == "__main__":
     # many_upsilons()
-    demo_plot_many_upsilons()
-    # many_upsilons()
+    # demo_plot_many_upsilons()
+    many_upsilons()
 
     # pass
     # fig, ax = plt.subplots(1,1)
@@ -299,7 +304,7 @@ if __name__ == "__main__":
     # plt.tight_layout()
     # # plt.savefig()
     # plt.show(block=True)
-    # # demo_plot_white_noise()
+    # demo_plot_white_noise()
     # # demo_plot_2D_method()
 
     # for upsilon in np.linspace(1,2,10):

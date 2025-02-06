@@ -16,10 +16,16 @@ from bs4 import BeautifulSoup
 from sunback.fetcher.Fetcher import Fetcher
 from tqdm import tqdm
 from functools import partial
+import urllib.request
+import urllib.error
+from bs4 import BeautifulSoup
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class WebFitsFetcher(Fetcher):
-    base_url = "http://jsoc1.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
+    base_url = "https://jsoc1.stanford.edu/data/aia/synoptic/mostrecent/"  # Default Location of the Solar Images
     jpg_url_stem = (
         "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_{:04}_{:04}.jpg"
         + "?x="
@@ -27,8 +33,6 @@ class WebFitsFetcher(Fetcher):
     )
     description = "Get Fits Files from {}".format(base_url)
     filt_name = "WebFitsFetcher"
-    # out_name = 'QRN'
-    # name = filt_name = 'QRN Single Shot Processor'
     progress_verb = "Downloading"
     finished_verb = "Acquired"
 
@@ -92,7 +96,10 @@ class WebFitsFetcher(Fetcher):
                 results = [self.grab(path) for path in pbar_iter]
             paths = []
             for res in results:
-                self.ii += 1
+                try:
+                    self.ii += 1
+                except:
+                    self.ii = 1
                 paths.append(res)
                 # self.rename_start_frames(res)
 
@@ -248,27 +255,73 @@ class WebFitsFetcher(Fetcher):
         # ureq.urlcleanup()
         # ureq.urlretrieve(link, local_temp_path)
 
-    @staticmethod
-    def __get_fits_links(url):
-        """gets the list of files to pull"""
-        # create response object
-        r = requests.get(url)
+    def  __get_fits_links_static(self, url=None):
+        """Gets the list of .fits files to pull from the provided URL"""
 
-        # create beautiful-soup object
-        soup = BeautifulSoup(r.content, "html5lib")
+        links = []
+        for wave in self.params.all_wavelengths:
+            link = urllib.parse.urljoin(url, f"AIAsynoptic{int(wave):04}.fits")
+            links.append(link)
+            print(link)
+        return links
 
-        # not_wanted all links on web-page
-        links = soup.findAll("a")
+    def __get_fits_links(self, url):
+        """Gets the list of .fits files to pull from the provided URL"""
+        try:
+            # Create request object with a user-agent to reduce the likelihood of being blocked by the server
+            # headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36"}
 
-        # filter the link sending with .fits
+            headers = {
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Connection": "keep-alive",
+                "DNT": "1",
+                "Host": "jsoc1.stanford.edu",
+                "If-Modified-Since": "Wed, 05 Feb 2025 17:54:04 GMT",
+                "If-None-Match": "\"67a3a5bc-b6d00\"",
+                "Referer": "https://jsoc1.stanford.edu/data/aia/synoptic/mostrecent/",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-User": "?1",
+                "Upgrade-Insecure-Requests": "1",
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                "sec-ch-ua": "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"macOS\""
+            }
+
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                # Read the response and decode it
+                page_content = response.read().decode('utf-8')
+
+        except urllib.error.HTTPError as errh:
+            logging.error(f"HTTP Error: {errh.code} - {errh.reason} for URL: {url}")
+            return []
+        except urllib.error.URLError as erru:
+            logging.error(f"URL Error: {erru.reason} for URL: {url}")
+            return []
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}")
+            return []
+
+        # Create BeautifulSoup object
+        soup = BeautifulSoup(page_content, "html.parser")
+
+        # Find all links on the web page with the tag 'a'
+        links = soup.find_all("a")
+
+        # Filter the links ending with .fits and do not contain "4500"
         img_links = [
-            url + link["href"] for link in links if link["href"].endswith("fits")
+            urllib.parse.urljoin(url, link["href"]) for link in links if link.get("href", "").endswith("fits") and "4500" not in link["href"]
         ]
-        img_links = [lnk for lnk in img_links if "4500" not in lnk]
+
         return img_links
 
     def __get_img_time(self):
         """Gets the time file"""
-        image_time = requests.get(self.base_url + "image_times").text[9:25]
+        image_time = requests.get(urllib.parse.urljoin(self.base_url, "image_times")).text[9:25]
         with open(self.params.time_path(), "w") as fp:
             fp.write(image_time)

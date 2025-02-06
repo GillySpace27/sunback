@@ -197,8 +197,7 @@ class RHEProcessor(Processor):
 
         if self.params.rhe_targets() is not None and len(self.params.rhe_targets()):
             self.in_name = self.params.rhe_targets().pop(0)
-
-        # print("Selected Frame: {}".format(self.in_name))
+        logger.debug("Selected Frame: {}".format(self.in_name))
 
     def setup(self):
         self.load()

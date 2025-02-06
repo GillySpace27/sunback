@@ -145,3 +145,4 @@ settings.json
 rainbow/*.png
 .git-backup/*
 src/run/run_server_lingon.timestamp
+*.pdf

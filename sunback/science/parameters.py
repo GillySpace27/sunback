@@ -37,20 +37,22 @@ class Parameters:
         self._rhe_targets = []
         self.multi_pool = None
         self.do_parallel = True
-        self.master_frame_list_newest = [
-            "rhef",
-            "msgn",
-            "rhe",
-            "lev1p5",
-            # "t_int",
-            "lev1p0",
-            "compressed_image",
-            "primary",
-            "",
-        ]
-        self.master_frame_list_oldest = [
-            x for x in reversed(self.master_frame_list_newest)
-        ]
+        self.master_frame_list_newest = None
+        # = [
+        #     "rhef",
+        #     "msgn",
+        #     "rhe",
+        #     "lev1p5",
+        #     # "t_int",
+        #     "lev1p0",
+        #     "compressed_image",
+        #     "primary",
+        #     "",
+        # ]
+        self.master_frame_list_oldest = None
+        # [
+        #     x for x in reversed(self.master_frame_list_newest)
+        # ]
         self.short_circuit = False
         self.durList = []
         self.aftereffects_in_name = "rhe"
@@ -146,6 +148,7 @@ class Parameters:
         self._do_one = False
         self._something_changed = False
         self._allow_muxing = True
+        self.rgb_frame = None
 
         self._stop_after_one = False
 
@@ -196,15 +199,15 @@ class Parameters:
         # self.multi_pool = self.init_pool(self.n_pool)
 
         self._msgn_targets = []  # ['primary', 'rhe(primary)']
-        self._qrn_targets = []  # ['primary', 'rhe(primary)']
+        self._nrgf_targets = []  # ['primary', 'rhe(primary)']
 
         # self.set_default_values()
 
-    def qrn_targets(self, _targets=None):
+    def nrgf_targets(self, _targets=None):
         if _targets is not None:
             assert type(_targets) in [tuple, list]
-            self._qrn_targets = _targets
-        return self._qrn_targets
+            self._nrgf_targets = _targets
+        return self._nrgf_targets
 
     def msgn_targets(self, _targets=None):
         if _targets is not None:
@@ -678,6 +681,7 @@ class Parameters:
 
         # Fits Folders
         if not self.do_single:
+        # if True:
             self.fits_directory(abspath(join(self.imgs_top_directory(), "fits")))
         else:
             self.fits_directory(abspath(join(self.imgs_top_directory())))

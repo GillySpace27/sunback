@@ -22,6 +22,7 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
     finished_verb = "Written to Disk"
     out_name = "rgb"
     can_do_parallel = True
+    save_to_fits = False
 
     def __init__(
         self,
@@ -34,6 +35,8 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
     ):
         super().__init__(params, quick)
         self.params = params
+        self.params.do_upsilon = False
+        self.rgb_frame = None or self.params.rgb_frame
         self.rgb_channels = [rgb1, rgb2, rgb3]
         self.good_paths = {}
         self.missing_files = []
@@ -66,7 +69,8 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
             fits_files = sorted(fits_dir.glob("AIAsynoptic*.fits"))
             for file_path in fits_files:
                 wavelength = file_path.stem.split("AIAsynoptic")[1]
-                if self.is_valid_fits_file(file_path, "up_rhef"):
+                png_frame_name = self.params.png_frame_name[0] if isinstance(self.params.png_frame_name, list) else self.params.png_frame_name
+                if self.is_valid_fits_file(file_path, png_frame_name):
                     logging.debug(f"Valid FITS file: {file_path}")
                     self.good_paths[wavelength] = str(file_path)
                 else:
@@ -76,22 +80,42 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
         else:
             logging.warning(f"Directory does not exist: {fits_dir}")
 
-    def is_valid_fits_file(self, file_path, hdu_name):
-        """Check if the FITS file contains the specified HDU."""
+
+    def is_valid_fits_file(self, file_path, hdu_desired_name):
+        """Check if the FITS file contains the specified HDU with the correct properties.
+
+        Args:
+            file_path (Path or str): Full path to the FITS file to be checked.
+            hdu_desired_name (str): The name of the desired HDU.
+
+        Returns:
+            bool: True if the HDU exists in the FITS file and has correct properties,
+                False otherwise or if any error occurs.
+        """
+        # Normalize names to lower-case for case-insensitive comparison
+        hdu_desired_name = hdu_desired_name.casefold()
+        # Discard any additional info in `hdu_desired_name` to extract the clean frame name
+        cleaned_hdu_desired_name = hdu_desired_name.split("(")[0]
         try:
-            with fits.open(file_path) as hdul:
-                for hdu in hdul:
-                    if hdu.name.casefold() == hdu_name.casefold():
-                        if (
-                            hdu.data is None
-                            or hdu.data.size == 0
-                            or hdu.data.shape != (1024, 1024)
-                        ):
-                            logging.warning(
-                                f"HDU '{hdu_name}' in file {file_path} is empty or has an unexpected shape."
-                            )
-                            return False
-                        return True
+            # Open the FITS file safely using a context manager
+                with fits.open(file_path) as hdul:
+                # Iterate over HDUs in the FITS file
+                    for hdu in hdul:
+                        # Obtain the name of the current HDU, normalized to lower-case
+                        this_hdu_name = hdu.name.casefold()
+                        cleaned_this_hdu_name = this_hdu_name.split("(")[0]
+
+                        if (cleaned_this_hdu_name == cleaned_hdu_desired_name):
+                            if (
+                                hdu.data is None
+                                or hdu.data.size == 0
+                                or hdu.data.shape != (1024, 1024)
+                            ):
+                                logging.warning(
+                                    f"HDU '{this_hdu_name}' in file {file_path} is empty or has an unexpected shape."
+                                )
+                                return False
+                            return True
         except Exception as e:
             logging.error(f"Error checking FITS file {file_path}: {e}")
         return False
@@ -102,11 +126,11 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
             Path(self.params.base_directory()).parent / "rainbow" / "imgs" / "mod"
         )
         output_folder.mkdir(parents=True, exist_ok=True)
-
+        self.params.rgb_frame = self.params.rgb_frame or "rhef(lev1p5)"
         try:
             loaded_data = {}
             for wavelength, file_path in self.good_paths.items():
-                loaded_data[wavelength] = self.load_fits_data(file_path)
+                loaded_data[wavelength] = self.load_fits_data(file_path, self.params.rgb_frame)
 
             if any(data is None for data in loaded_data.values()):
                 logging.warning(
@@ -174,7 +198,7 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
         else:
             logging.debug("No missing files were detected.")
 
-    def load_fits_data(self, file_path, hdu_name_or_index="up_rhef"):
+    def load_fits_data(self, file_path, hdu_name_or_index="rhef"):
         """Load data from a specified HDU of a FITS file by name or index."""
         logging.debug(f"Loading FITS file: {file_path}")
         if not os.path.exists(file_path):

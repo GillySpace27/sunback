@@ -43,15 +43,16 @@ def run_server_github(delay=60, debug=True, do_one="rainbow", stop=True):
     p.get_fits = True
     p.multiplot_all = False
     p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
+    p.do_vignette = True
+    p.do_upsilon = True
+    p.do_upsilon_together = False
     p.do_prep = False
 
-    p.do_standard_RHE()
-    # p.rhe_targets(["AIA_PREP"])
-    p.png_frame_name = ["up_rhef"]  # ['rhe(lev1p5)']
-    p.label_imgs = True
-    p.do_upsilon = True
-
-    # This is the right combination of processors for the server
+    # p.do_standard_RHE()
+    # p.msgn_targets(["lev1p5"])
+    p.rhe_targets(["lev1p5"])
+    p.png_frame_name = ["ups(rhef)"]  # ['rhe(lev1p5)']
+    p.rgb_frame = "rhef(lev1p5)"
     if True:
         p.fetchers(WebFitsFetcher,)  # Gets Fits from JSOC Most Recent
         # # p.processors([AIA_PREP_Processor],)
@@ -59,8 +60,8 @@ def run_server_github(delay=60, debug=True, do_one="rainbow", stop=True):
     #     # p.processors([NRGFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
         p.processors([UpsilonProcessor], rp=True)
     #     # # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
-        p.putters([RainbowRGBImageProcessor], rp=True)
+    p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
+    p.putters([RainbowRGBImageProcessor], rp=True)
     p.putters([AwsPutter])  # Uploads the PNGs to AWS
     # p.putters([DesktopPutter])  # Sets the PNGs to the Desktop Background
 

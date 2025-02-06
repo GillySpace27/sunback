@@ -24,7 +24,7 @@ from sunback.utils.stretch_intensity_module import upsilon_stretch
 
 class ImageProcessor(Processor):
     filt_name = "Image Writer"
-    out_name = ""
+    out_name = None
     wave = None
     # progress_stem = "    Exporting Pngs {}"
     progress_text = ""
@@ -180,7 +180,7 @@ class ImageProcessor(Processor):
             self.params.cmap = cm.gray
 
     def image_is_plottable(self, frame_name):
-        return True
+        # return True
         return self.doesnt_have_wrong_string(frame_name)
         return self.does_have_right_string(frame_name)
 
@@ -199,21 +199,22 @@ class ImageProcessor(Processor):
 
     def doesnt_have_wrong_string(self, frame_name, wrong_string=None):
         bads = wrong_string or [
+            "primary",
+            # "compressed",
+            "gamma",
             "lev1p0",
-            "t_int(lev1p0)",
-            "t_int(primary)",
+            "final",
+            "none",
+            "img",
             "lev1p5(lev1p0)",
         ]
-        if True:
-            bads.append("primary")
-            bads.append("lev1p5")
 
         if self.params.multiplot_all:
             bads = []
 
         for nam in bads:
             # if nam in frame_name:
-            if nam.casefold() == frame_name:
+            if nam.casefold() in frame_name.casefold():
                 return False
         return True
 
@@ -430,7 +431,7 @@ class ImageProcessor(Processor):
             elif "msgn(rhe)" in frame_name:
                 frame = self.maxima_scrunch(frame, num=0.95, num2=0.1)
                 # frame *= 1.05
-            elif "lev1p5" in frame_name:
+            elif "comp" in frame_name:
                 if self.params.current_wave() in ["94", "0094", "0131", "131"]:
                     frame = np.sqrt(np.abs(frame))
                     frame = self.maxima_scrunch(
@@ -463,7 +464,7 @@ class ImageProcessor(Processor):
         if not dont_vminmax:
             # frame[frame > 1.0] = 1.0
             # frame[frame < 0.0] = 0.0
-            # frame = np.clip(frame, 0.05, 0.99)
+            frame = np.clip(frame, 0.05, 0.99)
             pass
 
         self.dont_vminmax = dont_vminmax

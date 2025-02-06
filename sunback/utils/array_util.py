@@ -8,7 +8,7 @@ import numpy as np
 def reduce_array(frame, center, desired, func=np.nansum):
     # Reduce the size of the array
     resolution = frame.shape[0]
-    center = center + 0
+    center = np.asarray(center) + 0
     reduce_amount = 1
     if resolution > desired:
         reduce_amount = int(resolution / desired)

@@ -4,7 +4,7 @@ from sunback.run import SingleRunner
 from sunback.science.parameters import Parameters
 from sunback.putter.DesktopPutter import DesktopPutter
 from sunback.putter.AwsPutter import AwsPutter
-from sunback.processor.SunPyProcessor import RHEFProcessor
+from sunback.processor.SunPyProcessor import RHEFProcessor, MSGNProcessor, UpsilonProcessor
 from sunback.fetcher.WebFitsFetcher import WebFitsFetcher
 from sunback.processor.ImageProcessorCV import ImageProcessorCV
 from sunback.processor.CompositeRainbowImageProcessor import RainbowRGBImageProcessor
@@ -42,19 +42,24 @@ def run_server_lingon(delay=60, debug=False, do_one="rainbow", stop=True):
     p.get_fits = True
     p.multiplot_all = False
     p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
-    p.upsilon = None
+    p.do_vignette = True
+    p.do_upsilon = True
+    p.do_upsilon_together = False
     p.do_prep = False
 
-    p.do_standard_RHE()
-    p.png_frame_name = ["RHEF"]  # ['rhe(lev1p5)']
-
+    # p.do_standard_RHE()
+    # p.msgn_targets(["lev1p5"])
+    p.rhe_targets(["lev1p5"])
+    p.png_frame_name = ["ups(rhef)"]  # ['rhe(lev1p5)']
+    p.rgb_frame = "rhef(lev1p5)"
     # This is the right combination of processors for the server
     if True:
         p.fetchers(
             WebFitsFetcher,
         )  # Gets Fits from JSOC Most Recent
-        p.processors([RHEFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
         # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        p.processors([RHEFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
+        p.processors([UpsilonProcessor], rp=True)  # Applies the Sunpy Radial Filtering
         p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
     p.putters(
         [RainbowRGBImageProcessor], rp=True

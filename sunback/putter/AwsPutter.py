@@ -36,7 +36,7 @@ class AwsPutter(Putter):
 
     def __init__(self, params=None, quick=False, rp=None, in_name=None):
         super().__init__(params, quick, rp, in_name)
-
+        self.ii = 0
         self.pbar = None
         self.to_upload = None
 
@@ -47,8 +47,8 @@ class AwsPutter(Putter):
         print(" V Uploading PNGs to {}...".format(bucket), flush=True)
         # sleep(0.1)
         self.empty_the_bucket()
-        self.__save_times()
         self.__upload_files()
+        self.__save_times()
 
 
 
@@ -121,7 +121,7 @@ class AwsPutter(Putter):
         path2 = path.replace(".txt", "_readable.txt")
 
         # Read in the Input
-        frame, wave, t_rec, center, int_time, nm = self.load_this_fits_frame(self.params.local_fits_paths()[0], self.params.master_frame_list_newest)
+        frame, wave, t_rec, center, int_time, nm = self.load_this_fits_frame(self.params.local_fits_paths()[0], -1)
 
         # Write the raw output
         # shortened = t_rec.split('.')[0]

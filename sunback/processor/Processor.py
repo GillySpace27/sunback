@@ -74,7 +74,7 @@ class Processor:
     raw_image = None
     n_fits = None
     n_imgs = None
-    ii = 0
+    ii = None
     cmap = "plasma"
     # all_wavelengths = ['0211', '0304', '0131', '0335']
 
@@ -164,8 +164,7 @@ class Processor:
         # Optionally, initialize a counter for fixed FITS files
         self.fixed_fits_count = 0
         self.init_upsilon_array()
-        # self.print_once = True
-        # self.tic()
+
         if self.params:
             self.run_type_str = "\\item  {}".format(self.this_file_name, self.run_type)
             self.paper_out.append(self.run_type_str)
@@ -231,8 +230,7 @@ class Processor:
         """Determine which frames exist in a given fits file"""
         with fits.open(fits_path, cache=False, reprocess_mode="update") as hdul:
             self.hdu_name_list = self.list_hdus(hdul)
-        self.good_frames = [x for x in self.hdu_name_list if self.image_is_plottable(x)]
-        return self.good_frames
+        return self.hdu_name_list
 
     def load(
         self,
@@ -801,7 +799,9 @@ class Processor:
         if not self.do_print_success:
             return
         try:
-            n_success = self.ii + 1 - self.skipped
+            if self.ii is None:
+                self.ii = self.params.ii
+            n_success = self.ii - self.skipped
             if n_success + self.skipped >= 1:
                 if n_success <= 0:
                     print(
@@ -898,7 +898,8 @@ class Processor:
         try:
             output = self.do_fits_function(fits_path, self.in_name)
             # output=None
-            self.ii += 1
+            if self.ii is None:
+                self.ii = 1
         except np.linalg.LinAlgError as e:
             print("Legacy_QRN_Kernal one fits :: ", e, "\n")
             output = 0.5 * np.ones_like(self.params.raw_image)
@@ -1084,8 +1085,8 @@ class Processor:
         self.make_radius()
         self.find_limb_radius()
         self.make_vignette(vignette_radius)
-        if True:  # type(self) is QRNProcessor:
-            self.init_bin_array()
+        # if True:  # type(self) is QRNProcessor:
+        #     self.init_bin_array()
 
     def double_smash(self, raw_arr, log=True, prerun=True):
         if prerun:
@@ -1100,7 +1101,7 @@ class Processor:
         flat_arr_norm[~np.isfinite(flat_arr)] = np.nan
         return flat_arr_norm
 
-    def resize_image(self, img=None, want_rez=1024, prnt=True):
+    def resize_image(self, img=None, want_rez=1024, prnt=True, func=np.nansum):
         # if prnt: print("   * Shrinking Rez to {}...".format(want_rez))
         # if self.params.second_shape == want_rez:
         #     return self.params.raw_image
@@ -1110,10 +1111,10 @@ class Processor:
         from sunback.utils.array_util import reduce_array
 
         self.params.raw_image, self.params.center, self.shrink_F = reduce_array(
-            self.params.raw_image, self.params.center, want_rez
+            self.params.raw_image, self.params.center, want_rez, func=func
         )
         self.params.modified_image, _, _ = reduce_array(
-            self.params.modified_image, self.params.center, want_rez
+            self.params.modified_image, self.params.center, want_rez, func=func
         )
         self.params.rez = want_rez
 
@@ -1126,7 +1127,7 @@ class Processor:
         # self.make_radius()
         # self.make_vignette()
         self.smol = True
-        return self.params.raw_image
+        return self.params.modified_image
 
     def ensure_odd(self, number):
         number = int(np.round(number))
@@ -1300,7 +1301,7 @@ class Processor:
         else:
             params_list = np.arange(self.n_inds)
         if self.out_name:
-            skip = 1 if "RHE" in self.out_name else 15 if fast else 1
+            skip = 1 if "RHE" in self.out_name else 3 if fast else 1
         else:
             skip = 1
 
@@ -1497,8 +1498,8 @@ class Processor:
         self, binBoxSize=100, image=None
     ):  # equally spaced points
         # Get an even number of items vs radius
-        binRad = []
-        binInts = []
+        # binRad = []
+        # binInts = []
 
         self.do_binning(use_im=image, fast=True, binBoxSize=binBoxSize)
         return self.equal_radius_array, self.equal_intensity_array
@@ -1523,7 +1524,7 @@ class Processor:
         # return binRad, binInts
 
     def do_compare_histogramplot(
-        self, frames=None, names=None, even_points=50, use_cmap=False
+        self, frames=None, names=None, even_points=300, use_cmap=False
     ):
         # self.prep_histograms()
         frames = (
@@ -1554,20 +1555,19 @@ class Processor:
             t_rec = self.header["T_REC"]
         except KeyError as e:
             t_rec = self.header["T_OBS"]
-        fig.suptitle("{}  at  {}".format(self.wave, t_rec))
+        fig.suptitle("{}$\AA$  at  {}".format(self.wave, t_rec), fontsize=14)
 
         # import copy
-        # frames2 = copy.deepcopy(frames)
         self.plot_histogram_images(top_axes, frames, names)
         self.plot_histogram_points(bot_axes, frames, names, even_points, axes2=mid_axes)
 
-        mid_axes[0].legend(frameon=False, fontsize=7)
-        bot_axes[0].set_ylabel("Intensity")
-        bot_axes[1].legend(frameon=False, fontsize=7)
+        mid_axes[0].legend(frameon=False, fontsize=10)
+        bot_axes[0].set_ylabel("Intensity", fontsize=14)
+        bot_axes[1].legend(frameon=False, fontsize=10)
         fig.set_size_inches((16, 8))
         # plt.tight_layout()
         plt.subplots_adjust(
-            top=0.92, bottom=0.073, left=0.04, right=0.985, hspace=0.218, wspace=0.1
+            top=0.92, bottom=0.073, left=0.05, right=0.985, hspace=0.218, wspace=0.1
         )
         # print("HELLO WORLD")
         # plt.savefig(
@@ -1589,9 +1589,9 @@ class Processor:
             )
         if not os.path.exists(os.path.dirname(pth)):
             os.makedirs(os.path.dirname(pth))
-        print(pth)
-        plt.savefig(pth, dpi=100)
-        plt.savefig(pth.replace(".pdf", ".png"), dpi=100)
+        plt.savefig(pth, dpi=300)
+        plt.savefig(pth.replace(".pdf", ".png"), dpi=300)
+        print(pth.replace(".pdf", ".png"))
         plt.close(fig)
         # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.pdf", dpi=400)
         # plt.show()
@@ -1647,7 +1647,7 @@ class Processor:
         )  # frames2 = copy.deepcopy(frames)
 
         self.plot_histogram_images(top_axes, fram, name)
-        self.plot_histogram_points(bot_axes, fram, name, even_points, axes2=None)
+        # self.plot_histogram_points(bot_axes, fram, name, even_points, axes2=None)
 
         # mid_axes[0].legend(frameon=False)
         bot_axes[0].set_ylabel("Pixel Value")
@@ -1686,7 +1686,7 @@ class Processor:
         # asdf = 1
 
     def do_compare_histogramplot_images(
-        self, frames=None, names=None, even_points=150, use_cmap=False
+        self, frames=None, names=None, even_points=200, use_cmap=False
     ):
         has_rhe = np.where(["rhe" in nam for nam in names])[0]
         framesq = [frames[int(x)] for x in has_rhe]
@@ -1761,7 +1761,7 @@ class Processor:
 
     def plot_histogram_images(self, axes, frames, names, donorm=True, dosmash=True):
         ## Plot Images
-        print(" *    Plotting Images")
+        print(" *    Plotting HistImages")
         for ax, frame, nam in zip(axes, frames, names):
             frame = self.histNorm(frame, donorm=donorm, dosmash=dosmash, name=nam)
             self.plot_one_histimage(ax, frame, title=nam)
@@ -1771,16 +1771,17 @@ class Processor:
     ):
         # Plot the Histograms
         print(" *    Plotting Histograms")
+        # return
         if axes2 is None:
             axes2 = [None] * len(axes)
         for ax, ax2, frame, nam in zip(axes, axes2, frames, names):
-            frame = self.histNorm(frame, donorm=donorm, dosmash=dosmash, name=nam)
+            frame2 = self.histNorm(frame, donorm=donorm, dosmash=dosmash, name=nam)
             # ax.set_title(nam)
-            self.plot_one_histogram(ax, ax2, frame, nam, even_points=even_points)
+            self.plot_one_histogram(ax, ax2, frame2, nam, even_points=even_points)
             # return
 
     def histNorm(
-        self, frame, hi=99.0, lo=0.5, donorm=True, dosmash=True, name="default"
+        self, frame, hi=99.5, lo=0.5, donorm=True, dosmash=True, name="default"
     ):
         skiplist = ["raw"]
         if name is not None:
@@ -1806,14 +1807,15 @@ class Processor:
 
         ax.imshow(frame, origin="lower", cmap=self.cmap, vmin=0, vmax=1)
         if title is not None:
-            ax.set_title(title)
+            ax.set_title(title, fontsize=16)
 
         ax.set_facecolor("k")
 
-    def plot_one_histogram(self, ax, ax2, frame, title=None, even_points=100):
-        absiss, frame = self.get_even_points_in_radius(even_points, frame)
-        self.plot_frame_hist(ax, ax2, frame, title, hist_absiss=absiss)
+    def plot_one_histogram(self, ax, ax2, frame, title=None, even_points=200):
+        absiss, frame2 = self.get_even_points_in_radius(even_points, frame)
+        self.plot_frame_hist(ax, ax2, frame2, title, hist_absiss=absiss)
         # ax.set_title(title)
+        pass
 
     def plot_frame_hist(
         self, ax1, ax2, use_image, title="Default", blk_alpha=0.2, hist_absiss=None
@@ -1849,26 +1851,26 @@ class Processor:
 
         # Formatting the Plot
         vloc = self.n2r(self.params.rez / 2)
-        do_legend = "rhe(lev1p5)" in title
+        do_legend = False #"gamma" in title
 
         # ax1.set_title(title)
         use_axes = (ax1, ax2) if ax2 is not None else [ax1]
         for ax in use_axes:
             ax.axhline(0, c="lightgrey", ls="-")
             ax.axhline(1, c="lightgrey", ls="-")
-            ax.axvline(1, c="grey", label="Solar Limb" if do_legend else None)
+            ax.axvline(1, c="blue", zorder=-100, label="Solar Limb" if do_legend else None)
             ax.axvline(
-                vloc, c="grey", ls=":", label="Detector Edge" if do_legend else None
+                vloc, c="blue", zorder=-100, ls="--", label="Detector Edge" if do_legend else None
             )
             ax.axvline(
                 self.vig_radius_rr,
-                c="lightgrey",
+                c="blue", zorder=-100,
                 ls=":",
                 label="Optical Edge" if do_legend else None,
             )
             ax.set_xlim((-0.05, 1.9))
         ax1.set_ylim((-0.3, 1.5))
-        ax1.set_xlabel("Distance from Sun Center")
+        ax1.figure.supxlabel("Distance from Sun Center", fontsize=14)
         # plt.show(block=True)
 
     def prep_histograms(self):
@@ -1964,7 +1966,8 @@ class Processor:
     ):
         """Save a fits file to disk"""
         # print(f"\t\tSaving {out_name} to Fits File...", end="")
-
+        if not self.save_to_fits:
+            return
         # Check if the file exists
         file_exists = os.path.exists(fits_path)
 
@@ -2402,7 +2405,7 @@ class Processor:
                     last_hdul_frame = hdul[hdu.name]
                 else:
                     last_hdul_frame = hdul[-1]  # Fall back to using an index
-                last_hdul_frame.header["DRMS_ID"]
+                # last_hdul_frame.header["DRMS_ID"]
                 self.header = last_hdul_frame.header
                 wave = last_hdul_frame.header["WAVELNTH"]
                 t_rec = last_hdul_frame.header["T_OBS"]
@@ -2412,7 +2415,7 @@ class Processor:
                 ]
                 int_time = last_hdul_frame.header["EXPTIME"]
                 found_limb_radius = last_hdul_frame.header["R_SUN"]
-                self.params.bunit = last_hdul_frame.header["BUNIT"]
+                # self.params.bunit = last_hdul_frame.header["BUNIT"]
                 while found_limb_radius > last_hdul_frame.header["NAXIS1"]:
                     found_limb_radius /= 4.0
                 break
@@ -2862,7 +2865,7 @@ class Processor:
         # Extract the frame name and remove parentheses if present
         return self.frame_name.split("(")[0] if self.frame_name else None
 
-    def get_field_hdu(self, hdul, frame_name=None):
+    def get_field_hdu(self, hdul, frame_name=None, exact=True):
         """
         Retrieve a specific Header Data Unit (HDU) from a FITS file.
 
@@ -2882,7 +2885,7 @@ class Processor:
             self.frame_name = frame_name
         cleaned_frame_name = self._get_cleaned_frame_name()
 
-        special_names = ["primary", "compressed_image", "lev1p5"]
+        special_names = ["compressed_image", "lev1p5"]
         found_hdu = None
         found_idx = -1
 
@@ -2905,7 +2908,8 @@ class Processor:
                         )
                     )
                 # print(f"{hdu.name =}")
-                return hdu, hdu.name, idx
+                hdu2 = self.deepcopy_hdu(hdu)
+                return hdu2, cleaned_hdu_name, idx
 
             # Track the last HDU matching special names
             if hduname in special_names or cleaned_hdu_name in special_names:
@@ -2913,13 +2917,29 @@ class Processor:
                 found_idx = idx
 
         # Return the last matching special name HDU if found
-        if found_hdu is not None:
+        if found_hdu is not None and exact is False:
             return found_hdu, found_hdu.name, found_idx
+
+
+        if frame_name == "lev1p5":
+            return self.get_field_hdu(hdul, "compressed_image")
 
         # Raise an error if no appropriate HDU was found
         raise FileNotFoundError(
             "The specified HDU '{}' was not found.".format(self.frame_name)
         )
+
+    def deepcopy_hdu(self, hdu):
+        import numpy as np
+        from astropy.io import fits
+
+        # Ensure the copy of the data is independent
+        data_copy = np.array(hdu.data, copy=True)  # Deep copy of the image array
+        header_copy = hdu.header.copy()  # Copy the header separately
+
+        # Create a new ImageHDU with the copied data and header
+        hdu_copy = fits.ImageHDU(data=data_copy, header=header_copy)
+        return hdu_copy
 
     def open_fits_hdul(self, hdul, quiet=True, frame_name=None, peek=False):
         """
@@ -3280,7 +3300,7 @@ class Processor:
 
     def vignette(self, frame=None):
         """Truncate the in_object above a certain radis"""
-        if self.vignette_mask is None:
+        if self.vignette_mask is None or self.params.do_vignette is False:
             return frame
 
         if self.radius is None:
@@ -3378,23 +3398,16 @@ class Processor:
         use[:iii] = val
         return use
 
-    def apply_upsilon(self, frame, frame_name, do=True, wave=None):
+    def apply_upsilon(self, frame, frame_name, wave=None, do=True):
         from sunback.utils.stretch_intensity_module import upsilon_stretch
         if do and "rhef" in frame_name.casefold():
             aL, aH = self.get_alphas(wave=wave)
             frame = upsilon_stretch(frame, upsilon=aL, upsilon_high=aH)
-            # frame_name = 'UP_' + frame_name
+            if "up" not in frame_name.casefold():
+                frame_name = 'up_' + frame_name
         return frame, frame_name
 
     def init_upsilon_array(self):
-        if self.image_data is None:
-            name = "None"
-        else:
-            name = self.image_data[0]
-
-        if name is None or "None" in name:
-            self.params.upsilon_low, self.params.upsilon_high = 0.8, 0.4
-            return self.params.upsilon_low, self.params.upsilon_high
 
         wave_list = [
             {"wave": "0094", "aL": 1.0, "aH": 0.4},
@@ -3407,11 +3420,12 @@ class Processor:
             {"wave": "1600", "aL": 0.8, "aH": 0.4},
             {"wave": "1700", "aL": 0.8, "aH": 0.4},
             {"wave": "jpeg", "aL": 0.8, "aH": 0.4},
+            {"wave": "None", "aL": 0.8, "aH": 0.4},
         ]
-
         self.dictdict = {}
         for wv in wave_list:
             self.dictdict[wv["wave"]] = wv
+
 
     def get_alphas(self, wave=None):
         if self.dictdict is None:
@@ -3420,66 +3434,8 @@ class Processor:
         self.wave = wave or self.params.current_wave()
         if self.wave is None:
             self.wave = self.params.current_wave(self.image_data[0])
-        # else:
-        #     self.wave = self.params.current_wave(wave)
         wave_str = "{:04}".format(int(self.wave))
         # wave = str(wave)
         self.params.upsilon_low = self.dictdict[wave_str]["aL"]
         self.params.upsilon_high = self.dictdict[wave_str]["aH"]
         return self.params.upsilon_low, self.params.upsilon_high
-
-        # fail_count = 0
-        # img_paths = self.params.local_imgs_paths()
-        # for ii, img_path in enumerate(tqdm(img_paths, desc="  ")):
-        #     try:
-        #         self.modify_one_img(img_path, self.do_fits_function)
-        #     except Exception as e:
-        #         print(e)
-        #         fail_count += 1
-        #     self.ii = ii
-        # print("    Success! {} Files Processed\n".format(self.ii+1))
-
-    # def modify_one_img(self, img_path, function):
-    #     in_object = function(img_path, self.in_field).get()
-    #     # save_frame_to_fits_file(img_path, in_object, get_field=self.out_name)
-    #     return in_object
-
-
-# def process_fits(self, params=None):
-#     if params is not None:
-#         self.params = params
-#         load_fits_paths(self.params)
-#
-#     print(self.name+"...", flush=True)
-#     self.modify_fits_series()
-#     print("    Success! {} Files Filtered\n".format(self.ii+1))
-
-# def modify_fits_series(self):
-#     """Processes the fits series"""
-#     for ii, img_path in enumerate(tqdm(self.params.local_fits_paths(), desc="  ")):
-#         try:
-#             in_object = self.modify_fits(img_path, self.in_field)
-#         except Exception as e:
-#             print(e)
-#         self.ii = ii
-
-# def modify_fits(self, img_path, function, in_field=None, out_name=None):
-#     if in_field: self.in_field = in_field
-#     if out_name: self.out_name = out_name
-#     in_object = function(img_path, self.in_field).get()
-#     save_frame_to_fits_file(img_path, in_object, get_field=self.out_name)
-#     return in_object
-
-# def modify_one_fits(self, img_path, function, in_field=None, out_name=None):
-#     raise NotImplementedError()
-
-
-# def build_paths(self, wave):
-#     self.local_wave_directory = join(self.params.imgs_top_directory(), wave)
-#     self.image_folder = join(self.local_wave_directory, 'png')
-#     self.movie_folder = abspath(join(self.params.imgs_top_directory(), "movies\\"))
-#     self.video_name_stem = join(self.movie_folder, '{}_{}_movie{}'.format(wave, strftime('%m%d_%H%M'), '{}'))
-#     # print(self.video_name_stem)
-#     makedirs(self.movie_folder, exist_ok=True)
-
-# images = [img for img in listdir(self.image_folder) if img.endswith(".png")] # and self.check_valid_png(img)]

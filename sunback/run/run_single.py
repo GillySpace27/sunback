@@ -14,6 +14,7 @@ from sunback.science.parameters import Parameters
 from sunback.processor.SunPyProcessor import (
     RHEFProcessor,
     SunPyProcessor,
+    UpsilonProcessor,
     AIA_PREP_Processor,
     NRGFProcessor,
     FNRGFProcessor,
@@ -21,7 +22,7 @@ from sunback.processor.SunPyProcessor import (
     MSGNProcessor,
 )
 from sunback.processor.ScienceProcessor import ScienceProcessor
-from sunback.processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
+# from sunback.processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
 from sunback.processor.RHTProcessor import RHTProcessor
 # from src.processor.RHEProcessor import RHEProcessor
 
@@ -95,7 +96,7 @@ def run_single(
         p.processors(
             [MSGNProcessor, RHEFProcessor], rp=True
         )  # Applies the Sunpy Multiscale Gausian Norm
-        p.processors([RHEFProcessor], rp=True)  # Applies the RHE Filter
+        p.processors([RHEFProcessor, UpsilonProcessor], rp=True)  # Applies the RHE Filter
         # p.processors([ImageProcessorCV])
 
     p.aftereffects_in_name = [
@@ -108,9 +109,9 @@ def run_single(
         # p.processors([RHTProcessor],            rp="redo")  # Applies the Rolling Hough Transform+
     use_putters = True or master
     if use_putters:
-        p.putters(MultiImageProcessorCv, rp=True)  # Makes the PNGs from Fits
+        # p.putters([MultiImageProcessorCv], rp=True)  # Makes the PNGs from Fits
         # p.putters(ScienceProcessor,            rp=True)  # Makes the PNGs from Fits
-        p.putters(MultiHistogramProcessorCv, rp=True)  # Makes the PNGs from Fits
+        p.putters([MultiHistogramProcessorCv], rp=True)  # Makes the PNGs from Fits
 
     # Run the Code
     runner = SingleRunner(p)

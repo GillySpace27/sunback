@@ -12,6 +12,16 @@ from sunback.processor.ImageProcessor import ImageProcessor
 from sunback.science.color_tables import aia_color_table
 from sunback.utils.stretch_intensity_module import upsilon_stretch
 
+import logging
+import sys
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
+
 
 class ImageProcessorCV(ImageProcessor):
     filt_name = "CV Image Writer"
@@ -19,13 +29,15 @@ class ImageProcessorCV(ImageProcessor):
     progress_verb = "Writing"
     progress_unit = "Images"
     finished_verb = "Written to Disk"
-    out_name = "final"
+    out_name = None
+    save_to_fits = False
 
     def __init__(self, params=None, quick=False, rp=None):
         super().__init__(params, quick, rp)
         self.frame_name = self.params.png_frame_name
         self.rhe_count = 0
         self.shrink_factor = 1
+        self.save_to_fits = False
 
     def do_fits_function(self, fits_path, in_name=None):
         self.params.double_rhe_flag = False
@@ -38,7 +50,8 @@ class ImageProcessorCV(ImageProcessor):
                 int(self.fits_path.split(".")[0][-4:])
             )
         except Exception as e:
-            print(38, int(self.params.current_wave()))
+            # print(38, int(self.params.current_wave()))
+            pass
             # raise e
 
         try:
@@ -204,8 +217,8 @@ class ImageProcessorCV(ImageProcessor):
         self.make_image(do_small)
 
     def make_image(self, do_small=False):
-        # out = self.frame_touchup(self.frame_name, self.frame + 0)
-        out = self.frame + 0.0
+        out = self.frame_touchup(self.frame_name, self.frame + 0)
+        # out = self.frame + 0.0
         self.params.rbg_image = []
         self.params.rbg_labels = ["hq"]
         self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
@@ -302,6 +315,8 @@ class ImageProcessorCV(ImageProcessor):
             cv2.putText(img, text, (x, y), 1, scale, max3, thickness)
 
         try:
+            if wave == "-":
+                return img
             self.get_alphas(wave=wave)
             aH = self.params.upsilon_high if self.params.do_upsilon else None
             aL = self.params.upsilon_low if self.params.do_upsilon else None
@@ -582,7 +597,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         self.frame_names.append(frame_name)
         self.frames.append(frame)
 
-    def finalize_and_save_plots(self, dpi=200):
+    def finalize_and_save_plots(self, dpi=250):
         inches = 4
         colWid = self.n_cols * inches
         rowWid = self.n_rows * inches
@@ -597,7 +612,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         )
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         self.main_save_path = save_path
-        print(self.save_path)
+        logger.info(self.save_path)
         self.fig.savefig(save_path, dpi=dpi)
         # plt.show(block=True)
         if False:
@@ -673,10 +688,10 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         self.init_frame_from_fits(fits_path)
 
         self.init_radius_array()
-        # self.init_bin_array()
+        self.init_bin_array()
         self.init_statistics()
 
-        self.init_quad_figure()
+        # self.init_quad_figure()
 
         self.collect_frames(fits_path, doBar)
 
@@ -687,52 +702,42 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         return None
 
     def collect_frames(self, fits_path, doBar=False):
-        # with open(fits_path) as fp:
-        # with fits.open(fits_path, cache=False, reprocess_mode="update") as hdul:
-        #     self.hdu_name_list = self.list_hdus(hdul)
-        self.good_frames = self.find_frames_at_path(fits_path)
-
-        # print(self.hdu_name_list)
-        # print(self.good_frames)
+        self.find_frames_at_path(fits_path)
+        logger.info(self.hdu_name_list)
+        self.good_frames = [x for x in self.hdu_name_list if self.image_is_plottable(x)]
+        logger.info(self.good_frames)
 
         self.max_width = np.max([len(x) for x in self.good_frames])
         iterable = tqdm(self.good_frames, desc="") if doBar else self.good_frames
-
         images, names = [], []
         for frame_name in iterable:
-            if "rht" in frame_name or "final" in frame_name:
-                continue
+            frame_name = frame_name.casefold()
             frame, wave1, t_rec1, _, _, mod_name = self.load_this_fits_frame(
                 fits_path, frame_name
             )
             if False:
-                frame = self.resize_image(frame, prnt=False)
+                frame = self.resize_image(frame, prnt=False, func=np.nanmean)
 
-            if "comp" in frame_name:
+            if frame_name == "compressed_image":
                 images.append(frame), names.append("lev1p5")
-                images.append(np.power(frame, 0.65)), names.append("gamma corrected")
-            elif "nrgf" in frame_name:
-                images.insert(2, frame), names.insert(2, frame_name)
-            elif "msgn" in frame_name:
-                images.insert(3, frame), names.insert(3, frame_name)
+                images.append(np.power(frame, 0.65)), names.append("gamma")
+                images.append(np.log10(frame)), names.append("log10")
+            elif "msgn(" in frame_name:
+                images.insert(3, frame), names.insert(3, frame_name.replace("compressed_image", "lev1p5"))
+            elif "compressed_image" in frame_name:
+                frame_name = frame_name.replace("compressed_image", "lev1p5")
+                images.append(frame), names.append(frame_name)
             else:
                 images.append(frame), names.append(frame_name)
 
-            if "rhe" in frame_name:
-                (aL, aH) = self.get_alphas()
-                images.append(upsilon_stretch(frame, aL, aH)),
-                # images.append(frame),
-                names.append(f"up_({frame_name})"),
-
-
-        print(names)
+        logger.info(names)
 
         # self.do_compare_histogramplot_images(images, names)
 
         # self.do_compare_histogramplot_rheonly(
         #     images, names, target_names=["lev1p5", "rhef", "upsilon(rhef)"]
         # )
-        self.do_compare_histogramplot(images, names)
+        self.do_compare_histogramplot(images, names, even_points=150)
 
         # for frame_name in iterable:
 

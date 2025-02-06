@@ -29,7 +29,6 @@ from aiapy.calibrate import register, update_pointing
 
 from sunback.processor.Processor import Processor
 from sunback.processor.ImageProcessor import ImageProcessor
-from sunback.utils.stretch_intensity_module import upsilon_stretch
 
 import warnings
 
@@ -69,7 +68,7 @@ class SunPyProcessor(Processor):
     raw_map = None
 
     # Parse Inputs
-    def __init__(self, params=None, quick=False, rp=None, in_name="LEV1P5"):
+    def __init__(self, params=None, quick=False, rp=None, in_name="compressed_image"):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
         # self.tm = time.time()
@@ -248,7 +247,22 @@ class NRGFProcessor(SunPyProcessor):
     description = "Apply NRGF effets to images"
     progress_verb = "Normalizing"
     finished_verb = "Normalized"
-    out_name = "NRGF"
+    out_name = "NRGF({})"
+
+    def __init__(self, params=None, quick=False, rp=None, in_name="compressed_image"):
+        """Initialize the main class"""
+        super().__init__(params, quick, rp, in_name)
+        self.select_input_frame(in_name)
+        # self.in_name = self.in_name.replace("compressed_image", "levl1p5")
+        self.load(params, quick=quick)
+        self.out_name = self.out_name.format(self.in_name)
+        print(" --- Running NRGF on {} ---".format(self.in_name))
+
+    def select_input_frame(self, in_name):
+        self.in_name = in_name
+        # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
+        if self.params.nrgf_targets() is not None and len(self.params.nrgf_targets()):
+            self.in_name = self.params.nrgf_targets().pop(0)
 
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
@@ -293,7 +307,7 @@ class UpsilonProcessor(SunPyProcessor):
     description = "Apply Upsilon images radially"
     progress_verb = "Normalizing"
     finished_verb = "Normalized"
-    out_name = "UP_{}"
+    out_name = "ups({})"
     can_do_parallel = True
 
     # Parse Inputs
@@ -315,7 +329,7 @@ class UpsilonProcessor(SunPyProcessor):
             upsilon=upsilon,
             progress=False,
             vignette=None,
-            method="none",
+            method="None",
         ).data
         return self.params.modified_image
 
@@ -338,22 +352,38 @@ class RHEFProcessor(SunPyProcessor):
     description = "Apply Radial Histogram Equalization to images"
     progress_verb = "Equalizing"
     finished_verb = "Radially Equalized"
-    out_name = "RHEF"
+    # out_name = "RHEF"
+    out_name = "RHEF({})"
+    in_name = None
     can_do_parallel = True
 
     # Parse Inputs
-    def __init__(self, params=None, quick=False, rp=None, in_name=None):
+    def __init__(self, params=None, quick=False, rp=None, in_name="compressed_image"):
         """Initialize the main class"""
         super().__init__(params, quick, rp, in_name)
+        self.select_input_frame(in_name)
+        # self.in_name = self.in_name.replace("compressed_image", "levl1p5")
+        self.out_name = self.out_name.format(self.in_name)
+        self.load(params, quick=quick, in_name=self.in_name, out_name=self.out_name)
+        print(" --- Running RHEF on {} ---".format(self.in_name))
+        pass
+
+    def select_input_frame(self, in_name):
+        self.in_name = in_name
+        # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
+        if self.in_name is not None and self.params.rhe_targets() is not None and len(self.params.rhe_targets()):
+            self.in_name = self.params.rhe_targets().pop(0)
+            print(f"{self.in_name =}")
 
     def do_work(self):
-        upsilon = None
+        upsilon = self.get_alphas() if self.params.do_upsilon_together else None
+        vignette = 1.51 * u.R_sun if self.params.do_vignette else None
         self.params.modified_image = radial.rhef(
             self.raw_map,
             radial_bin_edges=self.radial_bin_edges,
             upsilon=upsilon,
             progress=False,
-            vignette=1.51 * u.R_sun if self.params.do_vignette else None,
+            vignette=vignette,
             method="scipy",
         ).data
         return self.params.modified_image
@@ -385,14 +415,15 @@ class MSGNProcessor(SunPyProcessor):
     description = "Apply MSGN effets to images"
     progress_verb = "Normalizing"
     finished_verb = "Normalized"
-    out_name = "MSGN"
+    out_name = "msgn({})"
     first = True
 
-    def __init__(self, params=None, quick=False, rp=None, in_name="RHE"):
+    def __init__(self, params=None, quick=False, rp=None, in_name="COMPRESSED_IMAGE"):
         """Initialize the main class"""
         self.load(params, quick=quick)
         self.select_input_frame(in_name)
         super().__init__(params, quick, rp, self.in_name)
+        self.out_name = self.out_name.format(self.in_name)
         print(" --- Running MSGN on {} ---".format(self.in_name))
 
     def select_input_frame(self, in_name):
@@ -400,20 +431,18 @@ class MSGNProcessor(SunPyProcessor):
         # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
         if self.params.msgn_targets() is not None and len(self.params.msgn_targets()):
             self.in_name = self.params.msgn_targets().pop(0)
-        # if MSGNProcessor.first:
-        #     self.in_name = "primary"  #"lev1p5(lev1p0)"
-        # else:
-        #     self.in_name = "qrn(primary)" #"qrn(lev1p5)"
-        #     #TODO make sure this works the same in all versions
+
 
     def do_work(self):
         """Analyze the Image, Normalize it, Plot"""
         import sunkit_image.enhance as enhance
 
-        if np.isnan(self.params.raw_image).any():
-            self.params.raw_image[np.isnan(self.params.raw_image)] = -1.0
-        self.params.modified_image = enhance.mgn(self.params.raw_image)
-        return self.params.modified_image
+        self.raw_image = self.params.raw_image + 0.0
+
+        if np.isnan(self.raw_image).any():
+            self.raw_image[np.isnan(self.params.raw_image)] = -1.0
+        self.modified_image = self.params.modified_image = enhance.mgn(self.raw_image)
+        return self.modified_image
 
     def cleanup(self):
         MSGNProcessor.first = False

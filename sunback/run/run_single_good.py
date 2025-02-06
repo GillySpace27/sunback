@@ -5,16 +5,14 @@ import subprocess
 cwd = os.getcwd()
 os.system(f'export PYTHONPATH={cwd}')
 os.system('echo $PYTHONPATH')
-# result = subprocess.run([f'export PYTHONPATH={cwd}'], capture_output=True, text=True)
-# result = subprocess.run(['echo $PYTHONPATH'], capture_output=True, text=True)
-# exec(f"export )
-# exec(f"echo $PYTHONPATH")
 
 from sunback.science.parameters import Parameters
-from sunback.processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor, RHEFProcessor
+from sunback.processor.SunPyProcessor import SunPyProcessor, AIA_PREP_Processor, NRGFProcessor, FNRGFProcessor, IntEnhanceProcessor, MSGNProcessor, RHEFProcessor, UpsilonProcessor
 from sunback.processor.ScienceProcessor import ScienceProcessor
-from sunback.processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
+# from sunback.processor.QRNProcessor import QRNProcessor, QRNSingleShotProcessor
 from sunback.processor.RHTProcessor import RHTProcessor
+from sunback.fetcher.FidoSynopticFetcher_working import FidoSynopticFetcher
+
 # from sunback.processor.RHEProcessor import RHEProcessor
 # from src.processor.NoiseGateProcessor import NoiseGateProcessor
 from sunback.processor.ImageProcessorCV import ImageProcessorCV, MultiImageProcessorCv, MultiHistogramProcessorCv
@@ -36,7 +34,7 @@ plt.ioff()
 # MC Paper: "2014-11-10T16:00:00"
 
 
-def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20, frames=None):
+def run_single(wave="0193", tstart="2011-08-09T00:00:01", duration_seconds=60*20, frames=None):
     """Download a single frame and time-integrate it, then apply RHE
         :type wave: strings
         :type tstart: string
@@ -44,9 +42,11 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
         :type frames: int
     """
     # Set the Parameters
-    name = "Single_Test2"
+    # os.nice(19)
+    name = "Single_Test23"
     p = default_run_single_params(wave, tstart, duration_seconds, frames, name)
     p.do_vignette = False
+    p.do_upsilon = True
     # p.download_files(False)
     # p.multiplot_all = True
     master = True
@@ -55,25 +55,32 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
     get_images = True and master
     if get_images:
         pass
-        p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
+        # p.fetchers(FidoFetcher,                rp=True)   # Gets the desired file
+        p.fetchers(FidoSynopticFetcher,                rp=True)   # Gets the desired file
         # p.processors([FidoTimeIntProcessor],   rp=True)   # Integrate several frames for S/N
         # p.processors([NoiseGateProcessor],     rp=True)
         # p.processors([AIA_PREP_Processor],     rp=True)   # Do Sunpy Things
 
     # 'rhe(lev1p5)' #"msgn(rhe)" #'all' #['rhe', "msgn(rhe)", "rhe(msgn)"] ## I want to be able to call final, but it is made in the processor that save images, so I have to split it out into the touchup processor.
     p.png_frame_name = ['all']
-    p.msgn_targets(["lev1p5", 'rhe'])
-    p.rhe_targets(["lev1p5", 'msgn(lev1p5)'])  # "lev1p5",
+    p.msgn_targets(["compressed_image", "rhef"])
+    p.nrgf_targets(["compressed_image"])
+    p.rhe_targets(["compressed_image", "msgn"])  # "lev1p5",
     radial_norms = True and master
     if radial_norms:
         pass
-        # p.processors([QRNSingleShotProcessor], rp=True)
-        # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
+        # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        p.processors([NRGFProcessor],            rp=True)  # Applies the RHE Filter
         p.processors([RHEFProcessor],            rp=True)  # Applies the RHE Filter
-        # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        p.processors([UpsilonProcessor],            rp=True)  # Applies the RHE Filter
+        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         # p.processors([RHEFProcessor],            rp=True)  # Applies the RHE Filter
-    p.processors([ImageProcessorCV])
+        # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
+        # p.processors([UpsilonProcessor],            rp=True)  # Applies the RHE Filter
+        # p.processors([RHEFProcessor],            rp=True)  # Applies the RHE Filter
+        # p.processors([UpsilonProcessor],            rp=True)  # Applies the RHE Filter
+        # p.processors([UpsilonProcessor],            rp=True)  # Applies the RHE Filter
+        # p.processors([RHEFProcessor],            rp=True)  # Applies the RHE Filter
 
     p.aftereffects_in_name = ["rhe(lev1p5)",]
     aftereffects = False and master
@@ -81,11 +88,12 @@ def run_single(wave="0171", tstart="2019-01-01T00:00:01", duration_seconds=60*20
         pass
         p.processors([RHTProcessor],            rp='redo')  # Applies the Rolling Hough Transform+
         # p.processors([RHTProcessor],            rp="redo")  # Applies the Rolling Hough Transform+
-    use_putters = True and master
+    use_putters = True or master
     if use_putters:
+        # p.putters([ImageProcessorCV])
         # p.putters(MultiImageProcessorCv,            rp=True)  # Makes the PNGs from Fits
         # p.putters(ScienceProcessor,            rp=True)  # Makes the PNGs from Fits
-        p.putters(MultiHistogramProcessorCv,            rp=True)  # Makes the PNGs from Fits
+        p.putters([MultiHistogramProcessorCv],            rp=True)  # Makes the PNGs from Fits
 
     # Run the Code
     runner = SingleRunner(p)
@@ -132,11 +140,12 @@ def default_run_single_params(wave, tstart, duration_seconds=60, frames=None, na
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
 
-    all_wavelengths = ['0171']  # , '0304', ]  #, '0211', '0193' ]
+    all_wavelengths = ['0193']  # , '0304', ]  #, '0211', '0193' ]
     # all_wavelengths = ['211', '0094', '0335'] ['0094', '0131'] #,
     # all_wavelengths = ['0171', '0304'] #,  "0304"]
 
     for wave_to_use in all_wavelengths:
+
         run_single(wave=wave_to_use)
 
         # import sys
