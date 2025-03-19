@@ -16,6 +16,7 @@ from sunback.utils.time_util import (
 )
 from sunback.fetcher.Fetcher import Fetcher
 from sunback.processor.SunPyProcessor import AIA_PREP_Processor
+from datetime import datetime, timedelta
 
 # Constants
 default_base_url = "http://jsoc1.stanford.edu/data/aia/synoptic/mostrecent/"
@@ -111,7 +112,7 @@ class FidoFetcher(Fetcher):
         else:
             print("\n     No Images Found\n")
 
-    def fido_check_for_fits(self, verb=None):
+    def fido_check_for_fits(self, verb=True):
         """Find the science images"""
         from astropy import units as u
 
@@ -134,22 +135,49 @@ class FidoFetcher(Fetcher):
         time_attr = attrs.Time(self.params.start_time, self.params.end_time)
         wave_attr = attrs.Wavelength(int(self.params.current_wave()) * u.angstrom)
         sample_attr = attrs.Sample(self.params.cadence_minutes())
-        base_attrs = time_attr & wave_attr & sample_attr
 
-        if self.params.do_recent():
+        uv = int(self.params.current_wave()) > 1000
+
+        if self.params.do_recent() and not self.params.do_single:
             inst_attr = attrs.Instrument.aia
 
         else:
+            series = attrs.jsoc.Series.aia_lev1_uv_24s if  uv \
+                else attrs.jsoc.Series.aia_lev1_euv_12s
             inst_attr = (
-                attrs.jsoc.Series.aia_lev1_euv_12s
+                series
                 & attrs.jsoc.Notify(jsoc_email)
                 & attrs.jsoc.Segment.image
             )
 
-        print(".", end=None)
-        fido_search_result = Fido.search(base_attrs, inst_attr)
+        time_attr = attrs.Time(self.params.start_time, self.params.end_time)
+        if self.params.do_single and not self.params.do_one():
+            fido_search_result = Fido.search(wave_attr, inst_attr, time_attr)
+            # if len(fido_search_result) == len(self.params.all_wavelengths):
+            #     self.params.download_files(False)
+        else:
+            fido_search_result = Fido.search(wave_attr, sample_attr, inst_attr, time_attr)
+        found_num = fido_search_result.file_num
+        print(found_num)
+
+        while self.params.do_single and found_num > 1:
+            increment = (found_num - 1) * (2 if uv else 1)
+            # increment the start time which is of the format '2025/03/01 00:34:22' by the right amount to reduce the number of images to 1
+            self.params.start_time = self.single_img_picker(self.params.start_time, increment)
+            time_attr = attrs.Time(self.params.start_time, self.params.end_time)
+            fido_search_result = Fido.search(wave_attr, inst_attr, time_attr)
+            found_num = fido_search_result.file_num
+            print(found_num)
+            # pass
+
         self.fido_search_result = fido_search_result
-        self.fido_search_found_num = self.fido_search_result.file_num
+        self.fido_search_found_num = found_num
+
+    def single_img_picker(self, start_time_str, increment):
+        # Increment the start_time by 12 seconds for each found item past the first
+        start_time_dt = datetime.strptime(start_time_str, '%Y/%m/%d %H:%M:%S')
+        start_time_dt += timedelta(seconds=12 * increment)
+        return start_time_dt.strftime('%Y/%m/%d %H:%M:%S')
 
     def fido_parse_result(self):
         """Examine the search results"""
@@ -209,7 +237,7 @@ class FidoFetcher(Fetcher):
         except AttributeError:
             response = self.fido_search_result
         self.needed_files = response
-        self.num_files_needed = self.needed_files._numfile
+        self.num_files_needed = self.needed_files.file_num
 
     def fido_download_fits_ensured(self, temp=False, hold=False, ensured=True):
         """Download the files from fido_search_result"""
@@ -230,7 +258,7 @@ class FidoFetcher(Fetcher):
             loc = os.path.join(self.params.temp_directory(), "log.txt")
             # with open(loc, mode="w+") as sys.stdout:
             self.verb = False
-            print(" **       Fido Fetching...")
+            print(f" **       Fido Found {self.fido_search_found_num} frames...")
             print(
                 "\r \n   [/~~~~~~~~~~~~~~~~~~~~~~~~~~~FIDO~~~~~~~~~~~~~~~~~~~~~~~~~~~\\]"
             )
@@ -242,10 +270,19 @@ class FidoFetcher(Fetcher):
                 print(e)
                 self.results = []
 
-            self.n_fits = len(self.results)
+            self.n_fits = len(self.results.data)
             if ensured:
                 self.results = self.fido_multi_download()
             self.multi_banner()
+
+            if self.params.do_single:
+                oldpath = self.results.data[0]
+                newdir = os.path.join(os.path.dirname(oldpath))
+                if not os.path.exists(newdir):
+                    os.makedirs(newdir)
+
+                newpath = os.path.join(newdir, self.params.current_wave() + ".fits")
+                os.rename(oldpath, newpath)
             # self.results = copy.copy(results)
 
             # self.params.params_path()
@@ -396,7 +433,7 @@ class FidoFetcher(Fetcher):
     def validate_download(self):
         # Currently not running, probably for the best
         if self.params.do_prep:
-            print("prepping")
+            # print("prepping")
             self.params.speak_save = False
             AIA_PREP_Processor(params=self.params, rp=True).process()
 

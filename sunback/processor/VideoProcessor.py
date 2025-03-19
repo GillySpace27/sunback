@@ -23,7 +23,7 @@ class VideoProcessor(Processor):
     finished_verb = "Wrote Movie"
     progress_unit = "imgs"
     progress_text = progress_string
-
+    can_do_parallel = False
     video_name_stem = ""
     description = "Turn all the imgs into an AVI video"
 

@@ -2,7 +2,7 @@
 import sys
 from time import sleep, time, asctime, localtime
 import numpy as np
-
+from tqdm import tqdm
 
 class Runner:
     def __init__(self, params):
@@ -66,9 +66,11 @@ class Runner:
         print(self.wall_2, "\n")
         self.params.set_waves_to_do()
 
-        for wave in self.params.waves_to_do:
-            print("Wavelength = {}".format(self.params.current_wave()), end="")
+        pbar = tqdm(self.params.waves_to_do, desc="4k Rainbow", unit="img")
+
+        for ii, wave in enumerate(pbar):
             self.params.current_wave(wave)
+            pbar.set_description(f"Wave: {wave}")
 
             if len(self.params.fetchers()) > 0:
                 sys.stdout.flush()

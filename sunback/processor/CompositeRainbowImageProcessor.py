@@ -30,14 +30,14 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
         quick=None,
         rp=False,
         rgb1=("0171", "0193", "0211"),
-        rgb2=("0094", "0131", "0335"),
+        # rgb2=("0094", "0131", "0335"),
         rgb3=("1700", "1600", "0304"),
     ):
         super().__init__(params, quick)
         self.params = params
         self.params.do_upsilon = False
         self.rgb_frame = None or self.params.rgb_frame
-        self.rgb_channels = [rgb1, rgb2, rgb3]
+        self.rgb_channels = [rgb1, None, rgb3]
         self.good_paths = {}
         self.missing_files = []
         self.missing_counts = 0

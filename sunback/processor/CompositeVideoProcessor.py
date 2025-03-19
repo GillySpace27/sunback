@@ -31,7 +31,7 @@ class CompositeVideoProcessor(Processor):
         """Main method to execute the composite video generation process."""
         if self.process_done:
             print("Composite video generation already completed. Skipping process.")
-            return
+            raise StopIteration
 
         wavelengths = [171, 193, 211]  # List of wavelengths to process
         self.collect_fits_paths(wavelengths)  # Collect the FITS paths to process
@@ -175,6 +175,8 @@ class CompositeVideoProcessor(Processor):
             except Exception as e:
                 print(f"Error processing frame {i}: {e}")
                 self.skipped += 1
+            except StopIteration:
+                pass
 
         video_writer.release()
         print(
@@ -190,7 +192,7 @@ class CompositeVideoProcessor(Processor):
         """Normalize and resize data to match the frame shape."""
         target_shape = (self.frame_shape[1], self.frame_shape[0])
         data_resized = resize(data, target_shape, preserve_range=True)
-        return data_resized
+        return np.flipud(data_resized)
         return (data_resized - np.min(data_resized)) / (
             np.max(data_resized) - np.min(data_resized)
         )

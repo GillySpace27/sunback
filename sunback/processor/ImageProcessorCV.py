@@ -11,7 +11,7 @@ import astropy.units as u
 from sunback.processor.ImageProcessor import ImageProcessor
 from sunback.science.color_tables import aia_color_table
 from sunback.utils.stretch_intensity_module import upsilon_stretch
-
+from sunpy.map import Map
 import logging
 import sys
 # Set up logging
@@ -572,7 +572,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         frame_name = frame_name_in + suffix
         self.last_frame_name = frame_name_in
 
-        frame = self.frame_touchup(frame_name, frame)
+        # frame = self.frame_touchup(frame_name, frame)
 
         if "rht" in frame_name:
             self.axArray[self.count_frames].imshow(
@@ -701,7 +701,34 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         # self.open_folder(self.main_save_path)
         return None
 
-    def collect_frames(self, fits_path, doBar=False):
+    @staticmethod
+    def gamma_correct_map(frame, gamma=0.65):
+        """
+        Applies gamma correction to an ndarray.
+
+        Parameters:
+            frame (np.ndarray): frame to be operated on
+            gamma (float): Gamma correction factor (>1 brightens, <1 darkens).
+
+        Returns:
+            sunpy.map.Map: The gamma-corrected SunPy map.
+        """
+        # Normalize the data between 0 and 1
+        data_min, data_max = np.nanmin(frame), np.nanmax(frame)
+        normalized_data = (frame - data_min) / (data_max - data_min)
+
+        # Apply gamma correction
+        gamma_corrected_data = normalized_data ** gamma
+
+        # Rescale back to original range
+        corrected_data = gamma_corrected_data * (data_max - data_min) + data_min
+
+        # Create a new SunPy frame with corrected data
+        return corrected_data
+
+
+
+    def collect_frames(self, fits_path, doBar=False, short=False):
         self.find_frames_at_path(fits_path)
         logger.info(self.hdu_name_list)
         self.good_frames = [x for x in self.hdu_name_list if self.image_is_plottable(x)]
@@ -715,19 +742,37 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
             frame, wave1, t_rec1, _, _, mod_name = self.load_this_fits_frame(
                 fits_path, frame_name
             )
+
+            frame_name = frame_name.replace("primary data array", "prim")
+
+            if len(frame.shape) > 2:
+                frame0 = frame[0]
+                frame1 = frame[1]
+
+                images.append(frame0), names.append(frame_name + "_total")
+                images.append(frame1), names.append(frame_name + "_pb")
+
             if False:
                 frame = self.resize_image(frame, prnt=False, func=np.nanmean)
 
-            if frame_name == "compressed_image":
-                images.append(frame), names.append("lev1p5")
-                images.append(np.power(frame, 0.65)), names.append("gamma")
-                images.append(np.log10(frame)), names.append("log10")
+            if frame_name == "compressed_image" or frame_name == "prim":
+                images.append(frame), names.append("original")
+                images.append(self.gamma_correct_map(frame)), names.append("gamma")
+                # images.append(np.log10(frame)), names.append("log10")
+
+                if short:
+                    continue
             elif "msgn(" in frame_name:
                 images.insert(3, frame), names.insert(3, frame_name.replace("compressed_image", "lev1p5"))
+            elif frame_name.startswith("nrgf"):
+                images.insert(2, frame), names.insert(2, frame_name.replace("compressed_image", "lev1p5"))
+
             elif "compressed_image" in frame_name:
                 frame_name = frame_name.replace("compressed_image", "lev1p5")
                 images.append(frame), names.append(frame_name)
             else:
+                if frame_name.startswith("uncertainty"):
+                    continue
                 images.append(frame), names.append(frame_name)
 
         logger.info(names)
@@ -737,7 +782,7 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         # self.do_compare_histogramplot_rheonly(
         #     images, names, target_names=["lev1p5", "rhef", "upsilon(rhef)"]
         # )
-        self.do_compare_histogramplot(images, names, even_points=150)
+        self.do_compare_histogramplot(images, names, even_points=25 if self.params.use_image_path() else 50)
 
         # for frame_name in iterable:
 
