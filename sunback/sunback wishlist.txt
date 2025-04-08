@@ -1,0 +1,11 @@
+refactor time integration
+complete noise gating
+most recent movie
+punch pipeline
+explore more shapes of adaptive histograms
+set up kubernetes or docker for github actions
+get planetarium to do processing
+overplot the grid with sunpy
+reimpliment sunback with sunpy maps as the core object
+save images to an actually displayable HDR format
+Make HDR Videos work
