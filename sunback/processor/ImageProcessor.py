@@ -55,6 +55,7 @@ class ImageProcessor(Processor):
         self.figure_box = []
         self.skipped = 0
         self.frame = None
+        self.current_frame = None
         # self.load_curves()
 
         self.save_to_fits = True
@@ -74,7 +75,6 @@ class ImageProcessor(Processor):
 
     def init_rainbow_frame(self):
         # Update current_frame and fits_path if provided
-
         # self.fits_path = self.fits_path
         # self.params.fits_path = self.fits_path
 
@@ -112,15 +112,18 @@ class ImageProcessor(Processor):
     def init_frame(self, fits_path=None, in_name=None):
         """Load the fits file from disk and get an in_name or two"""
 
-        # Update current_frame and fits_path if provided
-        if in_name is not None:
-            self.current_frame = in_name
 
         self.fits_path = fits_path or self.fits_path
         self.params.fits_path = self.fits_path
 
+        # Update current_frame and fits_path if provided
+        if in_name is not None:
+            self.current_frame = in_name
+
         # Find available frames at the specified path
         self.find_frames_at_path(self.params.fits_path)
+        if self.current_frame is None:
+            self.current_frame = self.hdu_name_list[-1]
 
         # Load the specified FITS frame
         self.raw_name = str(self.current_frame)

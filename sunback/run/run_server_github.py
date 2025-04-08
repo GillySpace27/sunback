@@ -6,8 +6,9 @@ from sunback.putter.DesktopPutter import DesktopPutter
 from sunback.putter.AwsPutter import AwsPutter
 from sunback.processor.SunPyProcessor import RHEFProcessor, UpsilonProcessor, NRGFProcessor
 from sunback.fetcher.WebFitsFetcher import WebFitsFetcher
-from sunback.processor.ImageProcessorCV import ImageProcessorCV
+from sunback.processor.ImageProcessorCV import ImageProcessorCV, ImageProcessorHDR
 from sunback.processor.CompositeRainbowImageProcessor import RainbowRGBImageProcessor
+from sunback.processor.ScienceProcessor import DEMReconstructionProcessor
 
 
 import logging
@@ -60,8 +61,13 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
     #     # p.processors([NRGFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
         p.processors([UpsilonProcessor], rp=True)
     #     # # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+    p.processors([DEMReconstructionProcessor])
+
     p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
+    p.putters([ImageProcessorHDR], rp=True)  # Turns Fits into Pngs
+
     p.putters([RainbowRGBImageProcessor], rp=True)
+
     p.putters([AwsPutter])  # Uploads the PNGs to AWS
     # p.putters([DesktopPutter])  # Sets the PNGs to the Desktop Background
 

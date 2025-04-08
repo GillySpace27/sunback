@@ -7,9 +7,9 @@ from sunback.putter.AwsPutter import AwsPutter
 from sunback.processor.SunPyProcessor import RHEFProcessor, MSGNProcessor, UpsilonProcessor, AIA_PREP_Processor
 from sunback.fetcher.FidoFetcher import FidoFetcher
 from sunback.fetcher.WebFitsFetcher import WebFitsFetcher
-from sunback.processor.ImageProcessorCV import ImageProcessorCV
+from sunback.processor.ImageProcessorCV import ImageProcessorCV, ImageProcessorHDR
 from sunback.processor.CompositeRainbowImageProcessor import RainbowRGBImageProcessor
-
+from sunback.processor.ScienceProcessor import DEMReconstructionProcessor
 import logging
 
 # Set the logging level for boto3 and botocore to INFO
@@ -32,7 +32,7 @@ def run_server_4k(delay=60, debug=True, do_one="0171", stop=True):
     p.is_debug(debug)
     p.delay_seconds(delay)
     p.do_one(False, True)
-    p.batch_name("4k_rainbow_recent_4")
+    p.batch_name("4k_rainbow_recent_hdr")
     p.run_type("Single Run Rainbow")
     p.do_recent(True)
     p.do_single = True
@@ -48,7 +48,7 @@ def run_server_4k(delay=60, debug=True, do_one="0171", stop=True):
     p.do_vignette = True
     p.do_upsilon = True
     p.do_upsilon_together = True
-    p.do_prep = False
+    p.do_prep = True
     p.range(days=6.4)
     # p.do_standard_RHE()
     # p.msgn_targets(["lev1p5"])
@@ -63,11 +63,13 @@ def run_server_4k(delay=60, debug=True, do_one="0171", stop=True):
         # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         p.processors([RHEFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
         # p.processors([UpsilonProcessor], rp=True)  # Applies the Sunpy Radial Filtering
+        # p.processors([DEMReconstructionProcessor])
         p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
+    # p.putters([ImageProcessorHDR], rp=True)  # Turns Fits into Pngs
     # p.putters(
     #     [RainbowRGBImageProcessor], rp=True
     # )  # Makes the PNGs into a Composite PNG
-    # p.putters([AwsPutter])  # Uploads the PNGs to AWS
+    p.putters([AwsPutter])  # Uploads the PNGs to AWS
     p.putters([DesktopPutter])  # Sets the PNGs to the Desktop Background
 
     # Imageprocessor -> get_alphas() to adjust Upsilon

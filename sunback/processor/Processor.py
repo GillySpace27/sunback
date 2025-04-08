@@ -6,6 +6,7 @@ from os import listdir, getcwd, makedirs
 from os.path import join, dirname, abspath, isdir, basename
 from pickle import PicklingError
 from random import choices
+import logging
 
 import sunpy
 
@@ -274,12 +275,51 @@ class Processor:
         self.super_flush()
         return fits_paths, imgs_paths
 
-    # def clean_directory(self):
-    #     to_rep = "D:/"
-    #     if not self.params.base_directory()[0] == to_rep[0]:
-    #         self.params.base_directory(self.params.base_directory().replace(to_rep,""))
-    #         if self.out_path:
-    #             self.out_path = self.out_path.replace(to_rep,"")
+    def load_fits_data(self, file_path, hdu_name_or_index="rhef"):
+        """Load data from a specified HDU of a FITS file by name or index."""
+        logging.debug(f"Loading FITS file: {file_path}")
+        if not os.path.exists(file_path):
+            logging.error(f"FITS file not found: {file_path}")
+            return None
+        try:
+            with fits.open(file_path) as hdul:
+                logging.debug(f"Opened FITS file: {file_path}")
+                if isinstance(hdu_name_or_index, str):
+                    for hdu in hdul:
+                        if hdu.name.casefold() == hdu_name_or_index.casefold():
+                            if hdu.data is None or hdu.data.size == 0:
+                                logging.error(
+                                    f"HDU '{hdu_name_or_index}' in file {file_path} is empty or has an unexpected shape."
+                                )
+                                return None
+                            logging.debug(
+                                f"Loaded data from HDU '{hdu_name_or_index}' in file {file_path}"
+                            )
+                            return hdu.data
+                    logging.error(f"HDU {hdu_name_or_index} not found in file.")
+                elif isinstance(hdu_name_or_index, int):
+                    if -len(hdul) <= hdu_name_or_index < len(hdul):
+                        hdu = hdul[hdu_name_or_index]
+                        if (
+                            hdu.data is None
+                            or hdu.data.size == 0
+                            or hdu.data.shape != (1024, 1024)
+                        ):
+                            logging.error(
+                                f"HDU index {hdu_name_or_index} in file {file_path} is empty or has an unexpected shape."
+                            )
+                            return None
+                        logging.debug(
+                            f"Loaded data from HDU index {hdu_name_or_index} in file {file_path}"
+                        )
+                        return hdu.data
+                else:
+                    logging.error(
+                        "HDU identifier must be either an integer index or a string name."
+                    )
+        except Exception as e:
+            logging.error(f"Error loading FITS file {file_path}: {e}")
+        return None
 
     # Define Targets
     def set_names(self, in_name=None, out_name=None, name=None, quietly=None):
@@ -1001,9 +1041,16 @@ class Processor:
     def find_limb_radius(self):
         spread = 0.02
         self.limb_radius_from_fit_shrunken = self.limb_radius_from_header_shrunken
-        self.limb_radius_from_fit_shrunken_forpoints = (
-            self.limb_radius_from_header_shrunken_forpoints
-        )
+        try:
+            self.limb_radius_from_fit_shrunken_forpoints = (
+                self.limb_radius_from_header_shrunken_forpoints
+            )
+        except AttributeError as e:
+            self.parse_shrink_args()
+            self.limb_radius_from_fit_shrunken_forpoints = (
+                self.limb_radius_from_header_shrunken_forpoints
+            )
+            pass
         self.lCut = int(
             self.limb_radius_from_header_shrunken - spread * self.params.rez
         )
@@ -1167,7 +1214,7 @@ class Processor:
         elif rez == 1024:
             self.shrink_factor = 4
         else:
-            self.shrunk_factor = 1
+            self.shrink_factor = 1
             # raise NotImplementedError
 
         self.parse_shrink_args()
@@ -1233,7 +1280,7 @@ class Processor:
         # self.detector_radius_rr = self.n2r(self.params.rez // 2)
 
         self.vignette_mask = np.asarray(
-            self.radius > self.vig_radius_pix * 2, dtype=bool
+            self.radius > self.vig_radius_pix, dtype=bool
         )
 
     def init_bin_array(self):
@@ -3317,11 +3364,14 @@ class Processor:
 
     def vignette(self, frame=None):
         """Truncate the in_object above a certain radis"""
-        if self.vignette_mask is None or self.params.do_vignette is False:
+        if self.vignette_mask is None and self.params.do_vignette is False:
             return frame
-
         if self.radius is None:
             self.init_radius_array()
+        # if self.vignette_mask is None:
+        #     self.make_vignette()
+
+
 
         if frame is not None:
             # frame = frame.astype(np.float16)
@@ -3429,7 +3479,8 @@ class Processor:
         wave_list = [
             {"wave": "0094", "aL": 1.0, "aH": 0.4},
             {"wave": "0131", "aL": 0.6, "aH": 0.25},
-            {"wave": "0171", "aL": 0.6, "aH": 0.4},
+            {"wave": "0171", "aL": 0.8, "aH": 0.25},
+            # {"wave": "0171", "aL": 0.6, "aH": 0.4},
             {"wave": "0193", "aL": 0.4, "aH": 0.4},
             {"wave": "0211", "aL": 0.7, "aH": 0.35},
             {"wave": "0304", "aL": 0.9, "aH": 0.5},

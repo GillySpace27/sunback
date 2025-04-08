@@ -198,50 +198,6 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
         else:
             logging.debug("No missing files were detected.")
 
-    def load_fits_data(self, file_path, hdu_name_or_index="rhef"):
-        """Load data from a specified HDU of a FITS file by name or index."""
-        logging.debug(f"Loading FITS file: {file_path}")
-        if not os.path.exists(file_path):
-            logging.error(f"FITS file not found: {file_path}")
-            return None
-        try:
-            with fits.open(file_path) as hdul:
-                logging.debug(f"Opened FITS file: {file_path}")
-                if isinstance(hdu_name_or_index, str):
-                    for hdu in hdul:
-                        if hdu.name.casefold() == hdu_name_or_index.casefold():
-                            if hdu.data is None or hdu.data.size == 0:
-                                logging.error(
-                                    f"HDU '{hdu_name_or_index}' in file {file_path} is empty or has an unexpected shape."
-                                )
-                                return None
-                            logging.debug(
-                                f"Loaded data from HDU '{hdu_name_or_index}' in file {file_path}"
-                            )
-                            return hdu.data
-                elif isinstance(hdu_name_or_index, int):
-                    if -len(hdul) <= hdu_name_or_index < len(hdul):
-                        hdu = hdul[hdu_name_or_index]
-                        if (
-                            hdu.data is None
-                            or hdu.data.size == 0
-                            or hdu.data.shape != (1024, 1024)
-                        ):
-                            logging.error(
-                                f"HDU index {hdu_name_or_index} in file {file_path} is empty or has an unexpected shape."
-                            )
-                            return None
-                        logging.debug(
-                            f"Loaded data from HDU index {hdu_name_or_index} in file {file_path}"
-                        )
-                        return hdu.data
-                else:
-                    logging.error(
-                        "HDU identifier must be either an integer index or a string name."
-                    )
-        except Exception as e:
-            logging.error(f"Error loading FITS file {file_path}: {e}")
-        return None
 
     def make_unscaled_rgb(self, image_r, image_g, image_b):
         """Create an RGB image from three channels."""
