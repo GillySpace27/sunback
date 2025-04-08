@@ -11,6 +11,53 @@ from sunkit_image.utils import equally_spaced_bins
 
 aia_map = sunpy.map.Map(sunpy.data.sample.AIA_171_IMAGE)
 
+
+###########################################################################
+# Implement the gamma function
+import sunpy.map
+import numpy as np
+import matplotlib.pyplot as plt
+
+def gamma_correct_map(smap, gamma=1.0):
+    """
+    Applies gamma correction to a SunPy map.
+
+    Parameters:
+        smap (sunpy.map.Map): The input SunPy map.
+        gamma (float): Gamma correction factor (>1 brightens, <1 darkens).
+
+    Returns:
+        sunpy.map.Map: The gamma-corrected SunPy map.
+    """
+    # Normalize the data between 0 and 1
+    data_min, data_max = smap.data.min(), smap.data.max()
+    normalized_data = (smap.data - data_min) / (data_max - data_min)
+
+    # Apply gamma correction
+    gamma_corrected_data = normalized_data ** gamma
+
+    # Rescale back to original range
+    corrected_data = gamma_corrected_data * (data_max - data_min) + data_min
+
+    # Create a new SunPy map with corrected data
+    return sunpy.map.Map(corrected_data, smap.meta)
+
+# Apply gamma correction
+gamma_value = 0.65  # Adjust as needed
+gamma_corrected_map = gamma_correct_map(aia_map, gamma=gamma_value)
+
+# # Plot original and gamma-corrected maps
+# fig, ax = plt.subplots(1, 2, figsize=(12, 5), subplot_kw={"projection": aia_map.wcs})
+
+# aia_map.plot(axes=ax[0])
+# ax[0].set_title("Original Map")
+
+# gamma_corrected_map.plot(axes=ax[1])
+# ax[1].set_title(f"Gamma Corrected (γ={gamma_value})")
+
+# plt.show(block=False)
+
+
 ###########################################################################
 # Create radial bin edges and apply the NRGF, MSGN, and RHEF filters.
 
@@ -24,7 +71,7 @@ base_nrgf = radial.nrgf(
     radial_bin_edges=radial_bin_edges,
     application_radius=0.0 * u.R_sun,
     progress=True,
-    vignette=viggy,
+    # vignette=viggy,
 )
 
 import numpy as np
@@ -60,19 +107,18 @@ fig, axs = plt.subplots(2, 2, figsize=(8, 8), sharex="all", sharey="all", subplo
 ###########################################################################
 # Plot the original map and the filtered maps on the shared axes.
 from matplotlib.colors import PowerNorm
-aia_map.plot(axes=axs[0, 0], clip_interval=(1, 99.99) * u.percent)  #, norm=PowerNorm(gamma=2.2))
+gamma_corrected_map.plot(axes=axs[0, 0], clip_interval=(1, 99.99) * u.percent)
+# aia_map.plot(axes=axs[0, 1], clip_interval=(1, 99.99) * u.percent)
+# aia_map.plot(axes=axs[1, 0], clip_interval=(1, 99.99) * u.percent)
+axs[0, 0].set_title("Gamma Corrected")
 
-aia_map.plot(axes=axs[0, 1], clip_interval=(1, 99.99) * u.percent)
-aia_map.plot(axes=axs[1, 0], clip_interval=(1, 99.99) * u.percent)
-axs[0, 0].set_title("Original AIA 171")
-
-base_nrgf.plot(axes=axs[0, 1], clip_interval=(1, 99.99) * u.percent)
+base_nrgf.plot(axes=axs[0, 1], clip_interval=(1, 99.5) * u.percent)
 axs[0, 1].set_title("NRGF")
 
-base_msgn.plot(axes=axs[1, 0], clip_interval=(5, 99.99) * u.percent)
+base_msgn.plot(axes=axs[1, 0], clip_interval=(10, 99.999) * u.percent)
 axs[1, 0].set_title("MSGN")
 
-base_rhef.plot(axes=axs[1, 1], clip_interval=(1, 99.99) * u.percent)
+base_rhef.plot(axes=axs[1, 1], clip_interval=(1, 99.9) * u.percent)
 axs[1, 1].set_title("RHEF")
 
 ###########################################################################
@@ -88,5 +134,8 @@ axs[1, 1].coords[1].set_ticklabel_visible(False)
 
 
 fig.tight_layout()
-plt.savefig(r"/Users/cgilbert/vscode/Sunback-Paper/Sunback-Paper-Expanded/Solar Image Processing and the Radial Histogram Equalizing Filter/fig/quadFirst2.pdf", dpi=300)
+# plt.show(block=True)
+outfile = r"/Users/cgilbert/vscode/Sunback-Paper/Sunback-Paper-Expanded/Solar Image Processing and the Radial Histogram Equalizing Filter/fig/quadFirst2.pdf"
+outfile = outfile.replace(".pdf", ".png")
+plt.savefig(outfile, dpi=300)
 plt.show()

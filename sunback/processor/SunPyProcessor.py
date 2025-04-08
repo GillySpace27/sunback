@@ -1,5 +1,5 @@
 import os
-from copy import copy
+from copy import deepcopy as copy
 import time
 from functools import partial
 from os import makedirs
@@ -66,6 +66,7 @@ class SunPyProcessor(Processor):
     renew_mask = True
     can_initialize = True
     raw_map = None
+    progress = False
 
     # Parse Inputs
     def __init__(self, params=None, quick=False, rp=None, in_name="compressed_image"):
@@ -74,6 +75,8 @@ class SunPyProcessor(Processor):
         # self.tm = time.time()
         self.radial_bin_edges = None
         self.in_name = in_name or self.params.master_frame_list_newest
+        if self.params.use_image_path() or self.params.do_single:
+            self.progress = True
 
     def __getstate__(self):
         self_dict = self.__dict__.copy()
@@ -112,7 +115,7 @@ class AIA_PREP_Processor(SunPyProcessor):
         self.params.pointing_table = None
         self.pointing_end = None
         self.pointing_start = None
-        self.out_name = "lev1p5"
+        self.out_name = "lev1p5_p"
         self.params.modified_image = None
         self.params.speak_save = False
 
@@ -191,7 +194,8 @@ class AIA_PREP_Processor(SunPyProcessor):
                 pointing_end = self.level_1_maps[-1].date + 3 * u.h
                 try:
                     # with partial(print, "  ") as print:
-                    self.params.pointing_table = get_pointing_table("lmsal",
+
+                    self.params.pointing_table = get_pointing_table("jsoc",
                         time_range=(pointing_start, pointing_end)
                     )
                 except RuntimeError as e:
@@ -270,7 +274,7 @@ class NRGFProcessor(SunPyProcessor):
         import sunkit_image.radial as radial
 
         self.params.modified_image = radial.nrgf(
-            self.raw_map, radial_bin_edges=radial_bin_edges, application_radius=0.00 * u.R_sun
+            self.raw_map, radial_bin_edges=radial_bin_edges, application_radius=0.00 * u.R_sun, progress = self.progress,
         ).data
         return self.params.modified_image
 
@@ -323,13 +327,15 @@ class UpsilonProcessor(SunPyProcessor):
         upsilon = self.get_alphas()
         if isinstance(upsilon, tuple):
             upsilon = list(upsilon)
+
         self.params.modified_image = radial.rhef(
             self.raw_map,
             radial_bin_edges=self.radial_bin_edges,
             upsilon=upsilon,
-            progress=False,
+            progress=self.progress,
             vignette=None,
-            method="None",
+            method="scipy",
+            application_radius=0 * u.R_sun
         ).data
         return self.params.modified_image
 
@@ -382,7 +388,7 @@ class RHEFProcessor(SunPyProcessor):
             self.raw_map,
             radial_bin_edges=self.radial_bin_edges,
             upsilon=upsilon,
-            progress=False,
+            progress=self.progress,
             vignette=vignette,
             method="scipy",
         ).data

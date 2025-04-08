@@ -55,6 +55,7 @@ class ImageProcessor(Processor):
         self.figure_box = []
         self.skipped = 0
         self.frame = None
+        self.current_frame = None
         # self.load_curves()
 
         self.save_to_fits = True
@@ -74,7 +75,6 @@ class ImageProcessor(Processor):
 
     def init_rainbow_frame(self):
         # Update current_frame and fits_path if provided
-
         # self.fits_path = self.fits_path
         # self.params.fits_path = self.fits_path
 
@@ -112,15 +112,18 @@ class ImageProcessor(Processor):
     def init_frame(self, fits_path=None, in_name=None):
         """Load the fits file from disk and get an in_name or two"""
 
-        # Update current_frame and fits_path if provided
-        if in_name is not None:
-            self.current_frame = in_name
 
         self.fits_path = fits_path or self.fits_path
         self.params.fits_path = self.fits_path
 
+        # Update current_frame and fits_path if provided
+        if in_name is not None:
+            self.current_frame = in_name
+
         # Find available frames at the specified path
         self.find_frames_at_path(self.params.fits_path)
+        if self.current_frame is None:
+            self.current_frame = self.hdu_name_list[-1]
 
         # Load the specified FITS frame
         self.raw_name = str(self.current_frame)
@@ -200,7 +203,7 @@ class ImageProcessor(Processor):
     def doesnt_have_wrong_string(self, frame_name, wrong_string=None):
         bads = wrong_string or [
             "primary",
-            # "compressed",
+            "uncertainty array",
             "gamma",
             "lev1p0",
             "final",
@@ -214,7 +217,7 @@ class ImageProcessor(Processor):
 
         for nam in bads:
             # if nam in frame_name:
-            if nam.casefold() in frame_name.casefold():
+            if frame_name == nam: #.casefold().startswith(nam.casefold()):
                 return False
         return True
 
@@ -457,13 +460,14 @@ class ImageProcessor(Processor):
         # frame, self.frame_name = self.do_norm_stretch(frame, frame_name, do=do_upsilon)
 
         dont_vminmax = False
-        for name in ["RHT", "legacy"]:
+        for name in ["RHT", "legacy", "rhe"]:
             if name in frame_name:
                 dont_vminmax = True
 
         if not dont_vminmax:
             # frame[frame > 1.0] = 1.0
             # frame[frame < 0.0] = 0.0
+            print("Clipping ***************************************")
             frame = np.clip(frame, 0.05, 0.99)
             pass
 

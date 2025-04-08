@@ -107,8 +107,8 @@ class Parameters:
         self.found_limb_radius = 800
         self.time_multiplier_for_long_display = None
         self.local_directory = None
-        self.all_wavelengths = ["0171", "0193", "0211", "0304", "0131", "0335", "0094"]
-        self.use_wavelengths = ["0171", "0193", "0211", "0304", "0131", "0335", "0094"]
+        self.all_wavelengths = ["0171", "0193", "0211", "0304", "0131", "0335", "0094", "1600", "1700"]
+        self.use_wavelengths = ["0171", "0193", "0211", "0304", "0131", "0335", "0094", "1600", "1700"]
         self._resolution = 4096
         self.web_image_frame = None
         self.web_image_location = None
@@ -149,6 +149,7 @@ class Parameters:
         self._something_changed = False
         self._allow_muxing = True
         self.rgb_frame = None
+        self.do_upsilon_together = False
 
         self._stop_after_one = False
 
@@ -297,9 +298,11 @@ class Parameters:
 
     # Directories
 
-    def use_image_path(self, _image=None):
+    def use_image_path(self, _image=None, _frameno=None):
         if _image is not None:
             self._image = _image
+        if _frameno is not None:
+            self._frameno = _frameno
         return self._image
 
     def base_directory(self, _base_directory=None):
@@ -684,7 +687,7 @@ class Parameters:
         # if True:
             self.fits_directory(abspath(join(self.imgs_top_directory(), "fits")))
         else:
-            self.fits_directory(abspath(join(self.imgs_top_directory())))
+            self.fits_directory(abspath(join(self.imgs_top_directory(), "fits")))
 
         if not self.temp_directory():
             self.temp_directory(abspath(join(self.fits_directory(), "temp")))
@@ -701,7 +704,7 @@ class Parameters:
         )
         self.curve_path(abspath(join(self.analysis_directory, norm_curves_name)))
 
-        wave = "Rainbow" if self.do_single else self.current_wave()
+        wave = "rainbow" if self.do_single else self.current_wave()
         param_file_name = "{}_params.txt".format(wave)
         self.params_path(abspath(join(self.analysis_directory, param_file_name)))
         if not self.do_single:
@@ -725,15 +728,15 @@ class Parameters:
         self.analysis_directory = abspath(join(new_root, "analysis"))
 
         # Fits Folders
-        self.fits_directory(abspath(join(self.imgs_top_directory())))
+        self.fits_directory(abspath(join(self.imgs_top_directory(), "fits")))
 
         # Png Folders
-        self.mods_directory(abspath(join(self.imgs_top_directory())))
+        self.mods_directory(abspath(join(self.imgs_top_directory(), "mod")))
         self.orig_directory = abspath(join(self.imgs_top_directory()))
         self.cat_directory = abspath(join(self.imgs_top_directory()))
 
         # Analysis Folders
-        param_file_name = "{}_params.txt".format("Rainbow")
+        param_file_name = "{}_params.txt".format("rainbow")
         self.params_path(abspath(join(self.analysis_directory, param_file_name)))
         self.save_to_txt()
 

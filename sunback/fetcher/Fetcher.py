@@ -138,6 +138,7 @@ class Fetcher(Processor):
         wave_matching_files = [file for file in matching_files if wave in file]
 
         if not wave_matching_files:
+            return False
             raise FileNotFoundError(f"No files found matching wave {wave}.")
 
         # Determine the file to use

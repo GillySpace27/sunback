@@ -6,6 +6,7 @@ from os import listdir, getcwd, makedirs
 from os.path import join, dirname, abspath, isdir, basename
 from pickle import PicklingError
 from random import choices
+import logging
 
 import sunpy
 
@@ -82,6 +83,7 @@ class Processor:
     dont_ignore = False
     keyframes = []
     _reprocess_mode = None
+    _frameno = 0
     base_fits_dir = None
     base_imgs_dir = None
     base_absolute = None
@@ -273,12 +275,51 @@ class Processor:
         self.super_flush()
         return fits_paths, imgs_paths
 
-    # def clean_directory(self):
-    #     to_rep = "D:/"
-    #     if not self.params.base_directory()[0] == to_rep[0]:
-    #         self.params.base_directory(self.params.base_directory().replace(to_rep,""))
-    #         if self.out_path:
-    #             self.out_path = self.out_path.replace(to_rep,"")
+    def load_fits_data(self, file_path, hdu_name_or_index="rhef"):
+        """Load data from a specified HDU of a FITS file by name or index."""
+        logging.debug(f"Loading FITS file: {file_path}")
+        if not os.path.exists(file_path):
+            logging.error(f"FITS file not found: {file_path}")
+            return None
+        try:
+            with fits.open(file_path) as hdul:
+                logging.debug(f"Opened FITS file: {file_path}")
+                if isinstance(hdu_name_or_index, str):
+                    for hdu in hdul:
+                        if hdu.name.casefold() == hdu_name_or_index.casefold():
+                            if hdu.data is None or hdu.data.size == 0:
+                                logging.error(
+                                    f"HDU '{hdu_name_or_index}' in file {file_path} is empty or has an unexpected shape."
+                                )
+                                return None
+                            logging.debug(
+                                f"Loaded data from HDU '{hdu_name_or_index}' in file {file_path}"
+                            )
+                            return hdu.data
+                    logging.error(f"HDU {hdu_name_or_index} not found in file.")
+                elif isinstance(hdu_name_or_index, int):
+                    if -len(hdul) <= hdu_name_or_index < len(hdul):
+                        hdu = hdul[hdu_name_or_index]
+                        if (
+                            hdu.data is None
+                            or hdu.data.size == 0
+                            or hdu.data.shape != (1024, 1024)
+                        ):
+                            logging.error(
+                                f"HDU index {hdu_name_or_index} in file {file_path} is empty or has an unexpected shape."
+                            )
+                            return None
+                        logging.debug(
+                            f"Loaded data from HDU index {hdu_name_or_index} in file {file_path}"
+                        )
+                        return hdu.data
+                else:
+                    logging.error(
+                        "HDU identifier must be either an integer index or a string name."
+                    )
+        except Exception as e:
+            logging.error(f"Error loading FITS file {file_path}: {e}")
+        return None
 
     # Define Targets
     def set_names(self, in_name=None, out_name=None, name=None, quietly=None):
@@ -412,6 +453,7 @@ class Processor:
             self.params.raw_name = self.frame_name
             self.params.raw_image = np.asarray(frame, dtype=np.float32) + 0.0
             self.params.raw_image2 = np.asarray(frame, dtype=np.float32) + 0.0
+            self.raw_map = sunpy.map.Map(frame, self.header)
 
             if (
                 self.params.modified_image is None
@@ -648,8 +690,9 @@ class Processor:
                 #     # Verify and fix any issues with the header
                 #     header.verify("fix")
 
-                self.raw_map = sunpy.map.Map(fits_path)
+                # self.raw_map = sunpy.map.Map(fits_path)
                 if isinstance(self.raw_map, list):
+                    raise Exception
                     self.raw_map = self.raw_map[-1]
 
                 # self.raw_map = sunpy.map.Map(fits_path)  # [-1]
@@ -802,7 +845,7 @@ class Processor:
             if self.ii is None:
                 self.ii = self.params.ii
             n_success = self.ii - self.skipped
-            if n_success + self.skipped >= 1:
+            if n_success + self.skipped >= 0:
                 if n_success <= 0:
                     print(
                         "\r X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(
@@ -935,8 +978,8 @@ class Processor:
         path2 = self.fits_path
         all_fits_paths = self.all_file_paths
         try:
-            wavestr = self.params.current_wave()[1:]
-            if "94" in wavestr:
+            wavestr = self.params.current_wave() + ""
+            while wavestr.startswith("0"):
                 wavestr = wavestr[1:]
         except TypeError:
             wavestr = str(self.params.current_wave())
@@ -998,9 +1041,16 @@ class Processor:
     def find_limb_radius(self):
         spread = 0.02
         self.limb_radius_from_fit_shrunken = self.limb_radius_from_header_shrunken
-        self.limb_radius_from_fit_shrunken_forpoints = (
-            self.limb_radius_from_header_shrunken_forpoints
-        )
+        try:
+            self.limb_radius_from_fit_shrunken_forpoints = (
+                self.limb_radius_from_header_shrunken_forpoints
+            )
+        except AttributeError as e:
+            self.parse_shrink_args()
+            self.limb_radius_from_fit_shrunken_forpoints = (
+                self.limb_radius_from_header_shrunken_forpoints
+            )
+            pass
         self.lCut = int(
             self.limb_radius_from_header_shrunken - spread * self.params.rez
         )
@@ -1164,7 +1214,7 @@ class Processor:
         elif rez == 1024:
             self.shrink_factor = 4
         else:
-            self.shrunk_factor = 1
+            self.shrink_factor = 1
             # raise NotImplementedError
 
         self.parse_shrink_args()
@@ -1230,7 +1280,7 @@ class Processor:
         # self.detector_radius_rr = self.n2r(self.params.rez // 2)
 
         self.vignette_mask = np.asarray(
-            self.radius > self.vig_radius_pix * 2, dtype=bool
+            self.radius > self.vig_radius_pix, dtype=bool
         )
 
     def init_bin_array(self):
@@ -1301,9 +1351,9 @@ class Processor:
         else:
             params_list = np.arange(self.n_inds)
         if self.out_name:
-            skip = 1 if "RHE" in self.out_name else 3 if fast else 1
+            skip = 1 if "RHE" in self.out_name else 10 if fast else 1
         else:
-            skip = 1
+            skip = 5 if fast else 1
 
         for binI in params_list:
             if not np.mod(binI, skip):
@@ -1527,6 +1577,7 @@ class Processor:
         self, frames=None, names=None, even_points=300, use_cmap=False
     ):
         # self.prep_histograms()
+        # print(even_points)
         frames = (
             frames
             if frames is not None
@@ -1535,12 +1586,6 @@ class Processor:
                 self.params.modified_image.reshape(self.params.modified_image.shape),
                 self.params.rhe_image.reshape(self.params.modified_image.shape),
             ]
-        )
-
-        names = (
-            names
-            if names is not None
-            else ["Log10 (Normalized)", "QRN (Normalized)", "RHE"]
         )
 
         fig, axArray = plt.subplots(
@@ -1554,7 +1599,10 @@ class Processor:
         try:
             t_rec = self.header["T_REC"]
         except KeyError as e:
-            t_rec = self.header["T_OBS"]
+            try:
+                t_rec = self.header["T_OBS"]
+            except KeyError as e:
+                t_rec = "an unknown time"
         fig.suptitle("{}$\AA$  at  {}".format(self.wave, t_rec), fontsize=14)
 
         # import copy
@@ -1563,8 +1611,13 @@ class Processor:
 
         mid_axes[0].legend(frameon=False, fontsize=10)
         bot_axes[0].set_ylabel("Intensity", fontsize=14)
+        bot_axes[0].set_xlim(0, 180)
+        mid_axes[0].set_xlim(0, 180)
+        # bot_axes[0].set_xscale("log")
+        # mid_axes[0].set_xscale("log")
+
         bot_axes[1].legend(frameon=False, fontsize=10)
-        fig.set_size_inches((16, 8))
+        fig.set_size_inches((2.5*len(frames), 8))
         # plt.tight_layout()
         plt.subplots_adjust(
             top=0.92, bottom=0.073, left=0.05, right=0.985, hspace=0.218, wspace=0.1
@@ -1583,9 +1636,9 @@ class Processor:
         #     dpi=400,
         # )
 
-
+        # Use This
         pth = os.path.expanduser(
-                f"~/vscode/sunback/sunback_data/renders/{self.params.batch_name()}/imgs/mod/histograms_all_vlq.pdf",
+                f"~/vscode/sunback/sunback_data/renders/{self.params.batch_name()}/imgs/mod/histograms_all_vlq2.pdf",
             )
         if not os.path.exists(os.path.dirname(pth)):
             os.makedirs(os.path.dirname(pth))
@@ -1593,6 +1646,9 @@ class Processor:
         plt.savefig(pth.replace(".pdf", ".png"), dpi=300)
         print(pth.replace(".pdf", ".png"))
         plt.close(fig)
+
+
+
         # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.pdf", dpi=400)
         # plt.show()
         # self.maximizePlot()
@@ -1647,7 +1703,7 @@ class Processor:
         )  # frames2 = copy.deepcopy(frames)
 
         self.plot_histogram_images(top_axes, fram, name)
-        # self.plot_histogram_points(bot_axes, fram, name, even_points, axes2=None)
+        self.plot_histogram_points(bot_axes, fram, name, even_points, axes2=None)
 
         # mid_axes[0].legend(frameon=False)
         bot_axes[0].set_ylabel("Pixel Value")
@@ -1774,7 +1830,7 @@ class Processor:
         # return
         if axes2 is None:
             axes2 = [None] * len(axes)
-        for ax, ax2, frame, nam in zip(axes, axes2, frames, names):
+        for ax, ax2, frame, nam in tqdm(zip(axes, axes2, frames, names)):
             frame2 = self.histNorm(frame, donorm=donorm, dosmash=dosmash, name=nam)
             # ax.set_title(nam)
             self.plot_one_histogram(ax, ax2, frame2, nam, even_points=even_points)
@@ -1797,9 +1853,14 @@ class Processor:
             self.params.rez // self.shrink_factor,
             self.params.rez // self.shrink_factor,
         )
-        szz = int(np.round((frame.shape[0])))
-        frame = frame.reshape((szz, szz))
-
+        # szz = int(np.round((frame.shape[-1])))
+        # try:
+        #     frame = frame.reshape((szz, szz))
+        # except ValueError:
+        #     frame = frame[0]
+        #     frame = frame.reshape((szz, szz))
+        if len(frame.shape) > 2:
+            frame = frame[0]
         # if not self.cmap and self.params.wave:
         from sunpy.visualization.colormaps import color_tables as ct
         self.wave = self.params.current_wave()
@@ -1813,7 +1874,7 @@ class Processor:
 
     def plot_one_histogram(self, ax, ax2, frame, title=None, even_points=200):
         absiss, frame2 = self.get_even_points_in_radius(even_points, frame)
-        self.plot_frame_hist(ax, ax2, frame2, title, hist_absiss=absiss)
+        self.plot_frame_hist(ax, ax2, frame2, title, hist_absiss=absiss*180)
         # ax.set_title(title)
         pass
 
@@ -1870,7 +1931,7 @@ class Processor:
             )
             ax.set_xlim((-0.05, 1.9))
         ax1.set_ylim((-0.3, 1.5))
-        ax1.figure.supxlabel("Distance from Sun Center", fontsize=14)
+        ax1.figure.supxlabel(r"Distance from Sun Center [Solar Radii]", fontsize=14)
         # plt.show(block=True)
 
     def prep_histograms(self):
@@ -2454,7 +2515,7 @@ class Processor:
                 self.in_name = self.set_in_frame_name(
                     in_name=in_name, fits_path=fits_path, hdul=hdul
                 )
-
+                self.in_name = self.in_name or self.hdu_name_list[-1] # Fallback to the most recent frame
                 frame, self.header = self.open_fits_hdul(
                     hdul=hdul, quiet=quiet, frame_name=self.in_name
                 )
@@ -2463,6 +2524,9 @@ class Processor:
                     self.get_fits_info(hdul)
                 )
                 hdul.verify()
+
+                if len(frame.shape) > 2 or self._frameno:
+                    frame = frame[self._frameno]
             return frame, wave, t_rec, center, int_time, self.in_name
         except (FileNotFoundError, FileExistsError) as e:
             print("\n", e)
@@ -2865,7 +2929,7 @@ class Processor:
         # Extract the frame name and remove parentheses if present
         return self.frame_name.split("(")[0] if self.frame_name else None
 
-    def get_field_hdu(self, hdul, frame_name=None, exact=True):
+    def get_field_hdu(self, hdul, frame_name, exact=True):
         """
         Retrieve a specific Header Data Unit (HDU) from a FITS file.
 
@@ -3300,11 +3364,14 @@ class Processor:
 
     def vignette(self, frame=None):
         """Truncate the in_object above a certain radis"""
-        if self.vignette_mask is None or self.params.do_vignette is False:
+        if self.vignette_mask is None and self.params.do_vignette is False:
             return frame
-
         if self.radius is None:
             self.init_radius_array()
+        # if self.vignette_mask is None:
+        #     self.make_vignette()
+
+
 
         if frame is not None:
             # frame = frame.astype(np.float16)
@@ -3412,8 +3479,9 @@ class Processor:
         wave_list = [
             {"wave": "0094", "aL": 1.0, "aH": 0.4},
             {"wave": "0131", "aL": 0.6, "aH": 0.25},
-            {"wave": "0171", "aL": 0.6, "aH": 0.4},
-            {"wave": "0193", "aL": 0.7, "aH": 0.4},
+            {"wave": "0171", "aL": 0.8, "aH": 0.25},
+            # {"wave": "0171", "aL": 0.6, "aH": 0.4},
+            {"wave": "0193", "aL": 0.4, "aH": 0.4},
             {"wave": "0211", "aL": 0.7, "aH": 0.35},
             {"wave": "0304", "aL": 0.9, "aH": 0.5},
             {"wave": "0335", "aL": 0.85, "aH": 0.4},

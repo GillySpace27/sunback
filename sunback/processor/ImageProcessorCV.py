@@ -11,6 +11,8 @@ import astropy.units as u
 from sunback.processor.ImageProcessor import ImageProcessor
 from sunback.science.color_tables import aia_color_table
 from sunback.utils.stretch_intensity_module import upsilon_stretch
+from sunpy.map import Map
+import OpenImageIO as oiio
 
 import logging
 import sys
@@ -40,8 +42,8 @@ class ImageProcessorCV(ImageProcessor):
         self.save_to_fits = False
 
     def do_fits_function(self, fits_path, in_name=None):
-        self.params.double_rhe_flag = False
         self.fits_path = fits_path
+        self.params.double_rhe_flag = False
         target = -1
         out = None
 
@@ -91,7 +93,8 @@ class ImageProcessorCV(ImageProcessor):
                 self.init_frame(self.fits_path, self.current_frame)
                 out = self.render_all(reference=False)
         else:
-            self.init_frame(self.fits_path)
+            self.current_frame = self.params.png_frame_name
+            self.init_frame(self.fits_path, self.current_frame)
             out = self.render_all(reference=False)
 
         return out or self
@@ -291,12 +294,12 @@ class ImageProcessorCV(ImageProcessor):
         rez = img.shape[0]
         scale, h, wid_of_char = (
             (6, 120, 60)
-            if rez == 4096
+            if rez >= 4000
             else (3, 60, 30)
-            if rez == 2048
+            if rez >= 2000
             else (1.5, 30, 15)
         )
-        h0, thickness = (100, 4) if rez == 4096 else (50, 2) if rez == 2048 else (25, 2)
+        h0, thickness = (100, 4) if rez >= 4000 else (50, 2) if rez >= 2000 else (25, 2)
 
         positions = [
             (rez - wid_of_char * len(text) - 10, height)
@@ -304,8 +307,8 @@ class ImageProcessorCV(ImageProcessor):
                 [name, prev, inst, wave], [h0, h0 + h, h0 + 2 * h, h0 + 3 * h]
             )
         ]
-        max = 255 if np.max(img) > 1 else 1.0
-        max3 = (max, max, max)
+        val = max or (255 if np.max(img) > 1 else 1.0)
+        max3 = (val, val, val)
 
         for text, (x, y) in zip([name, prev, inst, wave], positions):
             cv2.putText(img, text, (x, y), 1, scale, max3, thickness)
@@ -359,24 +362,6 @@ class ImageProcessorCV(ImageProcessor):
             10,
         )
 
-    # def cleanup(self):
-    #     try:
-    #         print("Writing Video...", end="")
-    #         radial_hist_path = "analysis\\radial_hist_post"
-    #         hist_path_0 = os.path.join(self.params.base_directory(), radial_hist_path)
-    #         hist_path_1 = hist_path_0[:-5]
-
-    #         if len(os.listdir(hist_path_0)):
-    #             self.write_video_in_directory(directory=hist_path_0, fps=15, destroy=False)
-    #         if len(os.listdir(hist_path_1)):
-    #             self.write_video_in_directory(directory=hist_path_1, fps=15, destroy=False)
-    #         if self.params.do_cat:
-    #             self.write_video_in_directory(directory=self.params.cat_directory, file_name="concatinated.avi", fps=15, destroy=False)
-    #         print("Success!")
-    #     except (FileNotFoundError, AttributeError) as e:
-    #         print("ImageProcessorCV")
-    #         raise e
-    #     super().cleanup()
 
     @staticmethod
     def peek_frame(img):
@@ -572,7 +557,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         frame_name = frame_name_in + suffix
         self.last_frame_name = frame_name_in
 
-        frame = self.frame_touchup(frame_name, frame)
+        # frame = self.frame_touchup(frame_name, frame)
 
         if "rht" in frame_name:
             self.axArray[self.count_frames].imshow(
@@ -701,7 +686,34 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         # self.open_folder(self.main_save_path)
         return None
 
-    def collect_frames(self, fits_path, doBar=False):
+    @staticmethod
+    def gamma_correct_map(frame, gamma=0.65):
+        """
+        Applies gamma correction to an ndarray.
+
+        Parameters:
+            frame (np.ndarray): frame to be operated on
+            gamma (float): Gamma correction factor (>1 brightens, <1 darkens).
+
+        Returns:
+            sunpy.map.Map: The gamma-corrected SunPy map.
+        """
+        # Normalize the data between 0 and 1
+        data_min, data_max = np.nanmin(frame), np.nanmax(frame)
+        normalized_data = (frame - data_min) / (data_max - data_min)
+
+        # Apply gamma correction
+        gamma_corrected_data = normalized_data ** gamma
+
+        # Rescale back to original range
+        corrected_data = gamma_corrected_data * (data_max - data_min) + data_min
+
+        # Create a new SunPy frame with corrected data
+        return corrected_data
+
+
+
+    def collect_frames(self, fits_path, doBar=False, short=False):
         self.find_frames_at_path(fits_path)
         logger.info(self.hdu_name_list)
         self.good_frames = [x for x in self.hdu_name_list if self.image_is_plottable(x)]
@@ -715,19 +727,37 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
             frame, wave1, t_rec1, _, _, mod_name = self.load_this_fits_frame(
                 fits_path, frame_name
             )
+
+            frame_name = frame_name.replace("primary data array", "prim")
+
+            if len(frame.shape) > 2:
+                frame0 = frame[0]
+                frame1 = frame[1]
+
+                images.append(frame0), names.append(frame_name + "_total")
+                images.append(frame1), names.append(frame_name + "_pb")
+
             if False:
                 frame = self.resize_image(frame, prnt=False, func=np.nanmean)
 
-            if frame_name == "compressed_image":
-                images.append(frame), names.append("lev1p5")
-                images.append(np.power(frame, 0.65)), names.append("gamma")
-                images.append(np.log10(frame)), names.append("log10")
+            if frame_name == "compressed_image" or frame_name == "prim":
+                images.append(frame), names.append("original")
+                images.append(self.gamma_correct_map(frame)), names.append("gamma")
+                # images.append(np.log10(frame)), names.append("log10")
+
+                if short:
+                    continue
             elif "msgn(" in frame_name:
                 images.insert(3, frame), names.insert(3, frame_name.replace("compressed_image", "lev1p5"))
+            elif frame_name.startswith("nrgf"):
+                images.insert(2, frame), names.insert(2, frame_name.replace("compressed_image", "lev1p5"))
+
             elif "compressed_image" in frame_name:
                 frame_name = frame_name.replace("compressed_image", "lev1p5")
                 images.append(frame), names.append(frame_name)
             else:
+                if frame_name.startswith("uncertainty"):
+                    continue
                 images.append(frame), names.append(frame_name)
 
         logger.info(names)
@@ -737,165 +767,15 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         # self.do_compare_histogramplot_rheonly(
         #     images, names, target_names=["lev1p5", "rhef", "upsilon(rhef)"]
         # )
-        self.do_compare_histogramplot(images, names, even_points=150)
-
-        # for frame_name in iterable:
-
-        # self.handle_one_frame(fits_path, frame_name, doBar, iterable)
-        # self.count_frames += 1
+        self.do_compare_histogramplot(images, names, even_points=25 if self.params.use_image_path() else 50)
 
         if doBar:
             iterable.set_description(" *    Plots Complete", refresh=True)
 
-    # def handle_one_frame(self, fits_path, frame_name, doBar, iterable):
-    #     if doBar: iterable.set_description(" *     Plotting {}".format(frame_name.ljust(self.max_width)), refresh=True)
-    #     frame1, wave1, t_rec1, center1, int_time, name = self.load_this_fits_frame(fits_path, frame_name)
-    #     # frame1[self.vignette_mask] = np.nan
-    #     self.add_to_histplot(name, frame1)
 
-    # def get_one_fits_frame(self, fits_path=None, in_name=-1):
-    #
-    #     frame, wave1, t_rec1, _, _, mod_name = self.load_this_fits_frame(fits_path, in_name)
-    #
-    #     if True:
-    #         self.params.modified_image = self.resize_image(self.params.modified_image, prnt=False)
-    #         self.params.raw_image = self.resize_image(self.params.raw_image, prnt=False)
-    #
-    #
-    #     # self.peek_frames()
-    #     self.image_data = str(wave1), fits_path, t_rec1, self.params.modified_image.shape
-    #     self.params.make_file_paths(self.image_data)
-    #     self.name, self.wave = self.clean_name_string(str(wave1))
-    #     return self.params.modified_image, self.name
-
-    def init_frame_from_fits(self, fits_path=None, in_name=-1):
-        """Load the fits file from disk and get a in_name or two"""
-
-        self.fits_path = fits_path or self.fits_path
-        self.params.fits_path = self.fits_path
-        # self.load()
-        if self.params.raw_image is None:
-            self.params.raw_image, _, _, _, _, self.raw_name = (
-                self.load_this_fits_frame(
-                    fits_path, self.params.master_frame_list_oldest
-                )
-            )
-
-        self.params.modified_image, wave1, t_rec1, _, _, self.mod_name = (
-            self.load_this_fits_frame(fits_path, in_name)
-        )
-
-        if False:
-            self.params.modified_image = self.resize_image(
-                self.params.modified_image, prnt=False
-            )
-            self.params.raw_image = self.resize_image(self.params.raw_image, prnt=False)
-
-        # self.peek_frames()
-        self.image_data = (
-            str(wave1),
-            fits_path,
-            t_rec1,
-            self.params.modified_image.shape,
-        )
-        self.params.make_file_paths(self.image_data)
-        self.name, self.wave = self.clean_name_string(str(wave1))
-        return self.params.modified_image, self.name
-
-    def open_folder(self, path):
-        import webbrowser
-
-        webbrowser.open("file:///" + path)
-
-    def init_quad_figure(self, use_cmap=True):
-        pass
-
-        # if use_cmap:
-        #     self.params.cmap = aia_color_table(int(self.wave) * u.angstrom)
-        # else:
-        #     from matplotlib import cm
-        #     self.params.cmap = cm.gray
-        #
-        # # try:
-        # #     lev1p5_mask = ['lev1p5' in x for x in self.good_frames]
-        # #     lev1p5_loc = np.where(lev1p5_mask)[0][0]
-        # #     repeat_frame = lev1p5_loc
-        # # except IndexError as e:
-        # #     print('\r' + str(e))
-        # #     repeat_frame = 0
-        # #
-        # # self.good_frames.insert(repeat_frame, self.good_frames[repeat_frame])
-        # # self.good_frames.pop(0)
-        # self.params.doing_jpeg = False
-        # if self.params.doing_jpeg:
-        #     self.good_frames.insert(0, "jpeg")
-        #
-        # self.good_frame_stems = [x.split('(')[0] for x in self.good_frames]
-        #
-        # self.n_plots = len(self.good_frames)
-        # self.n_rows = 2 if self.n_plots > 2 else 1
-        # self.n_cols = max((self.n_plots // self.n_rows, 1)) if self.n_plots > 2 else 2
-        # self.n_slots = self.n_rows * self.n_cols
-        # while self.n_slots < self.n_plots:
-        #     self.n_cols += 1
-        #     self.n_slots = self.n_rows * self.n_cols
-        #
-        # self.fig, self.axArray = plt.subplots(self.n_rows, self.n_cols, sharex="all", sharey="all")
-        #
-        # try:
-        #     t_rec = self.header["T_REC"]
-        # except KeyError as e:
-        #     t_rec = self.header["T_OBS"]
-        #
-        # self.fig.suptitle("{}  at  {}".format(self.wave, t_rec))
-        # self.axArray = self.axArray.flatten()
-        #
-        # blank = np.zeros_like(self.params.modified_image)
-        #
-        # for ax in self.axArray:
-        #     ax.imshow(blank, interpolation="None")
-        #     ax.set_title(" ")
-
-    # def add_to_histplot(self, frame_name_in, frame):
-    #     # print("\r * Adding Plot  {}".format(frame_name_in))
-    #     # if 'primary' in frame_name_in:
-    #     #     suffix = "_orig"
-    #     # else:
-    #     suffix = ""
-    #     frame_name = frame_name_in + suffix
-    #     self.last_frame_name = frame_name_in
-    #
-    #     frame = self.frame_touchup(frame_name, frame)
-    #
-    #
-    #     vmin = None if self.dont_vminmax else 0.
-    #     vmax = None if self.dont_vminmax else 1.
-    #     self.axArray[self.count_frames].imshow(frame, origin="lower", vmin=vmin, vmax=vmax,
-    #                                            cmap=self.params.cmap, interpolation="None")
-    #
-    #     self.axArray[self.count_frames].set_title(frame_name)
-    #     self.axArray[self.count_frames].patch.set_alpha(0)
-    #
-    #     frame = self.vignette(frame)
-    #     self.frame_names.append(frame_name)
-    #     self.frames.append(frame)
 
     def finalize_and_save_plots(self, dpi=200):
         pass
-        # inches = 4
-        # colWid = self.n_cols * inches
-        # rowWid = self.n_rows * inches
-        #
-        # self.fig.set_size_inches(w=colWid, h=rowWid)
-        # plt.tight_layout()
-        #
-        # save_path = os.path.join(self.params.imgs_top_directory(), "compare", "{:04}_compare.png".format(int(self.wave)))
-        # os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        # self.main_save_path = save_path
-        # self.fig.savefig(save_path, dpi=dpi)
-        # # plt.show(block=True)
-        # if False:
-        #     self.plot_zooms()
 
     def plot_zooms(self, dpi=500):
         zooms = os.path.join(self.params.imgs_top_directory(), "zooms")
@@ -928,39 +808,7 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         self.last_frame_name = None
         plt.close(self.fig)
 
-    #
-    # def image_is_plottable(self, frame_name):
-    #     # return True
-    #     return self.doesnt_have_wrong_string(frame_name)
-    #     return self.does_have_right_string(frame_name)
-    #
-    #
-    # def does_have_right_string(self, frame_name, right_string=None):
-    #
-    #     right_string = right_string or ["lev1p5", "final(rhe)", "rht(lev1p5)", "rht(final)"]
-    #
-    #     for goods in right_string:
-    #         if frame_name.casefold() == goods:
-    #             return True
-    #     return False
-    #
-    #
-    # def doesnt_have_wrong_string(self, frame_name, wrong_string=None):
-    #     bads = wrong_string or ["lev1p0", "t_int(lev1p0)", "t_int(primary)", "lev1p5(lev1p0)", "compressed_image",
-    #                             "final(rhe)"]
-    #     if True:
-    #         bads.append("primary")
-    #         bads.append("lev1p5")
-    #
-    #     if self.params.multiplot_all:
-    #         bads = []
-    #
-    #     for nam in bads:
-    #         # if nam in frame_name:
-    #         if nam.casefold() == frame_name:
-    #             return False
-    #     return True
-    #
+
     def plot_jpeg(self, fits_path, frame_name, doBar, iterable):
         import PIL
         from PIL import Image
@@ -991,3 +839,385 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         ax.set_title('"The Sun Today"')
 
         return
+
+
+import os
+import numpy as np
+import OpenEXR, Imath
+import subprocess
+import astropy.io.fits as fits
+
+class ImageProcessorHDR(ImageProcessorCV):
+    """Processor for converting FITS files into HDR formats (OpenEXR or HEIC)"""
+
+    name = filt_name = "HDR Image Writer"
+    description = "Convert FITS files into HDR OpenEXR or HEIC"
+    progress_verb = "Processing"
+    finished_verb = "Saved"
+    out_name = "HDR({})"
+    save_to_fits = False
+
+    def __init__(self, params=None, quick=False, rp=None, output_format="heic"):
+        """Initialize the HDR processor.
+
+        Args:
+            output_format (str): 'exr' for OpenEXR, 'heic' for HEIC HDR.
+        """
+        super().__init__(params, quick, rp)
+        self.output_format = output_format.lower()
+        self.out_name = self.out_name.format(self.output_format)
+
+    def do_fits_function(self, fits_path, in_name=None):
+        """Load, process, and save FITS data in HDR format."""
+        self.fits_path = fits_path
+        self.init_frame()
+        hdr_image = self.load_fits_data(fits_path)
+
+        hdr_image=self.label_plot(hdr_image, max=0.1)
+
+        if hdr_image is None:
+            print(f"[ERROR] Skipping {fits_path}: Failed to load data.")
+            return None
+
+        output_path_heic = self.get_output_path(fits_path, "heic")
+        self.save_heic(hdr_image, output_path_heic)
+
+        output_path_exr = self.get_output_path(fits_path, "exr")
+        self.save_exr(hdr_image, output_path_exr)
+
+        self.convert_exr_to_hdr_video(output_path_exr)
+
+        return self
+
+    def load_fits_data(self, fits_path):
+        """Load a FITS file and normalize the image."""
+        try:
+            with fits.open(fits_path) as hdul:
+                data = hdul[-1].data.astype(np.float32)
+                data = np.nan_to_num(data, nan=0.5, posinf=1.0, neginf=0.0)
+                data = np.flipud(data)
+                return data
+        except Exception as e:
+            print(f"[ERROR] Failed to load FITS {fits_path}: {e}")
+            return None
+
+
+
+    def save_exr_RGB(self, image, filename):
+        """Save image as 16-bit OpenEXR."""
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        header = OpenEXR.Header(image.shape[1], image.shape[0])
+        half_chan = Imath.Channel(Imath.PixelType(Imath.PixelType.HALF))
+        header['channels'] = {'R': half_chan, 'G': half_chan, 'B': half_chan}
+
+        # Convert to OpenEXR format
+        print(image.shape, image.dtype)
+        image_data = (image.astype(np.float16)).tobytes()
+
+        exr_file = OpenEXR.OutputFile(filename, header)
+        exr_file.writePixels({'R': image_data, 'G': image_data, 'B': image_data})
+        exr_file.close()
+        print(f"Saved HDR image: {filename}")
+
+    def apply_pq_curve(self, image):
+        """Apply Perceptual Quantizer (PQ) transfer function for HDR mapping."""
+        return np.power(image, 2.2)  # PQ Approximation
+
+    def save_exr(self, image, filename):
+        """Save grayscale image as a 16-bit OpenEXR with a single luminance (Y) channel."""
+        import os
+        import OpenEXR
+        import Imath
+        import numpy as np
+
+        # image = self.apply_pq_curve(image*100)
+
+        # Ensure output directory exists
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+        # Create header with a single Y (luminance) channel
+        header = OpenEXR.Header(image.shape[1], image.shape[0])
+        half_chan = Imath.Channel(Imath.PixelType(Imath.PixelType.HALF))
+        header['channels'] = {'Y': half_chan}  # Single-channel grayscale
+
+        # def log_tonemap(image, scale=1000):
+        #     """Apply logarithmic tone mapping to preserve detail"""
+        #     return np.log1p(image * scale) / np.log1p(scale)
+
+        scale = 2.2
+        # image_half = log_tonemap(image.astype(np.float16))
+        image_half = np.power(image.astype(np.float16), scale)
+        image_half *= 3.5  # Scale into HDR10 nits
+        # image_half = np.log10(image_half)*10
+        image_bytes = image_half.tobytes()
+
+        # Write the single Y channel
+        exr_file = OpenEXR.OutputFile(filename, header)
+        exr_file.writePixels({'Y': image_bytes})
+        exr_file.close()
+        print(f"Saved grayscale HDR image: {filename}")
+
+
+    def convert_exr_to_hdr_video(self, input_exr, frame_rate=1):
+        """
+        Converts a grayscale EXR file to an HDR10 MP4 video.
+        Steps:
+        1. Converts EXR to a 16-bit PNG (RGB)
+        2. Uses FFmpeg to encode the PNG into an HDR video
+        """
+
+        # Ensure the output directory exists
+        # temp_png = "temp_hdr.png"
+        temp_png = input_exr.replace(".exr", "hdr.png")
+        output_video = input_exr.replace(".exr", ".mp4")
+
+        # Load EXR file
+        img = oiio.ImageInput.open(input_exr)
+        if not img:
+            raise ValueError(f"❌ Failed to open EXR file: {input_exr}")
+
+        spec = img.spec()
+        pixels = img.read_image(oiio.TypeDesc("half"))  # Corrected format
+        img.close()
+
+        if pixels is None:
+            raise ValueError(f"❌ Error reading image data from {input_exr}")
+
+        # Ensure it's grayscale, then expand to RGB
+        if spec.nchannels == 1:
+            pixels = np.repeat(pixels, 3, axis=-1)  # Convert 1-channel grayscale to 3-channel RGB
+
+        # Apply tonemapping (Gamma correction + PQ scaling)
+        pixels = np.clip(pixels ** 2.2 * 100, 0, 1)  # Scale to HDR10 nits
+
+        # Save as 16-bit PNG
+        out_spec = oiio.ImageSpec(spec.width, spec.height, 3, oiio.TypeDesc("uint16"))
+        out_img = oiio.ImageOutput.create(temp_png)
+        if not out_img:
+            raise ValueError(f"❌ Failed to create output PNG file: {temp_png}")
+
+        out_img.open(temp_png, out_spec)
+        out_img.write_image((pixels * 65535).astype(np.uint16))
+        out_img.close()
+
+        print(f"✅ Saved PNG: {temp_png}")
+
+        # Verify PNG file size
+        png_size = os.path.getsize(temp_png)
+        if png_size < 1024 * 10:  # At least 10 KB
+            raise ValueError("❌ Error: PNG file seems too small, conversion may have failed.")
+
+        # Run FFmpeg to convert PNG to HDR10 MP4
+        ffmpeg_cmd = f"""
+        ffmpeg -r {frame_rate} -loop 1 -i {temp_png} -vf "scale=in_color_matrix=bt2020:out_color_matrix=bt2020,format=yuv420p10le" \
+        -c:v libx265 -t 5 -pix_fmt yuv420p10le -color_primaries bt2020 -color_trc smpte2084 -color_range tv \
+        -b:v 50M -crf 18 -preset slow -x265-params "hdr10=1:hdr10-opt=1" {output_video}
+        """
+
+        print("Running FFmpeg command:\n", ffmpeg_cmd)
+        subprocess.run(ffmpeg_cmd, shell=True, check=True)
+
+        # Verify MP4 file size
+        mp4_size = os.path.getsize(output_video)
+        if mp4_size < 1024 * 3000:  # At least 3 MB
+            print("❌ Error: MP4 file seems too small, encoding may have failed.")
+
+        # Clean up
+        # os.remove(temp_png)
+
+        print(f"✅ HDR10 video created: {output_video}")
+
+    # def convert_exr_to_hdr_video(self, input_exr, frame_rate=1):
+    #     """
+    #     Converts a grayscale EXR file to an HDR10 MP4 video.
+    #     Steps:
+    #     1. Converts EXR to a 16-bit PNG (RGB)
+    #     2. Uses FFmpeg to encode the PNG into an HDR video
+    #     """
+
+    #     # Ensure the output directory exists
+    #     temp_png = "temp_hdr.png"
+    #     # output_video = os.path.join(os.path.dirname(input_exr), output_video)
+    #     output_video = input_exr.replace(".exr", ".mp4")
+    #     # Load EXR file
+    #     img = oiio.ImageInput.open(input_exr)
+    #     spec = img.spec()
+    #     pixels = img.read_image(oiio.TypeDesc("half"))  # Corrected format
+    #     img.close()
+
+    #     # Ensure it's grayscale, then expand to RGB
+    #     if spec.nchannels == 1:
+    #         pixels = np.repeat(pixels, 3, axis=-1)  # Convert 1-channel grayscale to 3-channel RGB
+
+    #     # Apply basic tonemapping (Gamma correction)
+    #     pixels = np.clip(pixels ** 2.2 * 3.5, 0, 1)  # Scale to HDR10 nits
+
+    #     # Save as 16-bit PNG
+    #     out_spec = oiio.ImageSpec(spec.width, spec.height, 3, oiio.TypeDesc("uint16"))
+    #     out_img = oiio.ImageOutput.create(temp_png)
+    #     out_img.open(temp_png, out_spec)
+    #     out_img.write_image((pixels * 65535).astype(np.uint16))
+    #     out_img.close()
+
+    #     # Run FFmpeg to convert PNG to HDR10 MP4
+    #     ffmpeg_cmd = f"""
+    #     ffmpeg -r {frame_rate} -loop 1 -i {temp_png} -c:v libx265 -t 5 -pix_fmt yuv420p10le \
+    #     -color_primaries bt2020 -color_trc smpte2084 -color_range tv -b:v 50M -crf 18 -preset slow \
+    #     -x265-params "hdr10=1:hdr10-opt=1" {output_video}
+    #     """
+
+    #     print("Running FFmpeg command:\n", ffmpeg_cmd)
+    #     subprocess.run(ffmpeg_cmd, shell=True, check=True)
+
+    #     # Clean up
+    #     os.remove(temp_png)
+
+    #     print(f"✅ HDR10 video created: {output_video}")
+
+
+    def save_heic(self, image, filename):
+        """Save a grayscale HDR image as a 10-bit HEIC file using FFmpeg, with HDR PNG for debugging."""
+
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+        height, width = image.shape
+        raw_yuv = filename.replace(".heic", ".yuv")
+        png_filename = filename.replace(".heic", ".png")
+
+        # Convert grayscale image to 16-bit and scale to full range (HEVC expects 10-bit YUV)
+        yuv_data = (image * 65535).astype(np.uint16)
+        yuv_data.tofile(raw_yuv)
+
+        # Convert raw YUV to PNG for debugging (preserving HDR dynamic range)
+        print(f"🖼️  Converting YUV to HDR PNG: {png_filename}")
+
+        png_conversion_cmd = [
+            "ffmpeg", "-y",
+            "-f", "rawvideo",
+            "-video_size", f"{width}x{height}",
+            "-pixel_format", "gray16le",
+            "-i", raw_yuv,
+            "-vf", "format=gray16le",
+            png_filename
+        ]
+        result = subprocess.run(png_conversion_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        if result.returncode != 0:
+            print(f"❌ Failed to create HDR PNG: {png_filename}")
+            print(result.stderr.decode())
+            return
+
+        print(f"✅ HDR PNG saved: {png_filename} (Check for correct dynamic range)")
+
+        # FFmpeg command for HEIC conversion
+        ffmpeg_cmd = [
+            "ffmpeg", "-y",
+            "-f", "rawvideo",
+            "-video_size", f"{width}x{height}",
+            "-pixel_format", "gray16le",
+            "-i", raw_yuv,
+            "-c:v", "libx265",
+            "-pix_fmt", "yuv420p10le",
+            "-color_primaries", "bt2020",
+            "-color_trc", "pq",
+            "-colorspace", "bt2020nc",
+            "-f", "heif",
+            "-frames:v", "1",
+            filename
+        ]
+
+        print(f"[DEBUG] Running ffmpeg command: {' '.join(ffmpeg_cmd)}")
+        result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        if result.returncode == 0 and os.path.exists(filename):
+            print(f"✅ HEIC saved via FFmpeg: {filename}")
+            # os.remove(raw_yuv)  # Clean up intermediate YUV file
+            return
+
+        print(f"⚠️ FFmpeg failed to create HEIC. Trying ImageMagick...")
+
+        # Try ImageMagick (`convert`) as a fallback
+        if shutil.which("convert"):
+            convert_cmd = ["convert", png_filename, "-define", "heic:preserve-ar", "-quality", "90", filename]
+            result = subprocess.run(convert_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            if result.returncode == 0 and os.path.exists(filename):
+                print(f"✅ HEIC saved via ImageMagick: {filename}")
+                # os.remove(raw_yuv)  # Clean up intermediate YUV file
+                return
+
+            print(f"⚠️ ImageMagick failed. Trying `heif-enc`...")
+
+        # Try `heif-enc` as the final fallback
+        if shutil.which("heif-enc"):
+            heif_cmd = ["heif-enc", png_filename, "-o", filename]
+            result = subprocess.run(heif_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            if result.returncode == 0 and os.path.exists(filename):
+                print(f"✅ HEIC saved via heif-enc: {filename}")
+                # os.remove(raw_yuv)  # Clean up intermediate YUV file
+                return
+
+            print(f"❌ Failed to save HEIC using all methods.")
+
+        print(f"⚠️ The PNG file {png_filename} has been preserved for manual inspection.")
+
+    def get_output_path(self, fits_path, extension):
+        """Generate output file path based on input FITS file."""
+        base_dir = os.path.dirname(os.path.dirname(fits_path))
+        base_name = os.path.splitext(os.path.basename(fits_path))[0]
+        output_dir = os.path.join(base_dir, "HDR_Output")
+        os.makedirs(output_dir, exist_ok=True)
+        return os.path.join(output_dir, f"{base_name}.{extension}")
+
+    # def save_heic(self, image, filename):
+    #     """Save image as 10-bit HEIC using ffmpeg."""
+    #     os.makedirs(os.path.dirname(filename), exist_ok=True)
+    #     height, width = image.shape
+    #     raw_yuv = filename.replace(".heic", ".yuv")
+
+    #     # Convert NumPy array to raw 16-bit YUV (HEVC compatible format)
+    #     yuv_data = (image * 65535).astype(np.uint16)
+    #     yuv_data.tofile(raw_yuv)
+
+    #     # Use ffmpeg to encode HEIC
+    #     ffmpeg_cmd = [
+    #         "ffmpeg", "-y", "-f", "rawvideo",
+    #         "-video_size", f"{width}x{height}",
+    #         "-pixel_format", "gray16le",
+    #         "-i", raw_yuv,
+    #         "-c:v", "hevc",
+    #         "-pix_fmt", "yuv420p10le",
+    #         "-color_primaries", "bt2020",
+    #         "-color_trc", "pq",
+    #         "-colorspace", "bt2020nc",
+    #         filename
+    #     ]
+
+    #     print(f"[DEBUG] Running ffmpeg command: {' '.join(ffmpeg_cmd)}")
+
+    #     result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+    #     if os.path.exists(filename):
+    #         print(f"Saved HDR image: {filename}")
+    #         os.remove(raw_yuv)  # Clean up intermediate file
+    #     else:
+    #         print(f"[ERROR] Failed to create HEIC file: {filename}")
+
+
+
+    # def process_directory(self, directory):
+    #     """Process all FITS files in the specified directory."""
+    #     fits_files = list(Path(directory).rglob("*.fits"))
+    #     if not fits_files:
+    #         print("No FITS files found in the directory.")
+    #         return
+
+    #     for fits_path in fits_files:
+    #         self.do_fits_function(str(fits_path))
+
+# # Example usage
+# if __name__ == "__main__":
+#     processor = ImageProcessorHDR(output_format="heic")  # or "exr"
+#     processor.process_directory("/path/to/your/fits/directory")

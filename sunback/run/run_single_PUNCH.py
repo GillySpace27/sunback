@@ -49,11 +49,11 @@ def run_single(wave="0193", tstart="2011-08-09T00:00:01", duration_seconds=60*20
     p.do_upsilon = True
     p.download_files(True)
 
-    use_punch = False
+    use_punch = True
     if use_punch:
         from punchbowl.data.sample import PUNCH_PAM
         punch_example = str(PUNCH_PAM.resolve())
-        p.use_image_path(punch_example)
+        p.use_image_path(punch_example, 0)
     # p.multiplot_all = True
     master = True
 
@@ -83,10 +83,10 @@ def run_single(wave="0193", tstart="2011-08-09T00:00:01", duration_seconds=60*20
     if radial_norms:
         pass
         # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        p.processors([RHEFProcessor],            rp=True)  # Applies the RHE Filter
-        p.processors([UpsilonProcessor],            rp=True)  # Applies the RHE Filter
-        p.processors([NRGFProcessor],            rp=True)  # Applies the RHE Filter
-        p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        # p.processors([RHEFProcessor],            rp=True)  # Applies the RHE Filter
+        # p.processors([UpsilonProcessor],            rp=True)  # Applies the RHE Filter
+        # p.processors([NRGFProcessor],            rp=True)  # Applies the RHE Filter
+        # p.processors([MSGNProcessor],           rp=True)  # Applies the Sunpy Multiscale Gausian Norm
         # p.processors([RHEFProcessor],            rp=True)  # Applies the RHE Filter
         # p.processors([NRGFProcessor],           rp=True)  # Applies the Sunpy NRGF Filter
         # p.processors([UpsilonProcessor],            rp=True)  # Applies the RHE Filter

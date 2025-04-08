@@ -84,27 +84,22 @@ class LocalSingleFetcher(Fetcher):
             self.load_jpg(fits_path)
             return
 
-        for self.params.hdu_name in self.params.master_frame_list_newest:
-            if self.params.hdu_name in self.hdu_name_list:
-                try:
-                    # import pdb; pdb.set_trace()
-                    self.load_fits_image(
-                        self.params.use_image_path(), self.params.hdu_name
-                    )
-                    # print(" *   Loaded the '{}' HDU from".format(self.params.hdu_name))
-                    print(" *   Loading frame {}".format(self.params.hdu_name))
-                    print(" *     ", path.basename(self.params.use_image_path()))
-                    print(
-                        " *    in\n *     ", path.dirname(self.params.use_image_path())
-                    )
-                    print(" ^ Success!")
-                    break
-                except KeyError as e:
-                    continue
-                print("LocalSingleFetcher")
-                raise e
+        for self.params.hdu_name in reversed(self.hdu_name_list):
+            try:
+                self.load_fits_image(
+                    self.params.use_image_path(), self.params.hdu_name
+                )
+                # print(" *   Loaded the '{}' HDU from".format(self.params.hdu_name))
+                print(" *   Loading frame {}".format(self.params.hdu_name))
+                print(" *     ", path.basename(self.params.use_image_path()))
+                print(
+                    " *    in\n *     ", path.dirname(self.params.use_image_path())
+                )
+                print(" ^ Success!")
+                break
+            except KeyError as e:
+                continue
 
-                # self.view_raw()
 
     def load_jpg(self, fits_path):
         print("\tLoading a JPG:", os.path.basename(fits_path))

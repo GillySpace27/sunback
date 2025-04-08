@@ -1,29 +1,30 @@
 import os
-
+os.nice(10)
 from sunback.fetcher.FidoFetcher import FidoFetcher
-from sunback.fetcher.FidoSynopticFetcher_bkk2 import FidoSynopticFetcher
+from sunback.fetcher.FidoSynopticFetcher_working import FidoSynopticFetcher
 # from src.fetcher.FidoFetcher_complete import FidoFetcher
 
 # from src.fetcher.FidoFetcher_refactored import FidoFetcher
 from sunback.fetcher.FidoTimeIntProcessor import FidoTimeIntProcessor
 from sunback.fetcher.LocalFetcher import LocalFetcher
 from sunback.processor.ImageProcessorCV import ImageProcessorCV
-from sunback.processor.QRNProcessor import (
-    QRNProcessor,
-    QRNSingleShotProcessor,
-    QRNradialFiltProcessor,
-    QRNpreProcessor,
-)
-from sunback.processor.RHEProcessor import RHEProcessor
+# from sunback.processor.QRNProcessor import (
+#     QRNProcessor,
+#     QRNSingleShotProcessor,
+#     QRNradialFiltProcessor,
+#     QRNpreProcessor,
+# )
+# from sunback.processor.RHEProcessor import RHEProcessor
 
 # from src.processor.QRNProcessor import QRNradialFiltProcessor, QRNpreProcessor
 from sunback.processor.ScienceProcessor import ScienceProcessor
-from sunback.processor.SunPyProcessor import AIA_PREP_Processor, RHEFProcessor
+from sunback.processor.SunPyProcessor import UpsilonProcessor, RHEFProcessor
 from sunback.processor.ValidationProcessor import ValidationProcessor
 from sunback.processor.VideoProcessor import VideoProcessor
 from sunback.processor.Processor import Processor
-from sunback.processor.CompositeRainbowImageProcessor import RGBImageProcessor, RGBVideoWriterProcessor
-# from src.processor.CompositeVideoProcessorSyncOld import
+
+from sunback.processor.CompositeRainbowImageProcessor import RainbowRGBImageProcessor#, RGBVideoWriterProcessor
+from sunback.processor.CompositeVideoProcessor import CompositeVideoProcessor
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -58,16 +59,15 @@ all_wavelengths = [
 # do_wavelengths = all_wavelengths  # ['0211']
 # do_wavelengths = ["0304", "0335", "1600"]  # , "0193", "0211"]
 do_wavelengths_str = ["0211", "0193", "0171"]
-# do_wavelengths_str = ["0211"]
+# do_wavelengths_str = ["304", "335", "94"]
 do_wavelengths = [f"{int(wv):04d}" for wv in do_wavelengths_str]
-PNG_FRAME_NAME = "rhef"
 RHE_TARGETS = "compressed_image"
+PNG_FRAME_NAME = f"rhef({RHE_TARGETS})"
 stop = False
 # wave_to_use = '0211'
 
-
 def run_range_multishot_movie(
-    batch_name="Decade_13_23_most",
+    batch_name="Liftoff2",
     wave=None,
     config=None,
     wave_to_use=None,
@@ -77,22 +77,27 @@ def run_range_multishot_movie(
     p = make_params(batch_name, wave, config, wave_to_use)
     p.do_recent(False)
     p.do_prep = False  # do AIA prep upon download of each frame
-    p.upsilon = upsilon
+    # p.upsilon = upsilon
     p.do_one(wave_to_use, True)
     p.destroy = True
-    p.do_parallel = True
     p.do_orig = False
     p.rhe_targets([RHE_TARGETS])
+    p.do_parallel = True
+    p.do_upsilon = False
+    p.do_upsilon_together = False
     p.init_pool(20)
+    p.download_files(True)
+    p.stop_after_one(True)
 
     # Set the Processes
     # p.fetchers(FidoFetcher, rp=False)  # Gets Fits FIDO
-    # p.fetchers(FidoSynopticFetcher, rp=False)  # Gets Fits FIDO
-    p.processors([RHEFProcessor], rp=False)
+    p.fetchers(FidoSynopticFetcher, rp=False)  # Gets Fits FIDO
+    p.processors([RHEFProcessor], rp=True)
+    # # p.processors([UpsilonProcessor])
     # p.processors([ImageProcessorCV], rp=False)  # Makes the PNGs from Fits
     # p.putters([VideoProcessor], rp=True)  # Makes the PNGs into a Movie
-    # p.putters([RGBImageProcessor], rp=True)  # Makes the PNGs into a Composite PNG
-    # p.putters([RGBVideoWriterProcessor], rp=True)  # Makes the PNGs into a Movie
+    # p.putters([RainbowRGBImageProcessor], rp=True)  # Makes the PNGs into a Composite PNG
+    p.putters([CompositeVideoProcessor], rp=True)  # Makes the PNGs into a Movie
 
     # p.processors([FidoTimeIntProcessor],    rp=False)   # Integrate several frames for S/N
 
@@ -332,19 +337,19 @@ def make_configs(wave_to_use):
     }
 
     c8 = {
-        "name": "Liftoff",
+        "name": "Liftoff2",
         "debug": True,
         "do_one": None,
         "stop": True,
         "tend": '2013/09/30 23:59:59',
         "tstart": "2013/09/28 00:00:10",
         # "tend": "2013/09/28 00:00:22",
-        "cadence_minutes": 2,
-        "fps": 10,
+        "cadence_minutes": 10,
+        "fps": 20,
         "exposure_time": 60,
         "key_fixed_cadence": 1,
         "key_fixed_number": None,
-        "time_preset": "l",
+        "time_preset": None,
     }
     c0 = {
         "name": "Test2",
