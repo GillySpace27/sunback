@@ -398,7 +398,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
     save_to_fits = False
     can_do_parallel = True
     shrink_factor = 1
-    n_temp_interp = 164
+    n_temp_interp = 82
 
     def setup(self):
         super().setup()
