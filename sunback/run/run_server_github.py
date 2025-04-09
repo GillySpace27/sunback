@@ -59,8 +59,8 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
         # # p.processors([AIA_PREP_Processor],)
         p.processors([RHEFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
     #     # p.processors([NRGFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
-        p.processors([UpsilonProcessor], rp=True)
     #     # # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
+        p.processors([UpsilonProcessor], rp=True)
     p.processors([DEMReconstructionProcessor])
 
     p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs

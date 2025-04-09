@@ -147,7 +147,7 @@ class ScienceProcessor(Processor):
     #
     def setup(self):
         """Do prep work once before the main algorithm"""
-        print("Setup ran!")
+        # print("Setup ran!")
 
         self.ii = 0
         self.n_hist = 50
@@ -343,6 +343,52 @@ class ScienceProcessor(Processor):
             (good_coord, bin_array, radii) = entries.T
         return good_coord, bin_array, radii, the_mean, the_std, want_bin
 
+    def add_label_overlay_to_axes(self, ax, image_shape, frame_name=False):
+        full_name, fits_path, time_string_raw, shape = self.image_data
+        time_string = self.clean_time_string(
+            time_string_raw, targetZone="US/Mountain", out_fmt="%m-%d-%Y %I:%M%p %Z"
+        )
+        time_list = time_string.split()
+        clock, day, year = time_list[1].lower(), time_list[0][:-5], time_list[0][-4:]
+
+        inst = "AIA"
+        wave = str(self.wave)
+
+        if frame_name is None:
+            frame_name = fname = str(self.current_frame_name)
+        elif frame_name is False:
+            fname = "None"
+        else:
+            fname = frame_name
+
+        name, prev = (
+            fname.split("(")[0],
+            fname.split("(")[1][:-1] if "(" in fname else "-",
+        )
+
+        rez = image_shape[0]
+        scale, h, wid_of_char = (
+            (6, 120, 60) if rez >= 4000 else (3, 60, 30) if rez >= 2000 else (1.5, 30, 15)
+        )
+        h0, thickness = (100, 4) if rez >= 4000 else (50, 2) if rez >= 2000 else (30, 2)
+
+        positions_left = [(0, rez - height) for height in [h0, h0 + h, h0 + 2 * h, h0 + 3 * h]]
+        labels_left = [clock, day, year, "MT"]
+
+        positions_right = [
+            (rez - wid_of_char * len(text) - 10, rez - height)
+            for text, height in zip([name, prev, inst, wave], [h0, h0 + h, h0 + 2 * h, h0 + 3 * h])
+        ]
+        labels_right = [name, prev, inst, wave]
+
+        for text, (x, y) in zip(labels_left, positions_left):
+            ax.text(x, y, text, fontsize=scale * 8, color='white', ha='left', va='bottom',
+                    bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', boxstyle='round,pad=0.2'))
+
+        # for text, (x, y) in zip(labels_right, positions_right):
+        #     ax.text(x, y, text, fontsize=scale * 4, color='white', ha='left', va='bottom',
+        #             bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', boxstyle='round,pad=0.2'))
+
 class DEMReconstructionProcessor(ScienceProcessor):
     filt_name = "DEM Reconstructor"
     description = "Perform DEM and isothermal temperature reconstruction from AIA images"
@@ -352,6 +398,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
     save_to_fits = False
     can_do_parallel = True
     shrink_factor = 1
+    n_temp_interp = 164
 
     def setup(self):
         super().setup()
@@ -367,11 +414,11 @@ class DEMReconstructionProcessor(ScienceProcessor):
         import itertools
 
         # Use a finer temperature grid
-        self.temperatures = np.linspace(5.5, 7.5, 200) * u.K
+        self.temperatures = np.linspace(5.5, 7.5, self.n_temp_interp) * u.K
         self.temperatures_lin = 10**self.temperatures.to_value() * u.K
         self.response_curves = {}
 
-        for ii, wave in enumerate(tqdm(self.channel_waves)):
+        for ii, wave in enumerate(self.channel_waves):
             try:
                 tr = AIA_TEMPERATURE_RESPONSE_TABLE[:, ii]
                 ki = AIA_TEMPERATURES * u.K
@@ -461,7 +508,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
           # shape: (n_temps, height, width)
 
         if plot:
-            self.plot_similarities(S_cube)
+            self.plot_similarities(S_cube, False)
 
         return S_cube
 
@@ -469,7 +516,8 @@ class DEMReconstructionProcessor(ScienceProcessor):
         import matplotlib.pyplot as plt
 
         # Flatten the spatial dimensions
-        S_lines = S_cube.reshape(200, -1)  # shape: (200, 1048576)
+        n_temps = len(self.temperatures)
+        S_lines = S_cube.reshape(n_temps, -1)  # shape: (200, 1048576)
 
         # Optional: downsample to avoid plotting over a million lines
         n_lines_to_plot = 5000
@@ -478,27 +526,33 @@ class DEMReconstructionProcessor(ScienceProcessor):
 
         # Plot
         fig = plt.figure(figsize=(10, 6))
-        plt.plot(self.temperatures, subset, alpha=0.1, linewidth=1.0)
-        plt.xlabel("log10 Temperature [K]")
+        plt.plot(self.temperatures_lin/10**6, subset, alpha=0.1, linewidth=1.0)
+        plt.xlabel("Temperature [MK]")
         plt.ylabel("Similarity Score")
+        plt.xscale("log")
         plt.title(f"NSDS Similarity Curves for {n_lines_to_plot} Pixels")
         plt.grid(True)
         plt.tight_layout()
-        os.makedirs(os.path.join(self.output_folder, "temps"), exist_ok=True)
-        pth = os.path.join(self.output_folder, "temps", "model_similarity.png")
+
+        temp_path = os.path.join(self.output_folder, "temps")
+        import shutil
+        shutil.rmtree(temp_path)
+        os.makedirs(temp_path, exist_ok=True)
+
+        pth = os.path.join(self.output_folder, "model_similarity.png")
         plt.savefig(pth)
         plt.close(fig)
 
         if plot_all_temps:
-            for ii, imgg in enumerate(S_cube):
+            for ii, imgg in enumerate(tqdm(S_cube, desc="Plotting Temps")):
                 # if ii % 5 == 0:
                 #     continue
                 the_temp = self.temperatures_lin[ii] / 10**6
-                pth = os.path.join(self.output_folder, "temps", f"temp_{the_temp:.2}.png")
+                pth = os.path.join(self.output_folder, "temps", f"temp_{the_temp.to_value():.03f}MK.png")
 
                 fig, ax = plt.subplots()
                 im = ax.imshow(imgg, origin="lower", cmap="viridis", vmin=0.0, vmax=1.0)
-                fig.suptitle(f"Temperature Response to {the_temp:.2}")
+                ax.set_title(f"Temperature Response to {the_temp.to_value():.03f} [MK]")
                 plt.savefig(pth, dpi=150)
                 plt.close(fig)
 
@@ -569,6 +623,10 @@ class DEMReconstructionProcessor(ScienceProcessor):
         for spine in ax.spines.values():
             spine.set_visible(False)
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+        # Put time and wavelength labels here:
+        # img_shape = self.params.modified_image.to_value().shape
+        self.add_label_overlay_to_axes(ax, image.shape, None)
 
         pth = os.path.join(self.output_folder, "isothermal.png")
         print(f"Saving to {pth}")

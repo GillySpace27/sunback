@@ -312,6 +312,7 @@ class Processor:
                         logging.debug(
                             f"Loaded data from HDU index {hdu_name_or_index} in file {file_path}"
                         )
+                        self.current_frame_name = hdu_name_or_index
                         return hdu.data
                 else:
                     logging.error(
