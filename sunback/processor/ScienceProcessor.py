@@ -25,8 +25,43 @@ from os.path import join
 from astropy.io import fits
 from matplotlib.colors import LinearSegmentedColormap
 from tqdm import tqdm
-
+import numpy as np
 from sunback.processor.Processor import Processor
+
+def normalized_squared_difference_similarity(Pn, Rn, epsilon=1e-8):
+    """
+    Compute the Normalized Squared Difference Similarity (NSDS) between observed and modeled ratios.
+
+    This metric is defined as:
+        S = 1 - ((P - R)^2) / (P^2 + R^2 + ε)
+
+    It is:
+    - Bounded between 0 and 1
+    - Smooth and differentiable
+    - Robust to small magnitudes (due to ε)
+    - Conceptually similar to normalized squared error
+
+    Parameters
+    ----------
+    Pn : np.ndarray
+        Observed ratios with shape (n_ratios, 1, height, width)
+    Rn : np.ndarray
+        Modeled ratios with shape (n_ratios, n_temps, 1, 1)
+    epsilon : float, optional
+        Small constant to avoid division by zero, by default 1e-8
+
+    Returns
+    -------
+    np.ndarray
+        Similarity scores with shape (n_ratios, n_temps, height, width)
+    """
+    numerator = (Pn - Rn) ** 2
+    denominator = Pn**2 + Rn**2 + epsilon
+    term = numerator / denominator
+    term = np.clip(term, 0, 1)
+    similarity = 1 - term
+    S_cube = np.mean(similarity, axis=0)
+    return S_cube
 
 
 AIA_TEMPERATURE_RESPONSE_TABLE = np.array([
@@ -333,6 +368,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
 
         # Use a finer temperature grid
         self.temperatures = np.linspace(5.5, 7.5, 200) * u.K
+        self.temperatures_lin = 10**self.temperatures.to_value() * u.K
         self.response_curves = {}
 
         for ii, wave in enumerate(self.channel_waves):
@@ -375,7 +411,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         self.S_cube = self.evaluate_temperature_match(self.ratios)
 
         # Isothermal: max S(T) temperature index for each pixel
-        self.plot_isothermal()
+        self.plot_isothermal_img()
 
         # DEM mode: save S_cube for later plotting
         self.dem_stack = self.S_cube  # could also write to disk
@@ -412,7 +448,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
             ratios.append(ratio)
         return np.array(ratios)
 
-    def evaluate_temperature_match(self, ratios):
+    def evaluate_temperature_match(self, ratios, plot=True):
         ratios = np.array(ratios)  # shape: (n_ratios, height, width)
         model_ratios = np.array(list(self.response_ratios.values()))  # shape: (n_ratios, n_temps)
 
@@ -420,14 +456,96 @@ class DEMReconstructionProcessor(ScienceProcessor):
         Pn = ratios[:, None, :, :]  # shape: (n_ratios, 1, height, width)
         Rn = model_ratios[:, :, None, None]  # shape: (n_ratios, n_temps, 1, 1)
 
-        numerator = (Pn - Rn) ** 2
-        denominator = Pn**2 + Rn**2 + 1e-8
-        similarity = 1 - numerator / denominator
+        S_cube = normalized_squared_difference_similarity(Pn, Rn)
 
-        S_cube = np.mean(similarity, axis=0)  # shape: (n_temps, height, width)
+          # shape: (n_temps, height, width)
+
+        if plot:
+            self.plot_similarities(S_cube)
+
         return S_cube
 
-    def plot_isothermal(self):
+    def plot_similarities(self, S_cube) -> None:
+        import matplotlib.pyplot as plt
+
+        # Flatten the spatial dimensions
+        S_lines = S_cube.reshape(200, -1)  # shape: (200, 1048576)
+
+        # Optional: downsample to avoid plotting over a million lines
+        n_lines_to_plot = 5000
+        indices = np.linspace(0, S_lines.shape[1] - 1, n_lines_to_plot, dtype=int)
+        subset = S_lines[:, indices]
+
+        # Plot
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.temperatures, subset, alpha=0.1, linewidth=1.0)
+        plt.xlabel("log10 Temperature [K]")
+        plt.ylabel("Similarity Score")
+        plt.title(f"NSDS Similarity Curves for {n_lines_to_plot} Pixels")
+        plt.grid(True)
+        plt.tight_layout()
+        os.makedirs(os.path.join(self.output_folder, "temps"), exist_ok=True)
+        pth = os.path.join(self.output_folder, "temps", "model_similarity.png")
+        plt.savefig(pth)
+        plt.show()
+
+
+        for ii, imgg in enumerate(S_cube):
+            # if ii % 5 == 0:
+            #     continue
+            the_temp = self.temperatures_lin[ii] / 10**6
+            pth = os.path.join(self.output_folder, "temps", f"temp_{the_temp:.2}.png")
+
+            fig, ax = plt.subplots()
+            im = ax.imshow(imgg, origin="lower", cmap="viridis", vmin=0.0, vmax=1.0)
+            fig.suptitle(f"Temperature Response to {the_temp:.2}")
+            plt.savefig(pth, dpi=150)
+            plt.close(fig)
+
+    def plot_isothermal_img(self):
+        isothermal_inds = np.argmax(self.S_cube, axis=0)
+        self.isothermal_map = self.temperatures[isothermal_inds]
+        self.params.modified_image = self.vignette(self.isothermal_map)
+        import matplotlib.pyplot as plt
+        from matplotlib import cm
+        import matplotlib.ticker as ticker
+        import time
+
+        # Get a copy of the colormap and define over/under colors
+        cmap = cm.get_cmap("plasma").copy()
+        cmap.set_under('black')   # for values below vmin
+        cmap.set_over('white') # for values above vmax
+
+
+        image = self.params.modified_image.to_value()
+        vmin, vmax = np.percentile(image[np.isfinite(image)], [2, 96])
+        # clipped_image = np.clip(image, vmin, vmax)
+
+        fig, ax = plt.subplots()
+        im = ax.imshow(image, origin='lower', cmap=cmap, interpolation='none', vmin=vmin, vmax=vmax)
+        fig.set_size_inches(6,5)
+
+        from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+        cax = inset_axes(ax, width="5%", height="20%", loc='upper right',
+                         bbox_to_anchor=(0, 0, 1, 1), bbox_transform=ax.transAxes, borderpad=0.5)
+        cbar = plt.colorbar(im, cax=cax, orientation='vertical', extend='both')
+        cbar.set_label("Temperature [MK]")
+        cbar.formatter = ticker.FuncFormatter(lambda x, _: f"{10**x/1e6:.1f}")
+        cbar.update_ticks()
+        plt.title(f"Best Fit Isothermal Temperatures\nfor {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        pth = os.path.join(self.output_folder, "isothermal.png")
+        fig.patch.set_facecolor('black')
+        ax.set_facecolor('black')
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        plt.tight_layout()
+        print(f"Saving to {pth}")
+        plt.savefig(pth, dpi=300)
+        plt.close(fig)
+
+    def plot_isothermal_fig(self):
         isothermal_inds = np.argmax(self.S_cube, axis=0)
         self.isothermal_map = self.temperatures[isothermal_inds]
         self.params.modified_image = self.vignette(self.isothermal_map)
@@ -451,15 +569,11 @@ class DEMReconstructionProcessor(ScienceProcessor):
         cbar = plt.colorbar(extend='both')  # enable drawing of over/under arrows
         fig.set_size_inches(6,5)
 
-        # Display the image with the new colormap
-        # plt.imshow(self.params.modified_image.to_value(), origin='lower', interpolation="none",
-        #         cmap=cmap, vmin=6, vmax=6.5)
-        # cbar = plt.colorbar(extend='both')  # enable drawing of over/under arrows
         cbar.set_label("Temperature [MK]")
         cbar.formatter = ticker.FuncFormatter(lambda x, _: f"{10**x/1e6:.1f}")
         cbar.update_ticks()
         plt.title(f"Best Fit Isothermal Temperatures\nfor {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        pth = os.path.join(self.output_folder, "isothermal.png")
+        pth = os.path.join(self.output_folder, "temp", "isothermal.png")
         plt.axis('off')
         plt.tight_layout()
         print(f"Saving to {pth}")

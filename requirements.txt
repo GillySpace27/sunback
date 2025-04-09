@@ -8,3 +8,4 @@ opencv-python
 xarray
 requests
 setuptools
+OpenImageIO
