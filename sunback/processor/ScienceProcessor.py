@@ -465,7 +465,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
 
         return S_cube
 
-    def plot_similarities(self, S_cube) -> None:
+    def plot_similarities(self, S_cube, plot_all_temps=False) -> None:
         import matplotlib.pyplot as plt
 
         # Flatten the spatial dimensions
@@ -489,18 +489,18 @@ class DEMReconstructionProcessor(ScienceProcessor):
         plt.savefig(pth)
         plt.close(fig)
 
+        if plot_all_temps:
+            for ii, imgg in enumerate(S_cube):
+                # if ii % 5 == 0:
+                #     continue
+                the_temp = self.temperatures_lin[ii] / 10**6
+                pth = os.path.join(self.output_folder, "temps", f"temp_{the_temp:.2}.png")
 
-        for ii, imgg in enumerate(S_cube):
-            # if ii % 5 == 0:
-            #     continue
-            the_temp = self.temperatures_lin[ii] / 10**6
-            pth = os.path.join(self.output_folder, "temps", f"temp_{the_temp:.2}.png")
-
-            fig, ax = plt.subplots()
-            im = ax.imshow(imgg, origin="lower", cmap="viridis", vmin=0.0, vmax=1.0)
-            fig.suptitle(f"Temperature Response to {the_temp:.2}")
-            plt.savefig(pth, dpi=150)
-            plt.close(fig)
+                fig, ax = plt.subplots()
+                im = ax.imshow(imgg, origin="lower", cmap="viridis", vmin=0.0, vmax=1.0)
+                fig.suptitle(f"Temperature Response to {the_temp:.2}")
+                plt.savefig(pth, dpi=150)
+                plt.close(fig)
 
 
     def plot_isothermal(self):
