@@ -371,7 +371,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         self.temperatures_lin = 10**self.temperatures.to_value() * u.K
         self.response_curves = {}
 
-        for ii, wave in enumerate(self.channel_waves):
+        for ii, wave in enumerate(tqdm(self.channel_waves)):
             try:
                 tr = AIA_TEMPERATURE_RESPONSE_TABLE[:, ii]
                 ki = AIA_TEMPERATURES * u.K
@@ -411,7 +411,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         self.S_cube = self.evaluate_temperature_match(self.ratios)
 
         # Isothermal: max S(T) temperature index for each pixel
-        self.plot_isothermal_img()
+        self.plot_isothermal()
 
         # DEM mode: save S_cube for later plotting
         self.dem_stack = self.S_cube  # could also write to disk
@@ -477,7 +477,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         subset = S_lines[:, indices]
 
         # Plot
-        plt.figure(figsize=(10, 6))
+        fig = plt.figure(figsize=(10, 6))
         plt.plot(self.temperatures, subset, alpha=0.1, linewidth=1.0)
         plt.xlabel("log10 Temperature [K]")
         plt.ylabel("Similarity Score")
@@ -487,7 +487,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         os.makedirs(os.path.join(self.output_folder, "temps"), exist_ok=True)
         pth = os.path.join(self.output_folder, "temps", "model_similarity.png")
         plt.savefig(pth)
-        plt.show()
+        plt.close(fig)
 
 
         for ii, imgg in enumerate(S_cube):
@@ -502,7 +502,8 @@ class DEMReconstructionProcessor(ScienceProcessor):
             plt.savefig(pth, dpi=150)
             plt.close(fig)
 
-    def plot_isothermal_img(self):
+
+    def plot_isothermal(self):
         isothermal_inds = np.argmax(self.S_cube, axis=0)
         self.isothermal_map = self.temperatures[isothermal_inds]
         self.params.modified_image = self.vignette(self.isothermal_map)
@@ -517,69 +518,62 @@ class DEMReconstructionProcessor(ScienceProcessor):
         cmap.set_over('white') # for values above vmax
 
 
-        image = self.params.modified_image.to_value()
-        vmin, vmax = np.percentile(image[np.isfinite(image)], [2, 96])
-        # clipped_image = np.clip(image, vmin, vmax)
-
         fig, ax = plt.subplots()
-        im = ax.imshow(image, origin='lower', cmap=cmap, interpolation='none', vmin=vmin, vmax=vmax)
-        fig.set_size_inches(6,5)
-
-        from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-        cax = inset_axes(ax, width="5%", height="20%", loc='upper right',
-                         bbox_to_anchor=(0, 0, 1, 1), bbox_transform=ax.transAxes, borderpad=0.5)
-        cbar = plt.colorbar(im, cax=cax, orientation='vertical', extend='both')
-        cbar.set_label("Temperature [MK]")
-        cbar.formatter = ticker.FuncFormatter(lambda x, _: f"{10**x/1e6:.1f}")
-        cbar.update_ticks()
-        plt.title(f"Best Fit Isothermal Temperatures\nfor {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        pth = os.path.join(self.output_folder, "isothermal.png")
+        fig.set_size_inches(6, 6)  # make it square
         fig.patch.set_facecolor('black')
         ax.set_facecolor('black')
+        ax.set_aspect('equal')
+
+        image = self.params.modified_image.to_value()
+        vmin, vmax = np.percentile(image[np.isfinite(image)], [2, 96])
+
+        im = ax.imshow(image, origin='lower', cmap=cmap, interpolation='none', vmin=vmin, vmax=vmax)
+
+        from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+        # Create a small vertical colorbar inset in the upper right
+        cax = inset_axes(ax, width="2.5%", height="15%", loc='upper right',
+                        bbox_to_anchor=(0, 0, 1, 1),
+                        bbox_transform=ax.transAxes,
+                        borderpad=0.0)
+
+        cbar = plt.colorbar(im, cax=cax, orientation='vertical', extend='both')
+
+        # Add a thin white border around the colorbar
+        for spine in cbar.ax.spines.values():
+            spine.set_edgecolor('white')
+            spine.set_linewidth(0.5)  # You can increase to 1.0 for a stronger frame
+
+        # Format tick labels to display in MK
+        cbar.formatter = ticker.FuncFormatter(lambda x, _: f"{10**x/1e6:.1f}")
+        cbar.update_ticks()
+
+        # Set ticks on the left
+        cbar.ax.yaxis.set_ticks_position('left')
+        cbar.ax.yaxis.set_label_position('left')
+
+        # Style the ticks and label
+        cbar.ax.tick_params(colors='white', labelsize=8)
+        label = cbar.ax.set_ylabel("Fit IsoTemp [MK]", color='white', fontsize=8, labelpad=4)
+        label.set_bbox(dict(facecolor='black', alpha=0.4, edgecolor='none', boxstyle='round,pad=0.2'))
+
+        # Add semi-transparent background to each tick label
+        for label in cbar.ax.get_yticklabels():
+            label.set_color('white')
+            label.set_fontsize(8)
+            label.set_bbox(dict(facecolor='black', alpha=0.4, edgecolor='none', boxstyle='round,pad=0.1'))
+
+        # Remove axes and whitespace
         ax.set_xticks([])
         ax.set_yticks([])
         for spine in ax.spines.values():
             spine.set_visible(False)
-        plt.tight_layout()
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+        pth = os.path.join(self.output_folder, "isothermal.png")
         print(f"Saving to {pth}")
-        plt.savefig(pth, dpi=300)
+        plt.savefig(pth, dpi=300, facecolor='black')
         plt.close(fig)
-
-    def plot_isothermal_fig(self):
-        isothermal_inds = np.argmax(self.S_cube, axis=0)
-        self.isothermal_map = self.temperatures[isothermal_inds]
-        self.params.modified_image = self.vignette(self.isothermal_map)
-        import matplotlib.pyplot as plt
-        from matplotlib import cm
-        import matplotlib.ticker as ticker
-        import time
-
-        # Get a copy of the colormap and define over/under colors
-        cmap = cm.get_cmap("plasma").copy()
-        cmap.set_under('black')   # for values below vmin
-        cmap.set_over('white') # for values above vmax
-
-
-        image = self.params.modified_image.to_value()
-        vmin, vmax = np.percentile(image[np.isfinite(image)], [2, 96])
-        # clipped_image = np.clip(image, vmin, vmax)
-
-        fig, ax = plt.subplots()
-        plt.imshow(image, origin='lower', cmap=cmap, interpolation = 'none', vmin=vmin, vmax=vmax)
-        cbar = plt.colorbar(extend='both')  # enable drawing of over/under arrows
-        fig.set_size_inches(6,5)
-
-        cbar.set_label("Temperature [MK]")
-        cbar.formatter = ticker.FuncFormatter(lambda x, _: f"{10**x/1e6:.1f}")
-        cbar.update_ticks()
-        plt.title(f"Best Fit Isothermal Temperatures\nfor {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        pth = os.path.join(self.output_folder, "temp", "isothermal.png")
-        plt.axis('off')
-        plt.tight_layout()
-        print(f"Saving to {pth}")
-        plt.savefig(pth, dpi=300)
-        plt.close(fig)
-        # plt.show()
 
     def cleanup(self):
         return
