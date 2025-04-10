@@ -4,7 +4,7 @@
 from pathlib import Path
 import numpy as np
 import logging
-import itertools
+# import itertools
 
 # from scipy.signal import savgol_filter
 # from src.processor.Processor import Processor
@@ -12,7 +12,7 @@ import itertools
 # import warnings
 #
 # warnings.filterwarnings("ignore")
-import matplotlib as mpl
+# import matplotlib as mpl
 #
 # mpl.use("qt5agg")
 
@@ -20,13 +20,15 @@ import matplotlib.pyplot as plt
 
 #
 import os
-from os.path import join
+# from os.path import join
 
-from astropy.io import fits
-from matplotlib.colors import LinearSegmentedColormap
+# from astropy.io import fits
+# from matplotlib.colors import LinearSegmentedColormap
 from tqdm import tqdm
-import numpy as np
+# import numpy as np
 from sunback.processor.Processor import Processor
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 
 def normalized_squared_difference_similarity(Pn, Rn, epsilon=1e-8):
     """
@@ -398,7 +400,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
     save_to_fits = False
     can_do_parallel = True
     shrink_factor = 1
-    n_temp_interp = 82
+    n_temp_interp = 164
 
     def setup(self):
         super().setup()
@@ -407,6 +409,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         self.output_folder = (
             Path(self.params.base_directory()).parent / "rainbow" / "imgs" / "mod"
         )
+        logger.debug("DEMProcessor Initialized")
 
     def load_temperature_response_curves(self):
         import astropy.units as u
@@ -431,7 +434,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
                 )
                 self.response_curves[wave] = interp_response
             except Exception as e:
-                logging.error(f"Failed to load response for {wave} Å: {e}")
+                logger.error(f"Failed to load response for {wave} Å: {e}")
                 self.response_curves[wave] = np.ones_like(self.temperatures.value)
 
         self.response_ratios = {}
@@ -440,10 +443,13 @@ class DEMReconstructionProcessor(ScienceProcessor):
             r2 = self.response_curves[w2]
             ratio = np.divide(r1, r2, out=np.zeros_like(r1), where=r2 != 0)
             self.response_ratios[f"{w1}/{w2}"] = ratio
+        logger.debug("Response Curves and Ratios Calculated")
 
         return self.response_curves, self.response_ratios
 
     def do_work(self):
+        logger.debug("Starting do_work")
+
         self.init_radius_array()
 
         # Load AIA intensities across channels
@@ -461,26 +467,26 @@ class DEMReconstructionProcessor(ScienceProcessor):
         self.plot_isothermal()
 
         # DEM mode: save S_cube for later plotting
-        self.dem_stack = self.S_cube  # could also write to disk
+        # self.dem_stack = self.S_cube  # could also write to disk
         raise StopIteration
         # return self.isothermal_map
 
     def load_channel_intensities(self):
         base_dir = Path(self.params.base_directory()).parent / "rainbow" / "imgs" / "fits"
         if not base_dir.exists():
-            logging.error(f"FITS directory does not exist: {base_dir}")
+            logger.error(f"FITS directory does not exist: {base_dir}")
             return None
 
         intensity_images = []
         for wave in self.channel_waves:
             file_path = sorted(base_dir.glob(f"*{wave}*.fits"))
             if not file_path:
-                logging.warning(f"No FITS file found for wavelength {wave}")
+                logger.warning(f"No FITS file found for wavelength {wave}")
                 return None
             file_path = file_path[0]
             img = self.load_fits_data(str(file_path), 1)
             if img is None:
-                logging.warning(f"Could not load image for {wave}")
+                logger.warning(f"Could not load image for {wave}")
                 return None
             intensity_images.append(np.nan_to_num(img))
 
@@ -496,6 +502,8 @@ class DEMReconstructionProcessor(ScienceProcessor):
         return np.array(ratios)
 
     def evaluate_temperature_match(self, ratios, plot=True):
+        logger.debug("Evaluating Similarity")
+
         ratios = np.array(ratios)  # shape: (n_ratios, height, width)
         model_ratios = np.array(list(self.response_ratios.values()))  # shape: (n_ratios, n_temps)
 
@@ -508,6 +516,8 @@ class DEMReconstructionProcessor(ScienceProcessor):
           # shape: (n_temps, height, width)
 
         if plot:
+            logger.debug("Plotting Similarity")
+
             self.plot_similarities(S_cube, False)
 
         return S_cube
@@ -558,6 +568,8 @@ class DEMReconstructionProcessor(ScienceProcessor):
 
 
     def plot_isothermal(self):
+        logger.debug("Plotting Isothermal Image")
+
         isothermal_inds = np.argmax(self.S_cube, axis=0)
         self.isothermal_map = self.temperatures[isothermal_inds]
         self.params.modified_image = self.vignette(self.isothermal_map)
@@ -630,7 +642,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
 
         pth = os.path.join(self.output_folder, "isothermal.png")
         print(f"Saving to {pth}")
-        plt.savefig(pth, dpi=300, facecolor='black')
+        plt.savefig(pth, dpi=170.66666667, facecolor='black')
         plt.close(fig)
 
     def cleanup(self):
