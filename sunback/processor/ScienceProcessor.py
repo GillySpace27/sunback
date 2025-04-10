@@ -28,7 +28,13 @@ from tqdm import tqdm
 # import numpy as np
 from sunback.processor.Processor import Processor
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+if not logger.handlers:
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
 
 def normalized_squared_difference_similarity(Pn, Rn, epsilon=1e-8):
     """
@@ -501,23 +507,47 @@ class DEMReconstructionProcessor(ScienceProcessor):
             ratios.append(ratio)
         return np.array(ratios)
 
-    def evaluate_temperature_match(self, ratios, plot=True):
+    def evaluate_temperature_match(self, ratios, plot=True, use_chunking="auto", chunk_size=2048):
+        import psutil
+
         logger.debug("Evaluating Similarity")
 
-        ratios = np.array(ratios)  # shape: (n_ratios, height, width)
-        model_ratios = np.array(list(self.response_ratios.values()))  # shape: (n_ratios, n_temps)
+        ratios = np.array(ratios)  # (n_ratios, height, width)
+        model_ratios = np.array(list(self.response_ratios.values()))  # (n_ratios, n_temps)
 
-        # Reshape to broadcast: (n_ratios, n_temps, height, width)
-        Pn = ratios[:, None, :, :]  # shape: (n_ratios, 1, height, width)
-        Rn = model_ratios[:, :, None, None]  # shape: (n_ratios, n_temps, 1, 1)
+        n_ratios, height, width = ratios.shape
+        n_temps = model_ratios.shape[1]
+        n_pixels = height * width
 
-        S_cube = normalized_squared_difference_similarity(Pn, Rn)
+        # Estimate memory needed for full S_cube
+        bytes_needed = np.dtype(np.float32).itemsize * n_temps * n_pixels
 
-          # shape: (n_temps, height, width)
+        if use_chunking == "auto":
+            available_memory = psutil.virtual_memory().available
+            use_chunking = bytes_needed > available_memory * 0.5  # fallback if >50% of memory
+
+        if not use_chunking:
+            logger.debug("Using full-memory mode")
+            Pn = ratios[:, None, :, :]  # (n_ratios, 1, height, width)
+            Rn = model_ratios[:, :, None, None]  # (n_ratios, n_temps, 1, 1)
+            S_cube = normalized_squared_difference_similarity(Pn, Rn)
+        else:
+            logger.debug("Using chunked mode")
+            S_cube = np.empty((n_temps, n_pixels), dtype=np.float32)
+            ratios_2d = ratios.reshape(n_ratios, -1)  # (n_ratios, n_pixels)
+
+            for start in range(0, n_pixels, chunk_size):
+                end = min(start + chunk_size, n_pixels)
+                Pn_chunk = ratios_2d[:, start:end][:, None, :]  # (n_ratios, 1, chunk)
+                Rn = model_ratios[:, :, None]  # (n_ratios, n_temps, 1)
+
+                similarity = normalized_squared_difference_similarity(Pn_chunk, Rn)  # (n_temps, chunk)
+                S_cube[:, start:end] = similarity
+
+            S_cube = S_cube.reshape(n_temps, height, width)
 
         if plot:
             logger.debug("Plotting Similarity")
-
             self.plot_similarities(S_cube, False)
 
         return S_cube
@@ -545,9 +575,10 @@ class DEMReconstructionProcessor(ScienceProcessor):
         plt.tight_layout()
 
         temp_path = os.path.join(self.output_folder, "temps")
-        import shutil
-        shutil.rmtree(temp_path)
-        os.makedirs(temp_path, exist_ok=True)
+        if os.path.exists(temp_path):
+            import shutil
+            shutil.rmtree(temp_path)
+        os.makedirs(temp_path)
 
         pth = os.path.join(self.output_folder, "model_similarity.png")
         plt.savefig(pth)
@@ -586,12 +617,16 @@ class DEMReconstructionProcessor(ScienceProcessor):
 
         fig, ax = plt.subplots()
         fig.set_size_inches(6, 6)  # make it square
-        fig.patch.set_facecolor('black')
-        ax.set_facecolor('black')
+        fig.patch.set_facecolor('darkgrey')
+        ax.set_facecolor('darkgrey')
         ax.set_aspect('equal')
 
-        image = self.params.modified_image.to_value()
-        vmin, vmax = np.percentile(image[np.isfinite(image)], [2, 96])
+        image = 10 ** self.params.modified_image.to_value() / 1e6  # convert from log(K) to MK
+
+        # image = self.params.modified_image.to_value()
+        # vmin, vmax = np.percentile(image[np.isfinite(image)], [2, 96])
+        vmin, vmax = 1.0, 2.5
+        print(f"\n\n{vmin = }, {vmax = }\n\n")
 
         im = ax.imshow(image, origin='lower', cmap=cmap, interpolation='none', vmin=vmin, vmax=vmax)
 
@@ -610,9 +645,17 @@ class DEMReconstructionProcessor(ScienceProcessor):
             spine.set_edgecolor('white')
             spine.set_linewidth(0.5)  # You can increase to 1.0 for a stronger frame
 
-        # Format tick labels to display in MK
-        cbar.formatter = ticker.FuncFormatter(lambda x, _: f"{10**x/1e6:.1f}")
-        cbar.update_ticks()
+        # # Format tick labels to display in MK
+        # cbar.formatter = ticker.FuncFormatter(lambda x, _: f"{10**x/1e6:.1f}")
+        # cbar.update_ticks()
+
+        # Linearly spaced ticks in MK
+        tick_labels_MK = [1.0, 1.5, 2.0, 2.5]
+        cbar.set_ticks(tick_labels_MK)
+        cbar.set_ticklabels([f"{mk:.1f}" for mk in tick_labels_MK])
+
+        # cbar.set_ticks(tick_locs_log)
+        # cbar.set_ticklabels([f"{mk:.1f}" for mk in tick_labels_MK])
 
         # Set ticks on the left
         cbar.ax.yaxis.set_ticks_position('left')
