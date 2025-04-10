@@ -472,7 +472,10 @@ class ImageProcessor(Processor):
             pass
 
         self.dont_vminmax = dont_vminmax
-        frame = self.vignette(frame)
+        try:
+            frame = self.vignette(frame)
+        except IndexError as e:
+            print(f"Skipped Vignetting: {e}")
         return frame
 
 
