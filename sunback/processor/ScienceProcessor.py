@@ -508,7 +508,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
             ratios.append(ratio)
         return np.array(ratios)
 
-    def evaluate_temperature_match(self, ratios, plot=True, use_chunking="auto", chunk_size=2048):
+    def evaluate_temperature_match(self, ratios, plot=True, use_chunking="auto", chunk_size=1024):
         import psutil
 
         logger.debug("Evaluating Similarity")
@@ -524,8 +524,14 @@ class DEMReconstructionProcessor(ScienceProcessor):
         bytes_needed = np.dtype(np.float32).itemsize * n_temps * n_pixels
 
         if use_chunking == "auto":
-            available_memory = psutil.virtual_memory().available
-            use_chunking = bytes_needed > available_memory * 0.5  # fallback if >50% of memory
+            in_CI = os.environ.get("GITHUB_ACTIONS", "false").lower() == "true"
+            if in_CI:
+                logger.debug("Detected GitHub Actions CI environment — forcing chunked processing")
+                use_chunking = True
+            else:
+                available_memory = psutil.virtual_memory().available
+                logger.debug(f"Memory check: Need {bytes_needed/1e6:.2f} MB, Available {available_memory/1e6:.2f} MB")
+                use_chunking = bytes_needed > available_memory * 0.5
 
         if not use_chunking:
             logger.debug("Using full-memory mode")
