@@ -54,7 +54,7 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
     # p.do_standard_RHE()
     # p.msgn_targets(["lev1p5"])
     p.rhe_targets(["lev1p5"])
-    p.png_frame_name = ["ups(rhef)"]  # ['rhe(lev1p5)']
+    p.png_frame_name = ["rhef(lev1p5)"]  # ['rhe(lev1p5)']
     p.rgb_frame = "rhef(lev1p5)"
     if True:
         p.fetchers(WebFitsFetcher,)  # Gets Fits from JSOC Most Recent
