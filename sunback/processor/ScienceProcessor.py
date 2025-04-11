@@ -28,6 +28,7 @@ from tqdm import tqdm
 # import numpy as np
 from sunback.processor.Processor import Processor
 logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 if not logger.handlers:
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
@@ -376,7 +377,7 @@ class ScienceProcessor(Processor):
 
         rez = image_shape[0]
         scale, h, wid_of_char = (
-            (6, 120, 60) if rez >= 4000 else (3, 60, 30) if rez >= 2000 else (1.5, 30, 15)
+            (6, 128, 60) if rez >= 4000 else (3, 64, 30) if rez >= 2000 else (1.5, 32, 15)
         )
         h0, thickness = (100, 4) if rez >= 4000 else (50, 2) if rez >= 2000 else (30, 2)
 
@@ -601,8 +602,15 @@ class DEMReconstructionProcessor(ScienceProcessor):
     def plot_isothermal(self):
         logger.debug("Plotting Isothermal Image")
 
-        isothermal_inds = np.argmax(self.S_cube, axis=0)
+        # Axis 0 is temperature
+        isothermal_inds = np.argmax(self.S_cube, axis=0)  # (1000, 1000)
+
+        # Get the max similarity value at each pixel
+        self.similarity_map = np.take_along_axis(self.S_cube, isothermal_inds[None, :, :], axis=0)[0]
+
+        # Map index -> temperature value
         self.isothermal_map = self.temperatures[isothermal_inds]
+
         self.params.modified_image = self.vignette(self.isothermal_map)
         import matplotlib.pyplot as plt
         from matplotlib import cm
@@ -611,24 +619,58 @@ class DEMReconstructionProcessor(ScienceProcessor):
 
         # Get a copy of the colormap and define over/under colors
         cmap = cm.get_cmap("plasma").copy()
-        cmap.set_under('black')   # for values below vmin
-        cmap.set_over('white') # for values above vmax
+        cmap.set_under('navy')   # for values below vmin
+        cmap.set_over('yellow') # for values above vmax
 
 
         fig, ax = plt.subplots()
         fig.set_size_inches(6, 6)  # make it square
-        fig.patch.set_facecolor('darkgrey')
-        ax.set_facecolor('darkgrey')
+        fig.patch.set_facecolor('grey')
+        ax.set_facecolor('grey')
         ax.set_aspect('equal')
 
         image = 10 ** self.params.modified_image.to_value() / 1e6  # convert from log(K) to MK
-
-        # image = self.params.modified_image.to_value()
-        # vmin, vmax = np.percentile(image[np.isfinite(image)], [2, 96])
+        alpha = self.similarity_map
         vmin, vmax = 1.0, 2.5
-        print(f"\n\n{vmin = }, {vmax = }\n\n")
 
-        im = ax.imshow(image, origin='lower', cmap=cmap, interpolation='none', vmin=vmin, vmax=vmax)
+        style = getattr(self.params, "visualization_style", "none")  # "alpha", "threshold", or "hsv"
+
+        if style == "threshold":
+            confidence_threshold = 0.75
+            masked_image = np.where(alpha >= confidence_threshold, image, np.nan)
+
+            cmap.set_bad('grey')
+            im = ax.imshow(masked_image, origin='lower', cmap=cmap,
+                        interpolation='none', vmin=vmin, vmax=vmax)
+
+        elif style == "hsv":
+            import matplotlib.colors as mcolors
+
+            normed_temp = (image - vmin) / (vmax - vmin)
+            normed_temp = np.clip(normed_temp, 0, 1)
+
+            hsv_img = np.zeros((*image.shape, 3))
+            hsv_img[..., 0] = normed_temp       # Hue = temperature
+            hsv_img[..., 1] = alpha             # Saturation = similarity
+            hsv_img[..., 2] = 1.0               # Brightness fixed
+
+            rgb_img = mcolors.hsv_to_rgb(hsv_img)
+            im = ax.imshow(rgb_img, origin='lower', interpolation='none')
+
+        elif style == "overlay":  # default = alpha overlay
+            im = ax.imshow(image, origin='lower', cmap=cmap, interpolation='none',
+                        vmin=vmin, vmax=vmax)
+
+            confidence_mask = 1 - alpha
+            gray_overlay = np.full((*image.shape, 4), fill_value=0.0)
+            gray_overlay[..., :3] = 0.5
+            gray_overlay[..., 3] = confidence_mask * 0.6
+            ax.imshow(gray_overlay, origin='lower', interpolation='none')
+        else:
+            im = ax.imshow(image, origin='lower', cmap=cmap, interpolation='none',
+            vmin=vmin, vmax=vmax)
+
+
 
         from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 

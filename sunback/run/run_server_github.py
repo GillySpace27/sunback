@@ -19,6 +19,7 @@ logging.getLogger("PIL").setLevel(logging.INFO)
 logging.getLogger("boto3").setLevel(logging.INFO)
 logging.getLogger("botocore").setLevel(logging.INFO)
 logging.getLogger("s3transfer").setLevel(logging.INFO)
+logging.getLogger("sunback").setLevel(logging.DEBUG)
 
 # Optional: Reduce the verbosity of other logs (e.g., urllib3)
 logging.getLogger("urllib3").setLevel(logging.INFO)
@@ -46,8 +47,9 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
     p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
     p.do_vignette = True
     p.do_upsilon = True
-    p.do_upsilon_together = False
+    p.do_upsilon_together = True
     p.do_prep = False
+    p.visualization_style = "none"
 
     # p.do_standard_RHE()
     # p.msgn_targets(["lev1p5"])
@@ -60,8 +62,8 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
         p.processors([RHEFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
     #     # p.processors([NRGFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
     #     # # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        p.processors([UpsilonProcessor], rp=True)
-    # p.processors([DEMReconstructionProcessor])
+        # p.processors([UpsilonProcessor], rp=True)
+    p.processors([DEMReconstructionProcessor])
 
     p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
     # p.putters([ImageProcessorHDR], rp=True)  # Turns Fits into Pngs
