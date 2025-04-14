@@ -377,7 +377,7 @@ class ScienceProcessor(Processor):
 
         rez = image_shape[0]
         scale, h, wid_of_char = (
-            (6, 128, 60) if rez >= 4000 else (3, 64, 30) if rez >= 2000 else (1.5, 32, 15)
+            (6, 128, 60) if rez >= 4000 else (3, 64, 30) if rez >= 2000 else (1.5, 32, 5)
         )
         h0, thickness = (100, 4) if rez >= 4000 else (50, 2) if rez >= 2000 else (30, 2)
 
@@ -388,15 +388,15 @@ class ScienceProcessor(Processor):
             (rez - wid_of_char * len(text) - 10, rez - height)
             for text, height in zip([name, prev, inst, wave], [h0, h0 + h, h0 + 2 * h, h0 + 3 * h])
         ]
-        labels_right = [name, prev, inst, wave]
 
         for text, (x, y) in zip(labels_left, positions_left):
             ax.text(x, y, text, fontsize=scale * 8, color='white', ha='left', va='bottom',
                     bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', boxstyle='round,pad=0.2'))
 
-        # for text, (x, y) in zip(labels_right, positions_right):
-        #     ax.text(x, y, text, fontsize=scale * 4, color='white', ha='left', va='bottom',
-        #             bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', boxstyle='round,pad=0.2'))
+        if isinstance(self, DEMReconstructionProcessor):
+            label = f"{name} MK"
+            ax.text(rez, rez-60, label, fontsize=scale * 8, color='white', ha='right', va='bottom',
+            bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', boxstyle='round,pad=0.2'))
 
 class DEMReconstructionProcessor(ScienceProcessor):
     filt_name = "DEM Reconstructor"
@@ -555,11 +555,11 @@ class DEMReconstructionProcessor(ScienceProcessor):
 
         if plot:
             logger.debug("Plotting Similarity")
-            self.plot_similarities(S_cube, False)
+            self.plot_similarities(S_cube, True)
 
         return S_cube
 
-    def plot_similarities(self, S_cube, plot_all_temps=False) -> None:
+    def plot_similarities(self, S_cube, plot_all_temps=True) -> None:
         import matplotlib.pyplot as plt
 
         # Flatten the spatial dimensions
@@ -572,7 +572,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         subset = S_lines[:, indices]
 
         # Plot
-        fig = plt.figure(figsize=(10, 6))
+        fig = plt.figure(figsize=(7, 6))
         plt.plot(self.temperatures_lin/10**6, subset, alpha=0.1, linewidth=1.0)
         plt.xlabel("Temperature [MK]")
         plt.ylabel("Similarity Score")
@@ -587,22 +587,57 @@ class DEMReconstructionProcessor(ScienceProcessor):
             shutil.rmtree(temp_path)
         os.makedirs(temp_path)
 
-        pth = os.path.join(self.output_folder, "model_similarity.png")
+        pth = os.path.join(temp_path, "model_similarity.png")
         plt.savefig(pth)
         plt.close(fig)
 
         if plot_all_temps:
             for ii, imgg in enumerate(tqdm(S_cube, desc="Plotting Temps")):
-                # if ii % 5 == 0:
-                #     continue
                 the_temp = self.temperatures_lin[ii] / 10**6
-                pth = os.path.join(self.output_folder, "temps", f"temp_{the_temp.to_value():.03f}MK.png")
+                pth = os.path.join(self.output_folder, "temps", f"temp_{ii:03d}.png")
 
                 fig, ax = plt.subplots()
+                fig.set_size_inches(6, 6)  # make it square
+                fig.patch.set_facecolor('grey')
+                ax.set_facecolor('grey')
+                ax.set_aspect('equal')
+                plt.subplots_adjust(left=0, right=1, bottom=0, top=1)
+
+                # Use the actual temperature value for normalization matching the isothermal plot
+                # 'the_temp' is computed as self.temperatures_lin[ii] / 1e6 and is in MK.
+                current_temp_MK = the_temp.to_value()
+                self.add_label_overlay_to_axes(ax, imgg.shape, f"{the_temp.to_value():.03f}")
+                # Normalize: 1 MK -> 0 and 2.5 MK -> 1 (clipping values outside this range)
+                norm_val = (current_temp_MK - 1.0) / (2.5 - 1.0)
+                norm_val = np.clip(norm_val, 0.0, 1.0)
+                # Use the "plasma" colormap to select the color corresponding to this normalized temperature
+                selected_color = plt.get_cmap("plasma")(norm_val)
+                # Create a custom linear segmented colormap from black to the selected color
+                from matplotlib.colors import LinearSegmentedColormap
+                custom_cmap = LinearSegmentedColormap.from_list("custom_cmap", ["black", selected_color])
+
+                # Plot the frame using the custom colormap with fixed vmin and vmax
                 im = ax.imshow(imgg, origin="lower", cmap="viridis", vmin=0.0, vmax=1.0)
-                ax.set_title(f"Temperature Response to {the_temp.to_value():.03f} [MK]")
-                plt.savefig(pth, dpi=150)
+                ax.set_title(f"Temperature Response at {the_temp.to_value():.03f} [MK]")
+                plt.savefig(pth, dpi=200)
                 plt.close(fig)
+            import subprocess
+
+            video_path = os.path.join(self.output_folder, "a_temp_video.mp4")
+            ffmpeg_cmd = [
+                "ffmpeg",
+                "-y",  # Overwrite if exists
+                "-framerate", "10",
+                "-i", os.path.join(self.output_folder, "temps", "temp_%03d.png"),
+                "-c:v", "libx264",
+                "-pix_fmt", "yuv420p",
+                video_path
+            ]
+            try:
+                subprocess.run(ffmpeg_cmd, check=True)
+                logger.info(f"Video saved to {video_path}")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Failed to create video with ffmpeg: {e}")
 
 
     def plot_isothermal(self):
@@ -642,7 +677,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         style = getattr(self.params, "visualization_style", "none")  # "alpha", "threshold", or "hsv"
 
         if style == "threshold":
-            confidence_threshold = 0.75
+            confidence_threshold = 0.6
             masked_image = np.where(alpha >= confidence_threshold, image, np.nan)
 
             cmap.set_bad('grey')
@@ -673,6 +708,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
             gray_overlay[..., 3] = confidence_mask * 0.6
             ax.imshow(gray_overlay, origin='lower', interpolation='none')
         else:
+            cmap.set_bad('grey')
             im = ax.imshow(image, origin='lower', cmap=cmap, interpolation='none',
             vmin=vmin, vmax=vmax)
 
@@ -731,7 +767,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         # img_shape = self.params.modified_image.to_value().shape
         self.add_label_overlay_to_axes(ax, image.shape, None)
 
-        pth = os.path.join(self.output_folder, "isothermal.png")
+        pth = os.path.join(self.output_folder, "C_isothermal.png")
         print(f"Saving to {pth}")
         plt.savefig(pth, dpi=170.66666667, facecolor='black')
         plt.close(fig)

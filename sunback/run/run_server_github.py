@@ -47,14 +47,14 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
     p.reprocess_mode(True)  # 'skip'(False), 'redo'(True), 'reset', 'double'
     p.do_vignette = True
     p.do_upsilon = True
-    p.do_upsilon_together = True
+    p.do_upsilon_together = False
     p.do_prep = False
-    p.visualization_style = "none"
+    p.visualization_style = "threshold"
 
     # p.do_standard_RHE()
     # p.msgn_targets(["lev1p5"])
     p.rhe_targets(["lev1p5"])
-    p.png_frame_name = ["rhef(lev1p5)"]  # ['rhe(lev1p5)']
+    p.png_frame_name = ["ups(rhef)"]  # ["rhef(lev1p5)"]
     p.rgb_frame = "rhef(lev1p5)"
     if True:
         p.fetchers(WebFitsFetcher,)  # Gets Fits from JSOC Most Recent
@@ -62,7 +62,7 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
         p.processors([RHEFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
     #     # p.processors([NRGFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
     #     # # p.processors([MSGNProcessor], rp=True)  # Applies the Sunpy Multiscale Gausian Norm
-        # p.processors([UpsilonProcessor], rp=True)
+        p.processors([UpsilonProcessor], rp=True)
     p.processors([DEMReconstructionProcessor])
 
     p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs

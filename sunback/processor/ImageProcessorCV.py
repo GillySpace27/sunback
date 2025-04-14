@@ -57,7 +57,7 @@ class ImageProcessorCV(ImageProcessor):
             # raise e
 
         try:
-            print(f"{self.params.current_wave()}")
+            # print(f"{self.params.current_wave()}")
             self.params.cmap = self.cmap = aia_color_table(
                 int(self.params.current_wave()) * u.angstrom
             )
