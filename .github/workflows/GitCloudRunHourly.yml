@@ -22,6 +22,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Install sunback package from checked out code
+        run: pip install .
+
       - name: Configure AWS credentials for OIDC
         id: aws-creds
         uses: aws-actions/configure-aws-credentials@v1

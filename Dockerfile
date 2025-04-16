@@ -9,10 +9,10 @@ COPY requirements-exact.txt requirements-exact.txt
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
-# Install your package
-COPY . /app
+# Set working directory
 WORKDIR /app
-RUN pip install .
 
 # Default command (won't be used in GitHub Actions but helps testing)
 CMD ["python3"]
+
+LABEL org.opencontainers.image.source=https://github.com/GillySpace27/sunback
