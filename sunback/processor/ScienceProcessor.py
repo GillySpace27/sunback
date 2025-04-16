@@ -7,6 +7,7 @@ import logging
 import matplotlib as mpl
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 mpl.rcParams['image.cmap'] = 'viridis'
+import os
 # import itertools
 
 # from scipy.signal import savgol_filter
@@ -583,7 +584,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         plt.title(f"NSDS Similarity Curves for {n_lines_to_plot} Pixels")
         plt.grid(True)
         plt.tight_layout()
-
+        import os
         temp_path = os.path.join(self.output_folder, "temps")
         if os.path.exists(temp_path):
             import shutil
@@ -613,8 +614,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
             fps = 10
             writer = cv2.VideoWriter(
                 video_path,
-                cv2.VideoWriter_fourcc(*'avc1'),
-                # cv2.VideoWriter_fourcc(*'mp4v'),
+                cv2.VideoWriter_fourcc(*'mp4v'),
                 fps,
                 (width, height)
             )
@@ -660,6 +660,24 @@ class DEMReconstructionProcessor(ScienceProcessor):
 
             writer.release()
             logger.info(f"Video saved to {video_path}")
+
+            # Transcode the video to H.264 for browser compatibility
+            final_video_path = video_path.replace(".mp4", "_h264.mp4")
+            try:
+                import subprocess
+                subprocess.run([
+                    "ffmpeg", "-y", "-i", video_path,
+                    "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                    "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+                    final_video_path
+                ], check=True)
+                logger.info(f"Transcoded H.264 video saved to {final_video_path}")
+                import os
+                os.remove(video_path)
+                os.rename(final_video_path, video_path)
+                logger.info(f"Replaced original video with transcoded version: {video_path}")
+            except Exception as e:
+                logger.warning(f"FFmpeg transcoding failed: {e}")
 
 
     def plot_isothermal(self):
