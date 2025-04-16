@@ -356,7 +356,7 @@ class ScienceProcessor(Processor):
             (good_coord, bin_array, radii) = entries.T
         return good_coord, bin_array, radii, the_mean, the_std, want_bin
 
-    def add_label_overlay_to_axes(self, ax, image_shape, frame_name=False):
+    def add_label_overlay_to_axes(self, ax, image_shape, frame_name=False, color=None):
         full_name, fits_path, time_string_raw, shape = self.image_data
         time_string = self.clean_time_string(
             time_string_raw, targetZone="US/Mountain", out_fmt="%m-%d-%Y %I:%M%p %Z"
@@ -399,8 +399,26 @@ class ScienceProcessor(Processor):
 
         if isinstance(self, DEMReconstructionProcessor):
             label = f"{name}"
-            ax.text(rez, rez-60, label, fontsize=scale * 8, color='white', ha='right', va='bottom',
-            bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', boxstyle='round,pad=0.2'))
+            # ax.text(rez, rez-60, label, fontsize=scale * 10, color="white", ha='right', va='bottom', fontweight='bold', alpha=0.8,
+            # bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', boxstyle='round,pad=0.2'))
+
+            # ax.text(rez, rez-60, label, fontsize=scale * 10, color=color or "white", ha='right', va='bottom', fontweight='bold',)
+
+            import matplotlib.patheffects as path_effects
+
+            text = ax.text(
+                rez, rez - 60, label,
+                fontsize=scale * 10,
+                color=color or "white",
+                ha='right', va='bottom',
+                fontweight='bold',
+                bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', boxstyle='round,pad=0.2')
+            )
+
+            text.set_path_effects([
+                path_effects.Stroke(linewidth=1.0, foreground='grey'),
+                path_effects.Normal()
+            ])
 
 class DEMReconstructionProcessor(ScienceProcessor):
     filt_name = "DEM Reconstructor"
@@ -412,6 +430,8 @@ class DEMReconstructionProcessor(ScienceProcessor):
     can_do_parallel = True
     shrink_factor = 1
     n_temp_interp = 164
+    vminn = 1.0
+    vmaxx = 3.0
 
     def setup(self):
         super().setup()
@@ -594,6 +614,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         pth = os.path.join(temp_path, "model_similarity.png")
         plt.savefig(pth)
         plt.close(fig)
+        del fig
 
         if plot_all_temps:
             import cv2
@@ -602,19 +623,27 @@ class DEMReconstructionProcessor(ScienceProcessor):
             video_path = os.path.join(self.output_folder, "a_temp_video.mp4")
 
             # TEMP: Render the first frame just to get correct dimensions
-            fig = plt.figure(figsize=(6, 6), dpi=100)
-            canvas = FigureCanvas(fig)
-            ax = fig.add_subplot(111)
             dummy_img = np.zeros_like(S_cube[0])
+            img_shape = dummy_img.shape
+            fig = plt.figure(figsize=(img_shape[0]/100, img_shape[1]/100), dpi=100)
+            fig.set_dpi(100)
+            ax = fig.add_subplot(111)
             ax.imshow(dummy_img, origin='lower', cmap="viridis")
+            ax.set_position([0, 0, 1, 1])
+            ax.set_axis_off()
+            fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+            canvas = FigureCanvas(fig)
             canvas.draw()
+
             width, height = canvas.get_width_height()
             plt.close(fig)
 
             fps = 10
+            video_path = video_path.replace(".mp4", ".avi")
             writer = cv2.VideoWriter(
                 video_path,
-                cv2.VideoWriter_fourcc(*'mp4v'),
+                cv2.VideoWriter_fourcc(*'mjpg'),
                 fps,
                 (width, height)
             )
@@ -622,10 +651,10 @@ class DEMReconstructionProcessor(ScienceProcessor):
             for ii, imgg in enumerate(tqdm(S_cube, desc="Writing Video Frames")):
                 the_temp = self.temperatures_lin[ii] / 10**6
                 current_temp_MK = the_temp.to_value()
+                norm_val = (current_temp_MK - self.vminn) / (self.vmaxx - self.vminn)
+                norm_val = np.clip(norm_val, 0.0, 1.0)
+                selected_color = plt.get_cmap("plasma")(norm_val)
                 if use_custom_colormap:
-                    norm_val = (current_temp_MK - 1.0) / (2.5 - 1.0)
-                    norm_val = np.clip(norm_val, 0.0, 1.0)
-                    selected_color = plt.get_cmap("plasma")(norm_val)
                     from matplotlib.colors import LinearSegmentedColormap
                     custom_cmap = LinearSegmentedColormap.from_list("custom_cmap", ["black", selected_color])
                     rgba = plt.cm.ScalarMappable(cmap=custom_cmap, norm=plt.Normalize(0, 1)).to_rgba(imgg)
@@ -633,8 +662,10 @@ class DEMReconstructionProcessor(ScienceProcessor):
                     rgba = plt.cm.viridis(imgg)
 
                 rgb = (rgba[..., :3] * 255).astype(np.uint8)
+                # height, width = rgb.shape[:2]
 
-                fig = plt.figure(figsize=(6, 6), dpi=100)
+                fig = plt.figure(figsize=(width / 100, height / 100), dpi=100)
+                fig.set_dpi(100)
                 fig.subplots_adjust(left=0, right=1, top=1, bottom=0)  # Remove borders
                 canvas = FigureCanvas(fig)
                 ax = fig.add_subplot(111)
@@ -644,13 +675,12 @@ class DEMReconstructionProcessor(ScienceProcessor):
                 ax.set_axis_off()
 
                 label = f"{current_temp_MK:.2f} MK"
-                self.add_label_overlay_to_axes(ax, rgb.shape[:2], frame_name=label)
+                self.add_label_overlay_to_axes(ax, rgb.shape[:2], frame_name=label, color=selected_color)
 
                 canvas.draw()
-
+                canvas_width, canvas_height = canvas.get_width_height()
                 # Correct shape and dtype from canvas
-                width, height = canvas.get_width_height()
-                rgba_img = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8).reshape(height, width, 4)
+                rgba_img = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8).reshape(canvas_height, canvas_width, 4)
 
                 # Convert to BGR for OpenCV
                 bgr_img = cv2.cvtColor(rgba_img[..., :3], cv2.COLOR_RGB2BGR)
@@ -662,20 +692,20 @@ class DEMReconstructionProcessor(ScienceProcessor):
             logger.info(f"Video saved to {video_path}")
 
             # Transcode the video to H.264 for browser compatibility
-            final_video_path = video_path.replace(".mp4", "_h264.mp4")
+            final_video_path = video_path.replace(".avi", ".mp4")
             try:
                 import subprocess
                 subprocess.run([
                     "ffmpeg", "-y", "-i", video_path,
-                    "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                    "-c:v", "libx264", "-preset", "slow", "-crf", "14",
                     "-pix_fmt", "yuv420p", "-movflags", "+faststart",
                     final_video_path
                 ], check=True)
                 logger.info(f"Transcoded H.264 video saved to {final_video_path}")
                 import os
                 os.remove(video_path)
-                os.rename(final_video_path, video_path)
-                logger.info(f"Replaced original video with transcoded version: {video_path}")
+                # os.rename(final_video_path, video_path)
+                # logger.info(f"Replaced original video with transcoded version: {video_path}")
             except Exception as e:
                 logger.warning(f"FFmpeg transcoding failed: {e}")
 
@@ -712,7 +742,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
 
         image = 10 ** self.params.modified_image.to_value() / 1e6  # convert from log(K) to MK
         alpha = self.similarity_map
-        vmin, vmax = 1.0, 2.5
+        vmin, vmax = self.vminn, self.vmaxx
 
         style = getattr(self.params, "visualization_style", "none")  # "alpha", "threshold", or "hsv"
 
@@ -774,7 +804,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         # cbar.update_ticks()
 
         # Linearly spaced ticks in MK
-        tick_labels_MK = [1.0, 1.5, 2.0, 2.5]
+        tick_labels_MK = np.arange(self.vminn, self.vmaxx, 0.5)  #  [1.0, 1.5, 2.0, 2.5]
         cbar.set_ticks(tick_labels_MK)
         cbar.set_ticklabels([f"{mk:.1f}" for mk in tick_labels_MK])
 
