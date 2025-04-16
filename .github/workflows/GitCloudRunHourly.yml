@@ -33,9 +33,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      # Step 4: Install FFmpeg (for video transcoding)
+      # Step 4: Install FFmpeg (faster method via setup-ffmpeg)
       - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v2
 
       # Step 5: Install dependencies
       - name: Install dependencies
