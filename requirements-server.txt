@@ -140,6 +140,7 @@ sphinxcontrib-qthelp
 sphinxcontrib-serializinghtml
 stack-data
 sunpy
+sunkit-image
 tifffile
 toolz
 tornado
@@ -158,6 +159,3 @@ yarl
 zarr
 zeep
 zipp
-
-git+https://github.com/sunpy/sunpy.git
-git+https://github.com/GillySpace27/sunkit-image.git@rhe-bugfix#egg=sunkit-image

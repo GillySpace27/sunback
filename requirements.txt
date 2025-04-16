@@ -3,6 +3,7 @@ boto3
 matplotlib
 astropy
 sunpy
+sunkit-image
 scipy
 opencv-python
 xarray

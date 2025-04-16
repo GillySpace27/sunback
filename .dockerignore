@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+sunback_data/renders/
+*.fits
+*.mp4
+*.png

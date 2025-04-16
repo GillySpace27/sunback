@@ -1,20 +1,18 @@
-FROM python:3.11.10-slim
+FROM python:3.12-slim
 
-# Install necessary system packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# Install FFmpeg
+RUN apt-get update && apt-get install -y ffmpeg
 
-# Install Python dependencies
-COPY requirements.txt requirements-exact.txt ./
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install -r requirements.txt \
-    && pip install -r requirements-exact.txt
+# Upgrade pip + install your dependencies
+COPY requirements.txt requirements.txt
+COPY requirements-exact.txt requirements-exact.txt
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
 
-# Install your repository as a package
+# Install your package
 COPY . /app
 WORKDIR /app
 RUN pip install .
 
-# Set the entrypoint (optional)
-CMD ["bash"]
+# Default command (won't be used in GitHub Actions but helps testing)
+CMD ["python3"]
