@@ -6,8 +6,10 @@ RUN apt-get update && apt-get install -y ffmpeg
 # Upgrade pip + install your dependencies
 COPY requirements.txt requirements.txt
 COPY requirements-exact.txt requirements-exact.txt
+COPY requirements-server.txt requirements-server.txt
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    pip install -r requirements-server.txt
 
 # Set working directory
 WORKDIR /app
