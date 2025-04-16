@@ -1,6 +1,9 @@
 name: GitCloudRunHourly
 
 on:
+  push:
+    branches:
+      - master
   schedule:
     - cron: '0 * * * *'  # Runs every hour
   workflow_dispatch:        # Allows manual triggering
