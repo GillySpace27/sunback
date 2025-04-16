@@ -4,6 +4,9 @@
 from pathlib import Path
 import numpy as np
 import logging
+import matplotlib as mpl
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+mpl.rcParams['image.cmap'] = 'viridis'
 # import itertools
 
 # from scipy.signal import savgol_filter
@@ -394,7 +397,7 @@ class ScienceProcessor(Processor):
                     bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', boxstyle='round,pad=0.2'))
 
         if isinstance(self, DEMReconstructionProcessor):
-            label = f"{name} MK"
+            label = f"{name}"
             ax.text(rez, rez-60, label, fontsize=scale * 8, color='white', ha='right', va='bottom',
             bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', boxstyle='round,pad=0.2'))
 
@@ -592,52 +595,70 @@ class DEMReconstructionProcessor(ScienceProcessor):
         plt.close(fig)
 
         if plot_all_temps:
-            for ii, imgg in enumerate(tqdm(S_cube, desc="Plotting Temps")):
-                the_temp = self.temperatures_lin[ii] / 10**6
-                pth = os.path.join(self.output_folder, "temps", f"temp_{ii:03d}.png")
-
-                fig, ax = plt.subplots()
-                fig.set_size_inches(6, 6)  # make it square
-                fig.patch.set_facecolor('grey')
-                ax.set_facecolor('grey')
-                ax.set_aspect('equal')
-                plt.subplots_adjust(left=0, right=1, bottom=0, top=1)
-
-                # Use the actual temperature value for normalization matching the isothermal plot
-                # 'the_temp' is computed as self.temperatures_lin[ii] / 1e6 and is in MK.
-                current_temp_MK = the_temp.to_value()
-                self.add_label_overlay_to_axes(ax, imgg.shape, f"{the_temp.to_value():.03f}")
-                # Normalize: 1 MK -> 0 and 2.5 MK -> 1 (clipping values outside this range)
-                norm_val = (current_temp_MK - 1.0) / (2.5 - 1.0)
-                norm_val = np.clip(norm_val, 0.0, 1.0)
-                # Use the "plasma" colormap to select the color corresponding to this normalized temperature
-                selected_color = plt.get_cmap("plasma")(norm_val)
-                # Create a custom linear segmented colormap from black to the selected color
-                from matplotlib.colors import LinearSegmentedColormap
-                custom_cmap = LinearSegmentedColormap.from_list("custom_cmap", ["black", selected_color])
-
-                # Plot the frame using the custom colormap with fixed vmin and vmax
-                im = ax.imshow(imgg, origin="lower", cmap="viridis", vmin=0.0, vmax=1.0)
-                ax.set_title(f"Temperature Response at {the_temp.to_value():.03f} [MK]")
-                plt.savefig(pth, dpi=200)
-                plt.close(fig)
-            import subprocess
+            import cv2
+            use_custom_colormap = False  # Set True to enable color mapping by temp
 
             video_path = os.path.join(self.output_folder, "a_temp_video.mp4")
-            ffmpeg_cmd = [
-                "ffmpeg",
-                "-y",  # Overwrite if exists
-                "-framerate", "10",
-                "-i", os.path.join(self.output_folder, "temps", "temp_%03d.png"),
-                "-c:v", "libx264",
-                "-pix_fmt", "yuv420p",
-                video_path
-            ]
-            try:
-                subprocess.run(ffmpeg_cmd, check=True)
-                logger.info(f"Video saved to {video_path}")
-            except subprocess.CalledProcessError as e:
-                logger.error(f"Failed to create video with ffmpeg: {e}")
+
+            # TEMP: Render the first frame just to get correct dimensions
+            fig = plt.figure(figsize=(6, 6), dpi=100)
+            canvas = FigureCanvas(fig)
+            ax = fig.add_subplot(111)
+            dummy_img = np.zeros_like(S_cube[0])
+            ax.imshow(dummy_img, origin='lower', cmap="viridis")
+            canvas.draw()
+            width, height = canvas.get_width_height()
+            plt.close(fig)
+
+            fps = 10
+            writer = cv2.VideoWriter(
+                video_path,
+                cv2.VideoWriter_fourcc(*'mp4v'),
+                fps,
+                (width, height)
+            )
+
+            for ii, imgg in enumerate(tqdm(S_cube, desc="Writing Video Frames")):
+                the_temp = self.temperatures_lin[ii] / 10**6
+                current_temp_MK = the_temp.to_value()
+                if use_custom_colormap:
+                    norm_val = (current_temp_MK - 1.0) / (2.5 - 1.0)
+                    norm_val = np.clip(norm_val, 0.0, 1.0)
+                    selected_color = plt.get_cmap("plasma")(norm_val)
+                    from matplotlib.colors import LinearSegmentedColormap
+                    custom_cmap = LinearSegmentedColormap.from_list("custom_cmap", ["black", selected_color])
+                    rgba = plt.cm.ScalarMappable(cmap=custom_cmap, norm=plt.Normalize(0, 1)).to_rgba(imgg)
+                else:
+                    rgba = plt.cm.viridis(imgg)
+
+                rgb = (rgba[..., :3] * 255).astype(np.uint8)
+
+                fig = plt.figure(figsize=(6, 6), dpi=100)
+                fig.subplots_adjust(left=0, right=1, top=1, bottom=0)  # Remove borders
+                canvas = FigureCanvas(fig)
+                ax = fig.add_subplot(111)
+
+                ax.imshow(rgb, origin='lower', interpolation='none')  # Already RGB
+                ax.set_position([0, 0, 1, 1])
+                ax.set_axis_off()
+
+                label = f"{current_temp_MK:.2f} MK"
+                self.add_label_overlay_to_axes(ax, rgb.shape[:2], frame_name=label)
+
+                canvas.draw()
+
+                # Correct shape and dtype from canvas
+                width, height = canvas.get_width_height()
+                rgba_img = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8).reshape(height, width, 4)
+
+                # Convert to BGR for OpenCV
+                bgr_img = cv2.cvtColor(rgba_img[..., :3], cv2.COLOR_RGB2BGR)
+                writer.write(bgr_img)
+
+                plt.close(fig)
+
+            writer.release()
+            logger.info(f"Video saved to {video_path}")
 
 
     def plot_isothermal(self):

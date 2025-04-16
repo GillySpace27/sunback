@@ -66,7 +66,7 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
     p.processors([DEMReconstructionProcessor])
 
     p.putters([ImageProcessorCV], rp=True)  # Turns Fits into Pngs
-    # p.putters([ImageProcessorHDR], rp=True)  # Turns Fits into Pngs
+    # # p.putters([ImageProcessorHDR], rp=True)  # Turns Fits into Pngs
 
     p.putters([RainbowRGBImageProcessor], rp=True)
 
