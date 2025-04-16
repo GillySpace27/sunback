@@ -613,7 +613,8 @@ class DEMReconstructionProcessor(ScienceProcessor):
             fps = 10
             writer = cv2.VideoWriter(
                 video_path,
-                cv2.VideoWriter_fourcc(*'mp4v'),
+                cv2.VideoWriter_fourcc(*'avc1'),
+                # cv2.VideoWriter_fourcc(*'mp4v'),
                 fps,
                 (width, height)
             )
