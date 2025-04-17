@@ -430,8 +430,8 @@ class DEMReconstructionProcessor(ScienceProcessor):
     can_do_parallel = True
     shrink_factor = 1
     n_temp_interp = 164
-    vminn = 1.0
-    vmaxx = 3.0
+    vminn = 1.25
+    vmaxx = 2.75
 
     def setup(self):
         super().setup()
@@ -697,7 +697,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
                 import subprocess
                 subprocess.run([
                     "ffmpeg", "-y", "-i", video_path,
-                    "-c:v", "libx264", "-preset", "slow", "-crf", "14",
+                    "-c:v", "libx264", "-preset", "slow", "-crf", "12",
                     "-pix_fmt", "yuv420p", "-movflags", "+faststart",
                     final_video_path
                 ], check=True)
@@ -804,7 +804,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         # cbar.update_ticks()
 
         # Linearly spaced ticks in MK
-        tick_labels_MK = np.arange(self.vminn, self.vmaxx, 0.5)  #  [1.0, 1.5, 2.0, 2.5]
+        tick_labels_MK = np.arange(self.vminn, self.vmaxx + 0.5, 0.5)  #  [1.0, 1.5, 2.0, 2.5]
         cbar.set_ticks(tick_labels_MK)
         cbar.set_ticklabels([f"{mk:.1f}" for mk in tick_labels_MK])
 
