@@ -44,7 +44,7 @@ esbonio==0.16.5
 executing==2.2.0
 fabric==3.2.2
 fasteners==0.19
-Flask==3.1.0
+Flask==3.1.1
 fonttools==4.55.4
 frozenlist==1.5.0
 fsspec==2024.12.0
