@@ -1749,9 +1749,13 @@ class Processor:
         framesq = [frames[int(x)] for x in has_rhe]
         namesq = [names[int(x)] for x in has_rhe]
         namesqq = [names[int(x)] + "_raw" for x in has_rhe]
+        upNames = [name.upper for name in names]
+
 
         fram = frames[2:]  # [framesq[0], framesq[1], framesq[1]]
         name = names[2:]  # [namesq[0], namesqq[1], namesq[1]]
+        nam = upNames[2:]
+
 
         fig, axArray = plt.subplots(4, len(fram), sharex="row", sharey="row")
         (top_axes, mid_axes, low_mid_axes, bot_axes) = axArray
@@ -1763,7 +1767,7 @@ class Processor:
         # import copy
         # frames2 = copy.deepcopy(frames)
         nan_names = [None for x in names]
-        self.plot_histogram_images(top_axes, fram, name)
+        self.plot_histogram_images(top_axes, fram, nam)
         self.plot_histogram_images(mid_axes, fram, nan_names)
         self.plot_histogram_images(low_mid_axes, fram, nan_names)
         self.plot_histogram_images(bot_axes, fram, nan_names)

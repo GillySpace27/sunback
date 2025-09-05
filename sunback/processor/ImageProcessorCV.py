@@ -762,7 +762,7 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
 
         logger.info(names)
 
-        # self.do_compare_histogramplot_images(images, names)
+        self.do_compare_histogramplot_images(images, names)
 
         # self.do_compare_histogramplot_rheonly(
         #     images, names, target_names=["lev1p5", "rhef", "upsilon(rhef)"]
