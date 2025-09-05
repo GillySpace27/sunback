@@ -453,3 +453,43 @@ class MSGNProcessor(SunPyProcessor):
     def cleanup(self):
         MSGNProcessor.first = False
         super().cleanup()
+
+class WOWProcessor(SunPyProcessor):
+    """This class template holds the code for the Sunpy Processors"""
+
+    name = filt_name = "WOW Processor"
+    description = "Apply WOW filter to images"
+    progress_verb = "Normalizing"
+    finished_verb = "Normalized"
+    out_name = "wow({})"
+    first = True
+
+    def __init__(self, params=None, quick=False, rp=None, in_name="COMPRESSED_IMAGE"):
+        """Initialize the main class"""
+        self.load(params, quick=quick)
+        self.select_input_frame(in_name)
+        super().__init__(params, quick, rp, self.in_name)
+        self.out_name = self.out_name.format(self.in_name)
+        print(" --- Running WOW on {} ---".format(self.in_name))
+
+    def select_input_frame(self, in_name):
+        self.in_name = in_name
+        # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
+        if self.params.msgn_targets() is not None and len(self.params.msgn_targets()):
+            self.in_name = self.params.msgn_targets().pop(0)
+
+
+    def do_work(self):
+        """Analyze the Image, Normalize it, Plot"""
+        import sunkit_image.enhance as enhance
+
+        self.raw_image = self.params.raw_image + 0.0
+
+        if np.isnan(self.raw_image).any():
+            self.raw_image[np.isnan(self.params.raw_image)] = -1.0
+        self.modified_image = self.params.modified_image = enhance.wow(self.raw_image)
+        return self.modified_image
+
+    def cleanup(self):
+        MSGNProcessor.first = False
+        super().cleanup()
