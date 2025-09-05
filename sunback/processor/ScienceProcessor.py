@@ -691,20 +691,44 @@ class DEMReconstructionProcessor(ScienceProcessor):
             writer.release()
             logger.info(f"Video saved to {video_path}")
 
-            # Transcode the video to H.264 for browser compatibility
-            final_video_path = video_path.replace(".avi", ".mp4")
+            import subprocess
+            import logging
+            import os
+
+            # Transcode the video to H.264 (high quality) for web delivery
+            final_video_path_web = video_path.replace(".avi", ".mp4")
             try:
-                import subprocess
                 subprocess.run([
                     "ffmpeg", "-y", "-i", video_path,
-                    "-c:v", "libx264", "-preset", "slow", "-crf", "12",
-                    "-pix_fmt", "yuv420p", "-movflags", "+faststart",
-                    final_video_path
+                    "-c:v", "libx264",
+                    "-preset", "slow",
+                    "-crf", "12",
+                    "-pix_fmt", "yuv420p",
+                    "-movflags", "+faststart",
+                    final_video_path_web
                 ], check=True)
-                logger.info(f"Transcoded H.264 video saved to {final_video_path}")
-                import os
+                logger.info(f"High-quality web video saved to {final_video_path_web}")
+            except Exception as e:
+                logger.warning(f"Web-quality FFmpeg transcoding failed: {e}")
+
+            # Transcode a lightweight version
+            final_video_path_small = video_path.replace(".avi", "_small.mp4")
+            try:
+                subprocess.run([
+                    "ffmpeg", "-y", "-i", video_path,
+                    "-vf", "scale=640:-1",
+                    "-c:v", "libx264",
+                    "-preset", "fast",
+                    "-crf", "28",
+                    "-pix_fmt", "yuv420p",
+                    "-movflags", "+faststart",
+                    final_video_path_small
+                ], check=True)
+                logger.info(f"Small-size video saved to {final_video_path_small}")
+
+                # Optionally clean up original file
                 os.remove(video_path)
-                # os.rename(final_video_path, video_path)
+                # os.rename(final_video_path_small, video_path)  # If you want to overwrite original
                 # logger.info(f"Replaced original video with transcoded version: {video_path}")
             except Exception as e:
                 logger.warning(f"FFmpeg transcoding failed: {e}")
