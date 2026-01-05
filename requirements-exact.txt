@@ -1,7 +1,7 @@
 aiapy==0.10.0
 aioftp==0.24.1
 aiohappyeyeballs==2.4.4
-aiohttp==3.11.11
+aiohttp==3.13.3
 aiosignal==1.3.2
 alabaster==1.0.0
 appnope==0.1.4
