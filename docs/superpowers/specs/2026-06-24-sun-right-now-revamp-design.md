@@ -106,13 +106,19 @@ Actions runner (outside AWS) would cost ~1 TB/mo egress (~$100/mo). Keeping the 
   (subclass or shared helper — `NRTFitsFetcher` extends `WebFitsFetcher`).
 - Skips 1600/1700/4500.
 
-### 2. Time-integration step
-- Before RHEF/Upsilon, collapse the N frames per wavelength into one array via the
-  selected method (median/mean/sum). Mirror the existing integration intent in
-  `FidoFetcher` (`time_integrator`, `attrs.Sample`, `range`) rather than inventing new.
-- Implement as a small processor (e.g. `TimeIntegrationProcessor`) or a fetch-time
-  reduction; decide in planning. Output: one integrated frame per wavelength feeding
-  the existing RHEF/Upsilon → rainbow chain unchanged.
+### 2. Time-integration step — build a new `TimeIntegrationProcessor`
+- **Existing component (`FidoTimeIntProcessor`) is NOT reusable here:** it is a
+  `FidoFetcher` subclass that re-queries JSOC/Fido for subframes (the 7-day-lagged
+  path we avoid), and its core (`sum_subframes`) is a running `+=` accumulator
+  normalized by exposure time — **sum/mean only, no median** (median needs all frames
+  stacked at once). Confirmed by reading the file.
+- **Decision: build a small standalone `TimeIntegrationProcessor`** that takes the N
+  frames already downloaded by `NRTFitsFetcher`, **stacks them and reduces** via the
+  selected method (median / mean / sum). Reuse the DN/sec normalization idea from
+  `FidoTimeIntProcessor.sum_subframes` but restructured for stack-then-reduce.
+- Clean fetch/reduce separation; testable on synthetic stacks; decoupled from JSOC.
+  Output: one integrated frame per wavelength feeding the RHEF/Upsilon → rainbow chain
+  unchanged. `N=1` must reduce to current single-frame behavior (regression safety).
 
 ### 3. Reducer changes (`run_server_github.py` + processors)
 - Swap `WebFitsFetcher` → `NRTFitsFetcher`; set `INTEGRATION_FRAMES` / `INTEGRATION_METHOD`.
@@ -204,11 +210,19 @@ Page fetches a known list of 7 fragment URLs (product ids are fixed) and merges 
 - Optional "View 4K (SDO)" browse-JPEG click-through — easy to add later if wanted.
 - Migrating the reducer off Actions — unnecessary once the repo is public.
 
+## Resolved during design (were open items)
+
+- **Per-channel stills already emitted (#2):** `ImageProcessorCV` produces a PNG per
+  wavelength; `RainbowRGBImageProcessor` only globs/composites them. No new emission
+  path — just rename `DrGilly_*`→`rhef_*` + `_1k` tag, and filter `all_wavelengths`
+  (`["0171","0193","0211","0304","0131","0335","0094","1600","1700"]`) to the 6 EUV
+  channels we serve (171/193/211/304/335/94) + the composite.
+- **Time integration (#1):** build a new standalone `TimeIntegrationProcessor`
+  (see component 2); the existing `FidoTimeIntProcessor` is Fido-coupled and median-incapable.
+
 ## Open items to resolve in planning
 
-1. Time integration as a standalone `TimeIntegrationProcessor` vs. a fetch-time reduction
-   inside `NRTFitsFetcher` — pick the cleaner seam against the existing processor chain.
-2. Exact emission of per-channel 1k RHEF stills in the current script (confirm the
-   rainbow path already yields the per-wavelength frames we upload).
-3. Lambda packaging: container image vs. zip + ffmpeg layer.
-4. Timestamp source for frame keys: parse from FITS filename vs. header `T_REC`.
+1. Lambda packaging: container image vs. zip + ffmpeg layer.
+2. Timestamp source for frame keys: parse from FITS filename vs. header `T_REC`.
+3. Whether to also keep 131 as a 7th EUV single (currently in `all_wavelengths`) or
+   hold to the agreed 6 EUV + composite = 7 cards.
