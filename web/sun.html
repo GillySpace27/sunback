@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Sun Right Now</title>
+<style>
+  :root { --bg:#0b0d12; --card:#151922; --ink:#e8eaed; --muted:#9aa3b2; --accent:#ffb13b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  header { padding:28px 20px 8px; text-align:center; }
+  header h1 { margin:0; font-weight:600; letter-spacing:.5px; }
+  #times { color:var(--muted); font-size:13px; white-space:pre-line; text-align:center;
+           margin:6px auto 0; max-width:680px; }
+  #updated { color:var(--muted); font-size:12px; text-align:center; margin:4px 0 18px; }
+  .grid { display:grid; gap:16px; padding:0 20px 40px; max-width:1280px; margin:0 auto;
+          grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); }
+  .card { background:var(--card); border-radius:12px; overflow:hidden;
+          box-shadow:0 1px 3px rgba(0,0,0,.4); display:flex; flex-direction:column; }
+  .card .thumb { aspect-ratio:1/1; width:100%; object-fit:cover; background:#000;
+                 display:block; cursor:zoom-in; }
+  .card .body { padding:10px 12px 12px; display:flex; flex-direction:column; gap:8px; }
+  .card .label { font-weight:600; }
+  .links { display:flex; gap:8px; flex-wrap:wrap; }
+  .links a, .links button { font-size:13px; text-decoration:none; color:var(--bg);
+          background:var(--accent); border:0; border-radius:6px; padding:4px 10px;
+          cursor:pointer; font-weight:600; }
+  .links .ghost { background:transparent; color:var(--accent);
+          border:1px solid var(--accent); }
+  .meta { color:var(--muted); font-size:11px; }
+  .card.err { opacity:.5; }
+  /* lightbox */
+  #lb { position:fixed; inset:0; background:rgba(0,0,0,.9); display:none;
+        align-items:center; justify-content:center; padding:20px; z-index:10; }
+  #lb.open { display:flex; }
+  #lb img, #lb video { max-width:95vw; max-height:92vh; border-radius:8px; }
+  #lb .x { position:absolute; top:16px; right:22px; color:#fff; font-size:30px;
+           cursor:pointer; background:none; border:0; }
+  footer { text-align:center; color:var(--muted); font-size:12px; padding:0 0 30px; }
+  a.src { color:var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>The Sun Right Now</h1>
+  <div id="times"></div>
+  <div id="updated"></div>
+</header>
+
+<main class="grid" id="grid"></main>
+
+<div id="lb" onclick="closeLb(event)">
+  <button class="x" onclick="closeLb(event)" aria-label="Close">&times;</button>
+  <div id="lb-content"></div>
+</div>
+
+<footer>
+  Imagery: SDO/AIA, processed with
+  <a class="src" href="https://github.com/GillySpace27/sunback">sunback</a>
+  (RHEF radial filtering, time-integrated). Refreshes every 20&nbsp;min.
+</footer>
+
+<script>
+  // Product ids/labels mirror aws_lambda/video_builder/manifest.py (8 cards).
+  const BUCKET = "https://the-sun-now.s3.us-east-2.amazonaws.com/";
+  const PRODUCTS = [
+    ["rainbow","Rainbow (RHEF composite)"],
+    ["171","AIA 171 Å"], ["193","AIA 193 Å"], ["211","AIA 211 Å"],
+    ["304","AIA 304 Å"], ["335","AIA 335 Å"], ["94","AIA 94 Å"],
+    ["131","AIA 131 Å"],
+  ];
+  const u = (key, v) => BUCKET + key + (v ? "?v=" + encodeURIComponent(v) : "");
+
+  function openImg(src){ show(`<img src="${src}">`); }
+  function openVid(src){ show(`<video src="${src}" autoplay loop muted controls playsinline></video>`); }
+  function show(html){ document.getElementById("lb-content").innerHTML = html;
+                       document.getElementById("lb").classList.add("open"); }
+  function closeLb(e){ if(e.target.id==="lb" || e.target.classList.contains("x")){
+                       document.getElementById("lb").classList.remove("open");
+                       document.getElementById("lb-content").innerHTML=""; } }
+
+  async function card([id,label]){
+    const el = document.createElement("section");
+    el.className = "card";
+    try {
+      const m = await (await fetch(u(`manifest/${id}.json`, Date.now()))).json();
+      const v = m.updated;
+      el.innerHTML = `
+        <img class="thumb" loading="lazy" src="${u(m.thumb,v)}" alt="${label}"
+             onclick="openImg('${u(m.img1k,v)}')">
+        <div class="body">
+          <div class="label">${label}</div>
+          <div class="links">
+            <a href="${u(m.img1k,v)}" target="_blank" rel="noopener">1k</a>
+            <button onclick="openVid('${u(m.video,v)}')">&#9658; video</button>
+          </div>
+          <div class="meta">${m.frame_count||0} frames &middot;
+            ${m.integration?`${m.integration.frames}× ${m.integration.method}`:""}</div>
+        </div>`;
+      return {el, updated:v};
+    } catch (e) {
+      el.className = "card err";
+      el.innerHTML = `<div class="body"><div class="label">${label}</div>
+        <div class="meta">unavailable</div></div>`;
+      return {el, updated:null};
+    }
+  }
+
+  async function load(){
+    const grid = document.getElementById("grid");
+    let newest = null;
+    for (const p of PRODUCTS){
+      const {el, updated} = await card(p);
+      grid.appendChild(el);
+      if (updated && (!newest || updated > newest)) newest = updated;
+    }
+    if (newest) document.getElementById("updated").textContent =
+      "Updated " + new Date(newest).toLocaleString();
+
+    try {
+      const t = await (await fetch(u("image_times_readable.txt", Date.now()))).text();
+      document.getElementById("times").textContent = t;
+    } catch (e) { /* time strip is optional */ }
+  }
+  load();
+</script>
+</body>
+</html>
