@@ -5,10 +5,25 @@ like ``AIA20260624_200300_0171.fits`` at ~3-min cadence. Unlike ``mostrecent/`` 
 expose *many* recent frames, which is what makes time integration possible.
 """
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # AIA<YYYYMMDD>_<HHMMSS>_<wave>.fits
 _FRAME_RE = re.compile(r"^AIA(\d{8})_(\d{6})_(\d{4})\.fits$")
+
+
+def nrt_hour_dirs(when, base_url, lookback_hours=1):
+    """Build synoptic-NRT hour-bucket directory URLs, newest first.
+
+    The archive is laid out as ``<base>/YYYY/MM/DD/H<HH>00/``. We return the
+    bucket for ``when`` plus ``lookback_hours`` earlier buckets (rolling across
+    day boundaries) so frame selection has enough recent frames near the hour edge.
+    """
+    base = base_url.rstrip("/") + "/"
+    dirs = []
+    for delta in range(lookback_hours + 1):
+        t = when - timedelta(hours=delta)
+        dirs.append(base + t.strftime("%Y/%m/%d/H%H00/"))
+    return dirs
 
 
 def parse_frame_time(filename):
