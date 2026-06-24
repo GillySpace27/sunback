@@ -43,7 +43,10 @@ class AwsPutter(Putter):
         if params is not None:
             self.__init__(params)
         print(" V Uploading PNGs to {}...".format(bucket), flush=True)
-        self.empty_the_bucket()
+        # NOTE: do NOT empty the bucket. The Lambda video-builder maintains the
+        # frames/ queue and video/ outputs there; wiping would destroy the 48h
+        # sliding window every run. The reducer only overwrites its own keys.
+        # self.empty_the_bucket()   # <-- intentionally disabled (see spec)
         self.__upload_files()
         self.__save_times()
 

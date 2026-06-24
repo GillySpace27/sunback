@@ -9,6 +9,7 @@ from sunback.fetcher.WebFitsFetcher import WebFitsFetcher
 from sunback.processor.ImageProcessorCV import ImageProcessorCV, ImageProcessorHDR
 from sunback.processor.CompositeRainbowImageProcessor import RainbowRGBImageProcessor
 from sunback.processor.ScienceProcessor import DEMReconstructionProcessor
+from sunback.fetcher.NRTFitsFetcher import NRTFitsFetcher
 
 
 import logging
@@ -56,8 +57,15 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
     p.rhe_targets(["lev1p5"])
     p.png_frame_name = ["ups(rhef)"]  # ["rhef(lev1p5)"]
     p.rgb_frame = "rhef(lev1p5)"
+
+    # Time-integration knobs for the NRT fetcher (see NRTFitsFetcher for defaults).
+    p.integration_frames = 3          # N most-recent NRT frames to combine
+    p.integration_method = "median"   # 'median' (cosmic-ray robust) | 'mean' | 'sum'
+
     if True:
-        p.fetchers(WebFitsFetcher,)  # Gets Fits from JSOC Most Recent
+        # NRT fetcher: grabs N recent synoptic frames per wavelength and
+        # time-integrates them into one AIAsynoptic<wave>.fits per channel.
+        p.fetchers(NRTFitsFetcher,)  # (was WebFitsFetcher: single mostrecent frame)
         # # p.processors([AIA_PREP_Processor],)
         p.processors([RHEFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
     #     # p.processors([NRGFProcessor], rp=True)  # Applies the Sunpy Radial Filtering
