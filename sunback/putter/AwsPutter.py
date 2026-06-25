@@ -9,7 +9,12 @@ import os
 from copy import copy
 from time import sleep
 
+from datetime import datetime, timezone
+
 from sunback.utils.array_util import get_thumblinks, make_thumbs
+from sunback.putter.serve_keys import serve_id_for_local_png, s3_img_key, s3_thumb_key
+
+THUMB_PX = 256  # served thumbnail size (page card)
 
 S3_UPLOAD_ARGS = {'ACL': 'public-read', "ContentDisposition": "inline"}
 
@@ -47,6 +52,9 @@ class AwsPutter(Putter):
         # frames/ queue and video/ outputs there; wiping would destroy the 48h
         # sliding window every run. The reducer only overwrites its own keys.
         # self.empty_the_bucket()   # <-- intentionally disabled (see spec)
+        # obstime stamps the 1k stills so the Lambda can order the video queue.
+        # Upload time ~= observation time (reducer runs right after NRT publish).
+        self.obstime = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         self.__upload_files()
         self.__save_times()
 
@@ -57,18 +65,12 @@ class AwsPutter(Putter):
 
     def get_file_list(self, force=False):
         if self.to_upload is None or force:
-            self.to_upload = [file for file in self.params.local_imgs_paths() if ("_orig" not in file)]
-
-            try:
-                local_paths = self.params.local_imgs_paths()
-                if local_paths:
-                    out_dir = os.path.dirname(local_paths[0])
-                    mov_files = [x for x in os.listdir(out_dir) if x.lower().endswith(".mp4")]
-                    if mov_files:
-                        mov = mov_files[0]
-                        self.to_upload.append(os.path.join(out_dir, mov))
-            except Exception as e:
-                print(f"Warning: Could not add .mp4 file from directory due to error: {e}")
+            # Only the served PNG stills. Videos are built by the Lambda, not here,
+            # so the .mp4 is no longer collected/uploaded.
+            self.to_upload = [
+                f for f in self.params.local_imgs_paths()
+                if "_orig" not in f and serve_id_for_local_png(f) is not None
+            ]
 
         self.pbar = tqdm(self.to_upload, desc="\r\t* Uploading Files", ncols=120)
         return self.to_upload, self.pbar
@@ -93,39 +95,30 @@ class AwsPutter(Putter):
             pbar.update()
             self.ii += 1
 
-    @staticmethod
-    def do_upload(root_path):
-        original_path = root_path
+    def do_upload(self, root_path):
+        """Upload one served still as 1k/rhef_<id>_1k.png + a 256² thumb.
 
-        # If it's a video, generate and upload thumbnail only to thumbs
-        if root_path.lower().endswith(".mp4"):
-            cap = cv2.VideoCapture(root_path)
-            cap.set(cv2.CAP_PROP_POS_FRAMES, 50)
-            ret, frame = cap.read()
-            cap.release()
-            if not ret:
-                print(f"Warning: Could not extract frame from {root_path}")
-                return
+        The 1k still upload is what fires the Lambda video-builder; obstime
+        metadata lets the Lambda order the 48h frame queue.
+        """
+        product_id = serve_id_for_local_png(root_path)
+        if product_id is None:
+            return  # not a served product (UV-only channel, DEM, alt composite, ...)
 
-            # Create path for thumbnail in thumbs directory
-            thumb_rel_path = os.path.basename(root_path).replace(".mp4", "_frame_for_thumb.png")
-            temp_image_path = os.path.join(os.path.dirname(root_path), "thumbs", thumb_rel_path)
-            os.makedirs(os.path.dirname(temp_image_path), exist_ok=True)
-            cv2.imwrite(temp_image_path, frame)
+        meta = {"obstime": getattr(self, "obstime", "")}
+        img_args = copy(png_args)
+        img_args["Metadata"] = meta
 
-            # Upload .mp4 to renders/
-            video_key = os.path.join("renders", os.path.basename(original_path))
-            bucket.upload_file(original_path, video_key, ExtraArgs=video_args)
+        # full-res 1k still
+        bucket.upload_file(root_path, s3_img_key(product_id), ExtraArgs=img_args)
 
-            # Create & upload thumbs from extracted frame only
-            smallPath, rtPath, smallAWSpath, bigAWSpath = make_thumbs(temp_image_path)
-            bucket.upload_file(smallPath, smallAWSpath, ExtraArgs=png_args)
-
-        else:
-            # Normal image case
-            smallPath, rtPath, smallAWSpath, bigAWSpath = make_thumbs(root_path)
-            bucket.upload_file(root_path, bigAWSpath, ExtraArgs=png_args)
-            bucket.upload_file(smallPath, smallAWSpath, ExtraArgs=png_args)
+        # 256² thumbnail (square 1024² source -> direct resize)
+        img = cv2.imread(root_path, cv2.IMREAD_UNCHANGED)
+        thumb_path = os.path.join(os.path.dirname(root_path),
+                                  f".thumb_{product_id}.png")
+        cv2.imwrite(thumb_path, cv2.resize(img, (THUMB_PX, THUMB_PX),
+                                           interpolation=cv2.INTER_AREA))
+        bucket.upload_file(thumb_path, s3_thumb_key(product_id), ExtraArgs=png_args)
 
     def __save_times(self):
         print("\t* Uploading Time File...", end='', flush=True)
