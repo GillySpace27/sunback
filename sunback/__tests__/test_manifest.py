@@ -4,9 +4,10 @@ import json
 from aws_lambda.video_builder.manifest import build_manifest_fragment, PRODUCTS
 
 
-def test_products_list_is_eight_cards():
+def test_products_list_is_twelve_cards():
     ids = [p["id"] for p in PRODUCTS]
-    assert ids == ["rainbow", "171", "193", "211", "304", "335", "94", "131"]
+    assert ids == ["rainbow", "171", "193", "211", "304", "335", "94", "131",
+                   "1600", "1700", "composite_uv", "dem"]
 
 
 def test_fragment_has_all_asset_keys():

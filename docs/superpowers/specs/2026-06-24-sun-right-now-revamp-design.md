@@ -50,7 +50,7 @@ product is **1024² synoptic NRT**. No 4k tier.
 |---|---|
 | Run platform | Public repo → free Actions for the **reducer**; **in-AWS Lambda** for video |
 | AWS post-processor | **Lambda** + static-ffmpeg layer (in `us-east-2`) |
-| Products (7) | rainbow composite + AIA **171, 193, 211, 304, 335, 94** |
+| Products (12) | rainbow composite + AIA **171, 193, 211, 304, 335, 94, 131, 1600, 1700** + **UV composite** (1700/1600/304) + **DEM temperature map** (with a temperature-scan video link). *(Expanded from 8 post-design at user request — all were already computed each run.)* |
 | Resolution tiers | **1k = 1024²** still, **thumb = 256²**, **1k video**. No 4k. |
 | Source | 1024² synoptic NRT only |
 | Time integration | N most-recent frames per wavelength, method ∈ {median, mean, sum}; defaults below |

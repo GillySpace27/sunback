@@ -69,7 +69,12 @@
     ["171","AIA 171 Å"], ["193","AIA 193 Å"], ["211","AIA 211 Å"],
     ["304","AIA 304 Å"], ["335","AIA 335 Å"], ["94","AIA 94 Å"],
     ["131","AIA 131 Å"],
+    ["1600","AIA 1600 Å (UV)"], ["1700","AIA 1700 Å (UV)"],
+    ["composite_uv","Composite (1700/1600/304)"],
+    ["dem","Temperature map (DEM)"],
   ];
+  // The DEM card also links a pre-rendered temperature-scan video (fixed key).
+  const TSCAN_KEY = "video/rhef_tscan.mp4";
   const u = (key, v) => BUCKET + key + (v ? "?v=" + encodeURIComponent(v) : "");
 
   function openImg(src){ show(`<img src="${src}">`); }
@@ -93,7 +98,8 @@
           <div class="label">${label}</div>
           <div class="links">
             <a href="${u(m.img1k,v)}" target="_blank" rel="noopener">1k</a>
-            <button onclick="openVid('${u(m.video,v)}')">&#9658; video</button>
+            <button onclick="openVid('${u(m.video,v)}')">&#9658; 48h</button>
+            ${id==="dem" ? `<button class="ghost" onclick="openVid('${u(TSCAN_KEY,v)}')">&#9658; T-scan</button>` : ""}
           </div>
           <div class="meta">${m.frame_count||0} frames &middot;
             ${m.integration?`${m.integration.frames}× ${m.integration.method}`:""}</div>

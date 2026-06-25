@@ -21,6 +21,10 @@ PRODUCTS = [
     {"id": "335", "label": "AIA 335 Å"},
     {"id": "94", "label": "AIA 94 Å"},
     {"id": "131", "label": "AIA 131 Å"},
+    {"id": "1600", "label": "AIA 1600 Å (UV)"},
+    {"id": "1700", "label": "AIA 1700 Å (UV)"},
+    {"id": "composite_uv", "label": "Composite (1700/1600/304)"},
+    {"id": "dem", "label": "Temperature map (DEM)"},
 ]
 
 _LABELS = {p["id"]: p["label"] for p in PRODUCTS}

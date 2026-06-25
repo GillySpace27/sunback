@@ -15,15 +15,18 @@ Key conventions mirror aws_lambda/video_builder/manifest.py.
 import os
 import re
 
-# zero-padded reducer wave code -> page product id (leading zeros stripped)
-SERVED_EUV = {
+# reducer wave code -> page product id (EUV leading zeros stripped; UV kept as-is)
+SERVED_CHANNELS = {
     "0171": "171", "0193": "193", "0211": "211", "0304": "304",
     "0335": "335", "0094": "94", "0131": "131",
+    "1600": "1600", "1700": "1700",
 }
 
-# Which composite is the headline "rainbow" card. The EUV coronal composite is the
-# default; to use the 1700/1600/0304 blend instead, set this to "BGR_1700_1600_0304".
-RAINBOW_SOURCE = "BGR_0171_0193_0211"
+# Which composite is the headline "rainbow" card. To use the 1700/1600/0304 blend
+# as the headline instead, swap these two source strings.
+RAINBOW_SOURCE = "BGR_0171_0193_0211"        # -> "rainbow"
+UV_COMPOSITE_SOURCE = "BGR_1700_1600_0304"   # -> "composite_uv"
+DEM_SOURCE = "C_isothermal"                  # -> "dem" (isothermal temperature map)
 
 _DRGILLY_RE = re.compile(r"DrGilly_(\d{4})_")
 
@@ -33,9 +36,13 @@ def serve_id_for_local_png(path):
     name = os.path.basename(path)
     if name.startswith(RAINBOW_SOURCE):
         return "rainbow"
+    if name.startswith(UV_COMPOSITE_SOURCE):
+        return "composite_uv"
+    if name.startswith(DEM_SOURCE):
+        return "dem"
     m = _DRGILLY_RE.match(name)
-    if m and m.group(1) in SERVED_EUV:
-        return SERVED_EUV[m.group(1)]
+    if m and m.group(1) in SERVED_CHANNELS:
+        return SERVED_CHANNELS[m.group(1)]
     return None
 
 

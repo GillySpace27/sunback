@@ -56,7 +56,33 @@ class AwsPutter(Putter):
         # Upload time ~= observation time (reducer runs right after NRT publish).
         self.obstime = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         self.__upload_files()
+        self.__upload_tscan_video()
         self.__save_times()
+
+    def __upload_tscan_video(self):
+        """Upload the DEM temperature-scan video to a stable key for the DEM card.
+
+        This is a pre-rendered scan over temperature (not a 48h timelapse), so it
+        bypasses the Lambda and is uploaded directly, overwriting each run.
+        """
+        import glob
+        roots = [self.params.imgs_top_directory(), self.params.base_directory()]
+        found = None
+        for root in roots:
+            if not root:
+                continue
+            for pat in ("a_temp_video_small.mp4", "a_temp_video.mp4"):
+                hits = glob.glob(os.path.join(root, "**", pat), recursive=True)
+                if hits:
+                    found = hits[0]
+                    break
+            if found:
+                break
+        if not found:
+            print("\t* No temperature-scan video found; skipping.")
+            return
+        bucket.upload_file(found, "video/rhef_tscan.mp4", ExtraArgs=video_args)
+        print(f"\t* Uploaded temperature-scan video -> video/rhef_tscan.mp4")
 
     def empty_the_bucket(self):
         print("\t* Emptying Bucket...", end='')

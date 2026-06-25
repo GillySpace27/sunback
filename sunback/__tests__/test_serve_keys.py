@@ -25,14 +25,21 @@ def test_headline_composite_maps_to_rainbow():
     assert serve_id_for_local_png("BGR_0171_0193_0211_ups(rhef).png") == "rainbow"
 
 
+@pytest.mark.parametrize("name,expected", [
+    ("DrGilly_1600_ups(rhef).png", "1600"),
+    ("DrGilly_1700_ups(rhef).png", "1700"),
+    ("BGR_1700_1600_0304_ups(rhef).png", "composite_uv"),
+    ("C_isothermal.png", "dem"),
+])
+def test_extra_products_map(name, expected):
+    assert serve_id_for_local_png(name) == expected
+
+
 def test_unserved_things_return_none():
     for name in [
-        "DrGilly_1600_ups(rhef).png",          # composite-only UV channel
-        "DrGilly_1700_ups(rhef).png",
-        "BGR_1700_1600_0304_ups(rhef).png",    # the alternate composite
-        "C_isothermal.png",                    # DEM product
-        "a_temp_video_small.mp4",              # video (Lambda owns it)
+        "a_temp_video_small.mp4",              # video handled separately, not a still
         "image_times_readable.txt",
+        "DrGilly_4500_ups(rhef).png",          # visible-light channel, not served
     ]:
         assert serve_id_for_local_png(name) is None, name
 

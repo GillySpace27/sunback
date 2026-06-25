@@ -28,14 +28,17 @@ until you merge. The `AwsPutter` upload-key remap is **done** — it maps the re
 reducer filenames (verified against the production bucket) to the served keys via
 `sunback/putter/serve_keys.py`:
 
-- `DrGilly_<wave>_ups(rhef).png` → `1k/rhef_<id>_1k.png` + `thumb/rhef_<id>_thumb.png`
-  (256²), ids `171,193,211,304,335,94,131`.
-- `BGR_0171_0193_0211_ups(rhef).png` → the **`rainbow`** card.
-  ⚠️ **CONFIRM:** the reducer emits *two* composites; we chose the EUV blend as the
-  headline rainbow. To use the 1700/1600/0304 blend instead, change `RAINBOW_SOURCE`
-  in `serve_keys.py`.
-- Skipped: 1600/1700 singles (composite-only), the alternate `BGR`, `C_isothermal`
-  (DEM), and all `.mp4` (the Lambda owns `video/`).
+**12 served cards** (`serve_keys.py`), each → `1k/rhef_<id>_1k.png` +
+`thumb/rhef_<id>_thumb.png` (256²) + an automatic 48h timelapse from the Lambda:
+- `DrGilly_<wave>_ups(rhef).png` → ids `171,193,211,304,335,94,131,1600,1700`.
+- `BGR_0171_0193_0211_ups(rhef).png` → **`rainbow`** (headline; swap `RAINBOW_SOURCE`
+  for the other blend).
+- `BGR_1700_1600_0304_ups(rhef).png` → **`composite_uv`**.
+- `C_isothermal.png` → **`dem`** (isothermal temperature map).
+- The DEM temperature-scan video (`a_temp_video_small.mp4`) is uploaded straight to
+  `video/rhef_tscan.mp4` (bypasses the Lambda) and shown as a "T-scan" link on the
+  DEM card.
+- Skipped: visible-light 4500, and the still-loop ignores `.mp4`.
 - `obstime` metadata = upload-time UTC (≈ observation time); the Lambda uses it to
   order the queue. `image_times_readable.txt` is still written.
 
