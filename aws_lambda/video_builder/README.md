@@ -43,7 +43,19 @@ For each rendered PNG the reducer would upload:
 `ContentType`/`ACL` stay as today (`image/png`, `public-read`, inline). The id and
 key conventions match `aws_lambda/video_builder/manifest.py` — reuse those strings.
 
-## 2. AWS resources (us-east-2, same region as bucket `the-sun-now`)
+## 2. AWS resources — automated by `deploy.sh`
+
+Run `./deploy.sh` (awscli v2 + curl/tar/zip; creds that can manage Lambda/IAM/S3).
+It is idempotent and does everything in this section: IAM role + S3 policy, the
+ffmpeg layer, packaging the code as a `video_builder` package (handler
+`video_builder.handler.handler`), create/update the function, and the S3
+`1k/`→Lambda trigger. Override defaults via env (`REGION`, `FUNCTION`, etc.);
+`SKIP_LAYER=1 ./deploy.sh` redeploys code only.
+
+⚠️ The script **replaces** the bucket's notification config — if `the-sun-now`
+already has notifications, merge them into the `notify.json` block first.
+
+Manual reference (what the script sets up):
 
 1. **ffmpeg layer:** publish a Lambda layer containing a static `ffmpeg` at
    `/opt/bin/ffmpeg` (e.g. from John Van Sickle's static build).
