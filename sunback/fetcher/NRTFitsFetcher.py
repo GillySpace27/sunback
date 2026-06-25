@@ -104,7 +104,7 @@ class NRTFitsFetcher(WebFitsFetcher):
             write_integrated_synoptic(local_frames, out, method=method)
             out_paths.append(out)
 
-        if self.params.destroy:
+        if self.destroy:
             shutil.rmtree(temp_dir, ignore_errors=True)
         print(f" ^  Integrated {len(out_paths)} wavelengths "
               f"({n}x {method}) from NRT\n", flush=True)
