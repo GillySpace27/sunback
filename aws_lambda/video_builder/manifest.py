@@ -10,7 +10,7 @@ and the fragment).
 """
 import re
 
-_1K_KEY_RE = re.compile(r"^1k/rhef_([A-Za-z0-9]+)_1k\.png$")
+_1K_KEY_RE = re.compile(r"^1k/rhef_([A-Za-z0-9_]+)_1k\.png$")
 
 PRODUCTS = [
     {"id": "rainbow", "label": "Rainbow (RHEF composite)"},
