@@ -59,7 +59,7 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
     p.rgb_frame = "rhef(lev1p5)"
 
     # Time-integration knobs for the NRT fetcher (see NRTFitsFetcher for defaults).
-    p.integration_frames = 3          # N most-recent NRT frames to combine
+    p.integration_frames = 5          # N most-recent NRT frames to combine (~15 min)
     p.integration_method = "median"   # 'median' (cosmic-ray robust) | 'mean' | 'sum'
 
     if True:

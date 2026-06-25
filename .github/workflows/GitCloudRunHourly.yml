@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - master
+    # Doc/web/lambda-only changes don't affect the reducer — don't spin it up.
+    paths-ignore:
+      - 'web/**'
+      - 'docs/**'
+      - 'aws_lambda/**'
+      - '**.md'
   schedule:
     - cron: '*/20 * * * *'  # Every 20 minutes (3 frames/hour for the 48h video)
   workflow_dispatch:

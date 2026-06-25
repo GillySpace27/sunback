@@ -123,7 +123,7 @@ def _process_one(product, trigger_key, obstime):
         updated=_iso(obstime),
         frame_count=frame_count,
         integration={
-            "frames": int(os.environ.get("INTEGRATION_FRAMES", "3")),
+            "frames": int(os.environ.get("INTEGRATION_FRAMES", "5")),
             "method": os.environ.get("INTEGRATION_METHOD", "median"),
         },
     )
