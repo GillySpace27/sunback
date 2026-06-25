@@ -16,32 +16,35 @@ Spec: `docs/superpowers/specs/2026-06-24-sun-right-now-revamp-design.md`.
 | Workflow cron `*/20` | ✅ `.github/workflows/GitCloudRunHourly.yml` |
 | Lambda video builder | ✅ built (`handler.py`, queue/manifest unit-tested) |
 | Landing page | ✅ `web/sun.html` |
-| **Upload-key remap in `AwsPutter`** | ⚠️ **TODO — see below (page can't find images until done)** |
-| AWS resources (Lambda, layer, S3 event, IAM) | ⚠️ manual, see below |
-| Repo made public | ⚠️ manual |
+| Upload-key remap in `AwsPutter` | ✅ done + unit-tested (`sunback/putter/serve_keys.py`) |
+| `NRTFitsFetcher` live fetch+integrate | ✅ verified against live JSOC (2026-06-25) |
+| AWS resources (Lambda, layer, S3 event, IAM) | ✅ **deployed** (us-east-2) + smoke-tested |
+| Repo made public | ✅ done |
 
-## 1. Remaining code: `AwsPutter` upload-key remap (required)
+## 1. Cutover (remaining steps to go live)
 
-The page + Lambda expect these keys; the reducer must produce them. This wasn't
-auto-written because it depends on the exact local PNG filenames the pipeline emits
-(per-wavelength vs. the composite), which needs a live run to confirm. Do this:
+All code is on branch `claude/amazing-wu-263fcf`; `master`/production is untouched
+until you merge. The `AwsPutter` upload-key remap is **done** — it maps the real
+reducer filenames (verified against the production bucket) to the served keys via
+`sunback/putter/serve_keys.py`:
 
-For each rendered PNG the reducer would upload:
-- **Derive the product id** from the source name: `AIAsynoptic0171…` → `171`
-  (strip leading zeros), the rainbow composite → `rainbow`.
-- **Skip** any id not in the 8 served products
-  (`rainbow,171,193,211,304,335,94,131`) — e.g. the composite-only 1600/1700 stills.
-- Upload the full-res 1k PNG to **`1k/rhef_<id>_1k.png`**.
-- Make a **256²** thumbnail (the global `make_thumbs` is 512² — pass a size or add a
-  256 variant) and upload to **`thumb/rhef_<id>_thumb.png`**.
-- Set S3 object **metadata `obstime`** = the frame's `T_REC` (ISO-8601). The Lambda
-  reads this to timestamp queue frames; without it, it falls back to event time.
-- **Do not upload any `.mp4`** — the Lambda owns `video/`. (Drop the mp4 branch in
-  `do_upload` / `get_file_list`.)
-- Keep `__save_times()` (writes `image_times_readable.txt`, used by the page).
+- `DrGilly_<wave>_ups(rhef).png` → `1k/rhef_<id>_1k.png` + `thumb/rhef_<id>_thumb.png`
+  (256²), ids `171,193,211,304,335,94,131`.
+- `BGR_0171_0193_0211_ups(rhef).png` → the **`rainbow`** card.
+  ⚠️ **CONFIRM:** the reducer emits *two* composites; we chose the EUV blend as the
+  headline rainbow. To use the 1700/1600/0304 blend instead, change `RAINBOW_SOURCE`
+  in `serve_keys.py`.
+- Skipped: 1600/1700 singles (composite-only), the alternate `BGR`, `C_isothermal`
+  (DEM), and all `.mp4` (the Lambda owns `video/`).
+- `obstime` metadata = upload-time UTC (≈ observation time); the Lambda uses it to
+  order the queue. `image_times_readable.txt` is still written.
 
-`ContentType`/`ACL` stay as today (`image/png`, `public-read`, inline). The id and
-key conventions match `aws_lambda/video_builder/manifest.py` — reuse those strings.
+To finish:
+1. **Merge `claude/amazing-wu-263fcf` → `master`** (push triggers the `*/20` workflow).
+2. **Deploy `web/sun.html`** to wherever `gilly.space/sun.html` is served.
+3. **(optional) clean up old keys** — after cutover, the stale `renders/*` and
+   `image_times.txt` from the old layout linger (not deleted, since we removed the
+   bucket-wipe). Safe to delete once the new page is confirmed working.
 
 ## 2. AWS resources — automated by `deploy.sh`
 
