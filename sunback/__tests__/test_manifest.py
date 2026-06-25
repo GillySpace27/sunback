@@ -46,6 +46,9 @@ def test_product_from_1k_key():
     from aws_lambda.video_builder.manifest import product_from_1k_key
     assert product_from_1k_key("1k/rhef_171_1k.png") == "171"
     assert product_from_1k_key("1k/rhef_rainbow_1k.png") == "rainbow"
+    # ids may contain underscores (e.g. composite_uv) — must not be dropped
+    assert product_from_1k_key("1k/rhef_composite_uv_1k.png") == "composite_uv"
+    assert product_from_1k_key("1k/rhef_1600_1k.png") == "1600"
 
 
 def test_product_from_1k_key_rejects_non_1k():
