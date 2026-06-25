@@ -3,66 +3,128 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Sun Right Now</title>
+<title>The Sun, right now · gilly.space</title>
+<meta name="description" content="Near-real-time images of the Sun from NASA's SDO/AIA, radially normalized with RHE to reveal the faint corona. Updated every 20 minutes, with 48-hour timelapse videos.">
+<link rel="canonical" href="https://gilly.space/sun.html">
+<script>
+  (function () {
+    try {
+      var mode = localStorage.getItem('enso-theme') || 'system';
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (mode === 'dark' || (mode === 'system' && prefersDark)) document.documentElement.classList.add('dark');
+    } catch (e) {}
+  })();
+</script>
+<meta property="og:type" content="website">
+<meta property="og:title" content="The Sun, right now · gilly.space">
+<meta property="og:description" content="Near-real-time SDO/AIA images of the Sun, radially normalized with RHE, updated every 20 minutes.">
+<meta property="og:url" content="https://gilly.space/sun.html">
+<meta property="og:image" content="https://the-sun-now.s3.us-east-2.amazonaws.com/1k/rhef_rainbow_1k.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+<meta name="theme-color" content="#faf8f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1814" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="/assets/css/academicons.min.css">
+<link rel="stylesheet" href="/assets/css/font-awesome.min.css">
+<link rel="stylesheet" href="/assets/site.css">
 <style>
-  :root { --bg:#0b0d12; --card:#151922; --ink:#e8eaed; --muted:#9aa3b2; --accent:#ffb13b; }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink);
-         font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
-  header { padding:28px 20px 8px; text-align:center; }
-  header h1 { margin:0; font-weight:600; letter-spacing:.5px; }
-  #times { color:var(--muted); font-size:13px; white-space:pre-line; text-align:center;
-           margin:6px auto 0; max-width:680px; }
-  #updated { color:var(--muted); font-size:12px; text-align:center; margin:4px 0 18px; }
-  .grid { display:grid; gap:16px; padding:0 20px 40px; max-width:1280px; margin:0 auto;
-          grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); }
-  .card { background:var(--card); border-radius:12px; overflow:hidden;
-          box-shadow:0 1px 3px rgba(0,0,0,.4); display:flex; flex-direction:column; }
-  .card .thumb { aspect-ratio:1/1; width:100%; object-fit:cover; background:#000;
-                 display:block; cursor:zoom-in; }
-  .card .body { padding:10px 12px 12px; display:flex; flex-direction:column; gap:8px; }
-  .card .label { font-weight:600; }
-  .links { display:flex; gap:8px; flex-wrap:wrap; }
-  .links a, .links button { font-size:13px; text-decoration:none; color:var(--bg);
-          background:var(--accent); border:0; border-radius:6px; padding:4px 10px;
-          cursor:pointer; font-weight:600; }
-  .links .ghost { background:transparent; color:var(--accent);
-          border:1px solid var(--accent); }
-  .meta { color:var(--muted); font-size:11px; }
-  .card.err { opacity:.5; }
+  .sun-lead { font-size: 1.05rem; color: var(--muted); max-width: 62ch; margin: 0 0 1em; }
+  .sun-times { display: flex; flex-wrap: wrap; gap: 6px 22px; color: var(--muted);
+               font-size: 14px; margin: 0 0 clamp(20px,4vw,32px); }
+  .sun-times b { color: var(--text); font-weight: 600; }
+  .sun-grid .card__img { aspect-ratio: 1 / 1; }
+  .sun-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .sun-links a, .sun-links button {
+    font: 600 13px/1 inherit; text-decoration: none; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink);
+    border: 0; border-radius: 7px; padding: 5px 11px; }
+  .sun-links .ghost { background: transparent; color: var(--accent-text);
+    border: 1px solid var(--card-border); }
+  .card.err { opacity: .45; }
+  .card.err .card__img { display:flex; align-items:center; justify-content:center;
+    background: var(--card-bg); color: var(--muted); font-size: 13px; }
   /* lightbox */
-  #lb { position:fixed; inset:0; background:rgba(0,0,0,.9); display:none;
-        align-items:center; justify-content:center; padding:20px; z-index:10; }
-  #lb.open { display:flex; }
-  #lb img, #lb video { max-width:95vw; max-height:92vh; border-radius:8px; }
-  #lb .x { position:absolute; top:16px; right:22px; color:#fff; font-size:30px;
-           cursor:pointer; background:none; border:0; }
-  footer { text-align:center; color:var(--muted); font-size:12px; padding:0 0 30px; }
-  a.src { color:var(--accent); }
+  #lb { position: fixed; inset: 0; background: rgba(0,0,0,.9); display: none;
+        align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
+  #lb.open { display: flex; }
+  #lb img, #lb video { max-width: 95vw; max-height: 92vh; border-radius: 8px; }
+  #lb .x { position: absolute; top: 14px; right: 20px; color: #fff; font-size: 32px;
+           cursor: pointer; background: none; border: 0; line-height: 1; }
 </style>
 </head>
 <body>
-<header>
-  <h1>The Sun Right Now</h1>
-  <div id="times"></div>
-  <div id="updated"></div>
-</header>
 
-<main class="grid" id="grid"></main>
+<div data-include="header"></div>
+<noscript>
+  <nav class="wrap" style="padding-top:12px" aria-label="Primary">
+    <a href="/Research.html">Research</a> · <a href="/sun.html">The Sun</a> ·
+    <a href="/RecordedPublicTalks.html">Outreach</a> · <a href="/play/">Play</a> ·
+    <a href="/shop.html">Store</a> &middot; <a href="/about.html">About / CV</a>
+  </nav>
+</noscript>
+
+<main id="main">
+  <section class="section wrap">
+    <p class="eyebrow">Live · updates every 20 minutes</p>
+    <h1>The Sun, right now</h1>
+    <p class="sun-lead">
+      Near-real-time views of the Sun from NASA's SDO/AIA, radially normalized with my
+      <a href="https://github.com/sunpy/sunkit-image" target="_blank" rel="noopener">RHE</a>
+      method to pull the faint corona into view. Tap any image for a full-size still or a
+      48-hour timelapse. <a href="#about-sun">More about these images ↓</a>
+    </p>
+
+    <div id="suntimes" class="sun-times" aria-live="polite">
+      <span>Loading capture time…</span>
+    </div>
+
+    <div class="grid sun-grid" id="grid"></div>
+  </section>
+
+  <section class="section wrap" id="about-sun">
+    <p class="eyebrow">About these images</p>
+    <div class="prose">
+      <p>
+        These images were taken recently (see the capture time above) by the Atmospheric Imaging
+        Assembly (AIA) on the Solar Dynamics Observatory (SDO), a NASA mission launched in 2010.
+        Each color represents the intensity recorded at one particular wavelength of ultraviolet
+        light. Those wavelengths were chosen because they correspond to atomic ions known to exist
+        at a range of temperatures — so these images let us read off the temperature of the solar
+        atmosphere. <a href="https://en.wikipedia.org/wiki/Solar_Dynamics_Observatory" target="_blank" rel="noopener">Find out more about SDO on Wikipedia.</a>
+      </p>
+      <p>
+        The images have been radially normalized using Radial Histogram Equalization (RHE) — my
+        method (Gilly &amp; Cranmer, in prep), which now ships in sunpy's
+        <a href="https://github.com/sunpy/sunkit-image" target="_blank" rel="noopener">sunkit-image</a> —
+        to pull the faint corona into the same dynamic range as the bright disk. The unprocessed
+        images can be seen at <a href="https://www.thesuntoday.org/" target="_blank" rel="noopener">The Sun Today</a>.
+        Like one enough to hang it on a wall? Fine-art prints live in the
+        <a href="https://solar-archive.onrender.com/" target="_blank" rel="noopener">Solar Archive store</a>.
+      </p>
+      <p>
+        A note on what you're seeing: each still is the <b>median of the three most recent exposures</b>
+        (taken a few minutes apart), which removes cosmic-ray hits and speckle for a cleaner image.
+        Each <b>timelapse video</b> is the most recent 48 hours, three frames per hour. The
+        <b>Rainbow</b> tile is a false-color composite of several channels; the
+        <b>Temperature map</b> is a differential-emission-measure reconstruction whose “T-scan”
+        video sweeps through temperature rather than time.
+      </p>
+    </div>
+  </section>
+</main>
 
 <div id="lb" onclick="closeLb(event)">
   <button class="x" onclick="closeLb(event)" aria-label="Close">&times;</button>
   <div id="lb-content"></div>
 </div>
 
-<footer>
-  Imagery: SDO/AIA, processed with
-  <a class="src" href="https://github.com/GillySpace27/sunback">sunback</a>
-  (RHEF radial filtering, time-integrated). Refreshes every 20&nbsp;min.
-</footer>
-
+<div data-include="footer"></div>
+<script src="/assets/site.js"></script>
 <script>
-  // Product ids/labels mirror aws_lambda/video_builder/manifest.py (8 cards).
   const BUCKET = "https://the-sun-now.s3.us-east-2.amazonaws.com/";
   const PRODUCTS = [
     ["rainbow","Rainbow (RHEF composite)"],
@@ -73,11 +135,10 @@
     ["composite_uv","Composite (1700/1600/304)"],
     ["dem","Temperature map (DEM)"],
   ];
-  // The DEM card also links a pre-rendered temperature-scan video (fixed key).
   const TSCAN_KEY = "video/rhef_tscan.mp4";
   const u = (key, v) => BUCKET + key + (v ? "?v=" + encodeURIComponent(v) : "");
 
-  function openImg(src){ show(`<img src="${src}">`); }
+  function openImg(src){ show(`<img src="${src}" alt="">`); }
   function openVid(src){ show(`<video src="${src}" autoplay loop muted controls playsinline></video>`); }
   function show(html){ document.getElementById("lb-content").innerHTML = html;
                        document.getElementById("lb").classList.add("open"); }
@@ -85,51 +146,66 @@
                        document.getElementById("lb").classList.remove("open");
                        document.getElementById("lb-content").innerHTML=""; } }
 
-  async function card([id,label]){
-    const el = document.createElement("section");
-    el.className = "card";
+  function humanElapsed(ms){
+    const s = Math.max(0, Math.round(ms/1000));
+    if (s < 90) return s + " seconds ago";
+    const m = Math.round(s/60);
+    if (m < 90) return m + " minute" + (m===1?"":"s") + " ago";
+    const h = Math.floor(m/60), rem = m%60;
+    return h + " h " + rem + " min ago";
+  }
+
+  async function loadTimes(){
+    const box = document.getElementById("suntimes");
     try {
-      const m = await (await fetch(u(`manifest/${id}.json`, Date.now()))).json();
-      const v = m.updated;
-      el.innerHTML = `
-        <img class="thumb" loading="lazy" src="${u(m.thumb,v)}" alt="${label}"
-             onclick="openImg('${u(m.img1k,v)}')">
-        <div class="body">
-          <div class="label">${label}</div>
-          <div class="links">
-            <a href="${u(m.img1k,v)}" target="_blank" rel="noopener">1k</a>
-            <button onclick="openVid('${u(m.video,v)}')">&#9658; 48h</button>
-            ${id==="dem" ? `<button class="ghost" onclick="openVid('${u(TSCAN_KEY,v)}')">&#9658; T-scan</button>` : ""}
-          </div>
-          <div class="meta">${m.frame_count||0} frames &middot;
-            ${m.integration?`${m.integration.frames}× ${m.integration.method}`:""}</div>
-        </div>`;
-      return {el, updated:v};
+      const raw = (await (await fetch(u("image_times.txt", Date.now()))).text()).trim();
+      // file is UTC without a zone suffix, e.g. 2026-06-25T22:03:00.570
+      const t = new Date(raw.endsWith("Z") ? raw : raw + "Z");
+      const utc = t.toLocaleString("en-US", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" });
+      const local = t.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "local";
+      const render = () => {
+        box.innerHTML =
+          `<span>Captured <b>${utc} UTC</b></span>` +
+          `<span><b>${local}</b> (${tz})</span>` +
+          `<span><b>${humanElapsed(Date.now() - t.getTime())}</b></span>`;
+      };
+      render();
+      setInterval(render, 30000);
     } catch (e) {
-      el.className = "card err";
-      el.innerHTML = `<div class="body"><div class="label">${label}</div>
-        <div class="meta">unavailable</div></div>`;
-      return {el, updated:null};
+      box.innerHTML = "<span>Capture time unavailable.</span>";
     }
   }
 
-  async function load(){
+  // Render cards (simple sequential append keeps product order).
+  (async () => {
     const grid = document.getElementById("grid");
-    let newest = null;
     for (const p of PRODUCTS){
-      const {el, updated} = await card(p);
+      const el = document.createElement("article");
+      el.className = "card card--sun";
       grid.appendChild(el);
-      if (updated && (!newest || updated > newest)) newest = updated;
+      try {
+        const m = await (await fetch(u(`manifest/${p[0]}.json`, Date.now()))).json();
+        const v = m.updated, label = p[1], id = p[0];
+        el.innerHTML = `
+          <img class="card__img" loading="lazy" src="${u(m.thumb,v)}" alt="${label}"
+               style="cursor:zoom-in" onclick="openImg('${u(m.img1k,v)}')">
+          <div class="card__body">
+            <h3>${label}</h3>
+            <div class="sun-links">
+              <a href="${u(m.img1k,v)}" target="_blank" rel="noopener">Full size</a>
+              <button onclick="openVid('${u(m.video,v)}')">&#9658; 48 h</button>
+              ${id==="dem" ? `<button class="ghost" onclick="openVid('${u(TSCAN_KEY,v)}')">&#9658; T-scan</button>` : ""}
+            </div>
+          </div>`;
+      } catch (err) {
+        el.className = "card card--sun err";
+        el.innerHTML = `<div class="card__img">unavailable</div>
+          <div class="card__body"><h3>${p[1]}</h3></div>`;
+      }
     }
-    if (newest) document.getElementById("updated").textContent =
-      "Updated " + new Date(newest).toLocaleString();
-
-    try {
-      const t = await (await fetch(u("image_times_readable.txt", Date.now()))).text();
-      document.getElementById("times").textContent = t;
-    } catch (e) { /* time strip is optional */ }
-  }
-  load();
+    loadTimes();
+  })();
 </script>
 </body>
 </html>
