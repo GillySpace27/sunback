@@ -86,3 +86,24 @@ def test_empty_returns_empty():
 def test_single_frame_one_slot():
     keys = _q("20260624T200000")
     assert build_grid_sequence(keys, cadence_s=1200, max_slots=144) == keys
+
+
+# --- select_stale_frames: time-based pruning (robust to double-firing) ---
+from aws_lambda.video_builder.frame_queue import select_stale_frames
+
+
+def test_stale_frames_older_than_window_are_pruned():
+    # newest = 02:00; window 1h -> anything before 01:00 is stale
+    keys = _q("20260624T000000", "20260624T003000", "20260624T013000",
+              "20260624T020000")
+    stale = select_stale_frames(keys, window_s=3600)
+    assert stale == _q("20260624T000000", "20260624T003000")
+
+
+def test_nothing_stale_within_window():
+    keys = _q("20260624T013000", "20260624T020000")
+    assert select_stale_frames(keys, window_s=3600) == []
+
+
+def test_stale_empty_is_empty():
+    assert select_stale_frames([], window_s=3600) == []

@@ -43,6 +43,19 @@ def _stamp_dt(key):
     return datetime.strptime(_stamp(key), "%Y%m%dT%H%M%S")
 
 
+def select_stale_frames(keys, window_s):
+    """Return frames older than ``window_s`` before the newest frame.
+
+    Time-based pruning (vs count-based) keeps a fixed real-time window regardless
+    of how many frames arrive — so double-firing triggers can't shrink the window.
+    """
+    items = sorted((_stamp_dt(k), k) for k in keys if _stamp(k) is not None)
+    if not items:
+        return []
+    cutoff = items[-1][0] - timedelta(seconds=window_s)
+    return [k for dt, k in items if dt < cutoff]
+
+
 def build_grid_sequence(frame_keys, cadence_s=1200, max_slots=144):
     """Snap frames onto a uniform time grid for a steady-cadence video.
 
