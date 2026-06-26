@@ -6,7 +6,7 @@ Trigger: S3 ``ObjectCreated`` on prefix ``1k/`` suffix ``.png`` in the
 Per invocation (one product):
   1. read the new 1k still's observation time (object metadata ``obstime``, else
      the event time) and copy it into the frame queue at frames/<prod>/<ts>_1k.png
-  2. prune the queue to the newest FRAME_WINDOW frames (48h * 3/hr = 144)
+  2. prune the queue by age (keep ~49h; robust to double-firing triggers)
   3. download the queue, ffmpeg -> video/rhef_<prod>_1k.mp4 at FPS
   4. upload the video and write manifest/<prod>.json
 
@@ -24,7 +24,7 @@ import boto3
 from .frame_queue import (
     build_grid_sequence,
     frame_key_for,
-    select_frames_to_delete,
+    select_stale_frames,
 )
 from .manifest import (
     build_manifest_fragment,
@@ -36,8 +36,9 @@ from .manifest import (
 # --- Tunables (env-overridable) ---------------------------------------------
 BUCKET = os.environ.get("SUN_BUCKET", "the-sun-now")
 FPS = int(os.environ.get("VIDEO_FPS", "18"))
-FRAME_WINDOW = int(os.environ.get("FRAME_WINDOW", "144"))  # 48h * 3 frames/hr
+FRAME_WINDOW = int(os.environ.get("FRAME_WINDOW", "144"))  # 48h * 3/hr (grid slots)
 GRID_CADENCE_S = int(os.environ.get("GRID_CADENCE_S", "1200"))  # 20 min grid
+PRUNE_WINDOW_S = int(os.environ.get("PRUNE_WINDOW_S", str(49 * 3600)))  # keep ~49h
 FFMPEG = os.environ.get("FFMPEG_PATH", "/opt/bin/ffmpeg")  # from the ffmpeg layer
 # ----------------------------------------------------------------------------
 
@@ -114,11 +115,12 @@ def _process_one(product, trigger_key, obstime):
         MetadataDirective="COPY",
     )
 
-    # 2. prune to the newest FRAME_WINDOW
+    # 2. prune by AGE (keep a fixed 48h+margin window, robust to double-firing)
     queue = _list_queue(product)
-    for stale in select_frames_to_delete(queue, FRAME_WINDOW):
-        s3.delete_object(Bucket=BUCKET, Key=stale)
-    queue = [k for k in queue if k not in set(select_frames_to_delete(queue, FRAME_WINDOW))]
+    stale = set(select_stale_frames(queue, PRUNE_WINDOW_S))
+    for key in stale:
+        s3.delete_object(Bucket=BUCKET, Key=key)
+    queue = [k for k in queue if k not in stale]
     if new_frame_key not in queue:
         queue.append(new_frame_key)
 
