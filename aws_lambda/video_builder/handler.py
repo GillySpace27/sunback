@@ -21,7 +21,11 @@ import tempfile
 
 import boto3
 
-from .frame_queue import frame_key_for, select_frames_to_delete, sorted_newest_last
+from .frame_queue import (
+    build_grid_sequence,
+    frame_key_for,
+    select_frames_to_delete,
+)
 from .manifest import (
     build_manifest_fragment,
     manifest_key,
@@ -33,6 +37,7 @@ from .manifest import (
 BUCKET = os.environ.get("SUN_BUCKET", "the-sun-now")
 FPS = int(os.environ.get("VIDEO_FPS", "18"))
 FRAME_WINDOW = int(os.environ.get("FRAME_WINDOW", "144"))  # 48h * 3 frames/hr
+GRID_CADENCE_S = int(os.environ.get("GRID_CADENCE_S", "1200"))  # 20 min grid
 FFMPEG = os.environ.get("FFMPEG_PATH", "/opt/bin/ffmpeg")  # from the ffmpeg layer
 # ----------------------------------------------------------------------------
 
@@ -68,14 +73,24 @@ def _list_queue(product):
 
 
 def _build_video(product, frame_keys, workdir):
-    """Download frames in order, ffmpeg into an mp4, return local path."""
-    ordered = sorted_newest_last(frame_keys)
+    """Snap frames to a uniform 20-min grid (holding through gaps), then ffmpeg.
+
+    Returns (mp4_path, n_unique_real_frames). The video has one slot per grid step
+    so playback advances at a constant rate regardless of when the reducer ran.
+    """
+    seq = build_grid_sequence(frame_keys, cadence_s=GRID_CADENCE_S, max_slots=FRAME_WINDOW)
+    if not seq:
+        return None, 0
+    # download each distinct real frame once; held slots reuse the same local file
+    local_of = {}
+    for key in dict.fromkeys(seq):
+        local = os.path.join(workdir, key.replace("/", "_"))
+        s3.download_file(BUCKET, key, local)
+        local_of[key] = local
     list_path = os.path.join(workdir, "frames.txt")
     with open(list_path, "w") as fp:
-        for i, key in enumerate(ordered):
-            local = os.path.join(workdir, f"{i:04d}.png")
-            s3.download_file(BUCKET, key, local)
-            fp.write(f"file '{local}'\n")
+        for key in seq:  # one line per grid slot (repeats = held frames)
+            fp.write(f"file '{local_of[key]}'\n")
     out_path = os.path.join(workdir, f"{product}.mp4")
     subprocess.run(
         [
@@ -86,7 +101,7 @@ def _build_video(product, frame_keys, workdir):
         check=True,
         capture_output=True,
     )
-    return out_path, len(ordered)
+    return out_path, len(local_of)
 
 
 def _process_one(product, trigger_key, obstime):
