@@ -49,3 +49,40 @@ def test_ignores_unparseable_keys_in_ordering():
     keys = _q("20260624T200300") + ["frames/0171/thumb.txt"]
     # junk is not counted as a frame to keep, and never returned for deletion here
     assert select_frames_to_delete(keys, max_frames=144) == []
+
+
+# --- build_grid_sequence: uniform 20-min grid with hold-previous gap fill ---
+from aws_lambda.video_builder.frame_queue import build_grid_sequence
+
+
+def test_uniform_frames_map_to_themselves():
+    keys = _q("20260624T200000", "20260624T202000", "20260624T204000")
+    seq = build_grid_sequence(keys, cadence_s=1200, max_slots=144)
+    assert seq == keys  # one per slot, in order
+
+
+def test_gap_slot_holds_previous_frame():
+    # 00:00, 00:20, 01:00  (missing 00:40)
+    keys = _q("20260624T000000", "20260624T002000", "20260624T010000")
+    seq = build_grid_sequence(keys, cadence_s=1200, max_slots=144)
+    # 4 slots: 00:00, 00:20, 00:40(held=00:20), 01:00
+    assert seq == _q("20260624T000000", "20260624T002000",
+                     "20260624T002000", "20260624T010000")
+
+
+def test_max_slots_keeps_most_recent_window():
+    keys = _q("20260624T200000", "20260624T202000", "20260624T204000",
+              "20260624T210000", "20260624T212000", "20260624T214000")  # 20-min apart
+    seq = build_grid_sequence(keys, cadence_s=1200, max_slots=3)
+    assert len(seq) == 3
+    assert seq[-1] == keys[-1]                     # window ends at the newest
+    assert seq == keys[-3:]                        # the most-recent 3 slots
+
+
+def test_empty_returns_empty():
+    assert build_grid_sequence([], cadence_s=1200, max_slots=144) == []
+
+
+def test_single_frame_one_slot():
+    keys = _q("20260624T200000")
+    assert build_grid_sequence(keys, cadence_s=1200, max_slots=144) == keys
