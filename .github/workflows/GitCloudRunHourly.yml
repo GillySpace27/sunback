@@ -11,11 +11,41 @@ on:
       - 'aws_lambda/**'
       - '**.md'
   schedule:
-    - cron: '*/20 * * * *'  # Every 20 minutes (3 frames/hour for the 48h video)
+    # Fallback only. The reliable cadence comes from the EventBridge dispatcher
+    # (workflow_dispatch every 20 min). This hourly schedule just catches the
+    # case where the dispatcher/PAT breaks — the gate below skips it otherwise.
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
+  # Cheap decision job (no container, no pull). For a scheduled run it only lets
+  # the heavy job proceed if the latest image is stale; dispatch/push always run.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - name: Decide whether the reducer needs to run
+        id: decide
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" != "schedule" ]; then
+            echo "event=${GITHUB_EVENT_NAME}: run"
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          ts=$(curl -s --max-time 20 "https://the-sun-now.s3.us-east-2.amazonaws.com/image_times.txt" || true)
+          age=$(python3 -c "import sys,datetime as d; ts=sys.argv[1].strip(); print(int((d.datetime.utcnow()-d.datetime.fromisoformat(ts)).total_seconds()) if ts else 999999)" "$ts" 2>/dev/null || echo 999999)
+          echo "latest image age: ${age}s (threshold 1800)"
+          if [ "${age}" -gt 1800 ]; then
+            echo "stale -> run (dispatcher may be down)"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fresh -> skip (dispatcher is healthy)"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
   run-task:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/gillyspace27/sunback-ci:latest
