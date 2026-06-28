@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from sunback.utils.array_util import get_thumblinks, make_thumbs
 from sunback.putter.serve_keys import serve_id_for_local_png, s3_img_key, s3_thumb_key
 
-THUMB_PX = 256  # served thumbnail size (page card)
+THUMB_PX = 512
 
 S3_UPLOAD_ARGS = {'ACL': 'public-read', "ContentDisposition": "inline"}
 
