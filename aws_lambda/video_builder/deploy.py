@@ -12,7 +12,7 @@ RUNTIME = "python3.12"
 HANDLER = "video_builder.handler.handler"
 FFMPEG_URL = "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
 PKG_DIR = os.path.dirname(os.path.abspath(__file__))  # this directory
-ENV = {"VIDEO_FPS": "18", "FRAME_WINDOW": "144", "INTEGRATION_FRAMES": "3",
+ENV = {"VIDEO_FPS": "18", "FRAME_WINDOW": "144", "INTEGRATION_FRAMES": "5",
        "INTEGRATION_METHOD": "median", "SUN_BUCKET": BUCKET}
 
 s = boto3.session.Session()

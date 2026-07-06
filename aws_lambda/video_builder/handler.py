@@ -18,8 +18,10 @@ import os
 import re
 import subprocess
 import tempfile
+from datetime import datetime, timezone
 
 import boto3
+from botocore.exceptions import ClientError
 
 from .frame_queue import (
     build_grid_sequence,
@@ -39,7 +41,14 @@ FPS = int(os.environ.get("VIDEO_FPS", "18"))
 FRAME_WINDOW = int(os.environ.get("FRAME_WINDOW", "144"))  # 48h * 3/hr (grid slots)
 GRID_CADENCE_S = int(os.environ.get("GRID_CADENCE_S", "1200"))  # 20 min grid
 PRUNE_WINDOW_S = int(os.environ.get("PRUNE_WINDOW_S", str(49 * 3600)))  # keep ~49h
+# Rebuild the (48h) video at most this often per product. Frames are still
+# appended + pruned on every trigger; only the expensive ffmpeg re-encode is
+# throttled. A 48h timelapse being up to an hour stale is imperceptible, and
+# this is what keeps the Lambda inside the free tier (was rebuilding 3x/hr x 12
+# products x full encode = ~2M GB-s/mo).
+BUILD_THROTTLE_S = int(os.environ.get("BUILD_THROTTLE_S", "7200"))  # 2 h
 FFMPEG = os.environ.get("FFMPEG_PATH", "/opt/bin/ffmpeg")  # from the ffmpeg layer
+X264_PRESET = os.environ.get("X264_PRESET", "veryfast")  # was implicit 'medium'
 # ----------------------------------------------------------------------------
 
 s3 = boto3.client("s3")
@@ -96,13 +105,22 @@ def _build_video(product, frame_keys, workdir):
     subprocess.run(
         [
             FFMPEG, "-y", "-r", str(FPS), "-f", "concat", "-safe", "0",
-            "-i", list_path, "-c:v", "libx264", "-pix_fmt", "yuv420p",
-            "-movflags", "+faststart", out_path,
+            "-i", list_path, "-c:v", "libx264", "-preset", X264_PRESET,
+            "-pix_fmt", "yuv420p", "-movflags", "+faststart", out_path,
         ],
         check=True,
         capture_output=True,
     )
     return out_path, len(local_of)
+
+
+def _seconds_since_last_build(product):
+    """Age of the current video in seconds, or None if it doesn't exist yet."""
+    try:
+        head = s3.head_object(Bucket=BUCKET, Key=video_key(product))
+    except ClientError:
+        return None
+    return (datetime.now(timezone.utc) - head["LastModified"]).total_seconds()
 
 
 def _process_one(product, trigger_key, obstime):
@@ -124,17 +142,25 @@ def _process_one(product, trigger_key, obstime):
     if new_frame_key not in queue:
         queue.append(new_frame_key)
 
-    # 3. ffmpeg the window into a video
-    with tempfile.TemporaryDirectory() as workdir:
-        video_path, frame_count = _build_video(product, queue, workdir)
-        # 4a. upload video
-        s3.upload_file(
-            video_path, BUCKET, video_key(product),
-            ExtraArgs={"ACL": "public-read", "ContentType": "video/mp4",
-                       "ContentDisposition": "inline"},
-        )
+    # 3. rebuild the video — but only if we haven't within BUILD_THROTTLE_S.
+    #    The frame is already captured (step 1) and the queue is pruned (step 2),
+    #    so skipping the encode loses nothing; the 48h timelapse just refreshes
+    #    every ~2h instead of every 20 min. The distinct-frame count is cheap to
+    #    compute (no downloads) so the manifest stays accurate either way.
+    seq = build_grid_sequence(queue, cadence_s=GRID_CADENCE_S, max_slots=FRAME_WINDOW)
+    frame_count = len(set(seq))
+    age = _seconds_since_last_build(product)
+    if age is None or age >= BUILD_THROTTLE_S:
+        with tempfile.TemporaryDirectory() as workdir:
+            video_path, frame_count = _build_video(product, queue, workdir)
+            s3.upload_file(
+                video_path, BUCKET, video_key(product),
+                ExtraArgs={"ACL": "public-read", "ContentType": "video/mp4",
+                           "ContentDisposition": "inline"},
+            )
 
-    # 4b. write the manifest fragment
+    # 4b. write the manifest fragment (every trigger — keeps the card's
+    #     "updated Xm ago" live even when the video encode was throttled)
     fragment = build_manifest_fragment(
         product,
         updated=_iso(obstime),
