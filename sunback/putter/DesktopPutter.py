@@ -87,11 +87,27 @@ class DesktopPutter(Putter):
 
         # Platform-specific logic
         if this_system == "Darwin":  # macOS
-            try:
-                osascript_command = f'tell application "System Events" to set picture of every desktop to "{local_path}"'
-                subprocess.run(["osascript", "-e", osascript_command], check=True)
-            except subprocess.CalledProcessError as e:
-                raise OSError(f"Failed to update wallpaper on macOS: {e}")
+            # ponytail: macOS 14+ (Sonoma/Sequoia/Tahoe) silently drops the
+            # `set picture` osascript — it returns exit 0 but leaves the
+            # wallpaper unchanged when the stored picture points at a missing
+            # file. Set, read back, and retry until it actually takes. Drop
+            # the loop if Apple ever fixes the no-op.
+            target = str(local_path)
+            set_cmd = f'tell application "System Events" to tell every desktop to set picture to "{target}"'
+            get_cmd = 'tell application "System Events" to get picture of every desktop'
+            for _ in range(5):
+                try:
+                    subprocess.run(["osascript", "-e", set_cmd], check=True)
+                except subprocess.CalledProcessError as e:
+                    raise OSError(f"Failed to update wallpaper on macOS: {e}")
+                current = subprocess.run(
+                    ["osascript", "-e", get_cmd], capture_output=True, text=True
+                ).stdout
+                if target in current:
+                    break
+                sleep(0.5)
+            else:
+                raise OSError(f"macOS did not apply wallpaper after retries: {target}")
 
         elif this_system == "Windows":  # Windows
             try:
