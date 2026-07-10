@@ -87,27 +87,7 @@ class DesktopPutter(Putter):
 
         # Platform-specific logic
         if this_system == "Darwin":  # macOS
-            # ponytail: macOS 14+ (Sonoma/Sequoia/Tahoe) silently drops the
-            # `set picture` osascript — it returns exit 0 but leaves the
-            # wallpaper unchanged when the stored picture points at a missing
-            # file. Set, read back, and retry until it actually takes. Drop
-            # the loop if Apple ever fixes the no-op.
-            target = str(local_path)
-            set_cmd = f'tell application "System Events" to tell every desktop to set picture to "{target}"'
-            get_cmd = 'tell application "System Events" to get picture of every desktop'
-            for _ in range(5):
-                try:
-                    subprocess.run(["osascript", "-e", set_cmd], check=True)
-                except subprocess.CalledProcessError as e:
-                    raise OSError(f"Failed to update wallpaper on macOS: {e}")
-                current = subprocess.run(
-                    ["osascript", "-e", get_cmd], capture_output=True, text=True
-                ).stdout
-                if target in current:
-                    break
-                sleep(0.5)
-            else:
-                raise OSError(f"macOS did not apply wallpaper after retries: {target}")
+            self._set_wallpaper_macos(str(local_path))
 
         elif this_system == "Windows":  # Windows
             try:
@@ -157,6 +137,37 @@ class DesktopPutter(Putter):
             raise OSError(f"Unsupported operating system: {this_system}")
 
         logger.debug(f"Wallpaper updated successfully to {local_path}")
+
+    def _set_wallpaper_macos(self, path):
+        """Set the macOS desktop wallpaper.
+
+        Uses the native NSWorkspace API (via pyobjc) instead of driving System
+        Events with osascript. On macOS 14+ the osascript path needs Automation
+        permission — which a background LaunchAgent (lingon) can't be prompted
+        to grant — so it silently no-ops. NSWorkspace runs in-process in the
+        user's GUI session and returns an explicit success/error, so we trust
+        that instead of reading the wallpaper back (the macOS getter lags by a
+        set and can't be used to verify). Falls back to osascript only if
+        pyobjc isn't installed.
+        """
+        try:
+            from AppKit import NSWorkspace, NSScreen
+            from Foundation import NSURL
+        except ImportError:
+            # ponytail: last-resort fallback; NSWorkspace is the real path.
+            cmd = f'tell application "System Events" to tell every desktop to set picture to "{path}"'
+            subprocess.run(["osascript", "-e", cmd], check=True)
+            return
+
+        url = NSURL.fileURLWithPath_(path)
+        ws = NSWorkspace.sharedWorkspace()
+        screens = NSScreen.screens()
+        if not screens:
+            raise OSError("No screens available — is there a GUI login session?")
+        for screen in screens:
+            ok, err = ws.setDesktopImageURL_forScreen_options_error_(url, screen, {}, None)
+            if not ok:
+                raise OSError(f"NSWorkspace failed to set wallpaper: {err}")
 
     def super_flush(self):
         """Force flush for better output handling."""

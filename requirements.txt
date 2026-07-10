@@ -9,5 +9,6 @@ opencv-python
 xarray
 requests
 setuptools
+pyobjc-framework-Cocoa; sys_platform == 'darwin'
 OpenImageIO
 OpenEXR
