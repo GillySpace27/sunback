@@ -64,7 +64,7 @@ class S3ImgFetcher(Fetcher):
         img_urls = [
             f"{self.xml_url}{content.find('s3:Key', namespaces).text}"
             for content in root.findall('s3:Contents', namespaces)
-            if content.find('s3:Key', namespaces).text.startswith('renders/')
+            if content.find('s3:Key', namespaces).text.startswith('1k/')
         ]
         return img_urls
 

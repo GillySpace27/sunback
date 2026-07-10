@@ -69,7 +69,7 @@ class WebImgFetcher(Fetcher):
         """Parse HTML content using BeautifulSoup to extract image URLs."""
         soup = BeautifulSoup(html_content, 'html.parser')
         image_elements = soup.find_all('img')
-        img_urls = [img['src'] for img in image_elements if img['src'].startswith('https://s3.us-east-2.amazonaws.com/the-sun-now/renders/')]
+        img_urls = [img['src'] for img in image_elements if img['src'].startswith('https://s3.us-east-2.amazonaws.com/the-sun-now/1k/')]
         return img_urls
 
     def _download_image(self, url):

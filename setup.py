@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sunback",
-    version="0.6.17",
+    version="0.6.17.3",
     author="C. R. Gilly",
     author_email="chris.gilly@colorado.edu",
     description="Sets your desktop background to the most recent images of the Sun.",
@@ -24,6 +24,7 @@ setup(
         "opencv-python",
         "xarray",
         "requests",
+        "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
     ],
     extras_require={
         "server": [
