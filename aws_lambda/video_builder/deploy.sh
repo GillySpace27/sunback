@@ -24,7 +24,7 @@ TIMEOUT=120
 EPHEMERAL=1024                       # /tmp size (MB) for frames + mp4
 FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
 # Lambda env (handler reads these; see handler.py)
-ENV_VARS="VIDEO_FPS=18,FRAME_WINDOW=144,INTEGRATION_FRAMES=3,INTEGRATION_METHOD=median,SUN_BUCKET=${BUCKET}"
+ENV_VARS="VIDEO_FPS=18,FRAME_WINDOW=144,INTEGRATION_FRAMES=5,INTEGRATION_METHOD=median,SUN_BUCKET=${BUCKET}"
 # ----------------------------------------------------------------------------
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # .../aws_lambda/video_builder
