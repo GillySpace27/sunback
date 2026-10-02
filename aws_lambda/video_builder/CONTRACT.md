@@ -73,6 +73,10 @@ repository (SB-7 records it).
   about 49 h. No reader may depend on it.
 - `staging/...`: a manual staging run (SB-5) writes the same key names under
   this prefix. Nothing reads it.
+  A staging run is `gh workflow run GitCloudRunHourly.yml --ref <branch> -f prefix=staging/`
+  (the `prefix` input exists since SB-prefix, 2026-10-02; an empty prefix is production).
+  Earlier task text for SB-8, SB-11 and SB-12 assumed this input already existed; it did
+  not. The S3 trigger matches `1k/` only, so a staging run writes no staging manifest.
 
 ## Manifest fragment (`manifest/<id>.json`)
 

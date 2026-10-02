@@ -158,6 +158,9 @@ Run it before every commit. Rules for this repository follow this block.
 - Call `empty_the_bucket()` in `sunback/putter/AwsPutter.py`: it deletes every
   object in the bucket, including the Lambda frame queue.
 - Dispatch the reducer workflow, or run anything else that writes to `the-sun-now`.
+  The `prefix` input is empty by default and empty is PRODUCTION; a staging run is
+  `gh workflow run GitCloudRunHourly.yml --ref <branch> -f prefix=staging/` and still
+  needs Gilly's yes (`docs/handoffs/SB-prefix-staging.md`).
 - Set the wallpaper on Gilly's Mac, or GUI-launch any Heliograph or Heliogram
   copy in Wall, Kiosk or Desktop mode.
 - Read, print or commit a secret. The repository is public since 2026-06-25.
@@ -199,6 +202,7 @@ branch, tag, S3 object, Lambda version or layer removal. Retire code with
 - `python infra/pat_expiry.py`: days until the dispatcher PAT expires; exit 1 within 14 days (SB-7)
 - `python infra/rotate_dispatch_pat.py`: Gilly runs it in his own terminal; agents never run it (SB-7)
 - `python devtools/reachability.py [--json]`: which tracked modules production, research or nothing reaches (SB-10)
+- `python -m pytest sunback/__tests__/test_prefix_audit.py`: offline proof that `SUNBACK_PREFIX` reaches every S3 write; fails on a new unaudited write call site (SB-prefix)
 - `python devtools/scripts/check_freshness.py [--threshold 3600] [--prefix staging/] [--json]`: read-only freshness of image_times.txt and every manifest fragment; exit 0 fresh, 1 stale or missing, 3 unreachable (SB-8)
 - `python -m build && python devtools/scripts/check_wheel.py dist/*.whl`: build the sdist and wheel and audit the wheel; releases follow RELEASING.md and every upload is Gilly's (SB-12)
 - `python devtools/scripts/alert_triage.py`: classify open Dependabot alerts by whether production installs the package; read only (SB-13)

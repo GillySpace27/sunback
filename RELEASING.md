@@ -47,6 +47,13 @@ is Gilly's, one release at a time.
 - `devtools/scripts/*.bat` are superseded and kept for reference.
 - Author metadata in `pyproject.toml` and the meaning of `v1.0.0` are Gilly's to decide.
 
+## Staging run of the reducer (SB-prefix)
+
+A merge to master runs the production reducer, and so does a dispatch with an empty
+`prefix`. To try a branch's reducer without touching production keys, Gilly dispatches
+it with a prefix: `gh workflow run GitCloudRunHourly.yml --ref <branch> -f prefix=staging/`.
+An empty prefix is production. What to expect and what not to: `docs/handoffs/SB-prefix-staging.md`.
+
 ## Release feed record (SU-11)
 
 After Gilly has approved the `pypi` job and `https://pypi.org/project/sunback/<version>/` exists, record the
