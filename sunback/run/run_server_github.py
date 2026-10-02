@@ -10,6 +10,7 @@ from sunback.processor.ImageProcessorCV import ImageProcessorCV, ImageProcessorH
 from sunback.processor.CompositeRainbowImageProcessor import RainbowRGBImageProcessor
 from sunback.processor.ScienceProcessor import DEMReconstructionProcessor
 from sunback.fetcher.NRTFitsFetcher import NRTFitsFetcher
+from sunback.settings import NrtSettings
 
 
 import logging
@@ -30,6 +31,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
+    settings = NrtSettings.from_env()  # fails fast on a bad SUNBACK_PREFIX before any fetch
     p = Parameters()
 
     p.is_debug(debug)
@@ -59,8 +61,8 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
     p.rgb_frame = "rhef(lev1p5)"
 
     # Time-integration knobs for the NRT fetcher (see NRTFitsFetcher for defaults).
-    p.integration_frames = 5          # N most-recent NRT frames to combine (~15 min)
-    p.integration_method = "median"   # 'median' (cosmic-ray robust) | 'mean' | 'sum'
+    p.integration_frames = settings.integration_frames  # SUNBACK_INTEGRATION_FRAMES, default 5 (~15 min)
+    p.integration_method = settings.integration_method  # SUNBACK_INTEGRATION_METHOD, default 'median'
 
     if True:
         # NRT fetcher: grabs N recent synoptic frames per wavelength and

@@ -1,0 +1,14 @@
+{
+  "id": "171",
+  "label": "AIA 171 \u00c5",
+  "thumb": "thumb/rhef_171_thumb.png",
+  "img1k": "1k/rhef_171_1k.png",
+  "video": "video/rhef_171_1k.mp4",
+  "updated": "2026-09-28T12:00:00Z",
+  "frame_count": 144,
+  "integration": "5 min",
+  "video_v": 1,
+  "still_v": 1,
+  "through": "2026-09-28T12:00:00Z",
+  "_fixture_note": "PLACEHOLDER built offline from aws_lambda/video_builder/manifest.py, not captured from the bucket. Recapture with the curl commands in SB-4 Task 2 Step 3 and replace this file."
+}

@@ -96,3 +96,36 @@ static and reads only `https://the-sun-now.s3.us-east-2.amazonaws.com/` — no b
    `manifest/171.json` appear.
 4. Open `sun.html` → 8 cards, thumbnails load, video plays, "Updated" shows now.
 5. Let it run an hour → 3 frames/product accumulate; video lengthens toward 144.
+
+## Deploying code changes (deploy_code.py)
+
+Code reaches `sun-video-builder` only through `deploy_code.py`. It packs exactly
+`__init__.py`, `handler.py`, `frame_queue.py` and `manifest.py` into a
+deterministic zip and never touches the ffmpeg layer, the environment or the
+bucket notification. Every real deploy and rollback needs Gilly's explicit yes.
+
+1. After the change merges, tag the merge commit:
+   `git tag -a lambda-YYYY-MM-DD -m "<what changed>"` (append `-2`, `-3` for a
+   second deploy the same day). Pushing the tag is Gilly's call.
+2. Read-only plan: `python aws_lambda/video_builder/deploy_code.py --plan`
+   shows live versus new CodeSha256, the per-file diff and env drift against
+   `lambda_env.json`, and prints `already live` when nothing differs.
+3. Deploy (Gilly): `python aws_lambda/video_builder/deploy_code.py`, then type
+   `sun-video-builder` at the prompt. It refuses a dirty tree, a HEAD not on
+   `origin/master` and a HEAD without a `lambda-*` tag.
+4. Commit the receipt it writes under `receipts/` (append-only).
+5. Roll back (Gilly):
+   `python aws_lambda/video_builder/deploy_code.py --rollback aws_lambda/video_builder/receipts/<stamp>.json`
+   rebuilds the receipt's tag with `git archive` and goes through the same gate.
+
+`lambda_env.json` records the live environment, one entry per name `handler.py`
+reads. Changing an environment value is a separate, Gilly-approved
+`aws lambda update-function-configuration`; new behaviour defaults correctly in
+code instead.
+
+The ffmpeg layer is pinned by `layer/ffmpeg.lock` (sha256 of the binary):
+`python aws_lambda/video_builder/layer/build_layer.py --verify-only`.
+
+`deploy.sh` and `deploy.py` bootstrap a new stack only. Never run them against
+the live account: they publish a new layer, reset the environment and replace
+the bucket notification configuration.

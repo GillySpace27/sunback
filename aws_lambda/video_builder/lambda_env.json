@@ -1,0 +1,12 @@
+{
+  "BUILD_THROTTLE_S": "7200",
+  "FFMPEG_PATH": "/opt/bin/ffmpeg",
+  "FRAME_WINDOW": "144",
+  "GRID_CADENCE_S": "1200",
+  "INTEGRATION_FRAMES": "5",
+  "INTEGRATION_METHOD": "median",
+  "PRUNE_WINDOW_S": "176400",
+  "SUN_BUCKET": "the-sun-now",
+  "VIDEO_FPS": "18",
+  "X264_PRESET": "veryfast"
+}

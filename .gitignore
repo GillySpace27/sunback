@@ -152,3 +152,8 @@ src/run/run_server_lingon.timestamp
 *.exr
 *.yuv
 *.zip
+
+# Local output and the nested store repo (SB-4). Untracked; never commit them.
+sunback_data/
+solar_archive_output/
+/webapp/

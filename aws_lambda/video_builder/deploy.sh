@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# BOOTSTRAP A NEW STACK ONLY. For code changes use deploy_code.py (SB-3).
+# Never run this against the live account without Gilly's explicit yes: it publishes
+# a new ffmpeg layer from an unpinned URL, resets the Lambda environment to five
+# variables and replaces the bucket notification configuration.
 #
 # Deploy the Sun-Right-Now video-builder Lambda + ffmpeg layer + S3 trigger.
 # Idempotent: safe to re-run (creates or updates).
