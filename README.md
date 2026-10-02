@@ -20,6 +20,12 @@ Solar Background Updater
 
 This program is the core analysis package that Dr. Gilly uses for his research. This code is very modular and can perform many different data pipelines for images with arbitrary and custom filtering steps. Sunback runs analysis on images from AIA, updates Gilly's personal website, and allows users to run a daemon on their machines to update their computer desktop background.
 
+## Working here
+
+Before changing anything, read [AGENTS.md](https://github.com/GillySpace27/sunback/blob/master/AGENTS.md):
+what is production, what must never be run, and how to prove a change works.
+Run every offline check with `bash devtools/check.sh`.
+
 ## Installation
 
 ### Github Installation Instructions
