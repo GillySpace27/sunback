@@ -118,3 +118,56 @@ def build_index(fragments, generated):
     by_id = {f.get("id"): f for f in fragments}
     return {"generated": generated,
             "products": [by_id[p["id"]] for p in PRODUCTS if p["id"] in by_id]}
+
+
+# Public schema (SB-6). CONTRACT.md beside this file documents every field below,
+# and sunback/__tests__/test_manifest_contract.py binds code, fixtures and doc.
+# Additive only: a new field goes into FRAGMENT_OPTIONAL (or INDEX_OPTIONAL) and
+# into CONTRACT.md in the same commit. Removing or renaming a field needs Gilly
+# and a Heliogram release first.
+FRAGMENT_REQUIRED: dict[str, type] = {
+    "id": str, "label": str, "thumb": str, "img1k": str, "video": str,
+    "updated": str, "frame_count": int, "integration": dict,
+}
+FRAGMENT_OPTIONAL: dict[str, type] = {"video_v": str, "still_v": str, "through": str}
+INDEX_OPTIONAL: dict[str, type] = {}
+_INTEGRATION_FIELDS = {"frames": int, "method": str}
+
+
+def _type_problem(name, value, expected):
+    if expected is int and isinstance(value, bool):
+        return f"{name}: expected int, got bool"
+    if not isinstance(value, expected):
+        return f"{name}: expected {expected.__name__}, got {type(value).__name__}"
+    return None
+
+
+def validate_fragment(frag):
+    """Problems with one manifest fragment, one sentence each; [] means valid.
+
+    Unknown keys are problems, so no field reaches readers without a row in
+    CONTRACT.md. Stdlib only: the Lambda zip and the smoke check both use it.
+    """
+    if not isinstance(frag, dict):
+        return [f"fragment: expected dict, got {type(frag).__name__}"]
+    problems = [f"missing required key {name!r}" for name in FRAGMENT_REQUIRED if name not in frag]
+    for name, value in frag.items():
+        expected = FRAGMENT_REQUIRED.get(name) or FRAGMENT_OPTIONAL.get(name)
+        if expected is None:
+            problems.append(f"unknown key {name!r}")
+            continue
+        problem = _type_problem(name, value, expected)
+        if problem:
+            problems.append(problem)
+    if isinstance(frag.get("id"), str) and frag["id"] not in _LABELS:
+        problems.append(f"id: unknown product id {frag['id']!r}")
+    integration = frag.get("integration")
+    if isinstance(integration, dict):
+        for name, expected in _INTEGRATION_FIELDS.items():
+            if name not in integration:
+                problems.append(f"integration: missing {name!r}")
+                continue
+            problem = _type_problem(f"integration.{name}", integration[name], expected)
+            if problem:
+                problems.append(problem)
+    return problems
