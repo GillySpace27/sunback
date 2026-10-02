@@ -119,7 +119,11 @@ def _build_video(product, frame_keys, workdir):
         [
             FFMPEG, "-y", "-r", str(FPS), "-f", "concat", "-safe", "0",
             "-i", list_path, "-c:v", "libx264", "-preset", X264_PRESET,
-            "-pix_fmt", "yuv420p", "-movflags", "+faststart", out_path,
+            # tag the stream bt709 / tv range so a player does not guess the matrix
+            "-vf", "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv",
+            "-pix_fmt", "yuv420p",
+            "-color_range", "tv", "-colorspace", "bt709",
+            "-movflags", "+faststart", out_path,
         ],
         check=True,
         capture_output=True,
