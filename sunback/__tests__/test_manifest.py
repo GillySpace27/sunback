@@ -144,3 +144,12 @@ def test_split_staging_prefix():
     assert STAGING_PREFIX == "staging/"
     assert split_staging_prefix("staging/1k/rhef_171_1k.png") == ("staging/", "1k/rhef_171_1k.png")
     assert split_staging_prefix("1k/rhef_171_1k.png") == ("", "1k/rhef_171_1k.png")
+
+
+def test_fragment_obs_window_is_optional():
+    """SB-9: obs_start/obs_end appear only when known (readers that predate them see no change)."""
+    plain = build_manifest_fragment("171", updated="2026-09-28T12:00:00Z", frame_count=1, integration={})
+    assert "obs_start" not in plain and "obs_end" not in plain
+    frag = build_manifest_fragment("171", updated="2026-09-28T12:00:00Z", frame_count=1, integration={},
+                                   obs_start="2026-09-28T11:52:00Z", obs_end="2026-09-28T12:00:00Z")
+    assert (frag["obs_start"], frag["obs_end"]) == ("2026-09-28T11:52:00Z", "2026-09-28T12:00:00Z")

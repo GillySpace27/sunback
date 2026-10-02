@@ -74,13 +74,17 @@ _OBSTIME_FALLBACK_RE = re.compile(r"(\d{8}T\d{6})")
 
 
 def _obstime_for(bucket, key, event_time):
-    """Observation timestamp for the new still: object metadata, else event time."""
+    """(observation timestamp, user metadata) for the new still: metadata, else event time.
+
+    SB-9: the reducer also sends obstime_source, obs_start, obs_end, tint_n,
+    tint_m and, once RH-3 stamps exist, rhef_stamp.
+    """
     head = s3.head_object(Bucket=bucket, Key=key)
     meta = head.get("Metadata", {})
     if "obstime" in meta:
-        return meta["obstime"]
+        return meta["obstime"], meta
     # event_time like 2026-06-24T20:20:31.123Z -> compact
-    return re.sub(r"[-:]", "", event_time).split(".")[0]
+    return re.sub(r"[-:]", "", event_time).split(".")[0], meta
 
 
 def _list_queue(product, key_prefix=""):
@@ -99,7 +103,29 @@ def _list_queue(product, key_prefix=""):
     return keys
 
 
-def _build_video(product, frame_keys, workdir):
+_STAMP_RE = re.compile(r"[\x20-\x7e]{1,400}")
+
+
+def _mp4_metadata_args(product, seq, n_frames, integration, stamp=None):
+    """SB-9 ffmpeg -metadata arguments (decision A4).
+
+    ``comment`` is the RH-3 stamp string, the human line, and only when the
+    reducer sent one (one printable ASCII line). The JSON lives in the separate
+    ``sunback_provenance`` tag. ``creation_time`` is the newest frame's time.
+    """
+    info = {"product": product, "first": _iso(compact_stamp(seq[0])),
+            "through": _iso(compact_stamp(seq[-1])), "slots": len(seq), "frames": n_frames,
+            "fps": FPS, "cadence_s": GRID_CADENCE_S, "integration": integration or {},
+            "source": "NASA/SDO/AIA synoptic NRT via JSOC; RHEF (Gilly and Cranmer 2025)"}
+    args = []
+    if stamp and _STAMP_RE.fullmatch(stamp):
+        args += ["-metadata", "comment=" + stamp]
+    args += ["-metadata", "sunback_provenance=" + json.dumps(info, separators=(",", ":")),
+             "-metadata", "creation_time=" + _iso(compact_stamp(seq[-1]))]
+    return args
+
+
+def _build_video(product, frame_keys, workdir, integration=None, stamp=None):
     """Snap frames to a uniform 20-min grid (holding through gaps), then ffmpeg.
 
     Returns (mp4_path, n_unique_real_frames). The video has one slot per grid step
@@ -127,7 +153,10 @@ def _build_video(product, frame_keys, workdir):
             "-vf", "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv",
             "-pix_fmt", "yuv420p",
             "-color_range", "tv", "-colorspace", "bt709",
-            "-movflags", "+faststart", out_path,
+            # use_metadata_tags: without it the mov muxer drops tags it has no atom for
+            # (the custom sunback_provenance tag); known tags are still written.
+            "-movflags", "+faststart+use_metadata_tags",
+            *_mp4_metadata_args(product, seq, len(local_of), integration, stamp), out_path,
         ],
         check=True,
         capture_output=True,
@@ -188,7 +217,7 @@ def _write_index(prefix=""):
     )
 
 
-def _process_one(product, trigger_key, obstime, prefix=""):
+def _process_one(product, trigger_key, obstime, prefix="", meta=None):
     # 1. add the new still to the queue (prefix is "" in production, "staging/" on a staging invoke)
     new_frame_key = prefix + frame_key_for(product, obstime)
     s3.copy_object(
@@ -227,7 +256,8 @@ def _process_one(product, trigger_key, obstime, prefix=""):
     age, through = _last_build(product, prefix)
     if age is None or through is None or age >= BUILD_THROTTLE_S:
         with tempfile.TemporaryDirectory() as workdir:
-            video_path, frame_count = _build_video(product, queue, workdir)
+            video_path, frame_count = _build_video(product, queue, workdir, _integration(),
+                                                   (meta or {}).get("rhef_stamp"))
             through = compact_stamp(seq[-1])
             args = {"ACL": "public-read", "ContentType": "video/mp4",
                     "ContentDisposition": "inline"}
@@ -244,13 +274,12 @@ def _process_one(product, trigger_key, obstime, prefix=""):
         product,
         updated=_iso(obstime),
         frame_count=frame_count,
-        integration={
-            "frames": int(os.environ.get("INTEGRATION_FRAMES", "5")),
-            "method": os.environ.get("INTEGRATION_METHOD", "median"),
-        },
+        integration=_integration(),
         video_v=versioned_video_key(product, through),
         still_v=still_v,
         through=_iso(through),
+        obs_start=(meta or {}).get("obs_start") or None,
+        obs_end=(meta or {}).get("obs_end") or None,
     )
     s3.put_object(
         Bucket=BUCKET, Key=prefix + manifest_key(product),
@@ -260,6 +289,13 @@ def _process_one(product, trigger_key, obstime, prefix=""):
     )
     _write_index(prefix)
     return fragment
+
+
+def _integration():
+    return {
+        "frames": int(os.environ.get("INTEGRATION_FRAMES", "5")),
+        "method": os.environ.get("INTEGRATION_METHOD", "median"),
+    }
 
 
 def _iso(compact):
@@ -287,8 +323,8 @@ def handler(event, context):
             if product is None:
                 continue  # not a 1k still we care about
             event_time = record.get("eventTime", "")
-            obstime = _obstime_for(BUCKET, key, event_time)
-            results.append(_process_one(product, key, obstime, prefix))
+            obstime, meta = _obstime_for(BUCKET, key, event_time)
+            results.append(_process_one(product, key, obstime, prefix, meta))
         except Exception as exc:  # isolate: log the key, keep going
             print(f"record failed: {key}: {exc!r}")
             failed.append(key)

@@ -87,7 +87,8 @@ def product_from_1k_key(key):
 
 
 def build_manifest_fragment(product_id, updated, frame_count, integration,
-                            video_v=None, still_v=None, through=None):
+                            video_v=None, still_v=None, through=None,
+                            obs_start=None, obs_end=None):
     """Build the JSON fragment for one product. Raises KeyError on unknown id.
 
     ``video_v``/``still_v`` name the immutable copies and ``through`` is the time
@@ -106,7 +107,10 @@ def build_manifest_fragment(product_id, updated, frame_count, integration,
         "frame_count": frame_count,
         "integration": integration,
     }
-    for key, value in (("video_v", video_v), ("still_v", still_v), ("through", through)):
+    # SB-9: obs_start/obs_end are the newest still's observation window (ISO),
+    # present only when the reducer read them from the FITS header.
+    for key, value in (("video_v", video_v), ("still_v", still_v), ("through", through),
+                       ("obs_start", obs_start), ("obs_end", obs_end)):
         if value is not None:
             frag[key] = value
     return frag
@@ -141,7 +145,8 @@ FRAGMENT_REQUIRED: dict[str, type] = {
     "id": str, "label": str, "thumb": str, "img1k": str, "video": str,
     "updated": str, "frame_count": int, "integration": dict,
 }
-FRAGMENT_OPTIONAL: dict[str, type] = {"video_v": str, "still_v": str, "through": str}
+FRAGMENT_OPTIONAL: dict[str, type] = {"video_v": str, "still_v": str, "through": str,
+                                      "obs_start": str, "obs_end": str}
 INDEX_OPTIONAL: dict[str, type] = {}
 _INTEGRATION_FIELDS = {"frames": int, "method": str}
 

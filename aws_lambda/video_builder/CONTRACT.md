@@ -120,3 +120,17 @@ the last copy stays in the bucket when writing stops.
 - `manifest/index.json` top-level fields other than `generated` and `products` come only from `INDEX_EXTRA_KEYS` in `manifest.py` (none yet; SB-15 and SB-18 add theirs).
 - A manual invoke whose trigger key starts with `staging/` reads and writes only under `staging/`; frames there are never pruned by code.
 - Additive only: `status.json` and its fields are never renamed or removed.
+
+## Provenance (SB-9)
+
+| Where | Name | Type | Writer | Meaning |
+|---|---|---|---|---|
+| fragment `manifest/<id>.json` | `obs_start` | ISO str, optional | Lambda, from the still's S3 metadata | oldest frame of the newest still's integration window (composites: oldest of any input) |
+| fragment `manifest/<id>.json` | `obs_end` | ISO str, optional | Lambda | newest frame of that window; equals the frame key's time |
+| S3 metadata on `1k/rhef_<id>_1k.png` | `obstime` (existing), `obstime_source` (`header` or `upload`), `obs_start`, `obs_end`, `tint_n`, `tint_m`; `rhef_stamp` once the reducer sends the RH-3 stamp | str | reducer `AwsPutter.do_upload` | `obstime` is the header time; `upload` flags the fallback |
+| `meta/rhef_<id>.json` | schema.org `ImageObject` | JSON | reducer, every run, `Cache-Control: no-cache` | provenance sidecar; field names of the Solar Archive provenance JSON |
+| PNG tEXt in `1k/rhef_<id>_1k.png` | `obs_start`, `obs_end`, `n_frames`, `method`, `sunkit_image_version`, `sunback_version` | text | reducer | the same window inside the file |
+| MP4 tags in `video/rhef_<id>_1k.mp4`, `v/<id>/<through>.mp4` | `comment` (the RH-3 stamp string, only when the still's metadata carries `rhef_stamp`), `sunback_provenance` (compact JSON: `product`, `first`, `through`, `slots`, `frames`, `fps`, `cadence_s`, `integration`, `source`), `creation_time` (= `through`) | text | Lambda | the JSON never goes in `comment` (decision A4, 2026-10-02) |
+
+Additive only: none of these is ever renamed or removed. The MP4 custom tag needs
+`-movflags +faststart+use_metadata_tags` in `_build_video`.
