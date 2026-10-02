@@ -157,3 +157,6 @@ src/run/run_server_lingon.timestamp
 sunback_data/
 solar_archive_output/
 /webapp/
+
+# Scratch output of infra/snapshot.py (SB-7): unreviewed AWS state; never commit it.
+infra/live/
