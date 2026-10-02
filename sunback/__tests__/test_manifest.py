@@ -55,3 +55,39 @@ def test_product_from_1k_key_rejects_non_1k():
     from aws_lambda.video_builder.manifest import product_from_1k_key
     assert product_from_1k_key("thumb/rhef_171_thumb.png") is None
     assert product_from_1k_key("video/rhef_171_1k.mp4") is None
+
+
+def test_versioned_keys_and_stamp():
+    from aws_lambda.video_builder.manifest import (
+        compact_stamp, versioned_still_key, versioned_video_key)
+    assert compact_stamp("frames/171/20260924T180309_1k.png") == "20260924T180309"
+    assert compact_stamp("2026-09-24T18:03:09Z") == "20260924T180309"
+    # ids with underscores and digits must not confuse the stamp
+    assert compact_stamp("frames/composite_uv/20260924T180309_1k.png") == "20260924T180309"
+    assert versioned_video_key("171", "20260924T180309") == "v/171/20260924T180309.mp4"
+    assert versioned_still_key("dem", "20260924T180309") == "v/dem/20260924T180309.png"
+
+
+def test_compact_stamp_refuses_garbage():
+    import pytest
+    from aws_lambda.video_builder.manifest import compact_stamp
+    with pytest.raises(ValueError):
+        compact_stamp("video/rhef_171_1k.mp4")
+
+
+def test_fragment_old_readers_see_nothing_new_unless_given():
+    base = build_manifest_fragment("171", updated="t", frame_count=1, integration={})
+    assert not {"video_v", "still_v", "through"} & set(base)
+    full = build_manifest_fragment("171", updated="t", frame_count=1, integration={},
+                                   video_v="v/171/a.mp4", still_v="v/171/b.png", through="x")
+    assert full["video"] == "video/rhef_171_1k.mp4"      # fixed key unchanged
+    assert (full["video_v"], full["still_v"], full["through"]) == ("v/171/a.mp4", "v/171/b.png", "x")
+
+
+def test_index_orders_by_products_and_drops_strangers():
+    from aws_lambda.video_builder.manifest import build_index
+    frags = [{"id": "304"}, {"id": "999"}, {"id": "171"}, {"id": "rainbow"}]
+    idx = build_index(frags, generated="g")
+    assert idx["generated"] == "g"
+    assert [f["id"] for f in idx["products"]] == ["rainbow", "171", "304"]
+    assert build_index([], generated="g")["products"] == []

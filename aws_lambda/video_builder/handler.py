@@ -9,6 +9,12 @@ Per invocation (one product):
   2. prune the queue by age (keep ~49h; robust to double-firing triggers)
   3. download the queue, ffmpeg -> video/rhef_<prod>_1k.mp4 at FPS
   4. upload the video and write manifest/<prod>.json
+  5. rebuild manifest/index.json from every fragment
+
+Every video and still also gets an immutable copy under v/<prod>/<stamp>, named
+by the newest frame it contains. Those never change once written, so a CDN can
+hold them for a year and a reader can tell "new" from the name alone. The fixed
+keys are still written exactly as before for the landing page and old clients.
 
 Pure logic (queue/manifest/keys) is unit-tested in sunback/__tests__; this module
 is the I/O shell and is verified by deploying against a staging prefix.
@@ -29,9 +35,16 @@ from .frame_queue import (
     select_stale_frames,
 )
 from .manifest import (
+    IMMUTABLE,
+    INDEX_KEY,
+    PRODUCTS,
+    build_index,
     build_manifest_fragment,
+    compact_stamp,
     manifest_key,
     product_from_1k_key,
+    versioned_still_key,
+    versioned_video_key,
     video_key,
 )
 
@@ -114,13 +127,42 @@ def _build_video(product, frame_keys, workdir):
     return out_path, len(local_of)
 
 
-def _seconds_since_last_build(product):
-    """Age of the current video in seconds, or None if it doesn't exist yet."""
+def _last_build(product):
+    """(age in seconds, newest-frame stamp) of the current video, or (None, None).
+
+    A video built before versioned keys carries no stamp; the caller treats that
+    as due, so every product gains its versioned copy on its next trigger.
+    """
     try:
         head = s3.head_object(Bucket=BUCKET, Key=video_key(product))
     except ClientError:
-        return None
-    return (datetime.now(timezone.utc) - head["LastModified"]).total_seconds()
+        return None, None
+    age = (datetime.now(timezone.utc) - head["LastModified"]).total_seconds()
+    return age, head.get("Metadata", {}).get("through")
+
+
+def _write_index():
+    """Rebuild manifest/index.json from every product's fragment.
+
+    ponytail: concurrent invocations each rewrite the whole index, so the last
+    writer can miss another product's update from the same moment. The next
+    trigger (20 min) repairs it and readers poll daily; upgrade to a conditional
+    PUT (If-Match) if that ever stops being true.
+    """
+    fragments = []
+    for p in PRODUCTS:
+        try:
+            body = s3.get_object(Bucket=BUCKET, Key=manifest_key(p["id"]))["Body"].read()
+            fragments.append(json.loads(body))
+        except (ClientError, ValueError):
+            continue  # never built yet: absent from the index, not an error
+    generated = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    s3.put_object(
+        Bucket=BUCKET, Key=INDEX_KEY,
+        Body=json.dumps(build_index(fragments, generated)).encode("utf-8"),
+        ACL="public-read", ContentType="application/json",
+        CacheControl="public, max-age=300",
+    )
 
 
 def _process_one(product, trigger_key, obstime):
@@ -142,6 +184,14 @@ def _process_one(product, trigger_key, obstime):
     if new_frame_key not in queue:
         queue.append(new_frame_key)
 
+    # 2b. an immutable public copy of the still (server-side, no bytes through here)
+    still_v = versioned_still_key(product, compact_stamp(new_frame_key))
+    s3.copy_object(
+        Bucket=BUCKET, CopySource={"Bucket": BUCKET, "Key": new_frame_key}, Key=still_v,
+        MetadataDirective="REPLACE", ContentType="image/png", CacheControl=IMMUTABLE,
+        ACL="public-read",
+    )
+
     # 3. rebuild the video — but only if we haven't within BUILD_THROTTLE_S.
     #    The frame is already captured (step 1) and the queue is pruned (step 2),
     #    so skipping the encode loses nothing; the 48h timelapse just refreshes
@@ -149,15 +199,19 @@ def _process_one(product, trigger_key, obstime):
     #    compute (no downloads) so the manifest stays accurate either way.
     seq = build_grid_sequence(queue, cadence_s=GRID_CADENCE_S, max_slots=FRAME_WINDOW)
     frame_count = len(set(seq))
-    age = _seconds_since_last_build(product)
-    if age is None or age >= BUILD_THROTTLE_S:
+    age, through = _last_build(product)
+    if age is None or through is None or age >= BUILD_THROTTLE_S:
         with tempfile.TemporaryDirectory() as workdir:
             video_path, frame_count = _build_video(product, queue, workdir)
-            s3.upload_file(
-                video_path, BUCKET, video_key(product),
-                ExtraArgs={"ACL": "public-read", "ContentType": "video/mp4",
-                           "ContentDisposition": "inline"},
-            )
+            through = compact_stamp(seq[-1])
+            args = {"ACL": "public-read", "ContentType": "video/mp4",
+                    "ContentDisposition": "inline"}
+            # Versioned first: if the fixed upload then fails, the fragment is not
+            # rewritten and still names the previous versioned copy, which exists.
+            s3.upload_file(video_path, BUCKET, versioned_video_key(product, through),
+                           ExtraArgs={**args, "CacheControl": IMMUTABLE})
+            s3.upload_file(video_path, BUCKET, video_key(product),
+                           ExtraArgs={**args, "Metadata": {"through": through}})
 
     # 4b. write the manifest fragment (every trigger — keeps the card's
     #     "updated Xm ago" live even when the video encode was throttled)
@@ -169,6 +223,9 @@ def _process_one(product, trigger_key, obstime):
             "frames": int(os.environ.get("INTEGRATION_FRAMES", "5")),
             "method": os.environ.get("INTEGRATION_METHOD", "median"),
         },
+        video_v=versioned_video_key(product, through),
+        still_v=still_v,
+        through=_iso(through),
     )
     s3.put_object(
         Bucket=BUCKET, Key=manifest_key(product),
@@ -176,6 +233,7 @@ def _process_one(product, trigger_key, obstime):
         ACL="public-read", ContentType="application/json",
         CacheControl="no-cache",
     )
+    _write_index()
     return fragment
 
 
