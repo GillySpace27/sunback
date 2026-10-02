@@ -7,6 +7,7 @@ cosmic-ray hits and transient flare spikes; ``mean``/``sum`` boost signal-to-noi
 This is deliberately decoupled from any data source (unlike the Fido-bound
 ``FidoTimeIntProcessor``) and operates on plain arrays so it is trivially testable.
 """
+
 import numpy as np
 
 _REDUCERS = {
@@ -28,9 +29,7 @@ def integrate_frames(frames, method="median"):
         frame (regression-safe with the previous single-frame pipeline).
     """
     if method not in _REDUCERS:
-        raise ValueError(
-            f"Unknown integration method {method!r}; expected one of {sorted(_REDUCERS)}"
-        )
+        raise ValueError(f"Unknown integration method {method!r}; expected one of {sorted(_REDUCERS)}")
     if len(frames) == 0:
         raise ValueError("integrate_frames requires at least one frame")
 

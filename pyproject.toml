@@ -65,6 +65,22 @@ sunback-serve = "sunback.run.run_server_lingon:run_server_lingon"
 
 [tool.setuptools.packages.find]
 where = ["."]
+exclude = ["attic", "attic.*"]
 
 [tool.setuptools.package-data]
 "*" = ["*"]
+
+[tool.pytest.ini_options]
+testpaths = ["sunback/__tests__", "sunback/processor/tests"]
+markers = ["network: needs the internet; deselected by default"]
+addopts = "-m 'not network'"
+
+[tool.ruff]
+line-length = 119
+target-version = "py312"
+extend-exclude = ["attic", "build", "**/dep", "**/depricated", "*.ipynb", "webapp", "sunback_data",
+                  "devtools/scripts/git-filter-repo.py"]
+force-exclude = true
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]

@@ -1,4 +1,5 @@
 """Tests for multi-frame time integration (median/mean/sum) of NRT solar frames."""
+
 import numpy as np
 import pytest
 
@@ -65,6 +66,4 @@ def test_invalid_method_raises():
 
 def test_mismatched_shapes_raise():
     with pytest.raises(ValueError):
-        integrate_frames(
-            [np.ones((2, 2)), np.ones((3, 3))], method="median"
-        )
+        integrate_frames([np.ones((2, 2)), np.ones((3, 3))], method="median")

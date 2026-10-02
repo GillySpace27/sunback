@@ -12,21 +12,28 @@ alternate-composite / video outputs are skipped.
 
 Key conventions mirror aws_lambda/video_builder/manifest.py.
 """
+
 import os
 import re
 
 # reducer wave code -> page product id (EUV leading zeros stripped; UV kept as-is)
 SERVED_CHANNELS = {
-    "0171": "171", "0193": "193", "0211": "211", "0304": "304",
-    "0335": "335", "0094": "94", "0131": "131",
-    "1600": "1600", "1700": "1700",
+    "0171": "171",
+    "0193": "193",
+    "0211": "211",
+    "0304": "304",
+    "0335": "335",
+    "0094": "94",
+    "0131": "131",
+    "1600": "1600",
+    "1700": "1700",
 }
 
 # Which composite is the headline "rainbow" card. To use the 1700/1600/0304 blend
 # as the headline instead, swap these two source strings.
-RAINBOW_SOURCE = "BGR_0171_0193_0211"        # -> "rainbow"
-UV_COMPOSITE_SOURCE = "BGR_1700_1600_0304"   # -> "composite_uv"
-DEM_SOURCE = "C_isothermal"                  # -> "dem" (isothermal temperature map)
+RAINBOW_SOURCE = "BGR_0171_0193_0211"  # -> "rainbow"
+UV_COMPOSITE_SOURCE = "BGR_1700_1600_0304"  # -> "composite_uv"
+DEM_SOURCE = "C_isothermal"  # -> "dem" (isothermal temperature map)
 
 _DRGILLY_RE = re.compile(r"DrGilly_(\d{4})_")
 

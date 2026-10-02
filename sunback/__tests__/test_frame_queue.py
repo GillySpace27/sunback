@@ -1,4 +1,5 @@
 """Tests for the Lambda video-builder's 48h sliding-window frame queue."""
+
 import pytest
 
 from aws_lambda.video_builder.frame_queue import (
@@ -19,9 +20,7 @@ def test_frame_key_for_builds_expected_path():
 
 def test_sorted_newest_last_orders_by_timestamp():
     keys = _q("20260624T200600", "20260624T200000", "20260624T200300")
-    assert sorted_newest_last(keys) == _q(
-        "20260624T200000", "20260624T200300", "20260624T200600"
-    )
+    assert sorted_newest_last(keys) == _q("20260624T200000", "20260624T200300", "20260624T200600")
 
 
 def test_nothing_deleted_when_under_limit():
@@ -40,9 +39,7 @@ def test_deletes_all_but_newest_n():
     to_delete = select_frames_to_delete(keys, max_frames=3)
     assert len(to_delete) == 7
     # the 3 newest must NOT be in the delete list
-    assert _q("20260624T207000", "20260624T208000", "20260624T209000") == [
-        k for k in keys if k not in to_delete
-    ]
+    assert _q("20260624T207000", "20260624T208000", "20260624T209000") == [k for k in keys if k not in to_delete]
 
 
 def test_ignores_unparseable_keys_in_ordering():
@@ -66,17 +63,22 @@ def test_gap_slot_holds_previous_frame():
     keys = _q("20260624T000000", "20260624T002000", "20260624T010000")
     seq = build_grid_sequence(keys, cadence_s=1200, max_slots=144)
     # 4 slots: 00:00, 00:20, 00:40(held=00:20), 01:00
-    assert seq == _q("20260624T000000", "20260624T002000",
-                     "20260624T002000", "20260624T010000")
+    assert seq == _q("20260624T000000", "20260624T002000", "20260624T002000", "20260624T010000")
 
 
 def test_max_slots_keeps_most_recent_window():
-    keys = _q("20260624T200000", "20260624T202000", "20260624T204000",
-              "20260624T210000", "20260624T212000", "20260624T214000")  # 20-min apart
+    keys = _q(
+        "20260624T200000",
+        "20260624T202000",
+        "20260624T204000",
+        "20260624T210000",
+        "20260624T212000",
+        "20260624T214000",
+    )  # 20-min apart
     seq = build_grid_sequence(keys, cadence_s=1200, max_slots=3)
     assert len(seq) == 3
-    assert seq[-1] == keys[-1]                     # window ends at the newest
-    assert seq == keys[-3:]                        # the most-recent 3 slots
+    assert seq[-1] == keys[-1]  # window ends at the newest
+    assert seq == keys[-3:]  # the most-recent 3 slots
 
 
 def test_empty_returns_empty():
@@ -94,8 +96,7 @@ from aws_lambda.video_builder.frame_queue import select_stale_frames
 
 def test_stale_frames_older_than_window_are_pruned():
     # newest = 02:00; window 1h -> anything before 01:00 is stale
-    keys = _q("20260624T000000", "20260624T003000", "20260624T013000",
-              "20260624T020000")
+    keys = _q("20260624T000000", "20260624T003000", "20260624T013000", "20260624T020000")
     stale = select_stale_frames(keys, window_s=3600)
     assert stale == _q("20260624T000000", "20260624T003000")
 

@@ -2605,7 +2605,7 @@ class RHTProcessor(Processor):
         ## Run RHT Algorithm
         print("\n V V Starting RHT V V")
         # source = self.fits_path
-        (H_XY, self.theta) = rht.main(
+        (H_XY, self.theta) = rht.main(  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
             source=self.fits_path,
             data=binary_image,
             conv=True,
