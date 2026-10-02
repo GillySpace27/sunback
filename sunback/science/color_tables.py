@@ -5,6 +5,7 @@ dictionaries.
 """
 
 import pathlib
+from importlib.resources import files
 
 import matplotlib.colors as colors
 import numpy as np
@@ -23,15 +24,26 @@ __all__ = [
     "hmi_mag_color_table",
     "suvi_color_table",
 ]
-cmap_data_dir = os.path.join(
-    pathlib.Path(__file__).parent.absolute(), "../../data", "idl_3.csv"
-)
-if not os.path.exists(cmap_data_dir):
-    cmap_data_dir = "/Users/cgilbert/vscode/sunback/data/idl_3.csv"
-assert os.path.exists(cmap_data_dir), f"Could not find cmap_data_dir: {cmap_data_dir}"
+# SB-12, 2026-10-02: the table ships inside the package (package-data in
+# pyproject.toml), so an installed wheel no longer needs a top-level data/
+# directory. The old lookup, kept for reference:
+# cmap_data_dir = os.path.join(
+#     pathlib.Path(__file__).parent.absolute(), "../../data", "idl_3.csv"
+# )
+# if not os.path.exists(cmap_data_dir):
+#     cmap_data_dir = "/Users/cgilbert/vscode/sunback/data/idl_3.csv"
+# assert os.path.exists(cmap_data_dir), f"Could not find cmap_data_dir: {cmap_data_dir}"
+_idl_3_resource = files("sunback.science") / "idl_3.csv"
+if not _idl_3_resource.is_file():
+    raise FileNotFoundError(
+        f"sunback/science/idl_3.csv is missing from the installed package ({_idl_3_resource}); "
+        "reinstall sunback or check package-data in pyproject.toml"
+    )
+cmap_data_dir = str(_idl_3_resource)
 
 # The following values describe color table 3 for IDL (Red Temperature)
-idl_3 = np.loadtxt(cmap_data_dir, delimiter=",")
+with _idl_3_resource.open("r") as _fh:
+    idl_3 = np.loadtxt(_fh, delimiter=",")
 r0, g0, b0 = idl_3[:, 0], idl_3[:, 1], idl_3[:, 2]
 
 c0 = np.arange(256, dtype="f")
