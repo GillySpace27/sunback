@@ -78,7 +78,7 @@ addopts = "-m 'not network'"
 [tool.ruff]
 line-length = 119
 target-version = "py312"
-extend-exclude = ["attic", "**/dep", "**/depricated", "*.ipynb", "webapp", "sunback_data",
+extend-exclude = ["attic", "build", "**/dep", "**/depricated", "*.ipynb", "webapp", "sunback_data",
                   "devtools/scripts/git-filter-repo.py"]
 force-exclude = true
 
