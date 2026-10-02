@@ -69,3 +69,8 @@ exclude = ["attic", "attic.*"]
 
 [tool.setuptools.package-data]
 "*" = ["*"]
+
+[tool.pytest.ini_options]
+testpaths = ["sunback/__tests__", "sunback/processor/tests"]
+markers = ["network: needs the internet; deselected by default"]
+addopts = "-m 'not network'"
