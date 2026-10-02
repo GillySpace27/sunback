@@ -147,6 +147,71 @@ def role_section(iam, name):
     return strip({"role": role, "inline_policies": inline, "attached_policies": attached}, VOLATILE["iam"])
 
 
+# --- SB-8: pipeline health resources (read-only: describe/get/list calls only) ---
+HEALTH_ALARMS = (
+    "sun-video-builder-no-invocations",
+    "sun-video-builder-errors",
+    "sun-reducer-dispatcher-errors",
+)
+ALERT_TOPIC_NAME = "sun-pipeline-alerts"
+FAILURE_FUNCTION = "sun-video-builder"
+_ALARM_FIELDS = (
+    "AlarmName", "Namespace", "MetricName", "Dimensions", "Statistic", "Period",
+    "EvaluationPeriods", "DatapointsToAlarm", "Threshold", "ComparisonOperator",
+    "TreatMissingData", "ActionsEnabled", "AlarmActions", "OKActions",
+)
+
+
+def snapshot_alarms(cw, names=HEALTH_ALARMS):
+    """The SB-8 alarms' definitions (no state, no timestamps), sorted by name."""
+    resp = cw.describe_alarms(AlarmNames=list(names))
+    alarms = [{k: a.get(k) for k in _ALARM_FIELDS} for a in resp.get("MetricAlarms", [])]
+    return sorted(alarms, key=lambda a: a["AlarmName"])
+
+
+def snapshot_alert_topic(sns, name=ALERT_TOPIC_NAME):
+    """The alert topic and its subscriptions; e-mail endpoints become <EMAIL> (public repo)."""
+    arns = []
+    token = None
+    while True:
+        resp = sns.list_topics(**({"NextToken": token} if token else {}))
+        arns += [t["TopicArn"] for t in resp.get("Topics", []) if t["TopicArn"].rsplit(":", 1)[-1] == name]
+        token = resp.get("NextToken")
+        if not token:
+            break
+    if not arns:
+        return {"TopicName": name, "exists": False}
+    subs = sns.list_subscriptions_by_topic(TopicArn=arns[0]).get("Subscriptions", [])
+    return {
+        "TopicName": name,
+        "exists": True,
+        "TopicArn": arns[0],
+        "Subscriptions": sorted(
+            ({"Protocol": s["Protocol"],
+              "Endpoint": "<EMAIL>" if s["Protocol"] in ("email", "email-json") else s["Endpoint"],
+              "Confirmed": s["SubscriptionArn"] not in ("PendingConfirmation", "Deleted")}
+             for s in subs),
+            key=lambda s: (s["Protocol"], s["Endpoint"])),
+    }
+
+
+def snapshot_event_invoke_config(lam, function=FAILURE_FUNCTION):
+    """Async retry settings and the on-failure destination of the video Lambda."""
+    try:
+        cfg = lam.get_function_event_invoke_config(FunctionName=function)
+    except Exception as exc:  # botocore ClientError; matched by code so fakes and old clients behave alike
+        if error_code(exc) != "ResourceNotFoundException":
+            raise
+        return {"FunctionName": function, "configured": False}
+    return {
+        "FunctionName": function,
+        "configured": True,
+        "MaximumRetryAttempts": cfg.get("MaximumRetryAttempts"),
+        "MaximumEventAgeInSeconds": cfg.get("MaximumEventAgeInSeconds"),
+        "DestinationConfig": cfg.get("DestinationConfig", {}),
+    }
+
+
 def take(clients):
     """{filename: data} for every resource, redacted. Raises when the account id cannot be read."""
     account = clients["sts"].get_caller_identity()["Account"]
@@ -182,6 +247,11 @@ def take(clients):
         snap[f"iam-role-{role}.json"] = role_section(iam, role)
     secret = read(lambda: clients["secretsmanager"].describe_secret(SecretId=SECRET_ID))
     snap[f"secret-{SECRET_ID}.json"] = strip(secret, VOLATILE["secret"])
+    # SB-8: pipeline health resources. A missing resource is recorded as the function returns it
+    # ([], {"exists": false}, {"configured": false}); only an unreadable one is "unchecked".
+    snap["cloudwatch_alarms.json"] = read(lambda: snapshot_alarms(clients["cloudwatch"]))
+    snap[f"sns_{ALERT_TOPIC_NAME}.json"] = read(lambda: snapshot_alert_topic(clients["sns"]))
+    snap[f"lambda_{FAILURE_FUNCTION}_event_invoke_config.json"] = read(lambda: snapshot_event_invoke_config(lam))
     budgets = clients["budgets"]
     snap[f"budget-{BUDGET}.json"] = strip({
         "budget": read(lambda: budgets.describe_budget(AccountId=account, BudgetName=BUDGET)),
@@ -215,7 +285,8 @@ def make_clients(region=REGION):
     import boto3  # imported here so the tests and --help need no AWS libraries
 
     session = boto3.session.Session(region_name=region)
-    clients = {name: session.client(name) for name in ("lambda", "events", "s3", "iam", "secretsmanager", "sts")}
+    clients = {name: session.client(name)
+               for name in ("lambda", "events", "s3", "iam", "secretsmanager", "sts", "cloudwatch", "sns")}
     clients["budgets"] = session.client("budgets", region_name="us-east-1")
     return clients
 

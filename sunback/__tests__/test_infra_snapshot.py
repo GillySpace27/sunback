@@ -78,6 +78,9 @@ def fake_clients(rule_state="ENABLED"):
                                                 "Tags": [{"Key": "pat-expires", "Value": "2026-12-31"}],
                                                 "VersionIdsToStages": {"v1": ["AWSCURRENT"]},
                                                 "LastAccessedDate": "2026-10-01"}),
+        # SB-8: the health resources do not exist yet, which is a normal state to record
+        "cloudwatch": Fake(describe_alarms={"MetricAlarms": []}),
+        "sns": Fake(list_topics={"Topics": []}),
         "budgets": Fake(describe_budget=ClientError("AccessDeniedException"),
                         describe_notifications_for_budget={"Notifications": [{"Threshold": 20.0}]}),
     }
@@ -87,10 +90,13 @@ def test_snapshot_reads_every_section_and_writes_sorted_json(tmp_path):
     clients = fake_clients()
     assert snapshot.main(["--out", str(tmp_path)], clients=clients) == 3  # the Budget read is denied
     names = sorted(p.name for p in tmp_path.iterdir())
-    assert names == ["budget-whole-account-monthly.json", "events-sun-reducer-20min.json",
+    assert names == ["budget-whole-account-monthly.json", "cloudwatch_alarms.json",
+                     "events-sun-reducer-20min.json",
                      "iam-role-sun-reducer-dispatcher-role.json", "iam-role-sun-video-builder-role.json",
                      "lambda-sun-reducer-dispatcher.json", "lambda-sun-video-builder.json",
-                     "s3-the-sun-now.json", "secret-github-actions-dispatch-token.json"]
+                     "lambda_sun-video-builder_event_invoke_config.json",
+                     "s3-the-sun-now.json", "secret-github-actions-dispatch-token.json",
+                     "sns_sun-pipeline-alerts.json"]
     video = json.loads((tmp_path / "lambda-sun-video-builder.json").read_text())
     assert "CodeSha256" not in video["configuration"] and "ResponseMetadata" not in video["configuration"]
     assert video["event_invoke_config"] is None
