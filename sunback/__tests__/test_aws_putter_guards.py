@@ -172,3 +172,36 @@ def test_no_boto3_call_at_import(monkeypatch):
     monkeypatch.setattr(boto3, "client", refuse)
     importlib.reload(aws)
     assert aws._S3_CLIENT is None
+
+
+def _lingon_with_fakes(monkeypatch, argv):
+    lingon = importlib.import_module("sunback.run.run_server_lingon")
+    started = []
+
+    class RecordingRunner:
+        def __init__(self, params):
+            self.params = params
+
+        def start(self):
+            started.append(self.params)
+
+    monkeypatch.setattr(lingon, "Parameters", MagicMock)
+    monkeypatch.setattr(lingon, "SingleRunner", RecordingRunner)
+    monkeypatch.setattr(sys, "argv", argv)
+    return lingon, started
+
+
+def test_sunback_serve_refuses_without_flag(monkeypatch, capsys):
+    lingon, started = _lingon_with_fakes(monkeypatch, ["sunback-serve"])
+    with pytest.raises(SystemExit) as exc:
+        lingon.run_server_lingon()
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert err.count("\n") == 1 and "sunback-serve is deprecated" in err
+    assert started == []
+
+
+def test_sunback_serve_runs_with_flag(monkeypatch):
+    lingon, started = _lingon_with_fakes(monkeypatch, ["sunback-serve", "--force-production"])
+    lingon.run_server_lingon()
+    assert len(started) == 1

@@ -1,5 +1,7 @@
 """This is the script to run on a server somewhere to process the images"""
 
+import sys
+
 from sunback.run import SingleRunner
 from sunback.science.parameters import Parameters
 from sunback.putter.DesktopPutter import DesktopPutter
@@ -25,7 +27,23 @@ logging.getLogger("urllib3").setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
 
 
+FORCE_FLAG = "--force-production"
+DEPRECATION_LINE = (
+    "sunback-serve is deprecated: it writes single-frame stills to the production bucket "
+    "the-sun-now; the reducer is GitCloudRunHourly.yml. Refusing without --force-production."
+)
+
+
+def refuse_without_force(argv=None):
+    """Exit 2 with one deprecation line unless --force-production is in argv (SB-5)."""
+    argv = sys.argv[1:] if argv is None else argv
+    if FORCE_FLAG not in argv:
+        print(DEPRECATION_LINE, file=sys.stderr)
+        sys.exit(2)
+
+
 def run_server_lingon(delay=60, debug=False, do_one="rainbow", stop=True):
+    refuse_without_force()
     p = Parameters()
 
     p.is_debug(debug)
