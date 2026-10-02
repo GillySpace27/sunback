@@ -25,6 +25,9 @@ jobs:
     outputs:
       run: ${{ steps.decide.outputs.run }}
     steps:
+      - name: Check out repository (for devtools/scripts/check_freshness.py)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
       - name: Decide whether the reducer needs to run
         id: decide
         run: |
@@ -32,8 +35,9 @@ jobs:
             echo "event=${GITHUB_EVENT_NAME}: run"
             echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          ts=$(curl -s --max-time 20 "https://the-sun-now.s3.us-east-2.amazonaws.com/image_times.txt" || true)
-          age=$(python3 -c "import sys,datetime as d; ts=sys.argv[1].strip(); print(int((d.datetime.utcnow()-d.datetime.fromisoformat(ts)).total_seconds()) if ts else 999999)" "$ts" 2>/dev/null || echo 999999)
+          # SB-8: one freshness checker for gate, watch.yml and Gilly (age from Last-Modified;
+          # 999999 when the bucket cannot be read, so the reducer runs, as before).
+          age=$(python3 devtools/scripts/check_freshness.py --key image_times.txt --threshold 1800 --json 2>/dev/null | python3 -c "import json,sys; a=json.load(sys.stdin).get('worst_age_s'); print(a if a is not None else 999999)" 2>/dev/null || echo 999999)
           echo "latest image age: ${age}s (threshold 1800)"
           if [ "${age}" -gt 1800 ]; then
             echo "stale -> run (dispatcher may be down)"
