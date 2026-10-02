@@ -1,3 +1,93 @@
+# video_builder: the sun-video-builder Lambda
+
+## Current (2026-10-02, SB-1)
+
+What `sun-video-builder` runs (us-east-2, python3.12, handler
+`video_builder.handler.handler`), read from `handler.py`, `manifest.py` and
+`frame_queue.py` in this directory. The zip holds exactly `__init__.py`,
+`handler.py`, `frame_queue.py` and `manifest.py`.
+
+- Trigger: S3 `ObjectCreated` on `1k/*.png` in `the-sun-now`, one invocation
+  per still the reducer uploads (12 per reducer run).
+- 12 products, in `manifest.PRODUCTS` order: `rainbow`, `171`, `193`, `211`,
+  `304`, `335`, `94`, `131`, `1600`, `1700`, `composite_uv`, `dem`.
+- Thumbnails are 512 x 512 (`THUMB_PX` in `sunback/putter/AwsPutter.py`); the
+  reducer writes them, this Lambda does not.
+- Per invocation: copy the still to `frames/<id>/<YYYYMMDDTHHMMSS>_1k.png`;
+  prune frames more than `PRUNE_WINDOW_S` (49 h) older than the newest; snap
+  the queue to a `GRID_CADENCE_S` (1200 s) grid of at most `FRAME_WINDOW` (144)
+  slots, holding the previous frame through gaps; re-encode at most every
+  `BUILD_THROTTLE_S` (7200 s) at `VIDEO_FPS` (18 fps); write
+  `manifest/<id>.json`; rebuild `manifest/index.json`.
+- Keys written, all public-read. Fixed keys, exactly as before:
+  `video/rhef_<id>_1k.mp4` and `manifest/<id>.json` (`no-cache`). Immutable
+  copies, never rewritten: `v/<id>/<stamp>.png` and `v/<id>/<stamp>.mp4`
+  (`public, max-age=31536000, immutable`). One index of every fragment:
+  `manifest/index.json` (`public, max-age=300`).
+- Fragment fields: `id`, `label`, `thumb`, `img1k`, `video`, `updated`,
+  `frame_count`, `integration` and, once known, `video_v`, `still_v`,
+  `through`.
+- Integration in each fragment comes from the Lambda environment:
+  `INTEGRATION_FRAMES` (code default 5) and `INTEGRATION_METHOD` (default
+  `median`). The reducer integrates 5 frames by median by default
+  (`SUNBACK_INTEGRATION_FRAMES`, read in `sunback/run/run_server_github.py`).
+- Colour: every MP4 is tagged bt709, tv range (`-vf setparams=...`,
+  `-color_range tv`, `-colorspace bt709` in `_build_video`), so a player does
+  not guess the matrix (Heliograph oversaturation, 2026-09-12). The argv is
+  pinned by `sunback/__tests__/test_build_video_args.py`.
+  `python aws_lambda/video_builder/colourcheck.py` measures it (not packed into
+  the zip). Measured 2026-10-02 with ffmpeg version 6.1.1-3ubuntu5: mean
+  |RGB| difference from the still 3.244 untagged, 1.013 tagged.
+- Readers: gilly.space/sun.html and Heliograph 0.6 and older read the fixed
+  keys; Heliograph 0.7+ and the R2 mirror read `v/` and `manifest/index.json`.
+  Both sets are a public contract: add keys, never rename or remove one.
+- Deploy: see "Deploying code changes" below. Never run `deploy.sh` or
+  `deploy.py` against the live function: `deploy.py` publishes a new ffmpeg
+  layer on every run, and both rewrite the function environment and the bucket
+  notification configuration. Every real deploy is Gilly's call.
+- Lifecycle: a 7-day expiry on `v/` is described in Heliograph's
+  `infra/IMAGERY.md`; the rule is not in this repository.
+
+## Deploying code changes (deploy_code.py)
+
+Code reaches `sun-video-builder` only through `deploy_code.py`. It packs exactly
+`__init__.py`, `handler.py`, `frame_queue.py` and `manifest.py` into a
+deterministic zip and never touches the ffmpeg layer, the environment or the
+bucket notification. Every real deploy and rollback needs Gilly's explicit yes.
+
+1. After the change merges, tag the merge commit:
+   `git tag -a lambda-YYYY-MM-DD -m "<what changed>"` (append `-2`, `-3` for a
+   second deploy the same day). Pushing the tag is Gilly's call.
+2. Read-only plan: `python aws_lambda/video_builder/deploy_code.py --plan`
+   shows live versus new CodeSha256, the per-file diff and env drift against
+   `lambda_env.json`, and prints `already live` when nothing differs.
+3. Deploy (Gilly): `python aws_lambda/video_builder/deploy_code.py`, then type
+   `sun-video-builder` at the prompt. It refuses a dirty tree, a HEAD not on
+   `origin/master` and a HEAD without a `lambda-*` tag.
+4. Commit the receipt it writes under `receipts/` (append-only).
+5. Roll back (Gilly):
+   `python aws_lambda/video_builder/deploy_code.py --rollback aws_lambda/video_builder/receipts/<stamp>.json`
+   rebuilds the receipt's tag with `git archive` and goes through the same gate.
+
+`lambda_env.json` records the live environment, one entry per name `handler.py`
+reads. Changing an environment value is a separate, Gilly-approved
+`aws lambda update-function-configuration`; new behaviour defaults correctly in
+code instead.
+
+The ffmpeg layer is pinned by `layer/ffmpeg.lock` (sha256 of the binary):
+`python aws_lambda/video_builder/layer/build_layer.py --verify-only`.
+
+`deploy.sh` and `deploy.py` bootstrap a new stack only. Never run them against
+the live account: they publish a new layer, reset the environment and replace
+the bucket notification configuration.
+
+## History
+
+The bring-up README below is moved here unchanged on 2026-10-02. It is out of
+date: it describes 8 cards, 256 px thumbnails, `INTEGRATION_FRAMES=3` and a
+cutover on `claude/amazing-wu-263fcf`. The "Deploying code changes" section
+(SB-3, current) was kept above this heading, also unchanged.
+
 # Sun-Right-Now bring-up & deploy
 
 What's built (in this repo) and the remaining steps to make the live page work.
@@ -97,35 +187,3 @@ static and reads only `https://the-sun-now.s3.us-east-2.amazonaws.com/` — no b
 4. Open `sun.html` → 8 cards, thumbnails load, video plays, "Updated" shows now.
 5. Let it run an hour → 3 frames/product accumulate; video lengthens toward 144.
 
-## Deploying code changes (deploy_code.py)
-
-Code reaches `sun-video-builder` only through `deploy_code.py`. It packs exactly
-`__init__.py`, `handler.py`, `frame_queue.py` and `manifest.py` into a
-deterministic zip and never touches the ffmpeg layer, the environment or the
-bucket notification. Every real deploy and rollback needs Gilly's explicit yes.
-
-1. After the change merges, tag the merge commit:
-   `git tag -a lambda-YYYY-MM-DD -m "<what changed>"` (append `-2`, `-3` for a
-   second deploy the same day). Pushing the tag is Gilly's call.
-2. Read-only plan: `python aws_lambda/video_builder/deploy_code.py --plan`
-   shows live versus new CodeSha256, the per-file diff and env drift against
-   `lambda_env.json`, and prints `already live` when nothing differs.
-3. Deploy (Gilly): `python aws_lambda/video_builder/deploy_code.py`, then type
-   `sun-video-builder` at the prompt. It refuses a dirty tree, a HEAD not on
-   `origin/master` and a HEAD without a `lambda-*` tag.
-4. Commit the receipt it writes under `receipts/` (append-only).
-5. Roll back (Gilly):
-   `python aws_lambda/video_builder/deploy_code.py --rollback aws_lambda/video_builder/receipts/<stamp>.json`
-   rebuilds the receipt's tag with `git archive` and goes through the same gate.
-
-`lambda_env.json` records the live environment, one entry per name `handler.py`
-reads. Changing an environment value is a separate, Gilly-approved
-`aws lambda update-function-configuration`; new behaviour defaults correctly in
-code instead.
-
-The ffmpeg layer is pinned by `layer/ffmpeg.lock` (sha256 of the binary):
-`python aws_lambda/video_builder/layer/build_layer.py --verify-only`.
-
-`deploy.sh` and `deploy.py` bootstrap a new stack only. Never run them against
-the live account: they publish a new layer, reset the environment and replace
-the bucket notification configuration.
