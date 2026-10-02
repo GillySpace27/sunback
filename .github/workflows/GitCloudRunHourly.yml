@@ -16,6 +16,11 @@ on:
     # case where the dispatcher/PAT breaks — the gate below skips it otherwise.
     - cron: '0 * * * *'
   workflow_dispatch:
+    inputs:
+      prefix:
+        description: 'SUNBACK_PREFIX for the run, for example staging/ ; empty means production'
+        required: false
+        default: ''
 
 jobs:
   # Cheap decision job (no container, no pull). For a scheduled run it only lets
@@ -76,5 +81,7 @@ jobs:
           audience: sts.amazonaws.com
 
       - name: Execute the script
+        env:
+          SUNBACK_PREFIX: ${{ inputs.prefix }}
         run: |
           python sunback/run/run_server_github.py
