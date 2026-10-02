@@ -126,11 +126,19 @@ the last copy stays in the bucket when writing stops.
 | Where | Name | Type | Writer | Meaning |
 |---|---|---|---|---|
 | fragment `manifest/<id>.json` | `obs_start` | ISO str, optional | Lambda, from the still's S3 metadata | oldest frame of the newest still's integration window (composites: oldest of any input) |
-| fragment `manifest/<id>.json` | `obs_end` | ISO str, optional | Lambda | newest frame of that window; equals the frame key's time |
-| S3 metadata on `1k/rhef_<id>_1k.png` | `obstime` (existing), `obstime_source` (`header` or `upload`), `obs_start`, `obs_end`, `tint_n`, `tint_m`; `rhef_stamp` once the reducer sends the RH-3 stamp | str | reducer `AwsPutter.do_upload` | `obstime` is the header time; `upload` flags the fallback |
+| fragment `manifest/<id>.json` | `obs_end` | ISO str, optional | Lambda | newest frame of that window. The frame key's time and `updated` are the upload time (`obstime`), so `obs_end` is older than the key by the JSOC and integration latency |
+| S3 metadata on `1k/rhef_<id>_1k.png` | `obstime` (existing, unchanged), plus new keys `obs_start`, `obs_end`, `tint_n`, `tint_m`; `rhef_stamp` once the reducer sends the RH-3 stamp | str | reducer `AwsPutter.do_upload` | `obstime` stays the upload time, as before SB-9. The observation time is carried in `obs_end` (header `T_REC` of the newest frame), `obs_start` the oldest frame of the window. The four new keys are omitted when no header time could be read |
 | `meta/rhef_<id>.json` | schema.org `ImageObject` | JSON | reducer, every run, `Cache-Control: no-cache` | provenance sidecar; field names of the Solar Archive provenance JSON |
 | PNG tEXt in `1k/rhef_<id>_1k.png` | `obs_start`, `obs_end`, `n_frames`, `method`, `sunkit_image_version`, `sunback_version` | text | reducer | the same window inside the file |
 | MP4 tags in `video/rhef_<id>_1k.mp4`, `v/<id>/<through>.mp4` | `comment` (the RH-3 stamp string, only when the still's metadata carries `rhef_stamp`), `sunback_provenance` (compact JSON: `product`, `first`, `through`, `slots`, `frames`, `fps`, `cadence_s`, `integration`, `source`), `creation_time` (= `through`) | text | Lambda | the JSON never goes in `comment` (decision A4, 2026-10-02) |
+
+**Open question (Gilly):** whether `obstime` should switch from upload time to the header
+observation time (`obs_end`). Until he decides, `obstime` stays the upload time. It keys the
+Lambda's frame (`frames/<id>/<stamp>_1k.png`, `v/<id>/<stamp>.png`) and the fragment's
+`updated`, and the freshness thresholds (40 min / 2 h for the alarm, 60 / 180 min for the public
+badge) are measured on that upload time. A switch would make public ages include JSOC latency, and
+repeated observation times could overwrite an immutable `v/<id>/<stamp>.png` key, so it needs a
+Lambda change first.
 
 Additive only: none of these is ever renamed or removed. The MP4 custom tag needs
 `-movflags +faststart+use_metadata_tags` in `_build_video`.

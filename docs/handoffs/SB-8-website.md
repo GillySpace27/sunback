@@ -30,6 +30,11 @@ Website@c272b93.
   `SunData.freshness`. Once WS-5 has landed, call `SunData.freshness(updated)`
   and map `"ok" | "stale" | "old"` to the same classes instead of `freshClass`,
   so the public page shows 60 and 180 min.
+  Which time the ages count: observation time is carried in the new S3 metadata key
+  and fragment field `obs_end` (SB-9). `obstime`, and so `updated` and the age in
+  `status.json`, stays the reducer's upload time until Gilly decides to switch
+  (open question), so the thresholds above (40 min / 2 h alarm, 60 / 180 min badge)
+  are measured on upload time until then.
 - `sun.html#<id>` (lowercase ids from `PRODUCTS`) opens that card's lightbox
   and outlines the card; `hashchange` does the same. Same form as SU-17.
 - Share button per card: `navigator.share({title, url})`, else copy the

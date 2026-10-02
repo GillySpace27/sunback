@@ -131,9 +131,11 @@ def _find_fits(fits_dir, wave):
 def png_provenance(png_path, fits_dir, upload_time):
     """Provenance of one served still from the integrated FITS behind it.
 
-    obstime is the newest input's newest frame (obs_end); obs_start is the
+    obstime here is the newest input's newest frame (obs_end); obs_start is the
     oldest frame of any input. Without a readable header time the upload time
-    is used and flagged obstime_source='upload'.
+    is used and flagged obstime_source='upload'. This is the provenance (tEXt
+    chunks, sidecar); the S3 metadata key `obstime` is not taken from it, it
+    stays the upload time (see do_upload).
     """
     product_id = serve_id_for_local_png(png_path)
     waves = PRODUCT_INPUT_WAVES.get(product_id, ())
@@ -338,7 +340,7 @@ class AwsPutter(Putter):
         """Upload one served still as 1k/rhef_<id>_1k.png + a THUMB_PX (512) square thumb.
 
         The 1k still upload is what fires the Lambda video-builder; obstime
-        metadata lets the Lambda order the 48h frame queue.
+        metadata (upload time) lets the Lambda order the 48h frame queue.
         """
         product_id = serve_id_for_local_png(root_path)
         if product_id is None:
@@ -355,15 +357,19 @@ class AwsPutter(Putter):
         except Exception as exc:
             logger.warning(f"\t* {product_id}: provenance step 'read FITS headers' failed "
                            f"({type(exc).__name__}: {exc}); uploading without provenance")
+        # `obstime` stays the upload time, exactly as before SB-9: the live Lambda keys the
+        # frame (v/<id>/<stamp>.png) and the fragment's `updated` on it, and freshness is
+        # measured on it. The header observation time goes under NEW keys (obs_end, obs_start,
+        # tint_n, tint_m), sent only when a header time was found. Whether to switch obstime to
+        # the header time is Gilly's decision (open question); see CONTRACT.md.
         meta = {"obstime": upload_time}
         tagged = root_path
         if prov is not None:
-            meta = {"obstime": prov["obstime"]}
-            for key in ("obstime_source", "obs_start", "obs_end", "tint_n", "tint_m"):
+            for key in ("obs_start", "obs_end", "tint_n", "tint_m"):
                 if prov[key]:
                     meta[key] = prov[key]
             if prov["obstime_source"] == "upload":
-                logger.info(f"\t* {product_id}: no header time found; obstime falls back to upload time")
+                logger.info(f"\t* {product_id}: no header time found; no obs_end sent, obstime is the upload time")
             try:
                 tagged = write_png_text(root_path, os.path.join(os.path.dirname(root_path), f".meta_{product_id}.png"),
                                         png_text_chunks(prov))

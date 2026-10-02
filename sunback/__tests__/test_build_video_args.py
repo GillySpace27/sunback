@@ -110,7 +110,7 @@ def test_fragment_carries_obs_window_from_still_metadata(monkeypatch, tmp_path):
     lam = load_handler(monkeypatch, fake, fake_ffmpeg(tmp_path))
     fake.objects["1k/rhef_171_1k.png"] = {
         "Body": b"png", "LastModified": None,
-        "Metadata": {"obstime": "2026-09-28T12:00:00Z", "obstime_source": "header",
+        "Metadata": {"obstime": "2026-09-28T12:31:00Z",
                      "obs_start": "2026-09-28T11:52:00Z", "obs_end": "2026-09-28T12:00:00Z",
                      "tint_n": "5", "tint_m": "median",
                      "rhef_stamp": "RHEF oRHEF-2.0 via orhef 0.1.0.dev0; upsilon=0.35,0.35; deviations=none"}}
@@ -119,7 +119,9 @@ def test_fragment_carries_obs_window_from_still_metadata(monkeypatch, tmp_path):
     frag = fake.json("manifest/171.json")
     assert (frag["obs_start"], frag["obs_end"]) == ("2026-09-28T11:52:00Z", "2026-09-28T12:00:00Z")
     recorded = _json.load(open(tmp_path / "argv.json"))
-    assert "creation_time=2026-09-28T12:00:00Z" in recorded
+    # obstime (upload time) still keys the frame and `updated`; the window rides beside them
+    assert frag["updated"].startswith("2026-09-28T12:31:00")
+    assert "creation_time=2026-09-28T12:31:00Z" in recorded
     assert "comment=RHEF oRHEF-2.0 via orhef 0.1.0.dev0; upsilon=0.35,0.35; deviations=none" in recorded
 
 

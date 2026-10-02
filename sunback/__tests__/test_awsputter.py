@@ -104,7 +104,9 @@ def test_do_upload_stamps_header_time_and_writes_sidecar(tmp_path, monkeypatch):
     keys = [k for k, _, _ in uploads]
     assert keys == ["1k/rhef_171_1k.png", "thumb/rhef_171_thumb.png", "meta/rhef_171.json"]
     meta = uploads[0][1]["Metadata"]
-    assert meta == {"obstime": "2026-09-28T12:00:00Z", "obstime_source": "header",
+    # obstime is the upload time, exactly as before SB-9 (the Lambda keys frames and `updated` on it);
+    # the header observation window rides in obs_start / obs_end.
+    assert meta == {"obstime": SB9_UPLOAD,
                     "obs_start": "2026-09-28T11:52:00Z", "obs_end": "2026-09-28T12:00:00Z",
                     "tint_n": "3", "tint_m": "median"}
     assert b"obs_start" in uploads[0][2]                     # tEXt chunk rides in the uploaded still
@@ -146,8 +148,8 @@ def expected_put(key, content_type, metadata=None, cache_control=None):
 
 
 def still_metadata():
-    """Metadata of a 1k still when no FITS header time is found (SB-9): upload time, flagged."""
-    return {"obstime": OBSTIME, "obstime_source": "upload"}
+    """Metadata of a 1k still when no FITS header time is found: upload time only, as before SB-9."""
+    return {"obstime": OBSTIME}
 
 
 @pytest.fixture
@@ -271,7 +273,7 @@ def _recording_putter(monkeypatch, tmp_path, fail_keys=()):
 def _assert_plain_1k_went_out(uploads, png):
     by_key = {k: (extra, body) for k, extra, body in uploads}
     assert "1k/rhef_171_1k.png" in by_key
-    assert "obstime" in by_key["1k/rhef_171_1k.png"][0]["Metadata"]
+    assert by_key["1k/rhef_171_1k.png"][0]["Metadata"]["obstime"] == SB9_UPLOAD
     assert "thumb/rhef_171_thumb.png" in by_key
     return by_key
 
@@ -341,3 +343,15 @@ def test_put_still_writes_image_times_when_provenance_fails(stubbed, tmp_path, m
     stubbed.add_response("put_object", {}, expected_put("image_times_readable.txt", "text/plain"))
     putter.put()
     assert (tmp_path / "image_times.txt").read_text() == T_REC
+
+
+def test_obstime_stays_upload_time_and_header_time_goes_to_obs_end(monkeypatch, tmp_path):
+    """Two runs on the same observation must not share an obstime (the Lambda frame key)."""
+    putter, png, uploads = _recording_putter(monkeypatch, tmp_path)
+    putter.do_upload(png)
+    putter.obstime = "2026-09-28T12:50:00Z"
+    putter.do_upload(png)
+    firsts = [extra["Metadata"] for k, extra, _ in uploads if k == "1k/rhef_171_1k.png"]
+    assert [m["obstime"] for m in firsts] == [SB9_UPLOAD, "2026-09-28T12:50:00Z"]
+    assert {m["obs_end"] for m in firsts} == {"2026-09-28T12:00:00Z"}
+    assert "obstime_source" not in firsts[0]
