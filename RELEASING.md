@@ -46,3 +46,41 @@ is Gilly's, one release at a time.
   in a checkout with an old `build/` directory reuses `build/lib` and ships stale files.
 - `devtools/scripts/*.bat` are superseded and kept for reference.
 - Author metadata in `pyproject.toml` and the meaning of `v1.0.0` are Gilly's to decide.
+
+## Release feed record (SU-11)
+
+After Gilly has approved the `pypi` job and `https://pypi.org/project/sunback/<version>/` exists, record the
+release in the HelioSoftware family feed (the Website checkout is `$SITE`, default `~/vscode/Website`; the
+record format is `heliosoftware/spec/release-feed.md` there). The block reads the files and checksums from
+PyPI's JSON and calls the append-only writer; it records nothing that PyPI does not list.
+
+`CONFIRMED` stays `false` until someone has run this build: the TestPyPI install check in step 4 above counts,
+because it installs the same files. The feed rule is that a page links an asset only when it is confirmed.
+
+~~~bash
+V=0.6.17.4        # the version just published
+export SITE="${SITE:-$HOME/vscode/Website}" V
+export CONFIRMED="${CONFIRMED:-false}"
+curl -fsS "https://pypi.org/pypi/sunback/$V/json" | python3 -c '
+import json, os, subprocess, sys, tempfile
+d = json.load(sys.stdin)
+v = d["info"]["version"]
+files = [u for u in d["urls"] if u["packagetype"] in ("sdist", "bdist_wheel")]
+args = []
+for u in files:
+    args += ["--asset", "name=%s,url=%s,sha256=%s,bytes=%d,platform=python,confirmed=%s"
+             % (u["filename"], u["url"], u["digests"]["sha256"], u["size"], os.environ["CONFIRMED"])]
+with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
+    f.write(os.environ.get("NOTES", "sunback %s on PyPI." % v) + "\n")
+cmd = [sys.executable, os.environ["SITE"] + "/heliosoftware/feed/append_record.py", "--product", "sunback",
+       "--version", v, "--date", files[0]["upload_time_iso_8601"][:10], "--channel", "pypi", "--tag", v,
+       "--url", "https://pypi.org/project/sunback/%s/" % v, "--notes-file", f.name] + args
+sys.exit(subprocess.call(cmd))
+'
+python3 "$SITE/heliosoftware/feed/build_feed.py"
+~~~
+
+Exit 0 appended, 3 already recorded, 1 refused (the message names why). Set `NOTES` to a sentence without an
+em dash to replace the default. Committing and pushing the Website is a separate yes from Gilly. The field
+names (`urls`, `packagetype`, `digests`, `size`, `upload_time_iso_8601`) are PyPI's JSON API as read from its
+documentation, not run against pypi.org: if the block fails on a missing key, print `d["urls"][0]` and adjust.
