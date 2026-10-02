@@ -88,6 +88,8 @@ branch, tag, S3 object, Lambda version or layer removal. Retire code with
 - `python devtools/reachability.py [--json]`: which tracked modules production, research or nothing reaches (SB-10)
 - `python devtools/scripts/check_freshness.py [--threshold 3600] [--prefix staging/] [--json]`: read-only freshness of image_times.txt and every manifest fragment; exit 0 fresh, 1 stale or missing, 3 unreachable (SB-8)
 - `python -m build && python devtools/scripts/check_wheel.py dist/*.whl`: build the sdist and wheel and audit the wheel; releases follow RELEASING.md and every upload is Gilly's (SB-12)
+- `python devtools/scripts/alert_triage.py`: classify open Dependabot alerts by whether production installs the package; read only (SB-13)
+- `python -m devtools.scripts.pixel_probe --out DIR`: fixed render for comparing two reducer environments; `--compare DIR_A DIR_B` diffs two renders (SB-13)
 
 ## Where work lives
 
