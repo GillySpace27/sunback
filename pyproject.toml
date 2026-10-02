@@ -65,6 +65,7 @@ sunback-serve = "sunback.run.run_server_lingon:run_server_lingon"
 
 [tool.setuptools.packages.find]
 where = ["."]
+exclude = ["attic", "attic.*"]
 
 [tool.setuptools.package-data]
 "*" = ["*"]
