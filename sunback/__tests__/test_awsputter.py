@@ -238,3 +238,106 @@ def test_put_writes_stills_then_time_files(stubbed, tmp_path, monkeypatch):
     putter.put()
     assert (tmp_path / "image_times.txt").read_text() == T_REC
     assert (tmp_path / "image_times_readable.txt").read_text().splitlines()[4] == f"None|{T_REC}"
+
+
+# --- review fix: provenance must never block the 1k still ---------------------------------------
+# Each SB-9 step (read FITS headers, re-save the PNG with tEXt chunks, write and put the JSON
+# sidecar) may raise anything. The plain 1k still, its thumb and image_times.txt still go out,
+# with the pre-SB-9 behaviour: upload time as obstime and no provenance.
+
+
+def _recording_putter(monkeypatch, tmp_path, fail_keys=()):
+    """AwsPutter whose S3 client is a recorder; keys in fail_keys raise RuntimeError on upload."""
+    uploads = []
+
+    class Recorder:
+        def upload_file(self, Filename, Bucket, Key, ExtraArgs=None):
+            if Key in fail_keys:
+                raise RuntimeError(f"simulated S3 failure for {Key}")
+            uploads.append((Key, dict(ExtraArgs or {}), open(Filename, "rb").read()))
+
+    monkeypatch.setattr(aws, "_S3_CLIENT", Recorder())
+    monkeypatch.delenv("SUNBACK_PREFIX", raising=False)
+    fits_dir = tmp_path / "fits"
+    _sb9_integrated(fits_dir, "0171", ["2026-09-28T11:52:00Z", "2026-09-28T12:00:00Z"])
+    png = _sb9_png(tmp_path / "DrGilly_0171_ups(rhef).png")
+    putter = aws.AwsPutter.__new__(aws.AwsPutter)
+    putter.params = MagicMock()
+    putter.params.fits_directory.return_value = str(fits_dir)
+    putter.obstime = SB9_UPLOAD
+    return putter, png, uploads
+
+
+def _assert_plain_1k_went_out(uploads, png):
+    by_key = {k: (extra, body) for k, extra, body in uploads}
+    assert "1k/rhef_171_1k.png" in by_key
+    assert "obstime" in by_key["1k/rhef_171_1k.png"][0]["Metadata"]
+    assert "thumb/rhef_171_thumb.png" in by_key
+    return by_key
+
+
+def _boom(*args, **kwargs):
+    raise RuntimeError("simulated provenance failure")
+
+
+def test_header_read_failure_still_uploads_the_1k(monkeypatch, tmp_path, caplog):
+    putter, png, uploads = _recording_putter(monkeypatch, tmp_path)
+    monkeypatch.setattr(aws, "header_provenance", _boom)
+    with caplog.at_level("WARNING"):
+        putter.do_upload(png)
+    by_key = _assert_plain_1k_went_out(uploads, png)
+    assert "obs_end" not in by_key["1k/rhef_171_1k.png"][0]["Metadata"]
+    assert any("read FITS header" in r.getMessage() for r in caplog.records)
+
+
+def test_provenance_lookup_failure_uploads_pre_sb9_still(monkeypatch, tmp_path, caplog):
+    putter, png, uploads = _recording_putter(monkeypatch, tmp_path)
+    monkeypatch.setattr(aws, "png_provenance", _boom)
+    with caplog.at_level("WARNING"):
+        putter.do_upload(png)
+    by_key = _assert_plain_1k_went_out(uploads, png)
+    assert by_key["1k/rhef_171_1k.png"][0]["Metadata"] == {"obstime": SB9_UPLOAD}
+    assert by_key["1k/rhef_171_1k.png"][1] == open(png, "rb").read()   # untouched file
+    assert "meta/rhef_171.json" not in by_key                          # no sidecar
+    assert any("provenance" in r.getMessage() for r in caplog.records)
+
+
+def test_png_resave_failure_uploads_the_original_png(monkeypatch, tmp_path, caplog):
+    putter, png, uploads = _recording_putter(monkeypatch, tmp_path)
+    monkeypatch.setattr(aws, "write_png_text", _boom)
+    with caplog.at_level("WARNING"):
+        putter.do_upload(png)
+    by_key = _assert_plain_1k_went_out(uploads, png)
+    assert by_key["1k/rhef_171_1k.png"][1] == open(png, "rb").read()
+    assert any("tEXt" in r.getMessage() for r in caplog.records)
+
+
+def test_sidecar_put_failure_does_not_raise(monkeypatch, tmp_path, caplog):
+    putter, png, uploads = _recording_putter(monkeypatch, tmp_path, fail_keys=("meta/rhef_171.json",))
+    with caplog.at_level("WARNING"):
+        putter.do_upload(png)
+    _assert_plain_1k_went_out(uploads, png)
+    assert all(k != "meta/rhef_171.json" for k, _, _ in uploads)
+    assert any("sidecar" in r.getMessage() for r in caplog.records)
+
+
+def test_sidecar_build_failure_does_not_raise(monkeypatch, tmp_path, caplog):
+    putter, png, uploads = _recording_putter(monkeypatch, tmp_path)
+    monkeypatch.setattr(aws, "sidecar_doc", _boom)
+    with caplog.at_level("WARNING"):
+        putter.do_upload(png)
+    _assert_plain_1k_went_out(uploads, png)
+    assert any("sidecar" in r.getMessage() for r in caplog.records)
+
+
+def test_put_still_writes_image_times_when_provenance_fails(stubbed, tmp_path, monkeypatch):
+    putter = make_putter(tmp_path, ["DrGilly_0171_ups(rhef).png"])
+    monkeypatch.setattr(aws, "datetime", type("D", (), {"now": staticmethod(
+        lambda tz=None: __import__("datetime").datetime(2026, 9, 28, 12, 0, 0, tzinfo=tz))}))
+    monkeypatch.setattr(aws, "png_provenance", _boom)
+    stubbed.add_response("put_object", {}, expected_put("1k/rhef_171_1k.png", "image/png", {"obstime": OBSTIME}))
+    stubbed.add_response("put_object", {}, expected_put("thumb/rhef_171_thumb.png", "image/png"))
+    stubbed.add_response("put_object", {}, expected_put("image_times.txt", "text/plain"))
+    stubbed.add_response("put_object", {}, expected_put("image_times_readable.txt", "text/plain"))
+    putter.put()
+    assert (tmp_path / "image_times.txt").read_text() == T_REC

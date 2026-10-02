@@ -154,6 +154,11 @@ def png_provenance(png_path, fits_dir, upload_time):
                 "obs_start": min(starts), "obs_end": max(ends),
                 "tint_n": newest.get("tint_n", ""), "tint_m": newest.get("tint_m", ""),
                 "inputs": list(waves)}
+    return upload_provenance(product_id, upload_time, waves)
+
+
+def upload_provenance(product_id, upload_time, waves=()):
+    """Provenance when no header time is known: the upload time, flagged."""
     return {"product_id": product_id, "obstime": upload_time, "obstime_source": "upload",
             "obs_start": "", "obs_end": "", "tint_n": "", "tint_m": "", "inputs": list(waves)}
 
@@ -340,17 +345,32 @@ class AwsPutter(Putter):
             return  # not a served product (see serve_keys.serve_id_for_local_png)
 
         settings = self._settings()
-        # SB-9: observation time from the integrated FITS header, per product;
-        # the upload time stamped in put() is only the flagged fallback.
-        prov = png_provenance(root_path, self.params.fits_directory(), getattr(self, "obstime", ""))
-        meta = {"obstime": prov["obstime"]}
-        for key in ("obstime_source", "obs_start", "obs_end", "tint_n", "tint_m"):
-            if prov[key]:
-                meta[key] = prov[key]
-        if prov["obstime_source"] == "upload":
-            logger.info(f"\t* {product_id}: no header time found; obstime falls back to upload time")
-        tagged = write_png_text(root_path, os.path.join(os.path.dirname(root_path), f".meta_{product_id}.png"),
-                                png_text_chunks(prov))
+        upload_time = getattr(self, "obstime", "")
+        # SB-9: observation time from the integrated FITS header, per product; the upload
+        # time stamped in put() is only the flagged fallback. Provenance never blocks the
+        # still: every step below logs any Exception and the plain upload goes ahead.
+        prov = None
+        try:
+            prov = png_provenance(root_path, self.params.fits_directory(), upload_time)
+        except Exception as exc:
+            logger.warning(f"\t* {product_id}: provenance step 'read FITS headers' failed "
+                           f"({type(exc).__name__}: {exc}); uploading without provenance")
+        meta = {"obstime": upload_time}
+        tagged = root_path
+        if prov is not None:
+            meta = {"obstime": prov["obstime"]}
+            for key in ("obstime_source", "obs_start", "obs_end", "tint_n", "tint_m"):
+                if prov[key]:
+                    meta[key] = prov[key]
+            if prov["obstime_source"] == "upload":
+                logger.info(f"\t* {product_id}: no header time found; obstime falls back to upload time")
+            try:
+                tagged = write_png_text(root_path, os.path.join(os.path.dirname(root_path), f".meta_{product_id}.png"),
+                                        png_text_chunks(prov))
+            except Exception as exc:
+                logger.warning(f"\t* {product_id}: provenance step 'PNG tEXt re-save' failed "
+                               f"({type(exc).__name__}: {exc}); uploading the PNG as rendered")
+                tagged = root_path
 
         # full-res 1k still (pixels identical to root_path; tEXt chunks added)
         upload_public(tagged, s3_img_key(product_id), "image/png", metadata=meta, settings=settings)
@@ -364,11 +384,16 @@ class AwsPutter(Putter):
         upload_public(thumb_path, s3_thumb_key(product_id), "image/png", settings=settings)
 
         # SB-9: provenance sidecar, rewritten each run beside the still
-        sidecar = os.path.join(os.path.dirname(root_path), f".meta_{product_id}.json")
-        with open(sidecar, "w", encoding="utf-8") as fp:
-            json.dump(sidecar_doc(prov), fp, indent=2)
-        upload_public(sidecar, s3_meta_key(product_id), "application/json", cache_control="no-cache",
-                      settings=settings)
+        if prov is not None:
+            try:
+                sidecar = os.path.join(os.path.dirname(root_path), f".meta_{product_id}.json")
+                with open(sidecar, "w", encoding="utf-8") as fp:
+                    json.dump(sidecar_doc(prov), fp, indent=2)
+                upload_public(sidecar, s3_meta_key(product_id), "application/json", cache_control="no-cache",
+                              settings=settings)
+            except Exception as exc:
+                logger.warning(f"\t* {product_id}: provenance step 'sidecar write and upload' failed "
+                               f"({type(exc).__name__}: {exc}); the still is already uploaded")
 
     def __save_times(self):
         print("\t* Uploading Time File...", end='', flush=True)
