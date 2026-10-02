@@ -4,6 +4,7 @@ The NRT synoptic dirs (e.g. ``.../synoptic/nrt/YYYY/MM/DD/H2000/``) hold filenam
 like ``AIA20260624_200300_0171.fits`` at ~3-min cadence. Unlike ``mostrecent/`` they
 expose *many* recent frames, which is what makes time integration possible.
 """
+
 import re
 from datetime import datetime, timedelta
 

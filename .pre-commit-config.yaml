@@ -1,0 +1,10 @@
+# pre-commit hooks for sunback (SB-2). Install once per clone: pre-commit install
+# ruff-check uses the rules in pyproject.toml ([tool.ruff]). ruff-format is limited
+# to the modules SB-2 formatted, so it never reflows code another branch is editing.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: c59bba8fb259db0fec2bbb77ad8ba51ea7341b56  # frozen: v0.15.20
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
+        files: ^(sunback/fetcher/nrt_(listing|integrate)\.py|sunback/utils/time_integration\.py|sunback/putter/serve_keys\.py|sunback/__tests__/test_(frame_queue|integrated_synoptic|nrt_dirs|nrt_listing|serve_keys|time_integration)\.py)$

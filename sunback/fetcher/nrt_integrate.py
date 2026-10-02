@@ -6,6 +6,7 @@ file (empty primary + a 2D science HDU). This module collapses the N most-recent
 NRT frames into exactly that structure, swapping the science data for the
 time-integrated array while preserving the newest frame's header/metadata.
 """
+
 from astropy.io import fits
 
 from sunback.utils.time_integration import integrate_frames
@@ -43,9 +44,11 @@ def write_integrated_synoptic(frame_paths, out_path, method="median"):
     science_header["TINT_N"] = (len(frame_paths), "frames time-integrated")
     science_header["TINT_M"] = (method, "time-integration method")
 
-    out = fits.HDUList([
-        fits.PrimaryHDU(),
-        fits.CompImageHDU(data=integrated, header=science_header),
-    ])
+    out = fits.HDUList(
+        [
+            fits.PrimaryHDU(),
+            fits.CompImageHDU(data=integrated, header=science_header),
+        ]
+    )
     out.writeto(out_path, overwrite=True)
     return out_path

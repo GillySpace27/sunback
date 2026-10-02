@@ -1,4 +1,5 @@
 """Tests for building JSOC synoptic-NRT hour-bucket directory URLs."""
+
 from datetime import datetime
 
 from sunback.fetcher.nrt_listing import nrt_hour_dirs

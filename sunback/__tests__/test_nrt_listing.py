@@ -1,4 +1,5 @@
 """Tests for selecting the N most-recent NRT synoptic frames per wavelength."""
+
 import pytest
 
 from sunback.fetcher.nrt_listing import parse_frame_time, select_recent_frames
@@ -17,8 +18,11 @@ def test_parse_frame_time_orders_correctly():
 
 def test_selects_n_most_recent_per_wave():
     files = _names(
-        ("200000", "0171"), ("200300", "0171"), ("200600", "0171"),
-        ("200000", "0193"), ("200300", "0193"),
+        ("200000", "0171"),
+        ("200300", "0171"),
+        ("200600", "0171"),
+        ("200000", "0193"),
+        ("200300", "0193"),
     )
     result = select_recent_frames(files, waves=["0171", "0193"], n=2)
     assert result["0171"] == _names(("200300", "0171"), ("200600", "0171"))
@@ -28,9 +32,7 @@ def test_selects_n_most_recent_per_wave():
 def test_returns_newest_last_for_natural_time_order():
     files = _names(("200600", "0171"), ("200000", "0171"), ("200300", "0171"))
     result = select_recent_frames(files, waves=["0171"], n=3)
-    assert result["0171"] == _names(
-        ("200000", "0171"), ("200300", "0171"), ("200600", "0171")
-    )
+    assert result["0171"] == _names(("200000", "0171"), ("200300", "0171"), ("200600", "0171"))
 
 
 def test_filters_out_unwanted_wavelengths():

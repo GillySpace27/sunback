@@ -1,4 +1,5 @@
 """Round-trip tests: integrate N NRT frames into one synoptic-compatible FITS."""
+
 import numpy as np
 import pytest
 from astropy.io import fits
@@ -11,10 +12,12 @@ def _write_comp_fits(path, data, wavelnth=171, t_rec="2026-06-24T20:00:00Z"):
     hdr = fits.Header()
     hdr["WAVELNTH"] = wavelnth
     hdr["T_REC"] = t_rec
-    hdul = fits.HDUList([
-        fits.PrimaryHDU(),
-        fits.CompImageHDU(data=data.astype(np.float32), header=hdr),
-    ])
+    hdul = fits.HDUList(
+        [
+            fits.PrimaryHDU(),
+            fits.CompImageHDU(data=data.astype(np.float32), header=hdr),
+        ]
+    )
     hdul.writeto(path, overwrite=True)
 
 
@@ -27,7 +30,8 @@ def test_read_image_data_handles_compressed(tmp_path):
 
 def test_median_integration_removes_spike_and_writes_synoptic(tmp_path):
     base = np.full((4, 4), 10.0, dtype=np.float32)
-    spike = base.copy(); spike[1, 1] = 9999.0
+    spike = base.copy()
+    spike[1, 1] = 9999.0
     paths = []
     for i, arr in enumerate([base, spike, base]):
         p = tmp_path / f"AIA20260624_20{i:02d}00_0171.fits"
@@ -38,7 +42,7 @@ def test_median_integration_removes_spike_and_writes_synoptic(tmp_path):
     write_integrated_synoptic(paths, str(out), method="median")
 
     result = read_image_data(str(out))
-    assert result[1, 1] == pytest.approx(10.0)   # cosmic ray rejected
+    assert result[1, 1] == pytest.approx(10.0)  # cosmic ray rejected
     assert result.shape == (4, 4)
 
 
@@ -46,8 +50,7 @@ def test_output_preserves_newest_header(tmp_path):
     paths = []
     for i in range(2):
         p = tmp_path / f"AIA_{i}.fits"
-        _write_comp_fits(str(p), np.ones((2, 2), dtype=np.float32),
-                         t_rec=f"2026-06-24T20:0{i}:00Z")
+        _write_comp_fits(str(p), np.ones((2, 2), dtype=np.float32), t_rec=f"2026-06-24T20:0{i}:00Z")
         paths.append(str(p))
     out = tmp_path / "AIAsynoptic0171.fits"
     write_integrated_synoptic(paths, str(out), method="mean")
