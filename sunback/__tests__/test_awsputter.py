@@ -115,3 +115,126 @@ def test_do_upload_stamps_header_time_and_writes_sidecar(tmp_path, monkeypatch):
     assert props["observationDateUTC"] == "2026-09-28T12:00:00Z"
     assert props["obstimeSource"] == "header"
     assert uploads[2][1]["ContentType"] == "application/json"
+
+
+# --- SB-11: AwsPutter through botocore's Stubber ---------------------------------------------
+# A real boto3 S3 client with a Stubber attached replaces AwsPutter's lazy client
+# (``_S3_CLIENT``, SB-5), so every PutObject request is checked against the S3 API model
+# (parameter names, types, the ACL enum) as well as against the keys, content types, ACL and
+# metadata production writes today. Nothing leaves the process: the Stubber answers before a
+# request is signed or sent. (SB-9's tests above use a hand-written recorder instead.)
+import boto3  # noqa: E402
+import pytest  # noqa: E402
+from botocore.config import Config  # noqa: E402
+from botocore.stub import ANY, Stubber  # noqa: E402
+
+aws = _sb9_aws
+
+BUCKET = "the-sun-now"
+OBSTIME = "2026-09-28T12:00:00Z"
+T_REC = "2026-09-28T12:00:00.00"
+
+
+def expected_put(key, content_type, metadata=None, cache_control=None):
+    params = {"Bucket": BUCKET, "Key": key, "Body": ANY, "ACL": "public-read",
+              "ContentDisposition": "inline", "ContentType": content_type}
+    if metadata is not None:
+        params["Metadata"] = metadata
+    if cache_control is not None:
+        params["CacheControl"] = cache_control
+    return params
+
+
+def still_metadata():
+    """Metadata of a 1k still when no FITS header time is found (SB-9): upload time, flagged."""
+    return {"obstime": OBSTIME, "obstime_source": "upload"}
+
+
+@pytest.fixture
+def stubbed(monkeypatch):
+    for name in ("SUNBACK_BUCKET", "SUNBACK_PREFIX"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("SUNBACK_WRITE_READABLE_TIMES", "1")  # independent of SB-6's default flip (Q25)
+    try:  # botocore >= 1.36: keep s3transfer from adding ChecksumAlgorithm, so params compare across versions
+        config = Config(request_checksum_calculation="when_required")
+    except TypeError:  # older botocore never adds it
+        config = Config()
+    client = boto3.client("s3", region_name="us-east-2", aws_access_key_id="testing",
+                          aws_secret_access_key="testing", config=config)
+    stubber = Stubber(client)
+    monkeypatch.setattr(aws, "_S3_CLIENT", client)
+    with stubber:
+        yield stubber
+        stubber.assert_no_pending_responses()
+
+
+def make_putter(tmp_path, png_names):
+    import cv2
+
+    pngs = []
+    for name in png_names:
+        path = tmp_path / name
+        cv2.imwrite(str(path), np.zeros((16, 16), np.uint8))
+        pngs.append(str(path))
+    params = type("P", (), {})()
+    params.multi_pool = None
+    params.local_imgs_paths = lambda: pngs
+    params.imgs_top_directory = lambda: str(tmp_path)
+    params.base_directory = lambda: str(tmp_path)
+    params.fits_directory = lambda: str(tmp_path / "no_fits_here")
+    params.time_path = lambda: str(tmp_path / "image_times.txt")
+    params.local_fits_paths = lambda: [str(tmp_path / "AIAsynoptic0171.fits")]
+    putter = aws.AwsPutter.__new__(aws.AwsPutter)  # skip Processor.__init__ (no FITS on disk)
+    putter.params = params
+    putter.ii = 0
+    putter.pbar = None
+    putter.to_upload = None
+    putter.load_this_fits_frame = lambda *a, **k: (None, "0171", T_REC, None, None, None)
+    putter.clean_time_string = lambda t, zone=None, out_fmt=None: f"{zone}|{t}"
+    return putter
+
+
+def queue_still(stubbed, product_id):
+    """The three PutObject calls one served still makes, in order (SB-9 added the sidecar)."""
+    stubbed.add_response("put_object", {},
+                         expected_put(f"1k/rhef_{product_id}_1k.png", "image/png", still_metadata()))
+    stubbed.add_response("put_object", {}, expected_put(f"thumb/rhef_{product_id}_thumb.png", "image/png"))
+    stubbed.add_response("put_object", {}, expected_put(f"meta/rhef_{product_id}.json", "application/json",
+                                                        cache_control="no-cache"))
+
+
+def test_do_upload_writes_1k_still_thumb_and_sidecar(stubbed, tmp_path):
+    putter = make_putter(tmp_path, ["DrGilly_0171_ups(rhef).png"])
+    putter.obstime = OBSTIME
+    queue_still(stubbed, "171")
+    putter.do_upload(str(tmp_path / "DrGilly_0171_ups(rhef).png"))
+
+
+def test_thumb_is_512_square(stubbed, tmp_path):
+    import cv2
+
+    putter = make_putter(tmp_path, ["DrGilly_0193_ups(rhef).png"])
+    putter.obstime = OBSTIME
+    queue_still(stubbed, "193")
+    putter.do_upload(str(tmp_path / "DrGilly_0193_ups(rhef).png"))
+    thumb = cv2.imread(str(tmp_path / ".thumb_193.png"), cv2.IMREAD_UNCHANGED)
+    assert thumb.shape[:2] == (aws.THUMB_PX, aws.THUMB_PX) == (512, 512)
+
+
+def test_unserved_png_is_not_uploaded(stubbed, tmp_path):
+    putter = make_putter(tmp_path, ["DrGilly_1234_ups(rhef).png"])
+    putter.obstime = OBSTIME
+    putter.do_upload(str(tmp_path / "DrGilly_1234_ups(rhef).png"))  # no response queued: any call would fail
+
+
+def test_put_writes_stills_then_time_files(stubbed, tmp_path, monkeypatch):
+    putter = make_putter(tmp_path, ["DrGilly_0171_ups(rhef).png", "C_isothermal.png"])
+    monkeypatch.setattr(aws, "datetime", type("D", (), {"now": staticmethod(
+        lambda tz=None: __import__("datetime").datetime(2026, 9, 28, 12, 0, 0, tzinfo=tz))}))
+    for key in ("171", "dem"):
+        queue_still(stubbed, key)
+    stubbed.add_response("put_object", {}, expected_put("image_times.txt", "text/plain"))
+    stubbed.add_response("put_object", {}, expected_put("image_times_readable.txt", "text/plain"))
+    putter.put()
+    assert (tmp_path / "image_times.txt").read_text() == T_REC
+    assert (tmp_path / "image_times_readable.txt").read_text().splitlines()[4] == f"None|{T_REC}"
