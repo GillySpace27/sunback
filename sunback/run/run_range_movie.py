@@ -38,7 +38,7 @@ def run_range_movie(delay=10, debug=True, do_one="0304", stop=True, tstart='2015
     # Set the Processes
     p.fetchers(FidoFetcher())      # Gets Fits FIDO
 
-    p.processors([RadialFiltProcessor()])  # Makes the PNGs from Fits
+    p.processors([RadialFiltProcessor()])  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2); Makes the PNGs from Fits
 
     p.putters([ImageProcessor()])  # Makes the PNGs from Fits
     p.putters([VideoProcessor()])  # Makes the PNGs into a Movie

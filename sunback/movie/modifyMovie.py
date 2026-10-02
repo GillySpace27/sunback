@@ -87,7 +87,7 @@ class SunbackMovie:
 
 
     def run(self, delay=20, mode='all', debug=False):
-        p = Parameters()
+        p = Parameters()  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
         p.mode(mode)
         p.set_delay_seconds(delay)
         p.do_mirror(False)
@@ -122,14 +122,14 @@ class SunbackMovie:
 
     def where():
         """Prints the location that the images are stored in."""
-        p = Parameters()
+        p = Parameters()  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
         print(p.discover_best_default_directory())
 
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
-    where()
-    run(20, 'y', debug=debugg)
+    where()  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
+    run(20, 'y', debug=debugg)  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
 
 
 

@@ -74,3 +74,13 @@ exclude = ["attic", "attic.*"]
 testpaths = ["sunback/__tests__", "sunback/processor/tests"]
 markers = ["network: needs the internet; deselected by default"]
 addopts = "-m 'not network'"
+
+[tool.ruff]
+line-length = 119
+target-version = "py312"
+extend-exclude = ["attic", "**/dep", "**/depricated", "*.ipynb", "webapp", "sunback_data",
+                  "devtools/scripts/git-filter-repo.py"]
+force-exclude = true
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]

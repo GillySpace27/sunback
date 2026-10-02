@@ -222,7 +222,7 @@ class ModifyMovie:
         self.video_name_stem = join(self.movie_folder, '{}_movie{}'.format(self.this_name, '{}'))
 
         name = "{}_{}".format(self.this_name, "max")
-        self.soni = Sonifier(self.params, self.save_path, name, self.video_name_stem, frames_per_second=self.params.frames_per_second())
+        self.soni = Sonifier(self.params, self.save_path, name, self.video_name_stem, frames_per_second=self.params.frames_per_second())  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
 
         print("\nMovie: {}".format(self.this_name))
         return False
@@ -367,7 +367,7 @@ class ModifyMovie:
     def pngs_to_movie(self):
         """Combines all png files into an avi movie"""
         try:
-            videoclip_full = VideoFileClip(self.video_name_stem.format("_raw.avi"))
+            videoclip_full = VideoFileClip(self.video_name_stem.format("_raw.avi"))  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
             invalid_movie=False
         except:
             invalid_movie=True
@@ -377,18 +377,18 @@ class ModifyMovie:
             try:
                 images = [img for img in listdir(self.image_folder) if img.endswith(".png") and self.check_valid_png(img)]
                 if len(images) > 0:
-                    frame = cv2.imread(join(self.image_folder, images[0]))
+                    frame = cv2.imread(join(self.image_folder, images[0]))  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
                     height, width, layers = frame.shape
-                    video_avi = cv2.VideoWriter(self.video_name_stem.format("_raw.avi"), 0, self.params.frames_per_second(), (width, height))
+                    video_avi = cv2.VideoWriter(self.video_name_stem.format("_raw.avi"), 0, self.params.frames_per_second(), (width, height))  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
 
                     for image in tqdm(images, desc=">Writing Movie", unit="frame"):
                         # Delete it if it is too old
-                        im = cv2.imread(join(self.image_folder, image))
+                        im = cv2.imread(join(self.image_folder, image))  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
                         # import pdb; pdb.set_trace()
                         video_avi.write(im)
 
 
-                    cv2.destroyAllWindows()
+                    cv2.destroyAllWindows()  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
                     video_avi.release()
 
                 else:
@@ -400,8 +400,8 @@ class ModifyMovie:
         """Multiplexes the generated wav and avi files into a single movie"""
         if self.params.allow_muxing() and (self.new_images or self.params.sonify_images()):
             print(">Muxing Main Movie...")
-            videoclip_full = VideoFileClip(self.video_name_stem.format("_raw.avi"))
-            videoclip_full_muxed = videoclip_full.set_audio(AudioFileClip(self.soni.wav_path))
+            videoclip_full = VideoFileClip(self.video_name_stem.format("_raw.avi"))  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
+            videoclip_full_muxed = videoclip_full.set_audio(AudioFileClip(self.soni.wav_path))  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
             from proglog import TqdmProgressBarLogger
 
             hq_sonFunc = partial(videoclip_full_muxed.write_videofile, self.video_name_stem.format("_HQ.mp4"), codec='libx264', bitrate='400M',
@@ -789,7 +789,7 @@ class ModifyMovie:
         assert isinstance(local_path, str)
         local_path = normpath(local_path)
 
-        this_system = platform.system()
+        this_system = platform.system()  # noqa: F821 (pre-existing undefined name, not on the production path; SB-2)
 
         try:
             if this_system == "Windows":
