@@ -87,6 +87,7 @@ branch, tag, S3 object, Lambda version or layer removal. Retire code with
 - `python infra/rotate_dispatch_pat.py`: Gilly runs it in his own terminal; agents never run it (SB-7)
 - `python devtools/reachability.py [--json]`: which tracked modules production, research or nothing reaches (SB-10)
 - `python devtools/scripts/check_freshness.py [--threshold 3600] [--prefix staging/] [--json]`: read-only freshness of image_times.txt and every manifest fragment; exit 0 fresh, 1 stale or missing, 3 unreachable (SB-8)
+- `python -m build && python devtools/scripts/check_wheel.py dist/*.whl`: build the sdist and wheel and audit the wheel; releases follow RELEASING.md and every upload is Gilly's (SB-12)
 
 ## Where work lives
 
