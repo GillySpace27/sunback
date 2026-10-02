@@ -166,14 +166,14 @@ class AwsPutter(Putter):
             self.ii += 1
 
     def do_upload(self, root_path):
-        """Upload one served still as 1k/rhef_<id>_1k.png + a 256² thumb.
+        """Upload one served still as 1k/rhef_<id>_1k.png + a THUMB_PX (512) square thumb.
 
         The 1k still upload is what fires the Lambda video-builder; obstime
         metadata lets the Lambda order the 48h frame queue.
         """
         product_id = serve_id_for_local_png(root_path)
         if product_id is None:
-            return  # not a served product (UV-only channel, DEM, alt composite, ...)
+            return  # not a served product (see serve_keys.serve_id_for_local_png)
 
         meta = {"obstime": getattr(self, "obstime", "")}
         settings = self._settings()
@@ -181,7 +181,7 @@ class AwsPutter(Putter):
         # full-res 1k still
         upload_public(root_path, s3_img_key(product_id), "image/png", metadata=meta, settings=settings)
 
-        # 256² thumbnail (square 1024² source -> direct resize)
+        # THUMB_PX (512) square thumbnail (square 1024 source -> direct resize)
         img = cv2.imread(root_path, cv2.IMREAD_UNCHANGED)
         thumb_path = os.path.join(os.path.dirname(root_path),
                                   f".thumb_{product_id}.png")

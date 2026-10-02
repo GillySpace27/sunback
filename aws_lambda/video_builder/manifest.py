@@ -1,8 +1,12 @@
 """Per-product manifest fragments.
 
-One fragment per product (``manifest/<id>.json``) so the 8 concurrent Lambda
-invocations never write the same object — no read-modify-write race. The landing
-page fetches all fragments (ids are fixed) and merges them client-side.
+One fragment per product (``manifest/<id>.json``), so the up to 12 concurrent
+Lambda invocations of one reducer run (one per ``1k/`` still) never write the
+same fragment. ``manifest/index.json`` is the one shared object: every
+invocation rebuilds it from all fragments (``handler._write_index``) and the
+next trigger repairs a lost write. The landing page fetches the fragments (ids
+are fixed); Heliogram 0.7+ and the R2 mirror read the index. The public schema
+is written down in CONTRACT.md beside this file.
 
 Product ids and S3 key conventions are the single source of truth shared by the
 reducer (which writes ``1k/`` + ``thumb/``) and the Lambda (which writes ``video/``

@@ -26,8 +26,9 @@ INTEGRATION_METHOD = "median"     # 'median' (cosmic-ray robust) | 'mean' | 'sum
 LOOKBACK_HOURS = 1                # also scan the previous hour bucket near the edge
 # 7 EUV channels that get their own card on the page.
 SERVE_WAVES = ["0171", "0193", "0211", "0304", "0335", "0094", "0131"]
-# The rainbow composite's rgb3 channel needs 1600/1700 too, so we fetch+integrate
-# them even though they are not served as standalone cards.
+# 1600 and 1700 feed RainbowRGBImageProcessor's rgb3 composite (1700/1600/304,
+# served as "composite_uv") and are also served as their own cards
+# (serve_keys.SERVED_CHANNELS). The name is historical and stays (SB-6).
 COMPOSITE_ONLY_WAVES = ["1600", "1700"]
 FETCH_WAVES = SERVE_WAVES + COMPOSITE_ONLY_WAVES
 # ----------------------------------------------------------------------------

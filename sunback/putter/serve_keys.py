@@ -3,12 +3,13 @@
 Ground truth from the production bucket (last hourly run):
   renders/DrGilly_<wave>_ups(rhef).png   -- one per wavelength
   renders/BGR_0171_0193_0211_ups(rhef).png   -- EUV coronal composite  (the "rainbow")
-  renders/BGR_1700_1600_0304_ups(rhef).png   -- alternate composite     (not served)
-  renders/C_isothermal.png                    -- DEM product            (not served)
+  renders/BGR_1700_1600_0304_ups(rhef).png   -- UV composite           ("composite_uv")
+  renders/C_isothermal.png                    -- DEM temperature map    ("dem")
 
-Only the 8 page cards are served: the rainbow composite + 7 EUV singles. The
-UV channels (1600/1700) are fetched only to build the composite, and the DEM /
-alternate-composite / video outputs are skipped.
+Twelve page cards are served, the ids of manifest.PRODUCTS: the rainbow
+composite, the nine AIA singles (seven EUV plus 1600 and 1700), the UV
+composite and the DEM map. Videos are not uploaded from here (the Lambda builds
+them), except the DEM temperature scan (AwsPutter).
 
 Key conventions mirror aws_lambda/video_builder/manifest.py.
 """
