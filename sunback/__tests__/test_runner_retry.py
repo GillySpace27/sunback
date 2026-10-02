@@ -1,10 +1,12 @@
-"""Runner retry behaviour (SB-11).
+"""Runner failure behaviour (SB-11, restored by the review).
 
-Run mode (``is_debug()`` False: the wallpaper client) retries a failed batch
-up to ``fail_max`` times; debug mode (the production reducer,
-``run_server_github(debug=True)``) raises on the first failure. Production
-keeps raising on purpose: a retried reducer run could publish a half-failed
-wave, and whether production retries is Gilly's call (overview Q14).
+Both run mode (``is_debug()`` False: the wallpaper client and sunback-serve) and
+debug mode (the production reducer, ``run_server_github(debug=True)``) re-raise
+the first failure of a batch, as they always did. The ``fail_max`` retry loop
+below the ``raise`` in ``Runner.__run_mode`` is therefore unreachable. SB-11
+had removed the ``raise`` so run mode would retry up to 10 times with no pause
+and then exit 1; that changes sunback-serve and the client, so whether to make
+it so is Gilly's call (overview Q14, open). These tests pin today's behaviour.
 """
 from types import SimpleNamespace
 
@@ -29,18 +31,18 @@ def params(debug):
     return SimpleNamespace(is_debug=lambda: debug, stop_after_one=lambda: True)
 
 
-def test_run_mode_retries_after_one_failure():
+def test_run_mode_raises_on_first_failure():
     runner = FlakyRunner(params(debug=False), failures=1)
-    runner.start(verb=False)
-    assert runner.calls == 2
-
-
-def test_run_mode_gives_up_after_ten_failures():
-    runner = FlakyRunner(params(debug=False), failures=50)
-    with pytest.raises(SystemExit) as exc:
+    with pytest.raises(RuntimeError, match="failure 1"):
         runner.start(verb=False)
-    assert exc.value.code == 1
-    assert runner.calls == 10
+    assert runner.calls == 1
+
+
+def test_run_mode_does_not_retry_a_persistent_failure():
+    runner = FlakyRunner(params(debug=False), failures=50)
+    with pytest.raises(RuntimeError, match="failure 1"):
+        runner.start(verb=False)
+    assert runner.calls == 1
 
 
 def test_debug_mode_raises_on_first_failure():

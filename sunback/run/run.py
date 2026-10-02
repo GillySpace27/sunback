@@ -51,7 +51,7 @@ class Runner:
                 if fail_count < fail_max:
                     out_string = "I failed, but I'm ignoring it. Count: {}/{}\n".format(fail_count, fail_max)
                     logger.info("%s %s %s", out_string, error, "\n\n")
-                    # raise error  # 2026-10-02 (SB-11): raising here made the retry below unreachable
+                    raise error  # original behaviour; whether run mode should retry instead is Gilly's call (Q14, open)
                     continue
                 else:
                     logger.info("Too Many Failures, I Quit!")
