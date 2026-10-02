@@ -80,6 +80,7 @@ branch, tag, S3 object, Lambda version or layer removal. Retire code with
 ## Commands
 
 - `bash devtools/check.sh`: every offline check (SB-4)
+- `python devtools/scripts/smoke_public.py`: read-only probe of every public key of the-sun-now; exit 0 ok, 1 a failure, 3 unreachable (SB-6)
 
 ## Where work lives
 
