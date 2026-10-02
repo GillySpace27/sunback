@@ -1,3 +1,4 @@
+# PARKED in ci-pending/ until requirements-reducer.txt exists (see ci-pending/README.md).
 # Dependabot (SB-13). Weekly version updates for the Python requirement files, the workflow
 # actions and the Dockerfile base image. Merging this file starts the weekly PRs; closing
 # them stays Gilly's. Once requirements-reducer.txt exists (it is frozen from the production
