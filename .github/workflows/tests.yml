@@ -33,3 +33,22 @@ jobs:
 
       - name: Lint
         run: ruff check
+
+  em-dash:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: No new em dashes
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then BASE="origin/$BASE_REF"
+          elif [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then BASE="$BEFORE"
+          else BASE="origin/$DEFAULT_BRANCH"; fi
+          echo "base: $BASE"
+          python3 devtools/scripts/no_em_dash.py --base "$BASE"
