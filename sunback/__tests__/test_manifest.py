@@ -91,3 +91,56 @@ def test_index_orders_by_products_and_drops_strangers():
     assert idx["generated"] == "g"
     assert [f["id"] for f in idx["products"]] == ["rainbow", "171", "304"]
     assert build_index([], generated="g")["products"] == []
+
+# --- SB-8: status.json, index extras, staging prefix ----------------------------
+from datetime import datetime, timezone
+
+from aws_lambda.video_builder.manifest import (
+    INDEX_EXTRA_KEYS,
+    STAGING_PREFIX,
+    STATUS_KEY,
+    build_index,
+    build_status,
+    split_staging_prefix,
+)
+
+
+def _frag(pid, updated):
+    return build_manifest_fragment(pid, updated=updated, frame_count=1, integration={})
+
+
+def test_build_status_reports_ages_and_worst():
+    now = datetime(2026, 9, 28, 12, 0, 0, tzinfo=timezone.utc)
+    frags = [_frag("193", "2026-09-28T11:40:00Z"), _frag("171", "2026-09-28T09:00:00Z")]
+    status = build_status(frags, "2026-09-28T12:00:00Z", now)
+    assert STATUS_KEY == "status.json"
+    assert status == {
+        "generated": "2026-09-28T12:00:00Z",
+        "products": [
+            {"id": "171", "updated": "2026-09-28T09:00:00Z", "age_s": 10800},
+            {"id": "193", "updated": "2026-09-28T11:40:00Z", "age_s": 1200},
+        ],
+        "worst_age_s": 10800,
+    }
+
+
+def test_build_status_skips_unknown_and_unparseable():
+    now = datetime(2026, 9, 28, 12, 0, 0, tzinfo=timezone.utc)
+    frags = [{"id": "nope", "updated": "2026-09-28T11:00:00Z"}, _frag("94", "t")]
+    assert build_status(frags, "g", now) == {"generated": "g", "products": [], "worst_age_s": None}
+
+
+def test_build_index_extras_merge_but_never_override():
+    assert INDEX_EXTRA_KEYS == {}
+    doc = build_index([_frag("171", "t")], "g", extras={"reel": {"video": "video/reel_48h.mp4"}})
+    assert doc["reel"] == {"video": "video/reel_48h.mp4"}
+    assert build_index([], "g") == {"generated": "g", "products": []}
+    import pytest
+    with pytest.raises(ValueError):
+        build_index([], "g", extras={"generated": "x"})
+
+
+def test_split_staging_prefix():
+    assert STAGING_PREFIX == "staging/"
+    assert split_staging_prefix("staging/1k/rhef_171_1k.png") == ("staging/", "1k/rhef_171_1k.png")
+    assert split_staging_prefix("1k/rhef_171_1k.png") == ("", "1k/rhef_171_1k.png")
