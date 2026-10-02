@@ -1,4 +1,6 @@
 from time import sleep
+import logging
+logger = logging.getLogger(__name__)
 from sunback.putter.Putter import Putter
 
 class NullPutter(Putter):
@@ -9,7 +11,7 @@ class NullPutter(Putter):
     def put(self, params=None):
         self.load(params)
         # n_files = len(self.params.local_imgs_paths()) + len(self.params.local_fits_paths())
-        print(" {}\n".format(self.params.base_directory()))
+        logger.info(" {}\n".format(self.params.base_directory()))
 
         # print("   No Output Selected\n")
 

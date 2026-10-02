@@ -10,6 +10,8 @@ Pure logic lives in (and is unit-tested via) ``nrt_listing`` and ``nrt_integrate
 this class is the network/orchestration shell, verified by a live ``workflow_dispatch``.
 """
 import os
+import logging
+logger = logging.getLogger(__name__)
 import shutil
 import urllib.request
 from datetime import datetime, timezone
@@ -59,7 +61,7 @@ class NRTFitsFetcher(WebFitsFetcher):
             with urllib.request.urlopen(req, timeout=15) as resp:
                 html = resp.read().decode("utf-8")
         except Exception as e:  # missing bucket / transient error -> skip
-            print(f"NRTFitsFetcher: could not list {url}: {e}")
+            logger.info(f"NRTFitsFetcher: could not list {url}: {e}")
             return []
         soup = BeautifulSoup(html, "html.parser")
         return [
@@ -98,7 +100,7 @@ class NRTFitsFetcher(WebFitsFetcher):
                 if self.download_url(listing[name], local):
                     local_frames.append(local)
             if not local_frames:
-                print(f"NRTFitsFetcher: no frames downloaded for {wave}")
+                logger.info(f"NRTFitsFetcher: no frames downloaded for {wave}")
                 continue
             # 3. integrate -> AIAsynoptic<wave>.fits (drop-in for the pipeline)
             out = os.path.join(fits_dir, f"AIAsynoptic{wave}.fits")
@@ -107,6 +109,6 @@ class NRTFitsFetcher(WebFitsFetcher):
 
         if self.destroy:
             shutil.rmtree(temp_dir, ignore_errors=True)
-        print(f" ^  Integrated {len(out_paths)} wavelengths "
-              f"({n}x {method}) from NRT\n", flush=True)
+        logger.info(f" ^  Integrated {len(out_paths)} wavelengths "
+              f"({n}x {method}) from NRT\n")
         return out_paths

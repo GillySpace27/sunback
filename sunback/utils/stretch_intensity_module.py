@@ -74,7 +74,7 @@ def demo_make_xprime(nx=10001, eq_num=1):
 
 def demo_make_upsilon_array(nupsilon=6, range=2.0, eq_num=1):
     """Prepare the upsilon array"""
-    print(f"Eqn #: {eq_num}")
+    logger.info(f"Eqn #: {eq_num}")
     if eq_num == 1:
         # upsilon_array = np.linspace(1., range, num=nupsilon)
         upsilon_array = np.logspace(0, np.log10(range), num=nupsilon)
@@ -92,7 +92,7 @@ def demo_make_upsilon_array(nupsilon=6, range=2.0, eq_num=1):
     else:
         upsilon_array = [1]
     # upsilon_array = np.linspace(1, 2, 5)
-    print(upsilon_array)
+    logger.info(upsilon_array)
     return upsilon_array
 
 

@@ -1,4 +1,6 @@
 import os
+import logging
+logger = logging.getLogger(__name__)
 from copy import deepcopy as copy
 import time
 from functools import partial
@@ -201,7 +203,7 @@ class AIA_PREP_Processor(SunPyProcessor):
                         time_range=(pointing_start, pointing_end)
                     )
                 except RuntimeError as e:
-                    print("\r   - > " + str(e))
+                    logger.info("\r   - > " + str(e))
                     pass
                 # The same applies for the correction table.
                 self.params.correction_table = get_correction_table("jsoc")
@@ -262,7 +264,7 @@ class NRGFProcessor(SunPyProcessor):
         # self.in_name = self.in_name.replace("compressed_image", "levl1p5")
         self.load(params, quick=quick)
         self.out_name = self.out_name.format(self.in_name)
-        print(" --- Running NRGF on {} ---".format(self.in_name))
+        logger.info(" --- Running NRGF on {} ---".format(self.in_name))
 
     def select_input_frame(self, in_name):
         self.in_name = in_name
@@ -373,7 +375,7 @@ class RHEFProcessor(SunPyProcessor):
         # self.in_name = self.in_name.replace("compressed_image", "levl1p5")
         self.out_name = self.out_name.format(self.in_name)
         self.load(params, quick=quick, in_name=self.in_name, out_name=self.out_name)
-        print(" --- Running RHEF on {} ---".format(self.in_name))
+        logger.info(" --- Running RHEF on {} ---".format(self.in_name))
         pass
 
     def select_input_frame(self, in_name):
@@ -381,7 +383,7 @@ class RHEFProcessor(SunPyProcessor):
         # self.in_name = in_name or self.params.aftereffects_in_name or self.in_name
         if self.in_name is not None and self.params.rhe_targets() is not None and len(self.params.rhe_targets()):
             self.in_name = self.params.rhe_targets().pop(0)
-            print(f"{self.in_name =}")
+            logger.info(f"{self.in_name =}")
 
     def do_work(self):
         upsilon = self.get_alphas() if self.params.do_upsilon_together else None
@@ -432,7 +434,7 @@ class MSGNProcessor(SunPyProcessor):
         self.select_input_frame(in_name)
         super().__init__(params, quick, rp, self.in_name)
         self.out_name = self.out_name.format(self.in_name)
-        print(" --- Running MSGN on {} ---".format(self.in_name))
+        logger.info(" --- Running MSGN on {} ---".format(self.in_name))
 
     def select_input_frame(self, in_name):
         self.in_name = in_name
@@ -472,7 +474,7 @@ class WOWProcessor(SunPyProcessor):
         self.select_input_frame(in_name)
         super().__init__(params, quick, rp, self.in_name)
         self.out_name = self.out_name.format(self.in_name)
-        print(" --- Running WOW on {} ---".format(self.in_name))
+        logger.info(" --- Running WOW on {} ---".format(self.in_name))
 
     def select_input_frame(self, in_name):
         self.in_name = in_name

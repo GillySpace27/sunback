@@ -1,5 +1,7 @@
 # # Main Command Structure
 import sys
+import logging
+logger = logging.getLogger(__name__)
 from time import sleep, time, asctime, localtime
 import numpy as np
 from tqdm import tqdm
@@ -13,6 +15,10 @@ class Runner:
     def start(self, verb=True):
         """Select whether to run or to debug"""
         self.start_timestamp = time()
+        # 2026-10-02 (SB-11): prints became log calls; a runner with no logging set up still
+        # shows them on stdout, with the same text the prints had.
+        if not logging.getLogger().handlers:
+            logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
         if verb: self.print_header()
         self.verb=verb
         if self.params.is_debug():
@@ -38,17 +44,17 @@ class Runner:
                 self.process()
                 fail_count -= 1
             except (KeyboardInterrupt, SystemExit):
-                print("\n\nOk, I'll Stop. Doot!\n")
+                logger.info("\n\nOk, I'll Stop. Doot!\n")
                 break
             except Exception as error:
                 fail_count += 1
                 if fail_count < fail_max:
                     out_string = "I failed, but I'm ignoring it. Count: {}/{}\n".format(fail_count, fail_max)
-                    print(out_string, error, "\n\n")
+                    logger.info("%s %s %s", out_string, error, "\n\n")
                     # raise error  # 2026-10-02 (SB-11): raising here made the retry below unreachable
                     continue
                 else:
-                    print("Too Many Failures, I Quit!")
+                    logger.info("Too Many Failures, I Quit!")
                     sys.exit(1)
             if self.params.stop_after_one():
                 break
@@ -60,10 +66,10 @@ class Runner:
         #     self.process_single()
         #     return
 
-        print(self.wall_2)
+        logger.info(self.wall_2)
         # print(self.params.runner_name)
-        print("Starting Batch: {}".format(self.params.batch_name()))
-        print(self.wall_2, "\n")
+        logger.info("Starting Batch: {}".format(self.params.batch_name()))
+        logger.info("%s %s", self.wall_2, "\n")
         self.params.set_waves_to_do()
 
         pbar = tqdm(self.params.waves_to_do, desc="4k Rainbow", unit="img")
@@ -74,9 +80,9 @@ class Runner:
 
             if len(self.params.fetchers()) > 0:
                 sys.stdout.flush()
-                print("\n\n>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<")
-                print(">>>>>>>>>> Fetching Images <<<<<<<<<<", flush=True)
-                print("\r>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<\n")
+                logger.info("\n\n>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<")
+                logger.info(">>>>>>>>>> Fetching Images <<<<<<<<<<")
+                logger.info("\r>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<\n")
 
                 # print(" Redownload Mode: {}\n".format(self.params.download_files()))
                 for fet, rp in zip(self.params.fetchers(), self.params._fet_rp):
@@ -88,9 +94,9 @@ class Runner:
 
             if len(self.params.processors()) > 0:
                 sys.stdout.flush()
-                print("\r\n>>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<<")
-                print(">>>>>>>>>> Processing Images <<<<<<<<<<", flush=True)
-                print("\r>>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<<\n")
+                logger.info("\r\n>>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<<")
+                logger.info(">>>>>>>>>> Processing Images <<<<<<<<<<")
+                logger.info("\r>>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<<\n")
 
                 # print(" Reprocess Mode: {}\n".format(self.params.reprocess_mode()))
                 sys.stdout.flush()
@@ -102,9 +108,9 @@ class Runner:
 
             if len(self.params.putters()) > 0:
                 sys.stdout.flush()
-                print("\r>>>>>>>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<<<<<<<")
-                print(">>>>>>>>>> Outputting Images or Movies <<<<<<<<<<", flush=True)
-                print("\r>>>>>>>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<<<<<<<\n")
+                logger.info("\r>>>>>>>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<<<<<<<")
+                logger.info(">>>>>>>>>> Outputting Images or Movies <<<<<<<<<<")
+                logger.info("\r>>>>>>>>>>>>>>>>>>>>>>>>*<<<<<<<<<<<<<<<<<<<<<<<<\n")
 
                 # print(" Redo Imgs: {}".format(self.params.overwrite_pngs()))
                 # print(" Redo Videos: {}".format(self.params.write_video()))
@@ -114,7 +120,7 @@ class Runner:
                     try:
                         put_instance.put()
                     except StopIteration:
-                        print("StopIteration Raised")
+                        logger.info("StopIteration Raised")
                         break
 
                 put_instance.cleanup()
@@ -123,18 +129,18 @@ class Runner:
 
     ## PRINTING
     def print_header(self):
-        print("\n\n", self.wall_1, "\n")
-        print("          Sunback SDO Image Manipulator ")
-        print("              Written by C.R. Gilly")
-        print("     Check out my website: http://gilly.space\n")
+        logger.info("%s %s %s", "\n\n", self.wall_1, "\n")
+        logger.info("          Sunback SDO Image Manipulator ")
+        logger.info("              Written by C.R. Gilly")
+        logger.info("     Check out my website: http://gilly.space\n")
         self.start_timestamp = time()
-        if self.params.is_debug(): print("                    DEBUG MODE\n")
+        if self.params.is_debug(): logger.info("                    DEBUG MODE\n")
         self.print_plan_start()
-        print("\n", self.wall_1, "\n\n")
+        logger.info("%s %s %s", "\n", self.wall_1, "\n\n")
 
     def print_plan_start(self):
         end=False
-        print("   Here's the Plan:")
+        logger.info("   Here's the Plan:")
 
         if len(self.params.fetchers()) > 0:
             for fet in self.params.fetchers():
@@ -148,36 +154,36 @@ class Runner:
             for put in self.params.putters():
                 put.plan(put, end=end)
 
-        print("   And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
+        logger.info("   And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
         # print("\n")
-        print("\n Run Name: {}".format(self.params.batch_name()))
-        print(" Run Type: {}\n".format(self.params.run_type()))
+        logger.info("\n Run Name: {}".format(self.params.batch_name()))
+        logger.info(" Run Type: {}\n".format(self.params.run_type()))
 
     def print_plan_end(self):
         end=True
-        print("   Summery of Previous Job:")
+        logger.info("   Summery of Previous Job:")
 
         for the_proc in self.params.processors_ran:
             the_proc.plan(the_proc, end=end)
         self.params.processors_ran = []
 
-        print("   And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
+        logger.info("   And Stop After One Loop" if self.params.stop_after_one() else "  And then repeat!")
         # print("\n")
-        print(" Run Name: {}".format(self.params.batch_name()))
-        print(" Run Type: {}\n".format(self.params.run_type()))
+        logger.info(" Run Name: {}".format(self.params.batch_name()))
+        logger.info(" Run Type: {}\n".format(self.params.run_type()))
 
     def print_end_banner(self):
         mode_string = "" if self.params.stop_after_one() else ", Restarting Loop"
-        print("\n" + self.wall_2)
-        print("Started at {}".format(asctime(localtime(self.start_timestamp))))
+        logger.info("\n" + self.wall_2)
+        logger.info("Started at {}".format(asctime(localtime(self.start_timestamp))))
         self.elapsed = time() - self.start_timestamp
         self.start_timestamp = time()
-        print("Ended  at  {}".format(asctime(localtime(self.start_timestamp))))
+        logger.info("Ended  at  {}".format(asctime(localtime(self.start_timestamp))))
         minutes = int(np.floor(self.elapsed / 60))
         seconds = round(self.elapsed - minutes * 60, 3)
-        print("  Program Complete in {} minutes and {} seconds. {}".format(minutes, seconds, mode_string))
+        logger.info("  Program Complete in {} minutes and {} seconds. {}".format(minutes, seconds, mode_string))
         self.print_plan_end()
-        print(self.wall_2 + "\n")
+        logger.info(self.wall_2 + "\n")
         delay = self.params.delay_seconds()
         # self.params.multi_pool.close()
 
@@ -189,7 +195,7 @@ class Runner:
         # for ii in range(4):
             if self.verb:
 
-                print(r"""           '
+                logger.info(r"""           '
                               .      '      .
                         .      .     :     .      .
                          '.        ______       .'
@@ -214,7 +220,7 @@ class Runner:
                 sleep(0.5)
 
                 for i in range(5):
-                    print("\n  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *")
+                    logger.info("\n  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *")
 
 
 
@@ -239,9 +245,9 @@ class SingleRunner(Runner):
 
     def print_start_banner(self):
         """Display some Pertinent Values"""
-        print(self.wall_2)
-        print("Starting Job: {}".format(self.params.batch_name()))
-        print(self.wall_2, "\n")
+        logger.info(self.wall_2)
+        logger.info("Starting Job: {}".format(self.params.batch_name()))
+        logger.info("%s %s", self.wall_2, "\n")
 
     def assemble_processors(self):
         """Concatinate all the types of processor into a single list"""
@@ -265,9 +271,9 @@ class SingleRunner(Runner):
 
         for proc in self.processor_list:
             # proc.process(image_path=self.params.use_image_path())
-            print("\n>>-->>  {}: {}  <<--<<".format(proc.filt_name, proc.description))
+            logger.info("\n>>-->>  {}: {}  <<--<<".format(proc.filt_name, proc.description))
             proc.process(params=self.params)
-            print('')
+            logger.info('')
 
     # def image_generator(self):
     #     waves = self.params.set_waves_to_do()

@@ -1,4 +1,6 @@
 from os.path import split
+import logging
+logger = logging.getLogger(__name__)
 from os import makedirs
 from time import time
 from tqdm import tqdm
@@ -143,7 +145,7 @@ def png_provenance(png_path, fits_dir, upload_time):
         try:
             found.append(header_provenance(path))
         except (OSError, ValueError) as exc:
-            print(f"\t* provenance: could not read {path}: {exc}")
+            logger.info(f"\t* provenance: could not read {path}: {exc}")
     ends = [f["obs_end"] for f in found if f["obs_end"]]
     starts = [f["obs_start"] or f["obs_end"] for f in found if f["obs_end"]]
     newest = max(found, key=lambda f: f["obs_end"]) if ends else {}
@@ -243,7 +245,7 @@ class AwsPutter(Putter):
         if params is not None:
             self.__init__(params)
         self.settings = NrtSettings.from_env()
-        print(" V Uploading PNGs to s3://{}/{}...".format(self.settings.bucket, self.settings.prefix), flush=True)
+        logger.info(" V Uploading PNGs to s3://{}/{}...".format(self.settings.bucket, self.settings.prefix))
         # NOTE: do NOT empty the bucket. The Lambda video-builder maintains the
         # frames/ queue and video/ outputs there; wiping would destroy the 48h
         # sliding window every run. The reducer only overwrites its own keys.
@@ -275,10 +277,10 @@ class AwsPutter(Putter):
             if found:
                 break
         if not found:
-            print("\t* No temperature-scan video found; skipping.")
+            logger.info("\t* No temperature-scan video found; skipping.")
             return
         key = upload_public(found, "video/rhef_tscan.mp4", "video/mp4", settings=self._settings())
-        print(f"\t* Uploaded temperature-scan video -> {key}")
+        logger.info(f"\t* Uploaded temperature-scan video -> {key}")
 
     def _settings(self):
         settings = getattr(self, "settings", None)
@@ -317,7 +319,7 @@ class AwsPutter(Putter):
         else:
             self.upload_serial(to_upload, pbar)
         pbar.close()
-        print(" ^ Success! Uploaded {} PNGs\n".format(len(self.params.local_imgs_paths())))
+        logger.info(" ^ Success! Uploaded {} PNGs\n".format(len(self.params.local_imgs_paths())))
 
     def upload_serial(self, to_upload=None, pbar=None):
         if to_upload is None:
@@ -346,7 +348,7 @@ class AwsPutter(Putter):
             if prov[key]:
                 meta[key] = prov[key]
         if prov["obstime_source"] == "upload":
-            print(f"\t* {product_id}: no header time found; obstime falls back to upload time")
+            logger.info(f"\t* {product_id}: no header time found; obstime falls back to upload time")
         tagged = write_png_text(root_path, os.path.join(os.path.dirname(root_path), f".meta_{product_id}.png"),
                                 png_text_chunks(prov))
 
@@ -400,4 +402,4 @@ class AwsPutter(Putter):
         upload_public(path, os.path.basename(path), "text/plain", settings=settings)
         if settings.write_readable_times:
             upload_public(path2, os.path.basename(path2), "text/plain", settings=settings)
-        print("Done! ", flush=True)
+        logger.info("Done! ")

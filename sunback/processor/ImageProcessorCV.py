@@ -104,7 +104,7 @@ class ImageProcessorCV(ImageProcessor):
         self.display_changed()
 
     def display_raw(self):
-        print("lev1p0")
+        logger.info("lev1p0")
         self.frame = np.flipud(self.params.raw_image)
         self.prep_save()
         plt.imshow(self.frame)
@@ -112,7 +112,7 @@ class ImageProcessorCV(ImageProcessor):
         plt.show(block=True)
 
     def display_changed(self):
-        print("Changed")
+        logger.info("Changed")
         self.frame = np.flipud(self.params.modified_image)
         self.prep_save()
         plt.imshow(self.frame)
@@ -127,7 +127,7 @@ class ImageProcessorCV(ImageProcessor):
             out = self.plot_aia_changed(self.frame_name)
             return out
         except ValueError as e:
-            print(e)
+            logger.info(e)
             self.skipped += 1
 
     def do_shortcut(self):
@@ -237,7 +237,7 @@ class ImageProcessorCV(ImageProcessor):
             try:
                 img = self.label_plot(self.img_frame)
             except (ValueError, AttributeError) as e:
-                print(186, e)
+                logger.info("%s %s", 186, e)
                 img = self.img_frame
             b, g, r = cv2.split(img)
             rgb_img = cv2.merge([r, g, b])
@@ -342,7 +342,7 @@ class ImageProcessorCV(ImageProcessor):
                 thickness,
             )
         except (SystemError, ValueError) as e:
-            print(238, e)
+            logger.info("%s %s", 238, e)
 
         return img
 
@@ -432,7 +432,7 @@ class MultiImageProcessorCv(ImageProcessorCV):
         try:
             paths = os.listdir(j_directory)
         except FileNotFoundError as e:
-            print("\nNo JPEG Image Found")
+            logger.info("\nNo JPEG Image Found")
             self.params.doing_jpeg = False
             return
             # paths = []
@@ -817,7 +817,7 @@ class MultiHistogramProcessorCv(MultiImageProcessorCv):
         try:
             paths = os.listdir(j_directory)
         except FileNotFoundError as e:
-            print("\nNo JPEG Image Found")
+            logger.info("\nNo JPEG Image Found")
             self.params.doing_jpeg = False
             return
             # paths = []
@@ -876,7 +876,7 @@ class ImageProcessorHDR(ImageProcessorCV):
         hdr_image=self.label_plot(hdr_image, max=0.1)
 
         if hdr_image is None:
-            print(f"[ERROR] Skipping {fits_path}: Failed to load data.")
+            logger.info(f"[ERROR] Skipping {fits_path}: Failed to load data.")
             return None
 
         output_path_heic = self.get_output_path(fits_path, "heic")
@@ -898,7 +898,7 @@ class ImageProcessorHDR(ImageProcessorCV):
                 data = np.flipud(data)
                 return data
         except Exception as e:
-            print(f"[ERROR] Failed to load FITS {fits_path}: {e}")
+            logger.info(f"[ERROR] Failed to load FITS {fits_path}: {e}")
             return None
 
 
@@ -911,13 +911,13 @@ class ImageProcessorHDR(ImageProcessorCV):
         header['channels'] = {'R': half_chan, 'G': half_chan, 'B': half_chan}
 
         # Convert to OpenEXR format
-        print(image.shape, image.dtype)
+        logger.info("%s %s", image.shape, image.dtype)
         image_data = (image.astype(np.float16)).tobytes()
 
         exr_file = OpenEXR.OutputFile(filename, header)
         exr_file.writePixels({'R': image_data, 'G': image_data, 'B': image_data})
         exr_file.close()
-        print(f"Saved HDR image: {filename}")
+        logger.info(f"Saved HDR image: {filename}")
 
     def apply_pq_curve(self, image):
         """Apply Perceptual Quantizer (PQ) transfer function for HDR mapping."""
@@ -955,7 +955,7 @@ class ImageProcessorHDR(ImageProcessorCV):
         exr_file = OpenEXR.OutputFile(filename, header)
         exr_file.writePixels({'Y': image_bytes})
         exr_file.close()
-        print(f"Saved grayscale HDR image: {filename}")
+        logger.info(f"Saved grayscale HDR image: {filename}")
 
 
     def convert_exr_to_hdr_video(self, input_exr, frame_rate=1):
@@ -1000,7 +1000,7 @@ class ImageProcessorHDR(ImageProcessorCV):
         out_img.write_image((pixels * 65535).astype(np.uint16))
         out_img.close()
 
-        print(f"✅ Saved PNG: {temp_png}")
+        logger.info(f"✅ Saved PNG: {temp_png}")
 
         # Verify PNG file size
         png_size = os.path.getsize(temp_png)
@@ -1014,18 +1014,18 @@ class ImageProcessorHDR(ImageProcessorCV):
         -b:v 50M -crf 18 -preset slow -x265-params "hdr10=1:hdr10-opt=1" {output_video}
         """
 
-        print("Running FFmpeg command:\n", ffmpeg_cmd)
+        logger.info("%s %s", "Running FFmpeg command:\n", ffmpeg_cmd)
         subprocess.run(ffmpeg_cmd, shell=True, check=True)
 
         # Verify MP4 file size
         mp4_size = os.path.getsize(output_video)
         if mp4_size < 1024 * 3000:  # At least 3 MB
-            print("❌ Error: MP4 file seems too small, encoding may have failed.")
+            logger.info("❌ Error: MP4 file seems too small, encoding may have failed.")
 
         # Clean up
         # os.remove(temp_png)
 
-        print(f"✅ HDR10 video created: {output_video}")
+        logger.info(f"✅ HDR10 video created: {output_video}")
 
     # def convert_exr_to_hdr_video(self, input_exr, frame_rate=1):
     #     """
@@ -1089,7 +1089,7 @@ class ImageProcessorHDR(ImageProcessorCV):
         yuv_data.tofile(raw_yuv)
 
         # Convert raw YUV to PNG for debugging (preserving HDR dynamic range)
-        print(f"🖼️  Converting YUV to HDR PNG: {png_filename}")
+        logger.info(f"🖼️  Converting YUV to HDR PNG: {png_filename}")
 
         png_conversion_cmd = [
             "ffmpeg", "-y",
@@ -1103,11 +1103,11 @@ class ImageProcessorHDR(ImageProcessorCV):
         result = subprocess.run(png_conversion_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         if result.returncode != 0:
-            print(f"❌ Failed to create HDR PNG: {png_filename}")
-            print(result.stderr.decode())
+            logger.info(f"❌ Failed to create HDR PNG: {png_filename}")
+            logger.info(result.stderr.decode())
             return
 
-        print(f"✅ HDR PNG saved: {png_filename} (Check for correct dynamic range)")
+        logger.info(f"✅ HDR PNG saved: {png_filename} (Check for correct dynamic range)")
 
         # FFmpeg command for HEIC conversion
         ffmpeg_cmd = [
@@ -1126,15 +1126,15 @@ class ImageProcessorHDR(ImageProcessorCV):
             filename
         ]
 
-        print(f"[DEBUG] Running ffmpeg command: {' '.join(ffmpeg_cmd)}")
+        logger.info(f"[DEBUG] Running ffmpeg command: {' '.join(ffmpeg_cmd)}")
         result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         if result.returncode == 0 and os.path.exists(filename):
-            print(f"✅ HEIC saved via FFmpeg: {filename}")
+            logger.info(f"✅ HEIC saved via FFmpeg: {filename}")
             # os.remove(raw_yuv)  # Clean up intermediate YUV file
             return
 
-        print(f"⚠️ FFmpeg failed to create HEIC. Trying ImageMagick...")
+        logger.info(f"⚠️ FFmpeg failed to create HEIC. Trying ImageMagick...")
 
         # Try ImageMagick (`convert`) as a fallback
         if shutil.which("convert"):
@@ -1142,11 +1142,11 @@ class ImageProcessorHDR(ImageProcessorCV):
             result = subprocess.run(convert_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             if result.returncode == 0 and os.path.exists(filename):
-                print(f"✅ HEIC saved via ImageMagick: {filename}")
+                logger.info(f"✅ HEIC saved via ImageMagick: {filename}")
                 # os.remove(raw_yuv)  # Clean up intermediate YUV file
                 return
 
-            print(f"⚠️ ImageMagick failed. Trying `heif-enc`...")
+            logger.info(f"⚠️ ImageMagick failed. Trying `heif-enc`...")
 
         # Try `heif-enc` as the final fallback
         if shutil.which("heif-enc"):
@@ -1154,13 +1154,13 @@ class ImageProcessorHDR(ImageProcessorCV):
             result = subprocess.run(heif_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             if result.returncode == 0 and os.path.exists(filename):
-                print(f"✅ HEIC saved via heif-enc: {filename}")
+                logger.info(f"✅ HEIC saved via heif-enc: {filename}")
                 # os.remove(raw_yuv)  # Clean up intermediate YUV file
                 return
 
-            print(f"❌ Failed to save HEIC using all methods.")
+            logger.info(f"❌ Failed to save HEIC using all methods.")
 
-        print(f"⚠️ The PNG file {png_filename} has been preserved for manual inspection.")
+        logger.info(f"⚠️ The PNG file {png_filename} has been preserved for manual inspection.")
 
     def get_output_path(self, fits_path, extension):
         """Generate output file path based on input FITS file."""

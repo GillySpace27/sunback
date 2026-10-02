@@ -24,6 +24,8 @@
 #
 #
 import os
+import logging
+logger = logging.getLogger(__name__)
 from os.path import join
 
 from astropy.io import fits
@@ -53,7 +55,7 @@ class ValidationProcessor(Processor):
 #
     def fetch(self):
         """Do whatever you want to each image_path in the directory"""
-        print("Old validator tried to run --------------")
+        logger.info("Old validator tried to run --------------")
 
         pass
         # to_destroy = self.validate_fits()
@@ -145,30 +147,30 @@ class ValidationProcessor(Processor):
 
         dead_paths = [local_fits_path, png_path, png_path.replace("mod", "cat"), png_path.replace("mod", "orig")]
         deleted_files = 0
-        print()
+        logger.info("")
         for path in dead_paths:
             try:
                 print("    Deleting a File...", end="")
                 os.remove(path)
                 if os.path.exists(path):
                     raise FileExistsError(path)
-                print("Success!")
+                logger.info("Success!")
                 deleted_files += 1
             except PermissionError as e:
-                print(" Couldn't Access/Delete\n {}".format(path))
-                print(e)
+                logger.info(" Couldn't Access/Delete\n {}".format(path))
+                logger.info(e)
                 # raise e
             except FileExistsError as e:
-                print(" File was still there after attempted deletion\n{}".format(os.path.basename(path)))
+                logger.info(" File was still there after attempted deletion\n{}".format(os.path.basename(path)))
                 # print(e)
             except FileNotFoundError as e:
                 # print(" Not Found to Delete\n {}".format(path))
                 pass
             except Exception as e:
-                print(" Failed to Delete\n {}".format(path))
-                print(e)
+                logger.info(" Failed to Delete\n {}".format(path))
+                logger.info(e)
                 1+1
-        print("Actually Deleted {} Files".format(deleted_files))
+        logger.info("Actually Deleted {} Files".format(deleted_files))
 
         # try:
         # # try:

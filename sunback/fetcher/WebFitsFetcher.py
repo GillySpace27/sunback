@@ -20,6 +20,7 @@ import urllib.request
 import urllib.error
 from bs4 import BeautifulSoup
 import logging
+logger = logging.getLogger(__name__)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -54,7 +55,7 @@ class WebFitsFetcher(Fetcher):
             # jpaths = self.fetch_jpegs()
             return paths
         else:
-            print("Skipping download!")
+            logger.info("Skipping download!")
             ()
 
         return self.params.local_fits_paths()
@@ -81,10 +82,7 @@ class WebFitsFetcher(Fetcher):
         if self.params.get_fits:
             if self.destroy:
                 self.delete_directory_items(self.fits_folder)
-            print(
-                " V  Downloading Fits Files from {}...".format(self.base_url),
-                flush=True,
-            )
+            logger.info(" V  Downloading Fits Files from {}...".format(self.base_url))
 
             img_links = self.__get_fits_links(self.base_url)
             pbar_iter = tqdm(img_links, desc=" * Downloading Fits")
@@ -98,19 +96,17 @@ class WebFitsFetcher(Fetcher):
             for res in results:
                 try:
                     self.ii += 1
-                except:
+                except Exception as err:  # was a bare except (2026-10-02, SB-11)
+                    logger.debug("download counter not set yet (%r); starting at 1", err)
                     self.ii = 1
                 paths.append(res)
                 # self.rename_start_frames(res)
 
-            print(
-                "\r ^  Successfully Downloaded {} Files\n".format(len(paths)),
-                flush=True,
-            )
+            logger.info("\r ^  Successfully Downloaded {} Files\n".format(len(paths)))
             return paths
 
     def fetch_jpegs(self):
-        print(" V  Gathering JPEGS...")
+        logger.info(" V  Gathering JPEGS...")
         self.print_once = False
         self.prep_for_jpeg_fetch()
         pbar_iter = tqdm(self.j_paths, desc=" * Downloading JPEGs")
@@ -151,10 +147,10 @@ class WebFitsFetcher(Fetcher):
             # except urllib.error.ContentTooShortError:
             # pass
             except Exception as e:
-                print("Failed Download...Retrying {} / {}".format(ii, tries))
-                print(str(e))
-                print(link)
-                print(local_path)
+                logger.info("Failed Download...Retrying {} / {}".format(ii, tries))
+                logger.info(str(e))
+                logger.info(link)
+                logger.info(local_path)
                 if ii == tries:
                     raise e
         return local_path
@@ -208,7 +204,7 @@ class WebFitsFetcher(Fetcher):
                 with ureq.urlopen(link, context=context) as resp:
                     fp.write(resp.read())
         except Exception as e:
-            print(f"An error occurred while downloading the file: {e}")
+            logger.info(f"An error occurred while downloading the file: {e}")
             return None
         return filename
 
@@ -262,7 +258,7 @@ class WebFitsFetcher(Fetcher):
         for wave in self.params.all_wavelengths:
             link = urllib.parse.urljoin(url, f"AIAsynoptic{int(wave):04}.fits")
             links.append(link)
-            print(link)
+            logger.info(link)
         return links
 
     def __get_fits_links(self, url):
