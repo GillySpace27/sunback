@@ -62,12 +62,16 @@ def test_empty_the_bucket_always_raises(monkeypatch):
 TODAYS_KEYS = [
     ("the-sun-now", "1k/rhef_171_1k.png", "image/png", True),
     ("the-sun-now", "thumb/rhef_171_thumb.png", "image/png", False),
+    ("the-sun-now", "meta/rhef_171.json", "application/json", False),  # SB-9 sidecar
     ("the-sun-now", "1k/rhef_rainbow_1k.png", "image/png", True),
     ("the-sun-now", "thumb/rhef_rainbow_thumb.png", "image/png", False),
+    ("the-sun-now", "meta/rhef_rainbow.json", "application/json", False),  # SB-9 sidecar
     ("the-sun-now", "1k/rhef_composite_uv_1k.png", "image/png", True),
     ("the-sun-now", "thumb/rhef_composite_uv_thumb.png", "image/png", False),
+    ("the-sun-now", "meta/rhef_composite_uv.json", "application/json", False),  # SB-9 sidecar
     ("the-sun-now", "1k/rhef_dem_1k.png", "image/png", True),
     ("the-sun-now", "thumb/rhef_dem_thumb.png", "image/png", False),
+    ("the-sun-now", "meta/rhef_dem.json", "application/json", False),  # SB-9 sidecar
     ("the-sun-now", "video/rhef_tscan.mp4", "video/mp4", False),
     ("the-sun-now", "image_times.txt", "text/plain", False),
     ("the-sun-now", "image_times_readable.txt", "text/plain", False),
@@ -109,6 +113,7 @@ def _run_put(tmp_path):
     params.base_directory.return_value = str(tmp_path)
     params.time_path.return_value = str(tmp_path / "image_times.txt")
     params.local_fits_paths.return_value = [str(tmp_path / "AIAsynoptic0171.fits")]
+    params.fits_directory.return_value = str(tmp_path / "no-fits")  # SB-9: no FITS, so upload-time fallback
 
     putter = aws.AwsPutter.__new__(aws.AwsPutter)  # skip Processor.__init__ (no FITS needed)
     putter.params = params

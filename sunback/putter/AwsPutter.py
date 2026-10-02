@@ -13,7 +13,11 @@ from datetime import datetime, timezone
 
 from sunback.utils.array_util import get_thumblinks, make_thumbs
 from sunback.putter.serve_keys import serve_id_for_local_png, s3_img_key, s3_thumb_key
+from sunback.putter.serve_keys import SERVED_CHANNELS, s3_meta_key
 from sunback.settings import NrtSettings
+import glob
+import json
+import re
 
 THUMB_PX = 512
 
@@ -63,6 +67,164 @@ def upload_public(local_path, key, content_type, cache_control=None, metadata=No
         extra["Metadata"] = metadata
     get_s3_client().upload_file(local_path, settings.bucket, full_key, ExtraArgs=extra)
     return full_key
+
+
+# --- SB-9: honest time and visible provenance -----------------------------------
+# Which integrated FITS feed each served still. Singles map through
+# SERVED_CHANNELS; composites per CompositeRainbowImageProcessor (rgb1, rgb3);
+# DEM per ScienceProcessor.DEMReconstructionProcessor.channel_waves.
+PRODUCT_INPUT_WAVES = {
+    **{pid: (wave,) for wave, pid in SERVED_CHANNELS.items()},
+    "rainbow": ("0171", "0193", "0211"),
+    "composite_uv": ("1700", "1600", "0304"),
+    "dem": ("0094", "0131", "0171", "0193", "0211", "0335"),
+}
+
+# Wording for Gilly to confirm before merge (overview Q18); WS-17 shows the same strings.
+RHEF_CITATION = "Gilly and Cranmer 2025, Solar Physics, doi:10.1007/s11207-025-02578-x"
+CREDIT = "Imagery courtesy of NASA/SDO and the AIA science team."
+# Read from sunback_webapp api/solar-archive.js (CITATIONS.AIA_PAPER); matches the vault's instruments/AIA.md.
+AIA_PAPER = "Lemen, J. R., et al. 2012, Sol. Phys., 275, 17."
+RHEF_NOTE = "RHEF output is a visualization, not a calibrated radiance."
+
+_ISO_RE = re.compile(r"(\d{4})[-.](\d{2})[-.](\d{2})[T_ ](\d{2}):(\d{2}):(\d{2})")
+
+
+def _iso_z(value):
+    """'2026-09-28T12:00:00.12' or '2026.09.28_12:00:00' -> '2026-09-28T12:00:00Z'; '' if no time.
+
+    A _TAI suffix, if a header ever carries one, is not converted.
+    """
+    m = _ISO_RE.search(str(value or ""))
+    return "{}-{}-{}T{}:{}:{}Z".format(*m.groups()) if m else ""
+
+
+def header_provenance(fits_path):
+    """Times and integration recorded in one integrated synoptic FITS (empty strings when absent)."""
+    from astropy.io import fits
+    from sunback.fetcher.nrt_integrate import frame_time
+
+    with fits.open(fits_path) as hdul:
+        header = next((h.header for h in hdul if h.header.get("NAXIS", 0) == 2), hdul[-1].header)
+        _, newest = frame_time(header)
+        return {
+            "obs_start": _iso_z(header.get("TINT_T0", "")),
+            "obs_end": _iso_z(newest),
+            "tint_n": str(header.get("TINT_N", "")),
+            "tint_m": str(header.get("TINT_M", "")),
+        }
+
+
+def _find_fits(fits_dir, wave):
+    if not fits_dir:
+        return None
+    name = f"AIAsynoptic{wave}.fits"
+    direct = os.path.join(fits_dir, name)
+    if os.path.exists(direct):
+        return direct
+    hits = sorted(glob.glob(os.path.join(fits_dir, "**", name), recursive=True), key=os.path.getmtime)
+    return hits[-1] if hits else None
+
+
+def png_provenance(png_path, fits_dir, upload_time):
+    """Provenance of one served still from the integrated FITS behind it.
+
+    obstime is the newest input's newest frame (obs_end); obs_start is the
+    oldest frame of any input. Without a readable header time the upload time
+    is used and flagged obstime_source='upload'.
+    """
+    product_id = serve_id_for_local_png(png_path)
+    waves = PRODUCT_INPUT_WAVES.get(product_id, ())
+    found = []
+    for wave in waves:
+        path = _find_fits(fits_dir, wave)
+        if path is None:
+            continue
+        try:
+            found.append(header_provenance(path))
+        except (OSError, ValueError) as exc:
+            print(f"\t* provenance: could not read {path}: {exc}")
+    ends = [f["obs_end"] for f in found if f["obs_end"]]
+    starts = [f["obs_start"] or f["obs_end"] for f in found if f["obs_end"]]
+    newest = max(found, key=lambda f: f["obs_end"]) if ends else {}
+    if ends:
+        return {"product_id": product_id, "obstime": max(ends), "obstime_source": "header",
+                "obs_start": min(starts), "obs_end": max(ends),
+                "tint_n": newest.get("tint_n", ""), "tint_m": newest.get("tint_m", ""),
+                "inputs": list(waves)}
+    return {"product_id": product_id, "obstime": upload_time, "obstime_source": "upload",
+            "obs_start": "", "obs_end": "", "tint_n": "", "tint_m": "", "inputs": list(waves)}
+
+
+def obstime_for_png(png_path, fits_dir):
+    """(obstime_iso, source, obs_start_iso, obs_end_iso); source is 'header' or 'upload'."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    prov = png_provenance(png_path, fits_dir, now)
+    return prov["obstime"], prov["obstime_source"], prov["obs_start"], prov["obs_end"]
+
+
+def _version(dist):
+    from importlib.metadata import PackageNotFoundError, version
+    try:
+        return version(dist)
+    except PackageNotFoundError:
+        return "unknown"
+
+
+def png_text_chunks(prov):
+    return {"obs_start": prov["obs_start"], "obs_end": prov["obs_end"], "n_frames": prov["tint_n"],
+            "method": prov["tint_m"], "sunkit_image_version": _version("sunkit-image"),
+            "sunback_version": _version("sunback")}
+
+
+def write_png_text(src_png, dst_png, chunks):
+    """Lossless PNG re-save with tEXt chunks (the renderer writes with cv2, which has no hook)."""
+    from PIL import Image
+    from PIL.PngImagePlugin import PngInfo
+
+    info = PngInfo()
+    for key, value in chunks.items():
+        info.add_text(key, str(value))
+    with Image.open(src_png) as im:
+        im.save(dst_png, format="PNG", pnginfo=info)
+    return dst_png
+
+
+def sidecar_doc(prov):
+    """schema.org ImageObject; field names follow the Solar Archive provenance JSON
+    (sunback_webapp api/bundler.js _buildProvenanceJsonLd)."""
+    pid = prov["product_id"]
+    when = prov["obstime"]
+    props = [
+        ("instrument", "AIA"), ("spacecraft", "SDO"), ("productId", pid),
+        ("inputChannels", ",".join(w.lstrip("0") for w in prov["inputs"])),
+        ("observationStartUTC", prov["obs_start"]), ("observationDateUTC", prov["obs_end"] or when),
+        ("obstimeSource", prov["obstime_source"]),
+        ("integrationFrames", prov["tint_n"]), ("integrationMethod", prov["tint_m"]),
+        ("pipeline", "sunback NRT reducer: SunPy + sunkit-image (RHEF)"),
+        ("sunkitImageVersion", _version("sunkit-image")), ("sunbackVersion", _version("sunback")),
+        ("note", RHEF_NOTE),
+    ]
+    return {
+        "@context": "https://schema.org",
+        "@type": "ImageObject",
+        "name": f"The Sun, right now: {pid}",
+        "dateCreated": when,
+        "creator": {"@type": "Organization", "name": "The Sun, right now (gilly.space)"},
+        "contentLocation": "NASA/SDO/AIA",
+        "encodingFormat": "image/png",
+        "license": "https://sdo.gsfc.nasa.gov/data/rules.php",
+        "creditText": CREDIT,
+        "citation": [CREDIT, AIA_PAPER, RHEF_CITATION],
+        "isBasedOn": [{"@type": "Dataset", "name": f"AIA synoptic NRT {w.lstrip('0')} A",
+                       "datePublished": prov["obs_end"] or when,
+                       "distributor": "Joint Science Operations Center (JSOC), Stanford",
+                       "via": "https://jsoc1.stanford.edu/data/aia/synoptic/nrt/"} for w in prov["inputs"]],
+        "potentialAction": {"@type": "ViewAction",
+                            "description": "RHEF (Radial Histogram Equalization Filter); " + RHEF_CITATION},
+        "additionalProperty": [{"@type": "PropertyValue", "name": n, "value": str(v)} for n, v in props],
+    }
 
 
 class AwsPutter(Putter):
@@ -175,11 +337,21 @@ class AwsPutter(Putter):
         if product_id is None:
             return  # not a served product (see serve_keys.serve_id_for_local_png)
 
-        meta = {"obstime": getattr(self, "obstime", "")}
         settings = self._settings()
+        # SB-9: observation time from the integrated FITS header, per product;
+        # the upload time stamped in put() is only the flagged fallback.
+        prov = png_provenance(root_path, self.params.fits_directory(), getattr(self, "obstime", ""))
+        meta = {"obstime": prov["obstime"]}
+        for key in ("obstime_source", "obs_start", "obs_end", "tint_n", "tint_m"):
+            if prov[key]:
+                meta[key] = prov[key]
+        if prov["obstime_source"] == "upload":
+            print(f"\t* {product_id}: no header time found; obstime falls back to upload time")
+        tagged = write_png_text(root_path, os.path.join(os.path.dirname(root_path), f".meta_{product_id}.png"),
+                                png_text_chunks(prov))
 
-        # full-res 1k still
-        upload_public(root_path, s3_img_key(product_id), "image/png", metadata=meta, settings=settings)
+        # full-res 1k still (pixels identical to root_path; tEXt chunks added)
+        upload_public(tagged, s3_img_key(product_id), "image/png", metadata=meta, settings=settings)
 
         # THUMB_PX (512) square thumbnail (square 1024 source -> direct resize)
         img = cv2.imread(root_path, cv2.IMREAD_UNCHANGED)
@@ -188,6 +360,13 @@ class AwsPutter(Putter):
         cv2.imwrite(thumb_path, cv2.resize(img, (THUMB_PX, THUMB_PX),
                                            interpolation=cv2.INTER_AREA))
         upload_public(thumb_path, s3_thumb_key(product_id), "image/png", settings=settings)
+
+        # SB-9: provenance sidecar, rewritten each run beside the still
+        sidecar = os.path.join(os.path.dirname(root_path), f".meta_{product_id}.json")
+        with open(sidecar, "w", encoding="utf-8") as fp:
+            json.dump(sidecar_doc(prov), fp, indent=2)
+        upload_public(sidecar, s3_meta_key(product_id), "application/json", cache_control="no-cache",
+                      settings=settings)
 
     def __save_times(self):
         print("\t* Uploading Time File...", end='', flush=True)
