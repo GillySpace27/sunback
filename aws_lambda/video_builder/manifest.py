@@ -29,6 +29,11 @@ PRODUCTS = [
 
 _LABELS = {p["id"]: p["label"] for p in PRODUCTS}
 
+# The nine AIA channels served as single-wavelength cards (SB-6); the other ids
+# in PRODUCTS are composites or derived products. Bound to
+# serve_keys.SERVED_CHANNELS by sunback/__tests__/test_product_catalog.py.
+AIA_IDS = ("171", "193", "211", "304", "335", "94", "131", "1600", "1700")
+
 
 def img1k_key(product_id):
     return f"1k/rhef_{product_id}_1k.png"
