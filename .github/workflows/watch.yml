@@ -1,0 +1,88 @@
+name: watch
+
+# SB-8: public, secondary "is the Sun stale?" signal. The primary signal is the
+# CloudWatch alarm set (Gilly-applied, recorded in infra/declared/), because
+# GitHub cron was throttled to 45-90 min on 2026-06-26. This job only reads the
+# public bucket and the JSOC listing; it never touches AWS.
+on:
+  schedule:
+    - cron: '37 * * * *'   # hourly, offset from the reducer's :00 fallback
+  workflow_dispatch:
+    inputs:
+      threshold:
+        description: "Seconds before a product counts as stale (default 3600; 60 to test the issue path)"
+        required: false
+        default: '3600'
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: watch
+  cancel-in-progress: false
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TITLE: Sun is stale
+      THRESHOLD: ${{ inputs.threshold || '3600' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Check freshness
+        id: fresh
+        run: |
+          rc=0
+          python3 devtools/scripts/check_freshness.py --threshold "$THRESHOLD" --json > fresh.json || rc=$?
+          cat fresh.json
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          if [ "$rc" = "3" ]; then echo "::warning::freshness UNCHECKED: bucket unreachable from the runner"; fi
+
+      - name: Is the upstream NRT listing empty too?
+        id: upstream
+        if: steps.fresh.outputs.rc == '1'
+        run: |
+          n=0
+          for h in 0 1; do
+            dir=$(date -u -d "-${h} hour" +%Y/%m/%d/H%H00)
+            c=$(curl -s --max-time 20 "https://jsoc1.stanford.edu/data/aia/synoptic/nrt/${dir}/" | grep -c '\.fits"' || true)
+            n=$((n + ${c:-0}))
+          done
+          echo "fits_listed=$n" >> "$GITHUB_OUTPUT"
+          echo "JSOC NRT .fits entries in the last two hour buckets: $n"
+
+      - name: Open or update the stale issue
+        if: steps.fresh.outputs.rc == '1'
+        env:
+          FITS_LISTED: ${{ steps.upstream.outputs.fits_listed }}
+        run: |
+          {
+            echo "Freshness check failed at $(date -u +%Y-%m-%dT%H:%M:%SZ) (threshold ${THRESHOLD} s); run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
+            echo
+            python3 -c "import json; d=json.load(open('fresh.json')); [print('- \`%s\`: %s, age %s s' % (r['key'], r['status'], r['age_s'])) for r in d['results'] if r['status'] != 'fresh']"
+            echo
+            if [ "${FITS_LISTED:-0}" = "0" ]; then
+              echo "The JSOC synoptic NRT listing for the last two hours is empty too: upstream NRT may be down."
+            else
+              echo "JSOC lists ${FITS_LISTED} new .fits files, so upstream looks alive: check the dispatcher, the reducer runs and the sun-video-builder alarms."
+            fi
+          } > body.md
+          num=$(gh issue list --state open --label ops --json number,title --jq '.[] | select(.title == env.TITLE) | .number' | head -n 1)
+          if [ -z "$num" ]; then
+            gh issue create --title "$TITLE" --label ops --body-file body.md
+          else
+            gh issue comment "$num" --body-file body.md
+          fi
+
+      - name: Close the stale issue when fresh again
+        if: steps.fresh.outputs.rc == '0'
+        run: |
+          for num in $(gh issue list --state open --label ops --json number,title --jq '.[] | select(.title == env.TITLE) | .number'); do
+            gh issue close "$num" --comment "Fresh again at $(date -u +%Y-%m-%dT%H:%M:%SZ) (threshold ${THRESHOLD} s); run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
+          done
