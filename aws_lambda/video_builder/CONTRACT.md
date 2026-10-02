@@ -143,3 +143,27 @@ Lambda change first.
 
 Additive only: none of these is ever renamed or removed. The MP4 custom tag needs
 `-movflags +faststart+use_metadata_tags` in `_build_video`.
+
+## Contract versions, schema and fixtures
+
+Contract version 1 is the key layout, the fragment and index fields and the cache headers described above, as captured in `fixtures/contract-v1/` (see its `README.md` for the capture date and URL).
+
+**Schema.** `schema/manifest-fragment.schema.json` and `schema/index.schema.json` describe `manifest/<id>.json` and `manifest/index.json`; `schema/validate.py` is a standard-library validator (`validate(instance, schema) -> list[str]`; `type`, `required`, `properties`, `items`, `pattern`, `enum`). Unknown keys are allowed by the schema (`additionalProperties: true`): readers must ignore keys they do not know. The schema, `FRAGMENT_REQUIRED` and `FRAGMENT_OPTIONAL` in `manifest.py` and the tables above change together, in one commit (`sunback/__tests__/test_manifest.py::test_schema_agrees_with_manifest_constants` fails otherwise).
+
+**Fixtures.** `fixtures/contract-v1/` holds `index.json`, `fragment-171.json`, `fragment-rainbow.json`, `image_times.txt`, `README.md` and `SHA256SUMS`. A fixture version is kept forever. A change to a required key, to a key's meaning or to a key name writes `fixtures/contract-v2/` beside it with `python3 -m aws_lambda.video_builder.fixtures.capture_contract capture --version 2`, and the consumers add tests for v2 next to the v1 tests. A new optional key is a new schema property and a new fixture version too. The tool refuses to overwrite a version and refuses to write a fixture that does not match the schema.
+
+**Where v1 came from.** `fixtures/contract-v1/README.md` says how it was made. Written 2026-10-02 without a live read, it was built offline (`capture --version 1 --offline`) from `manifest.py` with fixed times and is marked NOT captured from the live bucket: it pins the format the producer code writes. A capture of the live bucket (`capture --version 2`, read-only GET requests) is a separate, later step; if it validates and differs, the consumers move their pins together.
+
+**Reserved names (decisions by Gilly, 2026-10-02).** The HDR video field is `hdr_video` everywhere (A1): an optional string in the fragment, in the schema and in `FRAGMENT_OPTIONAL`, not written yet. The PUNCH product id is `punch` (A7), not `punch_cam`: the schema's `id` pattern accepts it, but `PRODUCTS` does not list it until its producer lands, and the first fixture that lists it is `contract-v2`.
+
+**Readers pinned to v1** (each holds a byte-identical copy, checked with `capture_contract same`):
+
+| Reader | Copy | Test |
+|---|---|---|
+| this repository | `fixtures/contract-v1/` | `sunback/__tests__/test_manifest.py::test_fragment_matches_schema`, `::test_index_matches_schema`, `sunback/__tests__/test_contract_fixture.py` |
+| gilly.space | `tools/tests/fixtures/contract-v1/` in the Website repository | `node tools/check_sun_contract.mjs` |
+| Heliogram and its R2 mirror | `infra/contract/contract-v1/` in the Heliogram repository | `node infra/mirror/test.mjs` (case 7) and `--selftest` (`selftest: contract-v1 ok`) |
+
+**The promise to installed software.** The fixed keys keep working for gilly.space/sun.html and for Heliograph 0.6 and older; `v/<id>/<stamp>.*` plus `manifest/index.json` serve Heliogram 0.7 and later and the R2 mirror. Neither set is removed or renamed.
+
+**Freshness limits** (SU-2's probe, not in this repository yet, is planned to read these; today `devtools/scripts/check_freshness.py --threshold` reads `image_times.txt`): `image_times.txt` is fresh when its time is under 3600 s old; the R2 copy of the index is fresh when its `generated` is under 28800 s old. The pages additionally ignore an index whose `generated` is more than 6 hours old and read the per-product fragments instead.
