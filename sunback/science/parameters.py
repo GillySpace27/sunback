@@ -13,6 +13,7 @@ from sunback.putter.NullPutter import NullPutter
 import matplotlib.pyplot as plt
 
 from sunback.utils.time_util import define_time_range, define_recent_range
+from sunback.settings import NrtSettings
 
 global multi_pool
 multi_pool = None
@@ -623,14 +624,18 @@ class Parameters:
     def find_root_directory(self, root_directory_name=None):
         """Determine where to store the images"""
 
+        data_dir = None
         if root_directory_name is None:
             root_directory_name = "sunback_data/renders"
+            data_dir = NrtSettings.from_env().data_dir  # SUNBACK_DATA_DIR (SB-5); unset keeps the old default
 
         import platform
 
         self.os(platform.system())
 
-        if self.os() == "Windows":
+        if data_dir:
+            self.root_directory = data_dir
+        elif self.os() == "Windows":
             self.root_directory = abspath(
                 join(self.use_drive + "://", root_directory_name)
             )
