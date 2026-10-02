@@ -45,7 +45,7 @@ class Runner:
                 if fail_count < fail_max:
                     out_string = "I failed, but I'm ignoring it. Count: {}/{}\n".format(fail_count, fail_max)
                     print(out_string, error, "\n\n")
-                    raise error
+                    # raise error  # 2026-10-02 (SB-11): raising here made the retry below unreachable
                     continue
                 else:
                     print("Too Many Failures, I Quit!")
