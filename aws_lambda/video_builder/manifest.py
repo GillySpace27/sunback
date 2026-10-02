@@ -145,8 +145,10 @@ FRAGMENT_REQUIRED: dict[str, type] = {
     "id": str, "label": str, "thumb": str, "img1k": str, "video": str,
     "updated": str, "frame_count": int, "integration": dict,
 }
+# hdr_video is reserved by decision A1 (Gilly, 2026-10-02): the one name of the HDR video field. Nothing
+# writes it yet (SB-23 will); it is listed so the schema, validate_fragment and CONTRACT.md agree on the name.
 FRAGMENT_OPTIONAL: dict[str, type] = {"video_v": str, "still_v": str, "through": str,
-                                      "obs_start": str, "obs_end": str}
+                                      "obs_start": str, "obs_end": str, "hdr_video": str}
 INDEX_OPTIONAL: dict[str, type] = {}
 _INTEGRATION_FIELDS = {"frames": int, "method": str}
 

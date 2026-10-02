@@ -92,6 +92,7 @@ Built by `build_manifest_fragment`, checked by `validate_fragment`
 | `video_v` | string | no | key of the immutable copy of the current video |
 | `still_v` | string | no | key of the immutable copy of the newest still |
 | `through` | string | no | ISO UTC time of the newest frame in the video; trails `updated` by up to the encode throttle |
+| `hdr_video` | string | no | **reserved**, no writer yet (SB-23 writes it): key of the HDR video. The name is fixed by decision A1 (Gilly, 2026-10-02); the key layout is not decided, so the schema checks only that it is a string |
 
 ## Index (`manifest/index.json`)
 

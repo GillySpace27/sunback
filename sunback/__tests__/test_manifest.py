@@ -153,3 +153,91 @@ def test_fragment_obs_window_is_optional():
     frag = build_manifest_fragment("171", updated="2026-09-28T12:00:00Z", frame_count=1, integration={},
                                    obs_start="2026-09-28T11:52:00Z", obs_end="2026-09-28T12:00:00Z")
     assert (frag["obs_start"], frag["obs_end"]) == ("2026-09-28T11:52:00Z", "2026-09-28T12:00:00Z")
+
+
+# ---- the public contract schema (SU-9) ----
+import pathlib  # noqa: E402
+
+import pytest  # noqa: E402
+
+from aws_lambda.video_builder import manifest as _manifest  # noqa: E402
+from aws_lambda.video_builder.schema.validate import validate  # noqa: E402
+
+_VB = pathlib.Path(__file__).resolve().parents[2] / "aws_lambda" / "video_builder"
+_INTEGRATION = {"frames": 5, "method": "median"}
+
+
+def _schema(name):
+    return json.loads((_VB / "schema" / name).read_text(encoding="utf-8"))
+
+
+def _fragment(pid, **versions):
+    return build_manifest_fragment(pid, updated="2026-09-24T18:03:09Z", frame_count=144,
+                                   integration=dict(_INTEGRATION), **versions)
+
+
+def test_fragment_matches_schema():
+    schema = _schema("manifest-fragment.schema.json")
+    for p in PRODUCTS:
+        assert validate(_fragment(p["id"]), schema) == [], p["id"]
+    versioned = _fragment("171",
+                          video_v=_manifest.versioned_video_key("171", "20260924T180309"),
+                          still_v=_manifest.versioned_still_key("171", "20260924T180309"),
+                          through="2026-09-24T18:03:09Z")
+    assert validate(versioned, schema) == []
+
+
+def test_index_matches_schema():
+    schema = _schema("index.schema.json")
+    index = _manifest.build_index([_fragment(p["id"]) for p in PRODUCTS], generated="2026-09-24T18:03:09Z")
+    assert validate(index, schema) == []
+    assert validate(_manifest.build_index([], generated="2026-09-24T18:03:09Z"), schema) == []
+
+
+def test_schema_rejects_a_renamed_required_key():
+    frag = _fragment("171")
+    frag["img_1k"] = frag.pop("img1k")
+    assert "$: missing required key 'img1k'" in validate(frag, _schema("manifest-fragment.schema.json"))
+    index = {"generated": "2026-09-24T18:03:09Z", "products": [frag]}
+    assert "$.products[0]: missing required key 'img1k'" in validate(index, _schema("index.schema.json"))
+
+
+def test_schema_rejects_a_bad_versioned_key():
+    frag = _fragment("171", video_v="video/rhef_171_1k.mp4", still_v="v/171/20260924T180309.png")
+    assert any(e.startswith("$.video_v:") for e in validate(frag, _schema("manifest-fragment.schema.json")))
+
+
+def test_index_schema_embeds_the_fragment_schema():
+    fragment = _schema("manifest-fragment.schema.json")
+    embedded = _schema("index.schema.json")["properties"]["products"]["items"]
+    for annotation in ("$schema", "title", "description"):
+        fragment.pop(annotation, None)
+    assert embedded == fragment
+
+
+def test_schema_agrees_with_manifest_constants():
+    required = getattr(_manifest, "FRAGMENT_REQUIRED", None)
+    optional = getattr(_manifest, "FRAGMENT_OPTIONAL", None)
+    if required is None or optional is None:
+        pytest.skip("SB-6 has not landed: manifest.FRAGMENT_REQUIRED is absent")
+    schema = _schema("manifest-fragment.schema.json")
+    assert sorted(schema["required"]) == sorted(required)
+    assert sorted(set(schema["properties"]) - set(required)) == sorted(optional)
+
+
+def test_schema_accepts_provenance_fields_and_the_reserved_hdr_video():
+    schema = _schema("manifest-fragment.schema.json")
+    frag = _fragment("171", obs_start="2026-09-24T17:58:09Z", obs_end="2026-09-24T18:02:57Z")
+    assert validate(frag, schema) == []
+    # decision A1 (Gilly, 2026-10-02): the HDR video field is hdr_video, an optional string
+    assert validate(dict(frag, hdr_video="hdr/rhef_171_1k_hlg.mp4"), schema) == []
+    assert any(e.startswith("$.hdr_video:") for e in validate(dict(frag, hdr_video=3), schema))
+    assert "hdr_video" in _manifest.FRAGMENT_OPTIONAL
+
+
+def test_schema_accepts_the_punch_product_id():
+    # decision A7 (Gilly, 2026-10-02): the PUNCH product id is `punch`, not `punch_cam`
+    schema = _schema("manifest-fragment.schema.json")
+    frag = _fragment("171")
+    frag["id"] = "punch"
+    assert validate(frag, schema) == []
