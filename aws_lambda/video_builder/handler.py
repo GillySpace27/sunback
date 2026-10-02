@@ -149,9 +149,13 @@ def _build_video(product, frame_keys, workdir, integration=None, stamp=None):
         [
             FFMPEG, "-y", "-r", str(FPS), "-f", "concat", "-safe", "0",
             "-i", list_path, "-c:v", "libx264", "-preset", X264_PRESET,
-            # tag the stream bt709 / tv range so a player does not guess the matrix
-            "-vf", "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv",
             "-pix_fmt", "yuv420p",
+            # Say what the colours are. Untagged H.264 leaves every player to
+            # guess range and matrix, and WebKit's first render path and its
+            # later one guess differently: the same clip looked right on first
+            # play and oversaturated on every play after a src change
+            # (Heliograph, 2026-09-12). Tagging removes the guess.
+            "-vf", "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv",
             "-color_range", "tv", "-colorspace", "bt709",
             # use_metadata_tags: without it the mov muxer drops tags it has no atom for
             # (the custom sunback_provenance tag); known tags are still written.
