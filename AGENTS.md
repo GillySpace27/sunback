@@ -85,6 +85,7 @@ branch, tag, S3 object, Lambda version or layer removal. Retire code with
 - `python infra/diff.py`: drift between infra/declared/ and live AWS; exit 0 none, 1 drift, 3 unchecked (SB-7)
 - `python infra/pat_expiry.py`: days until the dispatcher PAT expires; exit 1 within 14 days (SB-7)
 - `python infra/rotate_dispatch_pat.py`: Gilly runs it in his own terminal; agents never run it (SB-7)
+- `python devtools/reachability.py [--json]`: which tracked modules production, research or nothing reaches (SB-10)
 
 ## Where work lives
 
