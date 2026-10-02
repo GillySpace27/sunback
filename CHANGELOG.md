@@ -7,7 +7,7 @@ reconstructed by SB-12 from git tags, tag commit subjects and PyPI upload dates
 ## Unreleased
 
 - Packaging: `pyproject.toml` is the only metadata source; `sunback.__version__`
-  comes from the installed distribution; the wheel holds only `sunback/` (90
+  comes from the installed distribution; the wheel holds only `sunback/` (88
   files instead of 207 on the builds of 2026-10-02); Python 3.11 or newer; `numpy`
   and `tqdm` declared; the IDL colour table ships inside the package. (SB-12)
 

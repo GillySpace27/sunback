@@ -33,7 +33,7 @@ classifiers = [
 dependencies = [
         "boto3",
         "matplotlib",
-        "sunpy",
+        "sunpy[map]",
         "astropy",
         "scipy",
         "opencv-python",

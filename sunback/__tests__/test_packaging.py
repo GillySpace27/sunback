@@ -72,3 +72,10 @@ def test_colour_table_loads_without_the_repository(tmp_path):
     assert r.returncode == 0, r.stderr[-600:]
     expected = np.loadtxt(ROOT / "data" / "idl_3.csv", delimiter=",")
     assert np.array_equal(np.load(tmp_path / "idl_3.npy"), expected)
+
+
+def test_sunpy_is_declared_with_the_map_extra():
+    """sunpy 7 imports reproject and mpl-animators from sunpy.map; the client path imports sunpy.map
+    (Processor.py), so a bare "sunpy" fails in a clean venv with ModuleNotFoundError: reproject."""
+    deps = _pyproject()["project"]["dependencies"]
+    assert any(d.replace(" ", "").startswith("sunpy[map]") for d in deps), deps
