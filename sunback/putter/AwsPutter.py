@@ -360,8 +360,8 @@ class AwsPutter(Putter):
         # `obstime` stays the upload time, exactly as before SB-9: the live Lambda keys the
         # frame (v/<id>/<stamp>.png) and the fragment's `updated` on it, and freshness is
         # measured on it. The header observation time goes under NEW keys (obs_end, obs_start,
-        # tint_n, tint_m), sent only when a header time was found. Whether to switch obstime to
-        # the header time is Gilly's decision (open question); see CONTRACT.md.
+        # tint_n, tint_m), sent only when a header time was found. Decided (Gilly, 2026-10-02): obstime
+        # stays the upload time long-term and the observation window is published separately; see CONTRACT.md.
         meta = {"obstime": upload_time}
         tagged = root_path
         if prov is not None:

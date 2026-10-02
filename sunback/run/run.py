@@ -7,8 +7,12 @@ import numpy as np
 from tqdm import tqdm
 
 class Runner:
+    retry_max = 10      # retries after a failure in run mode (Q14)
+    retry_pause_s = 30  # seconds to wait before each retry
+
     def __init__(self, params):
         self.params = params
+        self.sleep = sleep  # injectable, so tests need no real waiting
         self.wall_1 = "*****************************************************************"
         self.wall_2 = "_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_"
 
@@ -34,28 +38,35 @@ class Runner:
                 break
 
     def __run_mode(self):
-        """Run the program in a way that won't break"""
+        """Run the program in a way that won't break.
 
+        A failed batch is retried after ``retry_pause_s`` seconds, up to ``retry_max``
+        retries in a row (Gilly's decision on Q14, 2026-10-02). A success clears the
+        count. When the retries are used up the last error is re-raised, so the process
+        exits with it. Debug mode does not come through here.
+        """
         fail_count = 0
-        fail_max = 10
 
         while True:
             try:
                 self.process()
-                fail_count -= 1
+                fail_count = 0
             except (KeyboardInterrupt, SystemExit):
                 logger.info("\n\nOk, I'll Stop. Doot!\n")
                 break
             except Exception as error:
                 fail_count += 1
-                if fail_count < fail_max:
-                    out_string = "I failed, but I'm ignoring it. Count: {}/{}\n".format(fail_count, fail_max)
-                    logger.info("%s %s %s", out_string, error, "\n\n")
-                    raise error  # original behaviour; whether run mode should retry instead is Gilly's call (Q14, open)
-                    continue
-                else:
-                    logger.info("Too Many Failures, I Quit!")
-                    sys.exit(1)
+                if fail_count > self.retry_max:
+                    logger.info("Too Many Failures, I Quit! Last error: %s", error)
+                    raise
+                logger.info("I failed, retrying in %s s. Retry %s/%s: %s\n\n",
+                            self.retry_pause_s, fail_count, self.retry_max, error)
+                try:
+                    self.sleep(self.retry_pause_s)
+                except KeyboardInterrupt:
+                    logger.info("\n\nOk, I'll Stop. Doot!\n")
+                    break
+                continue
             if self.params.stop_after_one():
                 break
 

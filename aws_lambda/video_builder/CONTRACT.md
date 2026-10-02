@@ -53,7 +53,7 @@ processed: a visualization, not a calibrated radiance.
 | `manifest/<id>.json` | Lambda | `application/json` | `no-cache` | one fragment, schema below | landing page, Heliogram fallback |
 | `manifest/index.json` | Lambda | `application/json` | `public, max-age=300` | every fragment, schema below | Heliogram 0.7+, R2 mirror |
 | `image_times.txt` | reducer | `text/plain` | none | `T_REC` of the integrated frame, UTC without a zone suffix | landing page, hourly gate |
-| `image_times_readable.txt` | reducer | `text/plain` | none | **deprecated**: no known reader; still present (see below) | none known |
+| `image_times_readable.txt` | reducer | `text/plain` | none | no known reader, kept on purpose: still uploaded (decision Q25, Gilly, 2026-10-02; see below) | none known |
 
 ## Versioned keys (written once, never rewritten)
 
@@ -104,13 +104,14 @@ Built by `build_manifest_fragment`, checked by `validate_fragment`
 `INDEX_OPTIONAL` in `manifest.py` lists added top-level fields; it is empty
 today.
 
-## Deprecated: `image_times_readable.txt`
+## Kept: `image_times_readable.txt`
 
 A hand-built list of the capture time in several time zones. No consumer was
 found: the landing page reads `image_times.txt` only, and a grep of the Website,
 Heliogram and My Heliograph repositories found no reader (2026-10-01). The
 reducer writes it while `SUNBACK_WRITE_READABLE_TIMES` is on (`NrtSettings`);
-the last copy stays in the bucket when writing stops.
+the last copy stays in the bucket when writing stops. **Decision (Gilly, 2026-10-02, Q25): keep
+uploading it.** The default stays on and the key stays; nothing is deprecated.
 
 ## status.json (SB-8)
 
@@ -133,13 +134,13 @@ the last copy stays in the bucket when writing stops.
 | PNG tEXt in `1k/rhef_<id>_1k.png` | `obs_start`, `obs_end`, `n_frames`, `method`, `sunkit_image_version`, `sunback_version` | text | reducer | the same window inside the file |
 | MP4 tags in `video/rhef_<id>_1k.mp4`, `v/<id>/<through>.mp4` | `comment` (the RH-3 stamp string, only when the still's metadata carries `rhef_stamp`), `sunback_provenance` (compact JSON: `product`, `first`, `through`, `slots`, `frames`, `fps`, `cadence_s`, `integration`, `source`), `creation_time` (= `through`) | text | Lambda | the JSON never goes in `comment` (decision A4, 2026-10-02) |
 
-**Open question (Gilly):** whether `obstime` should switch from upload time to the header
-observation time (`obs_end`). Until he decides, `obstime` stays the upload time. It keys the
-Lambda's frame (`frames/<id>/<stamp>_1k.png`, `v/<id>/<stamp>.png`) and the fragment's
-`updated`, and the freshness thresholds (40 min / 2 h for the alarm, 60 / 180 min for the public
-badge) are measured on that upload time. A switch would make public ages include JSOC latency, and
-repeated observation times could overwrite an immutable `v/<id>/<stamp>.png` key, so it needs a
-Lambda change first.
+**Decision (Gilly, 2026-10-02): keep.** The S3 `obstime` key and the manifest `updated` stay
+the upload time long-term. The observation window is published separately, in `obs_start` and
+`obs_end` (fragment, S3 metadata, PNG tEXt, sidecar). `obstime` keys the Lambda's frame
+(`frames/<id>/<stamp>_1k.png`, `v/<id>/<stamp>.png`) and the fragment's `updated`, and the
+freshness thresholds (40 min / 2 h for the alarm, 60 / 180 min for the public badge) are measured
+on that upload time. Switching it to the header time would make public ages include JSOC latency,
+and repeated observation times could overwrite an immutable `v/<id>/<stamp>.png` key.
 
 Additive only: none of these is ever renamed or removed. The MP4 custom tag needs
 `-movflags +faststart+use_metadata_tags` in `_build_video`.

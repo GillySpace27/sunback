@@ -6,6 +6,10 @@ reconstructed by SB-12 from git tags, tag commit subjects and PyPI upload dates
 
 ## Unreleased
 
+- Runner: in run mode (the wallpaper client, `sunback-serve`) a failed batch now waits
+  30 seconds and is retried, up to 10 retries in a row, then the last error is re-raised
+  and the process exits with it (Gilly's decision on Q14, 2026-10-02). Debug mode, which
+  the GitHub reducer uses, still raises on the first failure.
 - Packaging: `pyproject.toml` is the only metadata source; `sunback.__version__`
   comes from the installed distribution; the wheel holds only `sunback/` (88
   files instead of 207 on the builds of 2026-10-02); Python 3.11 or newer; `numpy`

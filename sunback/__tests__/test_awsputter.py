@@ -156,7 +156,7 @@ def still_metadata():
 def stubbed(monkeypatch):
     for name in ("SUNBACK_BUCKET", "SUNBACK_PREFIX"):
         monkeypatch.delenv(name, raising=False)
-    monkeypatch.setenv("SUNBACK_WRITE_READABLE_TIMES", "1")  # independent of SB-6's default flip (Q25)
+    monkeypatch.setenv("SUNBACK_WRITE_READABLE_TIMES", "1")  # the default stays on (decision Q25, 2026-10-02: keep uploading); set explicitly anyway
     try:  # botocore >= 1.36: keep s3transfer from adding ChecksumAlgorithm, so params compare across versions
         config = Config(request_checksum_calculation="when_required")
     except TypeError:  # older botocore never adds it
