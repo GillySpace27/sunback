@@ -119,7 +119,7 @@ pyproject_hooks==1.2.0
 pyspellchecker==0.8.2
 pytesseract==0.3.13
 python-dateutil==2.9.0.post0
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 pytz==2024.2
 PyYAML==6.0.2
 pyzmq==26.2.0
