@@ -5,6 +5,30 @@ imported, linted or shipped: `pyproject.toml` excludes `attic` from the wheel
 (`[tool.setuptools.packages.find]`) and from ruff (`extend-exclude`). To restore
 an entry, run its Restore command from the repository root.
 
+## README badge block before SB-10 (2026-10-02)
+
+`README.md` lines 3-18 as they were before SB-10 commented out the Travis, AppVeyor and Codecov
+badges. Codacy and the two Code Climate badges were left for Gilly to decide.
+
+```markdown
+[//]: # (Badges)
+<a href="https://github.com/GillySpace27/sunback/tree/master" target="_blank">![GitHub last commit (branch)](https://img.shields.io/github/last-commit/GillySpace27/sunback/master)</a>
+<a href="https://travis-ci.com/GillySpace27/sunback" target="_blank">![Travis Build Status](https://travis-ci.com/GillySpace27/sunback.svg?branch=master)</a>
+<a href="https://ci.appveyor.com/project/GillySpace27/sunback/" target="_blank">![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/ji7e0pm5xxckf6rq/branch/master?svg=true)</a>
+<a href="https://sunback.readthedocs.io/en/latest/?badge=latest" target="_blank">![Documentation Status](https://readthedocs.org/projects/sunback/badge/?version=latest)</a>
+
+<a href="https://pypi.org/project/sunback/" target="_blank"><img alt="PyPI - Downloads" src="https://img.shields.io/pypi/dm/sunback"></a>
+<a href="https://pypi.org/project/sunback/" target="_blank">![PyPI](https://img.shields.io/pypi/v/sunback)</a>
+<img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/sunback">
+<a href="https://github.com/GillySpace27/sunback/" target="_blank">![GitHub repo size](https://img.shields.io/github/repo-size/GillySpace27/sunback)</a>
+<a href="https://opensource.org/licenses/BSD-3-Clause" target="_blank">![GitHub](https://img.shields.io/github/license/GillySpace27/sunback)</a>
+
+<a href="https://codeclimate.com/github/GillySpace27/sunback/maintainability"><img src="https://api.codeclimate.com/v1/badges/f7ae86dc9703d4a7eec6/maintainability" /></a>
+<a href="https://codeclimate.com/github/GillySpace27/sunback/test_coverage"><img src="https://api.codeclimate.com/v1/badges/f7ae86dc9703d4a7eec6/test_coverage" /></a>
+<a href="https://www.codacy.com/manual/GillySpace27/sunback" target="_blank">![Codacy Badge](https://api.codacy.com/project/badge/Grade/a47b3701e7544010a4708d923a71fedb)</a>
+<a href="https://codecov.io/gh/GillySpace27/sunback/branch/master" target="_blank">![codecov](https://codecov.io/gh/GillySpace27/sunback/branch/master/graph/badge.svg)</a>
+```
+
 | Original path | Moved to | LOC | Reason | Date | Restore |
 |---|---|---|---|---|---|
 | `__init__.py` | `attic/repo-root__init__.py` | 0 | Empty file at the repository root. It made pytest import the checkout itself as the package `sunback` whenever the checkout directory is named `sunback` (CI `/__w/sunback/sunback`, Gilly's `~/vscode/sunback`), so test collection failed (SB-2). | 2026-10-02 | `git mv attic/repo-root__init__.py __init__.py` |
