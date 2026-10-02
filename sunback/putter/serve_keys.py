@@ -60,3 +60,8 @@ def s3_img_key(product_id):
 
 def s3_thumb_key(product_id):
     return f"thumb/rhef_{product_id}_thumb.png"
+
+
+def s3_meta_key(product_id):
+    """Provenance sidecar for the newest still (SB-9); schema.org ImageObject JSON."""
+    return f"meta/rhef_{product_id}.json"
