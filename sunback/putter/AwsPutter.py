@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 
 from sunback.utils.array_util import get_thumblinks, make_thumbs
 from sunback.putter.serve_keys import serve_id_for_local_png, s3_img_key, s3_thumb_key
+from sunback.settings import NrtSettings
 
 THUMB_PX = 512
 
@@ -27,14 +28,46 @@ png_args["ContentType"] = "image/png"
 video_args = copy(S3_UPLOAD_ARGS)
 video_args["ContentType"] = "video/mp4"
 
-s3 = boto3.resource('s3')
-bucket_name = 'the-sun-now'
-bucket = s3.Bucket(bucket_name)
-s3_client = boto3.client('s3')
+# 2026-10-01 (SB-5): the module-level boto3 objects below were replaced by a
+# client created on first use (get_s3_client) and a bucket and key prefix read
+# from NrtSettings (SUNBACK_BUCKET, SUNBACK_PREFIX). Kept for the record:
+# s3 = boto3.resource('s3')
+# bucket_name = 'the-sun-now'
+# bucket = s3.Bucket(bucket_name)
+# s3_client = boto3.client('s3')
+
+_S3_CLIENT = None
+
+
+def get_s3_client():
+    """Return the boto3 S3 client, created on first use (not at import)."""
+    global _S3_CLIENT
+    if _S3_CLIENT is None:
+        _S3_CLIENT = boto3.client('s3')
+    return _S3_CLIENT
+
+
+def upload_public(local_path, key, content_type, cache_control=None, metadata=None, settings=None):
+    """Upload one file public-read to settings.bucket at settings.prefix + key.
+
+    Returns the full key written. With default settings the key is unchanged,
+    so production keys stay byte-identical.
+    """
+    settings = settings if settings is not None else NrtSettings.from_env()
+    full_key = settings.prefixed(key)
+    extra = copy(S3_UPLOAD_ARGS)
+    extra["ContentType"] = content_type
+    if cache_control is not None:
+        extra["CacheControl"] = cache_control
+    if metadata is not None:
+        extra["Metadata"] = metadata
+    get_s3_client().upload_file(local_path, settings.bucket, full_key, ExtraArgs=extra)
+    return full_key
+
 
 class AwsPutter(Putter):
     filt_name = "AWSputter"
-    description = "Upload Images to AWS {}".format(bucket_name)
+    description = "Upload Images to AWS S3 (bucket and prefix from NrtSettings)"
     progress_verb = "Uploaded"
     progress_unit = "Images"
 
@@ -47,7 +80,8 @@ class AwsPutter(Putter):
     def put(self, params=None):
         if params is not None:
             self.__init__(params)
-        print(" V Uploading PNGs to {}...".format(bucket), flush=True)
+        self.settings = NrtSettings.from_env()
+        print(" V Uploading PNGs to s3://{}/{}...".format(self.settings.bucket, self.settings.prefix), flush=True)
         # NOTE: do NOT empty the bucket. The Lambda video-builder maintains the
         # frames/ queue and video/ outputs there; wiping would destroy the 48h
         # sliding window every run. The reducer only overwrites its own keys.
@@ -81,8 +115,12 @@ class AwsPutter(Putter):
         if not found:
             print("\t* No temperature-scan video found; skipping.")
             return
-        bucket.upload_file(found, "video/rhef_tscan.mp4", ExtraArgs=video_args)
-        print(f"\t* Uploaded temperature-scan video -> video/rhef_tscan.mp4")
+        key = upload_public(found, "video/rhef_tscan.mp4", "video/mp4", settings=self._settings())
+        print(f"\t* Uploaded temperature-scan video -> {key}")
+
+    def _settings(self):
+        settings = getattr(self, "settings", None)
+        return settings if settings is not None else NrtSettings.from_env()
 
     def empty_the_bucket(self):
         raise RuntimeError(
@@ -138,11 +176,10 @@ class AwsPutter(Putter):
             return  # not a served product (UV-only channel, DEM, alt composite, ...)
 
         meta = {"obstime": getattr(self, "obstime", "")}
-        img_args = copy(png_args)
-        img_args["Metadata"] = meta
+        settings = self._settings()
 
         # full-res 1k still
-        bucket.upload_file(root_path, s3_img_key(product_id), ExtraArgs=img_args)
+        upload_public(root_path, s3_img_key(product_id), "image/png", metadata=meta, settings=settings)
 
         # 256² thumbnail (square 1024² source -> direct resize)
         img = cv2.imread(root_path, cv2.IMREAD_UNCHANGED)
@@ -150,7 +187,7 @@ class AwsPutter(Putter):
                                   f".thumb_{product_id}.png")
         cv2.imwrite(thumb_path, cv2.resize(img, (THUMB_PX, THUMB_PX),
                                            interpolation=cv2.INTER_AREA))
-        bucket.upload_file(thumb_path, s3_thumb_key(product_id), ExtraArgs=png_args)
+        upload_public(thumb_path, s3_thumb_key(product_id), "image/png", settings=settings)
 
     def __save_times(self):
         print("\t* Uploading Time File...", end='', flush=True)
@@ -180,6 +217,8 @@ class AwsPutter(Putter):
             for item in tz_list:
                 fp.write(item + "\n")
 
-        bucket.upload_file(path, os.path.basename(path), ExtraArgs=txt_args)
-        bucket.upload_file(path2, os.path.basename(path2), ExtraArgs=txt_args)
+        settings = self._settings()
+        upload_public(path, os.path.basename(path), "text/plain", settings=settings)
+        if settings.write_readable_times:
+            upload_public(path2, os.path.basename(path2), "text/plain", settings=settings)
         print("Done! ", flush=True)
