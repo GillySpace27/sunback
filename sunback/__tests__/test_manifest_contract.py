@@ -76,3 +76,19 @@ def test_captured_index_is_valid():
     assert isinstance(index["generated"], str)
     for frag in index["products"]:
         assert manifest.validate_fragment(frag) == [], frag.get("id")
+
+
+CONTRACT = Path(__file__).resolve().parents[2] / "aws_lambda" / "video_builder" / "CONTRACT.md"
+
+
+def test_contract_md_names_every_key_field_and_id():
+    text = CONTRACT.read_text(encoding="utf-8")
+    keys = [manifest.img1k_key("<id>"), manifest.thumb_key("<id>"), manifest.video_key("<id>"),
+            manifest.manifest_key("<id>"), manifest.INDEX_KEY,
+            manifest.versioned_video_key("<id>", "<stamp>"), manifest.versioned_still_key("<id>", "<stamp>"),
+            "video/rhef_tscan.mp4", "image_times.txt", "image_times_readable.txt"]
+    fields = sorted(set(manifest.FRAGMENT_REQUIRED) | set(manifest.FRAGMENT_OPTIONAL)
+                    | set(manifest.INDEX_OPTIONAL) | {"generated", "products", "frames", "method"})
+    ids = [p["id"] for p in manifest.PRODUCTS]
+    assert [n for n in keys + fields + ids if f"`{n}`" not in text] == []
+    assert manifest.IMMUTABLE in text
