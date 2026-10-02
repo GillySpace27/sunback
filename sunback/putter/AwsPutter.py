@@ -85,9 +85,15 @@ class AwsPutter(Putter):
         print(f"\t* Uploaded temperature-scan video -> video/rhef_tscan.mp4")
 
     def empty_the_bucket(self):
-        print("\t* Emptying Bucket...", end='')
-        bucket.objects.all().delete()
-        print("Done!")
+        raise RuntimeError(
+            "empty_the_bucket is fenced: agent code never deletes S3 objects; "
+            "staging cleanup is a Gilly-approved lifecycle rule (SB-7)"
+        )
+        # 2026-10-01 (SB-5): original body, kept for the record. It deleted every
+        # object in the bucket, including the Lambda's frames/ queue.
+        # print("\t* Emptying Bucket...", end='')
+        # bucket.objects.all().delete()
+        # print("Done!")
 
     def get_file_list(self, force=False):
         if self.to_upload is None or force:
