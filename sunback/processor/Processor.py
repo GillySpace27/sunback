@@ -10,7 +10,9 @@ import logging
 
 import sunpy
 
-print(sunpy.__version__)
+logger = logging.getLogger(__name__)
+# print(sunpy.__version__)  # 2026-10-02 (SB-11): printed on every import; now a debug log line
+logger.debug(sunpy.__version__)
 
 from scipy.stats import stats
 # from sunpy.errors import SunPyError

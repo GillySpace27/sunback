@@ -7,7 +7,9 @@ from os.path import join, dirname, basename
 import matplotlib.pyplot as plt
 
 import astropy.units as u
-import sunpy.data.sample
+# import sunpy.data.sample  # 2026-10-02 (SB-11): unused; it loaded sunpy's sample-data module on every import.
+import sunpy.io._fits  # binds `sunpy` for sunpy.io._fits.header_to_fits and sunpy.map.Map below
+import sunpy.map
 # import sunpy.map
 
 import sunkit_image.radial as radial

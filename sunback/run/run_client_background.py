@@ -1,10 +1,18 @@
 """This is the script to run on a client somewhere to download and set the images"""
+import logging
+import sys
 from sunback.run import SingleRunner
 from sunback.science.parameters import Parameters
 from sunback.putter.DesktopPutter import DesktopPutter
 from sunback.fetcher.S3ImgFetcher import S3ImgFetcher
 
 def run_client(delay=60, debug=False, do_one="rainbow", stop=False):
+    # 2026-10-02 (SB-11): moved here from sunback/putter/DesktopPutter.py, where it ran at import.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
     p = Parameters()
 
     p.is_debug(debug)

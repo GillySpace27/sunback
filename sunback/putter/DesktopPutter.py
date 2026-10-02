@@ -7,12 +7,14 @@ import subprocess
 import logging
 from sunback.putter.Putter import Putter  # Assuming this is a custom import
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
+# 2026-10-02 (SB-11): logging is configured by the entry point (run_client in
+# sunback/run/run_client_background.py), not at import. Original block:
+# # Set up logging
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s - %(levelname)s - %(message)s",
+#     handlers=[logging.StreamHandler(sys.stdout)]
+# )
 logger = logging.getLogger(__name__)
 
 # Initialization
