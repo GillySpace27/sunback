@@ -1,4 +1,6 @@
 import os
+import logging
+logger = logging.getLogger(__name__)
 
 # import sys
 # from copy import copy
@@ -63,8 +65,8 @@ class ImageProcessor(Processor):
         try:
             pass
         except AttributeError as e:
-            print(e)
-            print("I failed in ImageProceesor 55")
+            logger.info(e)
+            logger.info("I failed in ImageProceesor 55")
 
     def do_fits_function(self, fits_path, in_name=None):
         """This is the do_fits_function for this"""
@@ -229,7 +231,8 @@ class ImageProcessor(Processor):
         # self.peek_frames()
         try:
             shape = self.frame.shape
-        except:
+        except Exception as err:  # was a bare except (2026-10-02, SB-11)
+            logger.debug("frame has no shape (%r); assuming 4096", err)
             shape = 4096
 
         self.image_data = wave1, fits_path, t_rec1, shape = self.params.image_data
@@ -467,7 +470,7 @@ class ImageProcessor(Processor):
         if not dont_vminmax:
             # frame[frame > 1.0] = 1.0
             # frame[frame < 0.0] = 0.0
-            print("Clipping ***************************************")
+            logger.info("Clipping ***************************************")
             frame = np.clip(frame, 0.05, 0.99)
             pass
 
@@ -475,7 +478,7 @@ class ImageProcessor(Processor):
         try:
             frame = self.vignette(frame)
         except IndexError as e:
-            print(f"Skipped Vignetting: {e}")
+            logger.info(f"Skipped Vignetting: {e}")
         return frame
 
 

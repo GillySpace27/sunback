@@ -58,3 +58,8 @@ def test_full_path_is_accepted():
 def test_s3_key_builders():
     assert s3_img_key("171") == "1k/rhef_171_1k.png"
     assert s3_thumb_key("rainbow") == "thumb/rhef_rainbow_thumb.png"
+
+def test_s3_meta_key():
+    from sunback.putter.serve_keys import s3_meta_key
+    assert s3_meta_key("171") == "meta/rhef_171.json"
+    assert s3_meta_key("composite_uv") == "meta/rhef_composite_uv.json"

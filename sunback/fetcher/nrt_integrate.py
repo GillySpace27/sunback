@@ -11,6 +11,21 @@ from astropy.io import fits
 
 from sunback.utils.time_integration import integrate_frames
 
+# Header time keys in the order the pipeline already reads them
+# (ImageProcessorCV.py: T_REC, then T_OBS); DATE-OBS last. The same order gives
+# TINT_T0 here and obs_end in AwsPutter, so both ends of the window come from
+# one key.
+FRAME_TIME_KEYS = ("T_REC", "T_OBS", "DATE-OBS")
+
+
+def frame_time(header):
+    """(key, value) of the first FRAME_TIME_KEYS entry present in ``header``, or (None, None)."""
+    for key in FRAME_TIME_KEYS:
+        value = header.get(key)
+        if value not in (None, ""):
+            return key, str(value)
+    return None, None
+
 
 def _science_hdu_index(hdul):
     """Index of the first HDU holding a 2D image (handles compressed FITS)."""
@@ -43,6 +58,11 @@ def write_integrated_synoptic(frame_paths, out_path, method="median"):
 
     science_header["TINT_N"] = (len(frame_paths), "frames time-integrated")
     science_header["TINT_M"] = (method, "time-integration method")
+    # SB-9: the newest frame's time is inherited above; record the oldest's too.
+    with fits.open(frame_paths[0]) as hdul:
+        t0_key, t0 = frame_time(hdul[_science_hdu_index(hdul)].header)
+    if t0 is not None:
+        science_header["TINT_T0"] = (t0, f"{t0_key} of oldest integrated frame")
 
     out = fits.HDUList(
         [

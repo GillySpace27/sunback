@@ -10,7 +10,9 @@ import logging
 
 import sunpy
 
-print(sunpy.__version__)
+logger = logging.getLogger(__name__)
+# print(sunpy.__version__)  # 2026-10-02 (SB-11): printed on every import; now a debug log line
+logger.debug(sunpy.__version__)
 
 from scipy.stats import stats
 # from sunpy.errors import SunPyError
@@ -178,13 +180,11 @@ class Processor:
         """Find the name of this processor and print"""
         if end:
             # print(self)
-            print(
-                "      {:15} : \t{:20} : \t{:15}".format(
+            logger.info("      {:15} : \t{:20} : \t{:15}".format(
                     self.filt_name, self.description, np.round(self.duration, 4)
-                )
-            )
+                ))
         elif self.filt_name is not None:
-            print("      {:15} : \t{:20}".format(self.filt_name, self.description))
+            logger.info("      {:15} : \t{:20}".format(self.filt_name, self.description))
 
     #  def plan(self, durList=None, end=False):
     #     """Find the name of this processor and print"""
@@ -368,27 +368,20 @@ class Processor:
 
     def print_load_banner(self, verb=False):
         if self.n_fits + self.n_imgs > 0 and verb:
-            print(
-                "\r v {}...  ------------------------------------------------  v".format(
+            logger.info("\r v {}...  ------------------------------------------------  v".format(
                     self.filt_name
-                ),
-                flush=True,
-            )
+                ))
             sys.stdout.flush()
             if self.finished_verb.casefold() in ["summed"]:
                 exp = self.params.exposure_time_seconds()
-                print(
-                    " *    Exposure Time is {} seconds, which is {:0.2f} frames".format(
+                logger.info(" *    Exposure Time is {} seconds, which is {:0.2f} frames".format(
                         exp, exp / 12
-                    )
-                )
-            print(
-                "\r +    {}: {}, Redo = {}".format(
+                    ))
+            logger.info("\r +    {}: {}, Redo = {}".format(
                     self.progress_verb,
                     self.params.current_wave(),
                     self.reprocess_mode(),
-                )
-            )
+                ))
             # vprint("\r +    Using {} fits and {} imgs from {}\n".format(self.n_fits, self.n_imgs, self.params.base_directory()))
 
     def load_fits_paths(self, absolute=True, ext=".fits"):
@@ -417,11 +410,9 @@ class Processor:
         out_paths = self.params.local_imgs_paths(abs_paths if absolute else paths)
         self.n_imgs = self.params.n_imgs = len(self.params.local_imgs_paths())
         if not self.quietly:
-            print(
-                "   Found {} {} Files in {}".format(
+            logger.info("   Found {} {} Files in {}".format(
                     self.params.n_imgs, ext, self.params.imgs_top_directory()
-                )
-            )
+                ))
         return out_paths
 
     @staticmethod
@@ -484,12 +475,12 @@ class Processor:
         try:
             os.remove(fits_path)
         except PermissionError as e:
-            print(e)
+            logger.info(e)
         if dopng:
             try:
                 os.remove(pngPath)
             except FileNotFoundError as e:
-                print(e)
+                logger.info(e)
                 pass
 
     def plot_two(self, name="Algorithm Result", bounds=None):
@@ -520,12 +511,10 @@ class Processor:
     def peek(self, img):
         fig, ax = plt.subplots()
         ax.set_title("Peek Frame")
-        print("\rThe total summed value of the array is {}".format(np.nansum(img)))
-        print(
-            "{} percent of the entries are finite".format(
+        logger.info("\rThe total summed value of the array is {}".format(np.nansum(img)))
+        logger.info("{} percent of the entries are finite".format(
                 np.nansum(np.isfinite(img)) / (self.params.rez**2)
-            )
-        )
+            ))
         ax.imshow(img, interpolation=None, origin="lower", cmap=self.params.cmap)
         plt.show(block=True)
 
@@ -628,24 +617,18 @@ class Processor:
     def print_keyframes(self):
         if self.can_use_keyframes:
             if self.params.fixed_cadence_keyframes():
-                print(
-                    "\r *    >> KeyFrames: Fixed Cadence of one out of every {} frames".format(
+                logger.info("\r *    >> KeyFrames: Fixed Cadence of one out of every {} frames".format(
                         self.params.fixed_cadence_keyframes()
-                    )
-                )
+                    ))
             elif self.params.fixed_number_keyframes():
-                print(
-                    "\r *    >> KeyFrames: Fixed Number of Keyframes: {}".format(
+                logger.info("\r *    >> KeyFrames: Fixed Number of Keyframes: {}".format(
                         self.params.fixed_number_keyframes()
-                    )
-                )
+                    ))
             else:
-                print("Something is wrong here in the Processor.py file")
-            print(
-                " *    >> Selected {} keyframes out of {} total frames".format(
+                logger.info("Something is wrong here in the Processor.py file")
+            logger.info(" *    >> Selected {} keyframes out of {} total frames".format(
                     self.n_do_frames, self.n_all_frames
-                )
-            )
+                ))
         # else:
         #     print("\r *    >> KeyFrames: Using Every Image ")
 
@@ -701,7 +684,7 @@ class Processor:
                 # self.raw_map.verify("fix")
 
             except Exception as e:  # (MetaDataMissingError, MetaDataParseError):
-                print("thing: " + str(e))
+                logger.info("thing: " + str(e))
                 # Attempt to fix the FITS header
                 if self.fix_fits_header(fits_path):
                     self.fixed_fits_count += 1  # Increment fixed files counter
@@ -767,11 +750,9 @@ class Processor:
             dur = time.time() - self.tm
             self.tm = time.time()
             if self.loud_tic or loud:
-                print(
-                    " ^    Done! Took: {:0.2f} seconds, or {:0.2f} mins".format(
+                logger.info(" ^    Done! Took: {:0.2f} seconds, or {:0.2f} mins".format(
                         dur, dur / 60
-                    )
-                )
+                    ))
             self.duration = dur
             self.params.durList.append(dur)
         else:
@@ -812,9 +793,7 @@ class Processor:
                 self.load(self.params, quietly=False)
                 mod = self.modify_one_image()
                 if mod is None:
-                    print(
-                        " ^     No Fits Frame Saved!  ------------------------------------------------  ^\n"
-                    )
+                    logger.info(" ^     No Fits Frame Saved!  ------------------------------------------------  ^\n")
             elif self.do_png:
                 self.load(self.params, quietly=False)
                 self.process_img_series()
@@ -848,30 +827,23 @@ class Processor:
             n_success = self.ii - self.skipped
             if n_success + self.skipped >= 0:
                 if n_success <= 0:
-                    print(
-                        "\r X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(
+                    logger.info("\r X x X-- Skipped all {} Files --xXxXxXxXxXxXxXxXxXxXxX \n".format(
                             self.skipped
-                        )
-                    )
+                        ))
                 else:
                     # print(self)
-                    print(
-                        "\r ^ ^ ^Successfully {} {} Files ({} skipped) in {:0.4} seconds".format(
+                    logger.info("\r ^ ^ ^Successfully {} {} Files ({} skipped) in {:0.4} seconds".format(
                             self.finished_verb,
                             max(n_success, 0),
                             self.skipped,
                             self.duration,
-                        ),
-                        flush=True,
-                    )
-                    print(
-                        " ^ ---------------------------------------------------------------  ^\n\n"
-                    )
+                        ))
+                    logger.info(" ^ ---------------------------------------------------------------  ^\n\n")
                 sleep(1)
             else:
-                print(" ^    No Files Found\n")
+                logger.info(" ^    No Files Found\n")
         except ValueError as e:
-            print(e)
+            logger.info(e)
 
     def serial_fits_series(self):
         # print("Running in Serial Mode...", flush=True)
@@ -898,7 +870,7 @@ class Processor:
                     self.skipped += 1
             # print("Finished", flush=True)
         except PicklingError as e:
-            print("Parallel Run Failed: ", e)
+            logger.info("%s %s", "Parallel Run Failed: ", e)
             self.serial_fits_series()
         except (TypeError, ValueError) as e:
             self.skipped += 1
@@ -945,7 +917,7 @@ class Processor:
             if self.ii is None:
                 self.ii = 1
         except np.linalg.LinAlgError as e:
-            print("Legacy_QRN_Kernal one fits :: ", e, "\n")
+            logger.info("%s %s %s", "Legacy_QRN_Kernal one fits :: ", e, "\n")
             output = 0.5 * np.ones_like(self.params.raw_image)
             output[0] = 0.0
             output[1] = 1.0
@@ -1645,7 +1617,7 @@ class Processor:
             os.makedirs(os.path.dirname(pth))
         plt.savefig(pth, dpi=300)
         plt.savefig(pth.replace(".pdf", ".png"), dpi=300)
-        print(pth.replace(".pdf", ".png"))
+        logger.info(pth.replace(".pdf", ".png"))
         plt.close(fig)
 
 
@@ -1712,7 +1684,7 @@ class Processor:
         fig.set_size_inches((12, 8))
         plt.tight_layout()
         fig.subplots_adjust(top=0.93)
-        print("I'M PLOTTING")
+        logger.info("I'M PLOTTING")
         plt.savefig(
             os.path.expanduser(
                 r"~/vscode/sunback/sunback_data/renders/Single_Test/imgs/mod/histograms_rhe2_hq.png"
@@ -1732,7 +1704,7 @@ class Processor:
             ),
             dpi=300,
         )
-        print("Plotting Complete")
+        logger.info("Plotting Complete")
         # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms_rhe.png", dpi=400)
         # plt.savefig(r"G:\sunback_images\Single_Test\imgs\histograms.pdf", dpi=400)
         # plt.show()
@@ -1822,7 +1794,7 @@ class Processor:
 
     def plot_histogram_images(self, axes, frames, names, donorm=True, dosmash=True):
         ## Plot Images
-        print(" *    Plotting HistImages")
+        logger.info(" *    Plotting HistImages")
         for ax, frame, nam in zip(axes, frames, names):
             frame = self.histNorm(frame, donorm=donorm, dosmash=dosmash, name=nam)
             self.plot_one_histimage(ax, frame, title=nam)
@@ -1831,7 +1803,7 @@ class Processor:
         self, axes, frames, names, even_points, donorm=True, dosmash=True, axes2=None
     ):
         # Plot the Histograms
-        print(" *    Plotting Histograms")
+        logger.info(" *    Plotting Histograms")
         # return
         if axes2 is None:
             axes2 = [None] * len(axes)
@@ -1955,7 +1927,8 @@ class Processor:
             if backend == "TkAgg":
                 try:
                     mng.window.state("zoomed")
-                except:
+                except Exception as err:  # was a bare except (2026-10-02, SB-11)
+                    logger.debug("window.state('zoomed') failed (%r); resizing to maxsize", err)
                     mng.resize(*mng.window.maxsize())
             elif backend == "wxAgg":
                 mng.frame.Maximize(True)
@@ -1964,7 +1937,8 @@ class Processor:
             else:
                 return False
             return True
-        except:
+        except Exception as err:  # was a bare except (2026-10-02, SB-11)
+            logger.debug("could not maximize the plot window (%r)", err)
             return False
 
         # top_axes[ii].imshow( fram.reshape(self.params.raw_image2.shape),  origin='lower', cmap='gray', vmin=0, vmax=1)
@@ -2019,7 +1993,7 @@ class Processor:
         )
         if not os.path.exists(os.path.dirname(pth)):
             os.makedirs(os.path.dirname(pth))
-        print(pth)
+        logger.info(pth)
 
         return directory
 
@@ -2097,21 +2071,17 @@ class Processor:
             if self.params.speak_save:
                 middle = " *         ** >> Saved Frame {} << **".format(field)
                 midlen = len(middle) - 14
-                print(" * \n *         ** " + "V" * midlen + " **")
-                print(middle)
-                print(" *         ** " + "^" * midlen + " **\n * ")
+                logger.info(" * \n *         ** " + "V" * midlen + " **")
+                logger.info(middle)
+                logger.info(" *         ** " + "^" * midlen + " **\n * ")
                 # print("File Saved!")
         except PermissionError as e:
-            print(
-                "\n        !! No Permission to save the file: \n         {}".format(
+            logger.info("\n        !! No Permission to save the file: \n         {}".format(
                     fits_path
-                )
-            )
+                ))
             self.skipped += 1
         except FileNotFoundError as e:
-            print(
-                "\n        !! No File to save the file: \n         {}".format(fits_path)
-            )
+            logger.info("\n        !! No File to save the file: \n         {}".format(fits_path))
             self.skipped += 1
 
     def make_shortcut(self, file_in_path=None, shortcut_out_path=None, doAppend=True):
@@ -2233,7 +2203,7 @@ class Processor:
                         try:
                             del hdul[nn]
                         except KeyError as e:
-                            print("KeyError", e)
+                            logger.info("%s %s", "KeyError", e)
                             # pass
         # try:
         #     frame = None
@@ -2367,18 +2337,18 @@ class Processor:
                     self.unpack_save_ins()
                     # if verb: self.super_flush("Success!\n")
                     if lc:
-                        print("Success!", flush=True)
+                        logger.info("Success!")
                     if False:
-                        print("", flush=True)
+                        logger.info("")
                     self.curves_have_been_loaded = True
                 except ValueError as e:
-                    print("Failed to load Radial Curves: {}".format(e))
+                    logger.info("Failed to load Radial Curves: {}".format(e))
                     # raise e
         else:
             if True:
-                print("No Curves to Load!")
-                print("Please place the curves file at:")
-                print(self.params.curve_path())
+                logger.info("No Curves to Load!")
+                logger.info("Please place the curves file at:")
+                logger.info(self.params.curve_path())
 
             # self.image_learn()
             # self.save_curves()
@@ -2534,15 +2504,15 @@ class Processor:
                     frame = frame[self._frameno]
             return frame, wave, t_rec, center, int_time, self.in_name
         except (FileNotFoundError, FileExistsError) as e:
-            print("\n", e)
-            print("HDU's found: ", self.hdu_name_list, "\n")
+            logger.info("%s %s", "\n", e)
+            logger.info("%s %s %s", "HDU's found: ", self.hdu_name_list, "\n")
             pass
         except (OSError, RuntimeError) as e:
             pass
-            print("\n", e)
+            logger.info("%s %s", "\n", e)
             # print("Unable to load Frame!")
         except (TypeError, Exception) as e:
-            print("\n", e)
+            logger.info("%s %s", "\n", e)
         self.skipped += 1
         return None, None, None, None, None, None
 
@@ -2751,7 +2721,7 @@ class Processor:
                     if to_check in short_name:  # or name in lowercase_hdu_names:
                         self.frame_name = full_name
                         if not quiet:
-                            print("\r +    Using frame {}".format(self.frame_name))
+                            logger.info("\r +    Using frame {}".format(self.frame_name))
                         break
                 if self.frame_name is not None:
                     return self.frame_name
@@ -2786,7 +2756,7 @@ class Processor:
         self.hdu_name_list = self.list_hdus(hdul)
         hdu_name_list_trimmed = [x.split("(")[0] for x in self.hdu_name_list]
         if self.frame_name is None:
-            print("asdf")
+            logger.info("asdf")
         # if self.frame_name is None:
         #     return None, None
         # if self.frame_name.casefold() == 'primary':
@@ -2814,7 +2784,7 @@ class Processor:
                         field_hdu = hdul[self.in_name]
                     except KeyError as e:
                         if not quiet:
-                            print("Oh No! Can't Find {}".format(self.frame_name))
+                            logger.info("Oh No! Can't Find {}".format(self.frame_name))
                         if fail:
                             raise e
                     field_hdu = hdul[name]
@@ -3116,25 +3086,18 @@ class Processor:
             sys.stderr.flush()
 
     def printout_hdul(self, hdul):
-        print("\n\n**Examining Hdul**")
+        logger.info("\n\n**Examining Hdul**")
 
         for h_num in range(len(hdul)):
-            print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n")
-            print("\n  HDUL #", h_num)
+            logger.info("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n")
+            logger.info("%s %s", "\n  HDUL #", h_num)
             for h_info in hdul.fileinfo(h_num):
-                print(
-                    "    ",
-                    h_num,
-                    " : ",
-                    h_info,
-                    "\t : \t",
-                    hdul.fileinfo(h_num)[h_info],
-                )
+                logger.info("%s %s %s %s %s %s", "    ", h_num, " : ", h_info, "\t : \t", hdul.fileinfo(h_num)[h_info])
 
             to_find = ["bound method", "built-in method", "method-wrapper"]
             HDU = hdul[h_num]
 
-            print("\n  Hdul Fields")
+            logger.info("\n  Hdul Fields")
             self.print_without(HDU, to_find)
 
             for ff in to_find:
@@ -3149,7 +3112,7 @@ class Processor:
         ax.imshow(img, cmap=self.params.cmap)
 
     def print_without(self, HDU, not_wanted=None):
-        print("      ** " + "Remainder without these:  " + str(not_wanted) + " **")
+        logger.info("      ** " + "Remainder without these:  " + str(not_wanted) + " **")
         ban_list = [str(it) for it in not_wanted]
 
         found_list = []
@@ -3168,12 +3131,12 @@ class Processor:
             # Print these
             out_string = "      {}".format("Misc") + ":: " + found_field_name
             out_2 = "\t  :  \t" + found_field_value_string
-            print("{0: <35}".format(out_string.replace("\n", " ")), out_2)
-        print("\n\n")
+            logger.info("%s %s", "{0: <35}".format(out_string.replace("\n", " ")), out_2)
+        logger.info("\n\n")
         return found_list
 
     def print_with(self, HDU, wanted=None):
-        print("    ** " + str(wanted) + " **")
+        logger.info("    ** " + str(wanted) + " **")
         found_list = []
         for found_field_name in dir(HDU):
             found_field_value = getattr(HDU, found_field_name)
@@ -3183,8 +3146,8 @@ class Processor:
                 found_list.append([found_field_name, found_field_value])
                 out_string = "      {}".format(wanted) + ":: " + found_field_name
                 out_2 = "\t  :  \t" + found_field_value_string
-                print("{0: <35}".format(out_string), out_2)
-        print("\n\n")
+                logger.info("%s %s", "{0: <35}".format(out_string), out_2)
+        logger.info("\n\n")
 
         return found_list
 
@@ -3265,10 +3228,10 @@ class Processor:
                         os.remove(img_path)
                     # for img_path in good_paths:
             else:
-                print("VideoProcessor:: There are no images yet. Make them first.")
+                logger.info("VideoProcessor:: There are no images yet. Make them first.")
                 1 + 1
         except FileNotFoundError as e:
-            print("Processor.py:", e)
+            logger.info("%s %s", "Processor.py:", e)
         finally:
             # Shut it all down
             cv2.destroyAllWindows()
@@ -3283,7 +3246,7 @@ class Processor:
         return np.log10(orig) / 2
 
     def touchup_TUNE(self, img):
-        print("TOUCHUP TOOOOOOOOON")
+        logger.info("TOUCHUP TOOOOOOOOON")
         img *= 10.0
         np.power(img, 1 / 3, out=img)
         img /= 3.5
@@ -3345,7 +3308,8 @@ class Processor:
             if backend == "TkAgg":
                 try:
                     mng.window.state("zoomed")
-                except:
+                except Exception as err:  # was a bare except (2026-10-02, SB-11)
+                    logger.debug("window.state('zoomed') failed (%r); resizing to maxsize", err)
                     mng.resize(*mng.window.maxsize())
             elif backend == "wxAgg":
                 mng.frame.Maximize(True)
@@ -3354,7 +3318,8 @@ class Processor:
             else:
                 return False
             return True
-        except:
+        except Exception as err:  # was a bare except (2026-10-02, SB-11)
+            logger.debug("could not maximize the plot window (%r)", err)
             return False
 
     @staticmethod

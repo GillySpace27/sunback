@@ -1,0 +1,221 @@
+{
+ "generated": "2026-10-02T12:00:00Z",
+ "products": [
+  {
+   "id": "rainbow",
+   "label": "Rainbow (RHEF composite)",
+   "thumb": "thumb/rhef_rainbow_thumb.png",
+   "img1k": "1k/rhef_rainbow_1k.png",
+   "video": "video/rhef_rainbow_1k.mp4",
+   "updated": "2026-10-02T12:00:00Z",
+   "frame_count": 144,
+   "integration": {
+    "frames": 5,
+    "method": "median"
+   },
+   "video_v": "v/rainbow/20261002T120000.mp4",
+   "still_v": "v/rainbow/20261002T120000.png",
+   "through": "2026-10-02T12:00:00Z",
+   "obs_start": "2026-10-02T11:50:00Z",
+   "obs_end": "2026-10-02T11:58:00Z"
+  },
+  {
+   "id": "171",
+   "label": "AIA 171 \u00c5",
+   "thumb": "thumb/rhef_171_thumb.png",
+   "img1k": "1k/rhef_171_1k.png",
+   "video": "video/rhef_171_1k.mp4",
+   "updated": "2026-10-02T12:00:00Z",
+   "frame_count": 144,
+   "integration": {
+    "frames": 5,
+    "method": "median"
+   },
+   "video_v": "v/171/20261002T120000.mp4",
+   "still_v": "v/171/20261002T120000.png",
+   "through": "2026-10-02T12:00:00Z",
+   "obs_start": "2026-10-02T11:50:00Z",
+   "obs_end": "2026-10-02T11:58:00Z"
+  },
+  {
+   "id": "193",
+   "label": "AIA 193 \u00c5",
+   "thumb": "thumb/rhef_193_thumb.png",
+   "img1k": "1k/rhef_193_1k.png",
+   "video": "video/rhef_193_1k.mp4",
+   "updated": "2026-10-02T12:00:00Z",
+   "frame_count": 144,
+   "integration": {
+    "frames": 5,
+    "method": "median"
+   },
+   "video_v": "v/193/20261002T120000.mp4",
+   "still_v": "v/193/20261002T120000.png",
+   "through": "2026-10-02T12:00:00Z",
+   "obs_start": "2026-10-02T11:50:00Z",
+   "obs_end": "2026-10-02T11:58:00Z"
+  },
+  {
+   "id": "211",
+   "label": "AIA 211 \u00c5",
+   "thumb": "thumb/rhef_211_thumb.png",
+   "img1k": "1k/rhef_211_1k.png",
+   "video": "video/rhef_211_1k.mp4",
+   "updated": "2026-10-02T12:00:00Z",
+   "frame_count": 144,
+   "integration": {
+    "frames": 5,
+    "method": "median"
+   },
+   "video_v": "v/211/20261002T120000.mp4",
+   "still_v": "v/211/20261002T120000.png",
+   "through": "2026-10-02T12:00:00Z",
+   "obs_start": "2026-10-02T11:50:00Z",
+   "obs_end": "2026-10-02T11:58:00Z"
+  },
+  {
+   "id": "304",
+   "label": "AIA 304 \u00c5",
+   "thumb": "thumb/rhef_304_thumb.png",
+   "img1k": "1k/rhef_304_1k.png",
+   "video": "video/rhef_304_1k.mp4",
+   "updated": "2026-10-02T12:00:00Z",
+   "frame_count": 144,
+   "integration": {
+    "frames": 5,
+    "method": "median"
+   },
+   "video_v": "v/304/20261002T120000.mp4",
+   "still_v": "v/304/20261002T120000.png",
+   "through": "2026-10-02T12:00:00Z",
+   "obs_start": "2026-10-02T11:50:00Z",
+   "obs_end": "2026-10-02T11:58:00Z"
+  },
+  {
+   "id": "335",
+   "label": "AIA 335 \u00c5",
+   "thumb": "thumb/rhef_335_thumb.png",
+   "img1k": "1k/rhef_335_1k.png",
+   "video": "video/rhef_335_1k.mp4",
+   "updated": "2026-10-02T12:00:00Z",
+   "frame_count": 144,
+   "integration": {
+    "frames": 5,
+    "method": "median"
+   },
+   "video_v": "v/335/20261002T120000.mp4",
+   "still_v": "v/335/20261002T120000.png",
+   "through": "2026-10-02T12:00:00Z",
+   "obs_start": "2026-10-02T11:50:00Z",
+   "obs_end": "2026-10-02T11:58:00Z"
+  },
+  {
+   "id": "94",
+   "label": "AIA 94 \u00c5",
+   "thumb": "thumb/rhef_94_thumb.png",
+   "img1k": "1k/rhef_94_1k.png",
+   "video": "video/rhef_94_1k.mp4",
+   "updated": "2026-10-02T12:00:00Z",
+   "frame_count": 144,
+   "integration": {
+    "frames": 5,
+    "method": "median"
+   },
+   "video_v": "v/94/20261002T120000.mp4",
+   "still_v": "v/94/20261002T120000.png",
+   "through": "2026-10-02T12:00:00Z",
+   "obs_start": "2026-10-02T11:50:00Z",
+   "obs_end": "2026-10-02T11:58:00Z"
+  },
+  {
+   "id": "131",
+   "label": "AIA 131 \u00c5",
+   "thumb": "thumb/rhef_131_thumb.png",
+   "img1k": "1k/rhef_131_1k.png",
+   "video": "video/rhef_131_1k.mp4",
+   "updated": "2026-10-02T12:00:00Z",
+   "frame_count": 144,
+   "integration": {
+    "frames": 5,
+    "method": "median"
+   },
+   "video_v": "v/131/20261002T120000.mp4",
+   "still_v": "v/131/20261002T120000.png",
+   "through": "2026-10-02T12:00:00Z",
+   "obs_start": "2026-10-02T11:50:00Z",
+   "obs_end": "2026-10-02T11:58:00Z"
+  },
+  {
+   "id": "1600",
+   "label": "AIA 1600 \u00c5 (UV)",
+   "thumb": "thumb/rhef_1600_thumb.png",
+   "img1k": "1k/rhef_1600_1k.png",
+   "video": "video/rhef_1600_1k.mp4",
+   "updated": "2026-10-02T12:00:00Z",
+   "frame_count": 144,
+   "integration": {
+    "frames": 5,
+    "method": "median"
+   },
+   "video_v": "v/1600/20261002T120000.mp4",
+   "still_v": "v/1600/20261002T120000.png",
+   "through": "2026-10-02T12:00:00Z",
+   "obs_start": "2026-10-02T11:50:00Z",
+   "obs_end": "2026-10-02T11:58:00Z"
+  },
+  {
+   "id": "1700",
+   "label": "AIA 1700 \u00c5 (UV)",
+   "thumb": "thumb/rhef_1700_thumb.png",
+   "img1k": "1k/rhef_1700_1k.png",
+   "video": "video/rhef_1700_1k.mp4",
+   "updated": "2026-10-02T12:00:00Z",
+   "frame_count": 144,
+   "integration": {
+    "frames": 5,
+    "method": "median"
+   },
+   "video_v": "v/1700/20261002T120000.mp4",
+   "still_v": "v/1700/20261002T120000.png",
+   "through": "2026-10-02T12:00:00Z",
+   "obs_start": "2026-10-02T11:50:00Z",
+   "obs_end": "2026-10-02T11:58:00Z"
+  },
+  {
+   "id": "composite_uv",
+   "label": "Composite (1700/1600/304)",
+   "thumb": "thumb/rhef_composite_uv_thumb.png",
+   "img1k": "1k/rhef_composite_uv_1k.png",
+   "video": "video/rhef_composite_uv_1k.mp4",
+   "updated": "2026-10-02T12:00:00Z",
+   "frame_count": 144,
+   "integration": {
+    "frames": 5,
+    "method": "median"
+   },
+   "video_v": "v/composite_uv/20261002T120000.mp4",
+   "still_v": "v/composite_uv/20261002T120000.png",
+   "through": "2026-10-02T12:00:00Z",
+   "obs_start": "2026-10-02T11:50:00Z",
+   "obs_end": "2026-10-02T11:58:00Z"
+  },
+  {
+   "id": "dem",
+   "label": "Temperature map (DEM)",
+   "thumb": "thumb/rhef_dem_thumb.png",
+   "img1k": "1k/rhef_dem_1k.png",
+   "video": "video/rhef_dem_1k.mp4",
+   "updated": "2026-10-02T12:00:00Z",
+   "frame_count": 144,
+   "integration": {
+    "frames": 5,
+    "method": "median"
+   },
+   "video_v": "v/dem/20261002T120000.mp4",
+   "still_v": "v/dem/20261002T120000.png",
+   "through": "2026-10-02T12:00:00Z",
+   "obs_start": "2026-10-02T11:50:00Z",
+   "obs_end": "2026-10-02T11:58:00Z"
+  }
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "id": "rainbow",
+ "label": "Rainbow (RHEF composite)",
+ "thumb": "thumb/rhef_rainbow_thumb.png",
+ "img1k": "1k/rhef_rainbow_1k.png",
+ "video": "video/rhef_rainbow_1k.mp4",
+ "updated": "2026-10-02T12:00:00Z",
+ "frame_count": 144,
+ "integration": {
+  "frames": 5,
+  "method": "median"
+ },
+ "video_v": "v/rainbow/20261002T120000.mp4",
+ "still_v": "v/rainbow/20261002T120000.png",
+ "through": "2026-10-02T12:00:00Z",
+ "obs_start": "2026-10-02T11:50:00Z",
+ "obs_end": "2026-10-02T11:58:00Z"
+}

@@ -1,4 +1,6 @@
 import os
+import logging
+logger = logging.getLogger(__name__)
 import sys
 import requests
 import xml.etree.ElementTree as ET
@@ -24,7 +26,7 @@ class S3ImgFetcher(Fetcher):
         )
 
         # Log the resolved directory for debugging
-        print(f"Resolved download directory: {self.download_dir}")
+        logger.info(f"Resolved download directory: {self.download_dir}")
 
     def fetch(self, params=None):
         if params is not None:
@@ -32,14 +34,14 @@ class S3ImgFetcher(Fetcher):
             self.__init__(params=params)
 
         os.makedirs(self.download_dir, exist_ok=True)
-        print(f"Downloading images from '{self.xml_url}' to {self.download_dir}", flush=True)
+        logger.info(f"Downloading images from '{self.xml_url}' to {self.download_dir}")
         sys.stdout.flush()
 
         xml_content = self._fetch_xml_content()
         img_urls = self._parse_xml_for_images(xml_content)
 
         if not img_urls:
-            print("No images found in the XML content.")
+            logger.info("No images found in the XML content.")
             return
 
         full_urls = [url for url in img_urls if not "thumb" in url]
@@ -48,7 +50,7 @@ class S3ImgFetcher(Fetcher):
             self._download_image(img_url)
 
         self.load()
-        print(f"\nDownloaded {len(img_urls)} images in total.")
+        logger.info(f"\nDownloaded {len(img_urls)} images in total.")
         sys.stdout.flush()
 
     def _fetch_xml_content(self):

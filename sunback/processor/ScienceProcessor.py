@@ -175,7 +175,7 @@ class ScienceProcessor(Processor):
         # annulus = 0
 
     def cleanup(self):
-        print("Cleanup time!")
+        logger.info("Cleanup time!")
 
         fig, axes = plt.subplots(1, sharex="all")
         # fig.suptitle("Annulus Width: {}".format(self.annulus_width))
@@ -862,7 +862,7 @@ class DEMReconstructionProcessor(ScienceProcessor):
         self.add_label_overlay_to_axes(ax, image.shape, None)
 
         pth = os.path.join(self.output_folder, "C_isothermal.png")
-        print(f"Saving to {pth}")
+        logger.info(f"Saving to {pth}")
         plt.savefig(pth, dpi=170.66666667, facecolor='black')
         plt.close(fig)
 

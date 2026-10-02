@@ -9,6 +9,12 @@ Per invocation (one product):
   2. prune the queue by age (keep ~49h; robust to double-firing triggers)
   3. download the queue, ffmpeg -> video/rhef_<prod>_1k.mp4 at FPS
   4. upload the video and write manifest/<prod>.json
+  5. rebuild manifest/index.json from every fragment
+
+Every video and still also gets an immutable copy under v/<prod>/<stamp>, named
+by the newest frame it contains. Those never change once written, so a CDN can
+hold them for a year and a reader can tell "new" from the name alone. The fixed
+keys are still written exactly as before for the landing page and old clients.
 
 Pure logic (queue/manifest/keys) is unit-tested in sunback/__tests__; this module
 is the I/O shell and is verified by deploying against a staging prefix.
@@ -29,9 +35,20 @@ from .frame_queue import (
     select_stale_frames,
 )
 from .manifest import (
+    IMMUTABLE,
+    INDEX_EXTRA_KEYS,
+    INDEX_KEY,
+    PRODUCTS,
+    STATUS_KEY,
+    build_index,
     build_manifest_fragment,
+    build_status,
+    compact_stamp,
     manifest_key,
     product_from_1k_key,
+    split_staging_prefix,
+    versioned_still_key,
+    versioned_video_key,
     video_key,
 )
 
@@ -57,17 +74,21 @@ _OBSTIME_FALLBACK_RE = re.compile(r"(\d{8}T\d{6})")
 
 
 def _obstime_for(bucket, key, event_time):
-    """Observation timestamp for the new still: object metadata, else event time."""
+    """(observation timestamp, user metadata) for the new still: metadata, else event time.
+
+    SB-9: the reducer also sends obstime_source, obs_start, obs_end, tint_n,
+    tint_m and, once RH-3 stamps exist, rhef_stamp.
+    """
     head = s3.head_object(Bucket=bucket, Key=key)
     meta = head.get("Metadata", {})
     if "obstime" in meta:
-        return meta["obstime"]
+        return meta["obstime"], meta
     # event_time like 2026-06-24T20:20:31.123Z -> compact
-    return re.sub(r"[-:]", "", event_time).split(".")[0]
+    return re.sub(r"[-:]", "", event_time).split(".")[0], meta
 
 
-def _list_queue(product):
-    prefix = f"frames/{product}/"
+def _list_queue(product, key_prefix=""):
+    prefix = f"{key_prefix}frames/{product}/"
     keys = []
     token = None
     while True:
@@ -82,7 +103,29 @@ def _list_queue(product):
     return keys
 
 
-def _build_video(product, frame_keys, workdir):
+_STAMP_RE = re.compile(r"[\x20-\x7e]{1,400}")
+
+
+def _mp4_metadata_args(product, seq, n_frames, integration, stamp=None):
+    """SB-9 ffmpeg -metadata arguments (decision A4).
+
+    ``comment`` is the RH-3 stamp string, the human line, and only when the
+    reducer sent one (one printable ASCII line). The JSON lives in the separate
+    ``sunback_provenance`` tag. ``creation_time`` is the newest frame's time.
+    """
+    info = {"product": product, "first": _iso(compact_stamp(seq[0])),
+            "through": _iso(compact_stamp(seq[-1])), "slots": len(seq), "frames": n_frames,
+            "fps": FPS, "cadence_s": GRID_CADENCE_S, "integration": integration or {},
+            "source": "NASA/SDO/AIA synoptic NRT via JSOC; RHEF (Gilly and Cranmer 2025)"}
+    args = []
+    if stamp and _STAMP_RE.fullmatch(stamp):
+        args += ["-metadata", "comment=" + stamp]
+    args += ["-metadata", "sunback_provenance=" + json.dumps(info, separators=(",", ":")),
+             "-metadata", "creation_time=" + _iso(compact_stamp(seq[-1]))]
+    return args
+
+
+def _build_video(product, frame_keys, workdir, integration=None, stamp=None):
     """Snap frames to a uniform 20-min grid (holding through gaps), then ffmpeg.
 
     Returns (mp4_path, n_unique_real_frames). The video has one slot per grid step
@@ -106,7 +149,18 @@ def _build_video(product, frame_keys, workdir):
         [
             FFMPEG, "-y", "-r", str(FPS), "-f", "concat", "-safe", "0",
             "-i", list_path, "-c:v", "libx264", "-preset", X264_PRESET,
-            "-pix_fmt", "yuv420p", "-movflags", "+faststart", out_path,
+            "-pix_fmt", "yuv420p",
+            # Say what the colours are. Untagged H.264 leaves every player to
+            # guess range and matrix, and WebKit's first render path and its
+            # later one guess differently: the same clip looked right on first
+            # play and oversaturated on every play after a src change
+            # (Heliograph, 2026-09-12). Tagging removes the guess.
+            "-vf", "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv",
+            "-color_range", "tv", "-colorspace", "bt709",
+            # use_metadata_tags: without it the mov muxer drops tags it has no atom for
+            # (the custom sunback_provenance tag); known tags are still written.
+            "-movflags", "+faststart+use_metadata_tags",
+            *_mp4_metadata_args(product, seq, len(local_of), integration, stamp), out_path,
         ],
         check=True,
         capture_output=True,
@@ -114,18 +168,62 @@ def _build_video(product, frame_keys, workdir):
     return out_path, len(local_of)
 
 
-def _seconds_since_last_build(product):
-    """Age of the current video in seconds, or None if it doesn't exist yet."""
+def _last_build(product, prefix=""):
+    """(age in seconds, newest-frame stamp) of the current video, or (None, None).
+
+    A video built before versioned keys carries no stamp; the caller treats that
+    as due, so every product gains its versioned copy on its next trigger.
+    """
     try:
-        head = s3.head_object(Bucket=BUCKET, Key=video_key(product))
+        head = s3.head_object(Bucket=BUCKET, Key=prefix + video_key(product))
     except ClientError:
-        return None
-    return (datetime.now(timezone.utc) - head["LastModified"]).total_seconds()
+        return None, None
+    age = (datetime.now(timezone.utc) - head["LastModified"]).total_seconds()
+    return age, head.get("Metadata", {}).get("through")
 
 
-def _process_one(product, trigger_key, obstime):
-    # 1. add the new still to the queue
-    new_frame_key = frame_key_for(product, obstime)
+def _write_index(prefix=""):
+    """Rebuild manifest/index.json from every product's fragment.
+
+    ponytail: concurrent invocations each rewrite the whole index, so the last
+    writer can miss another product's update from the same moment. The next
+    trigger (20 min) repairs it and readers poll daily; upgrade to a conditional
+    PUT (If-Match) if that ever stops being true.
+    """
+    fragments = []
+    for p in PRODUCTS:
+        try:
+            body = s3.get_object(Bucket=BUCKET, Key=prefix + manifest_key(p["id"]))["Body"].read()
+            fragments.append(json.loads(body))
+        except (ClientError, ValueError):
+            continue  # never built yet: absent from the index, not an error
+    extras = {}
+    for name, extra_key in INDEX_EXTRA_KEYS.items():
+        try:
+            extras[name] = json.loads(s3.get_object(Bucket=BUCKET, Key=prefix + extra_key)["Body"].read())
+        except (ClientError, ValueError):
+            continue  # not published yet: the field is simply absent
+    now = datetime.now(timezone.utc)
+    generated = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    s3.put_object(
+        Bucket=BUCKET, Key=prefix + INDEX_KEY,
+        Body=json.dumps(build_index(fragments, generated, extras)).encode("utf-8"),
+        ACL="public-read", ContentType="application/json",
+        CacheControl="public, max-age=300",
+    )
+    # SB-8: small public freshness summary; same last-writer-wins race as the
+    # index, repaired by the next trigger.
+    s3.put_object(
+        Bucket=BUCKET, Key=prefix + STATUS_KEY,
+        Body=json.dumps(build_status(fragments, generated, now)).encode("utf-8"),
+        ACL="public-read", ContentType="application/json",
+        CacheControl="public, max-age=60",
+    )
+
+
+def _process_one(product, trigger_key, obstime, prefix="", meta=None):
+    # 1. add the new still to the queue (prefix is "" in production, "staging/" on a staging invoke)
+    new_frame_key = prefix + frame_key_for(product, obstime)
     s3.copy_object(
         Bucket=BUCKET,
         CopySource={"Bucket": BUCKET, "Key": trigger_key},
@@ -134,13 +232,23 @@ def _process_one(product, trigger_key, obstime):
     )
 
     # 2. prune by AGE (keep a fixed 48h+margin window, robust to double-firing)
-    queue = _list_queue(product)
-    stale = set(select_stale_frames(queue, PRUNE_WINDOW_S))
+    queue = _list_queue(product, prefix)
+    # SB-8: staging frames are never pruned by code (delete nothing); a
+    # Gilly-approved lifecycle rule on staging/ is the only cleanup path.
+    stale = set(select_stale_frames(queue, PRUNE_WINDOW_S)) if not prefix else set()
     for key in stale:
         s3.delete_object(Bucket=BUCKET, Key=key)
     queue = [k for k in queue if k not in stale]
     if new_frame_key not in queue:
         queue.append(new_frame_key)
+
+    # 2b. an immutable public copy of the still (server-side, no bytes through here)
+    still_v = versioned_still_key(product, compact_stamp(new_frame_key))
+    s3.copy_object(
+        Bucket=BUCKET, CopySource={"Bucket": BUCKET, "Key": new_frame_key}, Key=prefix + still_v,
+        MetadataDirective="REPLACE", ContentType="image/png", CacheControl=IMMUTABLE,
+        ACL="public-read",
+    )
 
     # 3. rebuild the video — but only if we haven't within BUILD_THROTTLE_S.
     #    The frame is already captured (step 1) and the queue is pruned (step 2),
@@ -149,15 +257,20 @@ def _process_one(product, trigger_key, obstime):
     #    compute (no downloads) so the manifest stays accurate either way.
     seq = build_grid_sequence(queue, cadence_s=GRID_CADENCE_S, max_slots=FRAME_WINDOW)
     frame_count = len(set(seq))
-    age = _seconds_since_last_build(product)
-    if age is None or age >= BUILD_THROTTLE_S:
+    age, through = _last_build(product, prefix)
+    if age is None or through is None or age >= BUILD_THROTTLE_S:
         with tempfile.TemporaryDirectory() as workdir:
-            video_path, frame_count = _build_video(product, queue, workdir)
-            s3.upload_file(
-                video_path, BUCKET, video_key(product),
-                ExtraArgs={"ACL": "public-read", "ContentType": "video/mp4",
-                           "ContentDisposition": "inline"},
-            )
+            video_path, frame_count = _build_video(product, queue, workdir, _integration(),
+                                                   (meta or {}).get("rhef_stamp"))
+            through = compact_stamp(seq[-1])
+            args = {"ACL": "public-read", "ContentType": "video/mp4",
+                    "ContentDisposition": "inline"}
+            # Versioned first: if the fixed upload then fails, the fragment is not
+            # rewritten and still names the previous versioned copy, which exists.
+            s3.upload_file(video_path, BUCKET, prefix + versioned_video_key(product, through),
+                           ExtraArgs={**args, "CacheControl": IMMUTABLE})
+            s3.upload_file(video_path, BUCKET, prefix + video_key(product),
+                           ExtraArgs={**args, "Metadata": {"through": through}})
 
     # 4b. write the manifest fragment (every trigger — keeps the card's
     #     "updated Xm ago" live even when the video encode was throttled)
@@ -165,18 +278,28 @@ def _process_one(product, trigger_key, obstime):
         product,
         updated=_iso(obstime),
         frame_count=frame_count,
-        integration={
-            "frames": int(os.environ.get("INTEGRATION_FRAMES", "5")),
-            "method": os.environ.get("INTEGRATION_METHOD", "median"),
-        },
+        integration=_integration(),
+        video_v=versioned_video_key(product, through),
+        still_v=still_v,
+        through=_iso(through),
+        obs_start=(meta or {}).get("obs_start") or None,
+        obs_end=(meta or {}).get("obs_end") or None,
     )
     s3.put_object(
-        Bucket=BUCKET, Key=manifest_key(product),
+        Bucket=BUCKET, Key=prefix + manifest_key(product),
         Body=json.dumps(fragment).encode("utf-8"),
         ACL="public-read", ContentType="application/json",
         CacheControl="no-cache",
     )
+    _write_index(prefix)
     return fragment
+
+
+def _integration():
+    return {
+        "frames": int(os.environ.get("INTEGRATION_FRAMES", "5")),
+        "method": os.environ.get("INTEGRATION_METHOD", "median"),
+    }
 
 
 def _iso(compact):
@@ -189,13 +312,26 @@ def _iso(compact):
 
 
 def handler(event, context):
+    """Process every record; one failure no longer stops the rest (SB-8).
+
+    After the loop, any failure is raised once so the invocation counts as an
+    Error (alarm) and S3's async retry and on-failure destination see it.
+    """
     results = []
+    failed = []
     for record in event.get("Records", []):
-        key = record["s3"]["object"]["key"]
-        product = product_from_1k_key(key)
-        if product is None:
-            continue  # not a 1k still we care about
-        event_time = record.get("eventTime", "")
-        obstime = _obstime_for(BUCKET, key, event_time)
-        results.append(_process_one(product, key, obstime))
+        key = record.get("s3", {}).get("object", {}).get("key", "")
+        try:
+            prefix, rel_key = split_staging_prefix(key)
+            product = product_from_1k_key(rel_key)
+            if product is None:
+                continue  # not a 1k still we care about
+            event_time = record.get("eventTime", "")
+            obstime, meta = _obstime_for(BUCKET, key, event_time)
+            results.append(_process_one(product, key, obstime, prefix, meta))
+        except Exception as exc:  # isolate: log the key, keep going
+            print(f"record failed: {key}: {exc!r}")
+            failed.append(key)
+    if failed:
+        raise RuntimeError(f"{len(failed)} record(s) failed: {failed}")
     return {"processed": [r["id"] for r in results]}

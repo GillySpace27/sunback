@@ -61,4 +61,15 @@ fi
 run_step catalog sunback/__tests__/test_product_catalog.py \
   "$PY" -m pytest -q sunback/__tests__/test_product_catalog.py
 
+# Wheel audit (SB-12): build the sdist and the wheel into a fresh temporary
+# directory and audit the wheel. Building the wheel from the sdist ignores a
+# stale build/ directory in the checkout. --no-isolation keeps it offline; it
+# needs setuptools>=63 and wheel installed next to build.
+wheel_step() {
+  local out
+  out="$(mktemp -d)"
+  "$PY" -m build --no-isolation --outdir "$out" . && "$PY" devtools/scripts/check_wheel.py "$out"/*.whl
+}
+run_step wheel py:build wheel_step
+
 exit "$failed"

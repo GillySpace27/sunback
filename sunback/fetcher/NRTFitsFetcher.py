@@ -10,6 +10,8 @@ Pure logic lives in (and is unit-tested via) ``nrt_listing`` and ``nrt_integrate
 this class is the network/orchestration shell, verified by a live ``workflow_dispatch``.
 """
 import os
+import logging
+logger = logging.getLogger(__name__)
 import shutil
 import urllib.request
 from datetime import datetime, timezone
@@ -26,8 +28,9 @@ INTEGRATION_METHOD = "median"     # 'median' (cosmic-ray robust) | 'mean' | 'sum
 LOOKBACK_HOURS = 1                # also scan the previous hour bucket near the edge
 # 7 EUV channels that get their own card on the page.
 SERVE_WAVES = ["0171", "0193", "0211", "0304", "0335", "0094", "0131"]
-# The rainbow composite's rgb3 channel needs 1600/1700 too, so we fetch+integrate
-# them even though they are not served as standalone cards.
+# 1600 and 1700 feed RainbowRGBImageProcessor's rgb3 composite (1700/1600/304,
+# served as "composite_uv") and are also served as their own cards
+# (serve_keys.SERVED_CHANNELS). The name is historical and stays (SB-6).
 COMPOSITE_ONLY_WAVES = ["1600", "1700"]
 FETCH_WAVES = SERVE_WAVES + COMPOSITE_ONLY_WAVES
 # ----------------------------------------------------------------------------
@@ -58,7 +61,7 @@ class NRTFitsFetcher(WebFitsFetcher):
             with urllib.request.urlopen(req, timeout=15) as resp:
                 html = resp.read().decode("utf-8")
         except Exception as e:  # missing bucket / transient error -> skip
-            print(f"NRTFitsFetcher: could not list {url}: {e}")
+            logger.info(f"NRTFitsFetcher: could not list {url}: {e}")
             return []
         soup = BeautifulSoup(html, "html.parser")
         return [
@@ -97,7 +100,7 @@ class NRTFitsFetcher(WebFitsFetcher):
                 if self.download_url(listing[name], local):
                     local_frames.append(local)
             if not local_frames:
-                print(f"NRTFitsFetcher: no frames downloaded for {wave}")
+                logger.info(f"NRTFitsFetcher: no frames downloaded for {wave}")
                 continue
             # 3. integrate -> AIAsynoptic<wave>.fits (drop-in for the pipeline)
             out = os.path.join(fits_dir, f"AIAsynoptic{wave}.fits")
@@ -106,6 +109,6 @@ class NRTFitsFetcher(WebFitsFetcher):
 
         if self.destroy:
             shutil.rmtree(temp_dir, ignore_errors=True)
-        print(f" ^  Integrated {len(out_paths)} wavelengths "
-              f"({n}x {method}) from NRT\n", flush=True)
+        logger.info(f" ^  Integrated {len(out_paths)} wavelengths "
+              f"({n}x {method}) from NRT\n")
         return out_paths

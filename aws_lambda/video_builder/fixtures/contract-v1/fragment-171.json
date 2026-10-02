@@ -1,0 +1,18 @@
+{
+ "id": "171",
+ "label": "AIA 171 \u00c5",
+ "thumb": "thumb/rhef_171_thumb.png",
+ "img1k": "1k/rhef_171_1k.png",
+ "video": "video/rhef_171_1k.mp4",
+ "updated": "2026-10-02T12:00:00Z",
+ "frame_count": 144,
+ "integration": {
+  "frames": 5,
+  "method": "median"
+ },
+ "video_v": "v/171/20261002T120000.mp4",
+ "still_v": "v/171/20261002T120000.png",
+ "through": "2026-10-02T12:00:00Z",
+ "obs_start": "2026-10-02T11:50:00Z",
+ "obs_end": "2026-10-02T11:58:00Z"
+}

@@ -1,0 +1,27 @@
+# PARKED in ci-pending/ until requirements-reducer.txt exists (see ci-pending/README.md).
+# Dependabot (SB-13). Weekly version updates for the Python requirement files, the workflow
+# actions and the Dockerfile base image. Merging this file starts the weekly PRs; closing
+# them stays Gilly's. Once requirements-reducer.txt exists (it is frozen from the production
+# image, which needs Gilly's yes), it is the file that matters: a PR that touches it or the
+# Dockerfile runs container.yml and merges only after Gilly reviews it.
+# requirements-server.txt and requirements-exact.txt are not what the reducer image
+# will install; PRs against them change nothing that runs.
+# Security alerts: devtools/scripts/alert_triage.py.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      reducer:
+        patterns:
+          - "*"
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly

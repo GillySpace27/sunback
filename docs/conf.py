@@ -19,12 +19,20 @@ sys.path.insert(0, os.path.abspath('..'))
 # sys.path.append('../')
 
 # from movie.dep.sunback import get_versions
-from versioneer import get_versions
+# SB-12, 2026-10-02: versioneer moved to attic/packaging/; the version comes from the
+# installed distribution instead. The old lines, kept for reference:
+# from versioneer import get_versions
+#
+# versions = get_versions()
+# __version__ = versions['version']
+# __git_revision__ = versions['full-revisionid']
+# del get_versions, versions
+from importlib.metadata import PackageNotFoundError, version as _dist_version
 
-versions = get_versions()
-__version__ = versions['version']
-__git_revision__ = versions['full-revisionid']
-del get_versions, versions
+try:
+    __version__ = _dist_version('sunback')
+except PackageNotFoundError:
+    __version__ = '0+unknown'
 
 # -- Project information -----------------------------------------------------
 
