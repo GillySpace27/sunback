@@ -1,0 +1,35 @@
+# Gate for every change (SB-2): unit tests, a compile check and a narrow ruff rule
+# set on every pull request and every push, in the reducer's own container image.
+# Read-only: no AWS credentials, no OIDC token, nothing is published.
+name: tests
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/gillyspace27/sunback-ci:latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install sunback and the test tools
+        run: |
+          python --version
+          pip install .
+          pip install pytest==9.1.1 ruff==0.15.20
+
+      - name: Unit tests
+        run: python -m pytest -q
+
+      - name: Compile check
+        run: python -m compileall -q -x '(/dep/|/depricated/)' sunback aws_lambda
+
+      - name: Lint
+        run: ruff check
