@@ -86,6 +86,7 @@ branch, tag, S3 object, Lambda version or layer removal. Retire code with
 - `python infra/pat_expiry.py`: days until the dispatcher PAT expires; exit 1 within 14 days (SB-7)
 - `python infra/rotate_dispatch_pat.py`: Gilly runs it in his own terminal; agents never run it (SB-7)
 - `python devtools/reachability.py [--json]`: which tracked modules production, research or nothing reaches (SB-10)
+- `python devtools/scripts/check_freshness.py [--threshold 3600] [--prefix staging/] [--json]`: read-only freshness of image_times.txt and every manifest fragment; exit 0 fresh, 1 stale or missing, 3 unreachable (SB-8)
 
 ## Where work lives
 

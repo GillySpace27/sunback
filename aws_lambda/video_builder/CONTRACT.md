@@ -110,3 +110,13 @@ found: the landing page reads `image_times.txt` only, and a grep of the Website,
 Heliogram and My Heliograph repositories found no reader (2026-10-01). The
 reducer writes it while `SUNBACK_WRITE_READABLE_TIMES` is on (`NrtSettings`);
 the last copy stays in the bucket when writing stops.
+
+## status.json (SB-8)
+
+| Key | Writer | Cache-Control | Body |
+|---|---|---|---|
+| `status.json` | `sun-video-builder`, `handler._write_index`, on every trigger, beside `manifest/index.json` | `public, max-age=60` | `{"generated": "YYYY-MM-DDTHH:MM:SSZ", "products": [{"id": str, "updated": str, "age_s": int}], "worst_age_s": int or null}`; products in `PRODUCTS` order; a product without a fragment or with an unparseable `updated` is absent; `worst_age_s` is null only when no product could be read |
+
+- `manifest/index.json` top-level fields other than `generated` and `products` come only from `INDEX_EXTRA_KEYS` in `manifest.py` (none yet; SB-15 and SB-18 add theirs).
+- A manual invoke whose trigger key starts with `staging/` reads and writes only under `staging/`; frames there are never pruned by code.
+- Additive only: `status.json` and its fields are never renamed or removed.
