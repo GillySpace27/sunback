@@ -144,3 +144,51 @@ def test_typed_name_deploys_and_writes_receipt(tmp_path):
     assert receipt["code_sha256"] == new_sha
     assert receipt["version"] == "42"
     assert "123456789012" not in json.dumps(receipt)
+
+
+def _load_build_layer():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("build_layer", VB / "layer" / "build_layer.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _fake_archive(binary):
+    import tarfile
+
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:xz") as tf:
+        for name, data in (("ffmpeg-7-amd64-static/ffprobe", b"probe"),
+                           ("ffmpeg-7-amd64-static/ffmpeg", binary)):
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tf.addfile(info, io.BytesIO(data))
+    return buf.getvalue()
+
+
+def test_build_layer_picks_ffmpeg_and_zips_it_deterministically():
+    bl = _load_build_layer()
+    binary = bl.binary_from_archive(_fake_archive(b"\x7fELF fake ffmpeg"))
+    assert binary == b"\x7fELF fake ffmpeg"
+    z1, z2 = bl.layer_zip(binary), bl.layer_zip(binary)
+    assert z1 == z2
+    with zipfile.ZipFile(io.BytesIO(z1)) as z:
+        (info,) = z.infolist()
+    assert info.filename == "bin/ffmpeg"
+    assert (info.external_attr >> 16) & 0o777 == 0o755
+    assert bl.binary_from_layer_zip(z1) == binary
+
+
+def test_build_layer_verify_only_compares_the_lock(tmp_path):
+    bl = _load_build_layer()
+    binary = b"\x7fELF fake ffmpeg"
+    archive = _fake_archive(binary)
+    lock = tmp_path / "ffmpeg.lock"
+    lock.write_text(json.dumps({"url": "https://example.invalid/ffmpeg.tar.xz",
+                                "sha256": hashlib.sha256(binary).hexdigest(), "source": "archive"}))
+    assert bl.run(["--verify-only", "--lock", str(lock)], fetch=lambda url: archive) == 0
+    lock.write_text(json.dumps({"url": "https://example.invalid/ffmpeg.tar.xz",
+                                "sha256": "0" * 64, "source": "archive"}))
+    assert bl.run(["--verify-only", "--lock", str(lock)], fetch=lambda url: archive) == 1
