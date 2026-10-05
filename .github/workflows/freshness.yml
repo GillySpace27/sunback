@@ -1,0 +1,36 @@
+name: freshness
+
+# Suite SU-2: read-only GETs of Gilly's own endpoints (S3 image_times.txt, the R2
+# manifest index, sun.html, the appcasts, the store's /api/build-info). A FAIL
+# fails this job, and GitHub's failed-run email is the alarm. Shares no trigger
+# with GitCloudRunHourly.yml and never touches it.
+
+on:
+  schedule:
+    - cron: '41 */2 * * *'
+  workflow_dispatch:
+    inputs:
+      s3_max_age_s:
+        description: 'image_times.txt age limit in seconds (1 forces a FAIL to test the alarm)'
+        required: false
+        default: '3600'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: freshness
+  cancel-in-progress: false
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Probe the live imagery chain
+        env:
+          FRESHNESS_S3_MAX_AGE_S: ${{ inputs.s3_max_age_s || '3600' }}
+          FRESHNESS_ARM_R2_INDEX: ${{ vars.FRESHNESS_ARM_R2_INDEX || '0' }}
+        run: python3 -m devtools.scripts.freshness_probe
