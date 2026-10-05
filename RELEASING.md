@@ -91,3 +91,22 @@ Exit 0 appended, 3 already recorded, 1 refused (the message names why). Set `NOT
 em dash to replace the default. Committing and pushing the Website is a separate yes from Gilly. The field
 names (`urls`, `packagetype`, `digests`, `size`, `upload_time_iso_8601`) are PyPI's JSON API as read from its
 documentation, not run against pypi.org: if the block fails on a missing key, print `d["urls"][0]` and adjust.
+
+## Rolling back (SU-3)
+
+Every way back is forward and every step is an outward action that needs Gilly's yes. Nothing
+here deletes a tag, a release, a Lambda version or an object.
+
+- PyPI (`pip install sunback`): never yank or delete (Rules above). Release the last good
+  source as a new, higher version through the normal tag flow; users of a plain
+  `pip install sunback` get it, an exact pin keeps what it pinned.
+- Video-builder Lambda (`sun-video-builder`, us-east-2): `deploy_code.py --rollback
+  aws_lambda/video_builder/receipts/<stamp>.json` rebuilds that receipt's `lambda-*` tag with
+  `git archive` and goes through the same gate as a deploy (`aws_lambda/video_builder/README.md`,
+  "Deploying code changes", step 5). Run `deploy_code.py --plan` first; it is read-only. Never use
+  `deploy.sh` for a rollback: it republishes the ffmpeg layer, resets the environment and
+  replaces the bucket notification. A `live` alias that would make this a pointer move is SU-3
+  Task 10, not built.
+- Reducer (GitHub Actions on master): undo a bad commit with a new commit (`git revert <sha>`)
+  in a PR, never a force-push. The merge runs the production reducer, so try the revert first
+  with a staging dispatch (section above).
