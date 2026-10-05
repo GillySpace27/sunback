@@ -14,7 +14,7 @@ authors = [
     { name = "C. R. Gilly", email = "chris.gilly@colorado.edu" }
 ]
 urls = { "Homepage" = "https://github.com/GillySpace27/sunback" }
-requires-python = ">=3.0"
+requires-python = ">=3.11"
 
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -33,13 +33,15 @@ classifiers = [
 dependencies = [
         "boto3",
         "matplotlib",
-        "sunpy",
+        "sunpy[map]",
         "astropy",
         "scipy",
         "opencv-python",
         "xarray",
         "requests",
         "setuptools",
+        "numpy",
+        "tqdm",
         "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
         ]
 
@@ -63,12 +65,25 @@ sunback-run = "sunback.run.run_client_background:run_client"
 sunback-serve = "sunback.run.run_server_lingon:run_server_lingon"
 
 
+[tool.setuptools]
+# SB-12, 2026-10-02: MANIFEST.in grafts all of sunback/ into the sdist; with
+# include-package-data on, every notebook, log and the Windows DLL under
+# sunback/ reached the wheel. Only package-data below ships now.
+include-package-data = false
+
 [tool.setuptools.packages.find]
 where = ["."]
-exclude = ["attic", "attic.*"]
+# SB-12, 2026-10-02: was a bare find over the repository root, which installed
+# devtools, docs, data, resources, web and aws_lambda into site-packages.
+include = ["sunback", "sunback.*"]
+exclude = ["attic", "attic.*", "sunback.__tests__", "sunback.__tests__.*",
+           "sunback.processor.tests", "sunback.processor.tests.*",
+           "*.dep", "*.dep.*", "*.depricated", "*.depricated.*"]
 
 [tool.setuptools.package-data]
-"*" = ["*"]
+# SB-12, 2026-10-02: was "*" = ["*"] (every file in every package).
+# "*" = ["*"]
+"sunback.science" = ["idl_3.csv"]
 
 [tool.pytest.ini_options]
 testpaths = ["sunback/__tests__", "sunback/processor/tests"]
@@ -84,3 +99,15 @@ force-exclude = true
 
 [tool.ruff.lint]
 select = ["E9", "F63", "F7", "F82"]
+
+# Moved from setup.cfg by SB-12, 2026-10-02. [flake8] max-line-length = 119 is
+# covered by [tool.ruff] line-length; [aliases] test = pytest and [versioneer]
+# have no pyproject equivalent and stay in attic/packaging/setup.cfg; the
+# coverage omit entry for sunback/_version.py went to the attic with that file.
+[tool.coverage.run]
+omit = ["*/tests/*"]
+
+[tool.yapf]
+column_limit = 119
+indent_width = 4
+use_tabs = false

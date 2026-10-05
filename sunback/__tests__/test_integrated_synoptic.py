@@ -60,3 +60,20 @@ def test_output_preserves_newest_header(tmp_path):
         hdr = next(h.header for h in hdul if h.data is not None and h.data.ndim == 2)
         assert hdr["WAVELNTH"] == 171
         assert hdr["T_REC"] == "2026-06-24T20:01:00Z"  # newest (last) frame
+
+def test_output_records_oldest_frame_time(tmp_path):
+    """SB-9: TINT_T0 is the oldest frame's time; T_REC stays the newest frame's."""
+    paths = []
+    for i in range(3):
+        p = tmp_path / f"AIA_{i}.fits"
+        _write_comp_fits(str(p), np.ones((2, 2), dtype=np.float32),
+                         t_rec=f"2026-06-24T20:0{i}:00Z")
+        paths.append(str(p))
+    out = tmp_path / "AIAsynoptic0171.fits"
+    write_integrated_synoptic(paths, str(out), method="median")
+
+    with fits.open(str(out)) as hdul:
+        hdr = next(h.header for h in hdul if h.data is not None and h.data.ndim == 2)
+        assert hdr["TINT_T0"] == "2026-06-24T20:00:00Z"   # oldest (first) frame
+        assert hdr["T_REC"] == "2026-06-24T20:02:00Z"     # newest (last) frame
+        assert hdr["TINT_N"] == 3

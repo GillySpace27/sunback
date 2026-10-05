@@ -1,4 +1,6 @@
 from os.path import split
+import logging
+logger = logging.getLogger(__name__)
 from os import makedirs
 from time import time
 from tqdm import tqdm
@@ -13,7 +15,11 @@ from datetime import datetime, timezone
 
 from sunback.utils.array_util import get_thumblinks, make_thumbs
 from sunback.putter.serve_keys import serve_id_for_local_png, s3_img_key, s3_thumb_key
+from sunback.putter.serve_keys import SERVED_CHANNELS, s3_meta_key
 from sunback.settings import NrtSettings
+import glob
+import json
+import re
 
 THUMB_PX = 512
 
@@ -65,6 +71,171 @@ def upload_public(local_path, key, content_type, cache_control=None, metadata=No
     return full_key
 
 
+# --- SB-9: honest time and visible provenance -----------------------------------
+# Which integrated FITS feed each served still. Singles map through
+# SERVED_CHANNELS; composites per CompositeRainbowImageProcessor (rgb1, rgb3);
+# DEM per ScienceProcessor.DEMReconstructionProcessor.channel_waves.
+PRODUCT_INPUT_WAVES = {
+    **{pid: (wave,) for wave, pid in SERVED_CHANNELS.items()},
+    "rainbow": ("0171", "0193", "0211"),
+    "composite_uv": ("1700", "1600", "0304"),
+    "dem": ("0094", "0131", "0171", "0193", "0211", "0335"),
+}
+
+# Wording for Gilly to confirm before merge (overview Q18); WS-17 shows the same strings.
+RHEF_CITATION = "Gilly and Cranmer 2025, Solar Physics, doi:10.1007/s11207-025-02578-x"
+CREDIT = "Imagery courtesy of NASA/SDO and the AIA science team."
+# Read from sunback_webapp api/solar-archive.js (CITATIONS.AIA_PAPER); matches the vault's instruments/AIA.md.
+AIA_PAPER = "Lemen, J. R., et al. 2012, Sol. Phys., 275, 17."
+RHEF_NOTE = "RHEF output is a visualization, not a calibrated radiance."
+
+_ISO_RE = re.compile(r"(\d{4})[-.](\d{2})[-.](\d{2})[T_ ](\d{2}):(\d{2}):(\d{2})")
+
+
+def _iso_z(value):
+    """'2026-09-28T12:00:00.12' or '2026.09.28_12:00:00' -> '2026-09-28T12:00:00Z'; '' if no time.
+
+    A _TAI suffix, if a header ever carries one, is not converted.
+    """
+    m = _ISO_RE.search(str(value or ""))
+    return "{}-{}-{}T{}:{}:{}Z".format(*m.groups()) if m else ""
+
+
+def header_provenance(fits_path):
+    """Times and integration recorded in one integrated synoptic FITS (empty strings when absent)."""
+    from astropy.io import fits
+    from sunback.fetcher.nrt_integrate import frame_time
+
+    with fits.open(fits_path) as hdul:
+        header = next((h.header for h in hdul if h.header.get("NAXIS", 0) == 2), hdul[-1].header)
+        _, newest = frame_time(header)
+        return {
+            "obs_start": _iso_z(header.get("TINT_T0", "")),
+            "obs_end": _iso_z(newest),
+            "tint_n": str(header.get("TINT_N", "")),
+            "tint_m": str(header.get("TINT_M", "")),
+        }
+
+
+def _find_fits(fits_dir, wave):
+    if not fits_dir:
+        return None
+    name = f"AIAsynoptic{wave}.fits"
+    direct = os.path.join(fits_dir, name)
+    if os.path.exists(direct):
+        return direct
+    hits = sorted(glob.glob(os.path.join(fits_dir, "**", name), recursive=True), key=os.path.getmtime)
+    return hits[-1] if hits else None
+
+
+def png_provenance(png_path, fits_dir, upload_time):
+    """Provenance of one served still from the integrated FITS behind it.
+
+    obstime here is the newest input's newest frame (obs_end); obs_start is the
+    oldest frame of any input. Without a readable header time the upload time
+    is used and flagged obstime_source='upload'. This is the provenance (tEXt
+    chunks, sidecar); the S3 metadata key `obstime` is not taken from it, it
+    stays the upload time (see do_upload).
+    """
+    product_id = serve_id_for_local_png(png_path)
+    waves = PRODUCT_INPUT_WAVES.get(product_id, ())
+    found = []
+    for wave in waves:
+        path = _find_fits(fits_dir, wave)
+        if path is None:
+            continue
+        try:
+            found.append(header_provenance(path))
+        except (OSError, ValueError) as exc:
+            logger.info(f"\t* provenance: could not read {path}: {exc}")
+    ends = [f["obs_end"] for f in found if f["obs_end"]]
+    starts = [f["obs_start"] or f["obs_end"] for f in found if f["obs_end"]]
+    newest = max(found, key=lambda f: f["obs_end"]) if ends else {}
+    if ends:
+        return {"product_id": product_id, "obstime": max(ends), "obstime_source": "header",
+                "obs_start": min(starts), "obs_end": max(ends),
+                "tint_n": newest.get("tint_n", ""), "tint_m": newest.get("tint_m", ""),
+                "inputs": list(waves)}
+    return upload_provenance(product_id, upload_time, waves)
+
+
+def upload_provenance(product_id, upload_time, waves=()):
+    """Provenance when no header time is known: the upload time, flagged."""
+    return {"product_id": product_id, "obstime": upload_time, "obstime_source": "upload",
+            "obs_start": "", "obs_end": "", "tint_n": "", "tint_m": "", "inputs": list(waves)}
+
+
+def obstime_for_png(png_path, fits_dir):
+    """(obstime_iso, source, obs_start_iso, obs_end_iso); source is 'header' or 'upload'."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    prov = png_provenance(png_path, fits_dir, now)
+    return prov["obstime"], prov["obstime_source"], prov["obs_start"], prov["obs_end"]
+
+
+def _version(dist):
+    from importlib.metadata import PackageNotFoundError, version
+    try:
+        return version(dist)
+    except PackageNotFoundError:
+        return "unknown"
+
+
+def png_text_chunks(prov):
+    return {"obs_start": prov["obs_start"], "obs_end": prov["obs_end"], "n_frames": prov["tint_n"],
+            "method": prov["tint_m"], "sunkit_image_version": _version("sunkit-image"),
+            "sunback_version": _version("sunback")}
+
+
+def write_png_text(src_png, dst_png, chunks):
+    """Lossless PNG re-save with tEXt chunks (the renderer writes with cv2, which has no hook)."""
+    from PIL import Image
+    from PIL.PngImagePlugin import PngInfo
+
+    info = PngInfo()
+    for key, value in chunks.items():
+        info.add_text(key, str(value))
+    with Image.open(src_png) as im:
+        im.save(dst_png, format="PNG", pnginfo=info)
+    return dst_png
+
+
+def sidecar_doc(prov):
+    """schema.org ImageObject; field names follow the Solar Archive provenance JSON
+    (sunback_webapp api/bundler.js _buildProvenanceJsonLd)."""
+    pid = prov["product_id"]
+    when = prov["obstime"]
+    props = [
+        ("instrument", "AIA"), ("spacecraft", "SDO"), ("productId", pid),
+        ("inputChannels", ",".join(w.lstrip("0") for w in prov["inputs"])),
+        ("observationStartUTC", prov["obs_start"]), ("observationDateUTC", prov["obs_end"] or when),
+        ("obstimeSource", prov["obstime_source"]),
+        ("integrationFrames", prov["tint_n"]), ("integrationMethod", prov["tint_m"]),
+        ("pipeline", "sunback NRT reducer: SunPy + sunkit-image (RHEF)"),
+        ("sunkitImageVersion", _version("sunkit-image")), ("sunbackVersion", _version("sunback")),
+        ("note", RHEF_NOTE),
+    ]
+    return {
+        "@context": "https://schema.org",
+        "@type": "ImageObject",
+        "name": f"The Sun, right now: {pid}",
+        "dateCreated": when,
+        "creator": {"@type": "Organization", "name": "The Sun, right now (gilly.space)"},
+        "contentLocation": "NASA/SDO/AIA",
+        "encodingFormat": "image/png",
+        "license": "https://sdo.gsfc.nasa.gov/data/rules.php",
+        "creditText": CREDIT,
+        "citation": [CREDIT, AIA_PAPER, RHEF_CITATION],
+        "isBasedOn": [{"@type": "Dataset", "name": f"AIA synoptic NRT {w.lstrip('0')} A",
+                       "datePublished": prov["obs_end"] or when,
+                       "distributor": "Joint Science Operations Center (JSOC), Stanford",
+                       "via": "https://jsoc1.stanford.edu/data/aia/synoptic/nrt/"} for w in prov["inputs"]],
+        "potentialAction": {"@type": "ViewAction",
+                            "description": "RHEF (Radial Histogram Equalization Filter); " + RHEF_CITATION},
+        "additionalProperty": [{"@type": "PropertyValue", "name": n, "value": str(v)} for n, v in props],
+    }
+
+
 class AwsPutter(Putter):
     filt_name = "AWSputter"
     description = "Upload Images to AWS S3 (bucket and prefix from NrtSettings)"
@@ -81,7 +252,7 @@ class AwsPutter(Putter):
         if params is not None:
             self.__init__(params)
         self.settings = NrtSettings.from_env()
-        print(" V Uploading PNGs to s3://{}/{}...".format(self.settings.bucket, self.settings.prefix), flush=True)
+        logger.info(" V Uploading PNGs to s3://{}/{}...".format(self.settings.bucket, self.settings.prefix))
         # NOTE: do NOT empty the bucket. The Lambda video-builder maintains the
         # frames/ queue and video/ outputs there; wiping would destroy the 48h
         # sliding window every run. The reducer only overwrites its own keys.
@@ -113,10 +284,10 @@ class AwsPutter(Putter):
             if found:
                 break
         if not found:
-            print("\t* No temperature-scan video found; skipping.")
+            logger.info("\t* No temperature-scan video found; skipping.")
             return
         key = upload_public(found, "video/rhef_tscan.mp4", "video/mp4", settings=self._settings())
-        print(f"\t* Uploaded temperature-scan video -> {key}")
+        logger.info(f"\t* Uploaded temperature-scan video -> {key}")
 
     def _settings(self):
         settings = getattr(self, "settings", None)
@@ -155,7 +326,7 @@ class AwsPutter(Putter):
         else:
             self.upload_serial(to_upload, pbar)
         pbar.close()
-        print(" ^ Success! Uploaded {} PNGs\n".format(len(self.params.local_imgs_paths())))
+        logger.info(" ^ Success! Uploaded {} PNGs\n".format(len(self.params.local_imgs_paths())))
 
     def upload_serial(self, to_upload=None, pbar=None):
         if to_upload is None:
@@ -166,28 +337,69 @@ class AwsPutter(Putter):
             self.ii += 1
 
     def do_upload(self, root_path):
-        """Upload one served still as 1k/rhef_<id>_1k.png + a 256² thumb.
+        """Upload one served still as 1k/rhef_<id>_1k.png + a THUMB_PX (512) square thumb.
 
         The 1k still upload is what fires the Lambda video-builder; obstime
-        metadata lets the Lambda order the 48h frame queue.
+        metadata (upload time) lets the Lambda order the 48h frame queue.
         """
         product_id = serve_id_for_local_png(root_path)
         if product_id is None:
-            return  # not a served product (UV-only channel, DEM, alt composite, ...)
+            return  # not a served product (see serve_keys.serve_id_for_local_png)
 
-        meta = {"obstime": getattr(self, "obstime", "")}
         settings = self._settings()
+        upload_time = getattr(self, "obstime", "")
+        # SB-9: observation time from the integrated FITS header, per product; the upload
+        # time stamped in put() is only the flagged fallback. Provenance never blocks the
+        # still: every step below logs any Exception and the plain upload goes ahead.
+        prov = None
+        try:
+            prov = png_provenance(root_path, self.params.fits_directory(), upload_time)
+        except Exception as exc:
+            logger.warning(f"\t* {product_id}: provenance step 'read FITS headers' failed "
+                           f"({type(exc).__name__}: {exc}); uploading without provenance")
+        # `obstime` stays the upload time, exactly as before SB-9: the live Lambda keys the
+        # frame (v/<id>/<stamp>.png) and the fragment's `updated` on it, and freshness is
+        # measured on it. The header observation time goes under NEW keys (obs_end, obs_start,
+        # tint_n, tint_m), sent only when a header time was found. Decided (Gilly, 2026-10-02): obstime
+        # stays the upload time long-term and the observation window is published separately; see CONTRACT.md.
+        meta = {"obstime": upload_time}
+        tagged = root_path
+        if prov is not None:
+            for key in ("obs_start", "obs_end", "tint_n", "tint_m"):
+                if prov[key]:
+                    meta[key] = prov[key]
+            if prov["obstime_source"] == "upload":
+                logger.info(f"\t* {product_id}: no header time found; no obs_end sent, obstime is the upload time")
+            try:
+                tagged = write_png_text(root_path, os.path.join(os.path.dirname(root_path), f".meta_{product_id}.png"),
+                                        png_text_chunks(prov))
+            except Exception as exc:
+                logger.warning(f"\t* {product_id}: provenance step 'PNG tEXt re-save' failed "
+                               f"({type(exc).__name__}: {exc}); uploading the PNG as rendered")
+                tagged = root_path
 
-        # full-res 1k still
-        upload_public(root_path, s3_img_key(product_id), "image/png", metadata=meta, settings=settings)
+        # full-res 1k still (pixels identical to root_path; tEXt chunks added)
+        upload_public(tagged, s3_img_key(product_id), "image/png", metadata=meta, settings=settings)
 
-        # 256² thumbnail (square 1024² source -> direct resize)
+        # THUMB_PX (512) square thumbnail (square 1024 source -> direct resize)
         img = cv2.imread(root_path, cv2.IMREAD_UNCHANGED)
         thumb_path = os.path.join(os.path.dirname(root_path),
                                   f".thumb_{product_id}.png")
         cv2.imwrite(thumb_path, cv2.resize(img, (THUMB_PX, THUMB_PX),
                                            interpolation=cv2.INTER_AREA))
         upload_public(thumb_path, s3_thumb_key(product_id), "image/png", settings=settings)
+
+        # SB-9: provenance sidecar, rewritten each run beside the still
+        if prov is not None:
+            try:
+                sidecar = os.path.join(os.path.dirname(root_path), f".meta_{product_id}.json")
+                with open(sidecar, "w", encoding="utf-8") as fp:
+                    json.dump(sidecar_doc(prov), fp, indent=2)
+                upload_public(sidecar, s3_meta_key(product_id), "application/json", cache_control="no-cache",
+                              settings=settings)
+            except Exception as exc:
+                logger.warning(f"\t* {product_id}: provenance step 'sidecar write and upload' failed "
+                               f"({type(exc).__name__}: {exc}); the still is already uploaded")
 
     def __save_times(self):
         print("\t* Uploading Time File...", end='', flush=True)
@@ -221,4 +433,4 @@ class AwsPutter(Putter):
         upload_public(path, os.path.basename(path), "text/plain", settings=settings)
         if settings.write_readable_times:
             upload_public(path2, os.path.basename(path2), "text/plain", settings=settings)
-        print("Done! ", flush=True)
+        logger.info("Done! ")

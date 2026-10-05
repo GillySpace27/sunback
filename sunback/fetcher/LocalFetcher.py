@@ -1,4 +1,6 @@
 import sys
+import logging
+logger = logging.getLogger(__name__)
 import os
 
 from astropy.io import fits
@@ -42,20 +44,18 @@ class LocalFetcher(Fetcher):
         super().__init__(params, quick, rp)
 
     def fetch(self, params=None):
-        print(" v Loading Local Files...")
+        logger.info(" v Loading Local Files...")
         self.load(params)
         num = self.n_fits + self.n_imgs
         self.ii = num
-        print(
-            " ^    Discovered {} fits and {} images\n".format(self.n_fits, self.n_imgs)
+        logger.info(" ^    Discovered {} fits and {} images\n".format(self.n_fits, self.n_imgs)
             if num > 0
-            else "No Files to Load!"
-        )
+            else "No Files to Load!")
         if num == 0:
-            print("\n    !!Quitting Program!!\n")
-            print("Base: ", self.params.base_directory())
-            print("Imgs: ", self.params.imgs_top_directory())
-            print("Fits: ", self.params.fits_directory())
+            logger.info("\n    !!Quitting Program!!\n")
+            logger.info("%s %s", "Base: ", self.params.base_directory())
+            logger.info("%s %s", "Imgs: ", self.params.imgs_top_directory())
+            logger.info("%s %s", "Fits: ", self.params.fits_directory())
 
             sys.exit(1)
 
@@ -65,12 +65,12 @@ class LocalSingleFetcher(Fetcher):
     filt_name = "Local Single Fetcher"
 
     def fetch(self, params=None):
-        print(" v Loading Local File...")
+        logger.info(" v Loading Local File...")
         # self.duration = ''
         self.load(params)
         fits_path = self.determine_image_path()
         self.params.use_image_path(fits_path)
-        print(fits_path)
+        logger.info(fits_path)
         self.ii = 1
 
         if fits_path.endswith(".fits"):
@@ -78,7 +78,7 @@ class LocalSingleFetcher(Fetcher):
                 with fits.open(fits_path, cache=False, ignore_missing_end=True) as hdul:
                     self.hdu_name_list = self.list_hdus(hdul)
             except ValueError as e:
-                print("No Local File Found!")
+                logger.info("No Local File Found!")
                 raise e
         elif fits_path.endswith(".jpg") or fits_path.endswith(".jpeg"):
             self.load_jpg(fits_path)
@@ -90,19 +90,17 @@ class LocalSingleFetcher(Fetcher):
                     self.params.use_image_path(), self.params.hdu_name
                 )
                 # print(" *   Loaded the '{}' HDU from".format(self.params.hdu_name))
-                print(" *   Loading frame {}".format(self.params.hdu_name))
-                print(" *     ", path.basename(self.params.use_image_path()))
-                print(
-                    " *    in\n *     ", path.dirname(self.params.use_image_path())
-                )
-                print(" ^ Success!")
+                logger.info(" *   Loading frame {}".format(self.params.hdu_name))
+                logger.info("%s %s", " *     ", path.basename(self.params.use_image_path()))
+                logger.info("%s %s", " *    in\n *     ", path.dirname(self.params.use_image_path()))
+                logger.info(" ^ Success!")
                 break
             except KeyError as e:
                 continue
 
 
     def load_jpg(self, fits_path):
-        print("\tLoading a JPG:", os.path.basename(fits_path))
+        logger.info("%s %s", "\tLoading a JPG:", os.path.basename(fits_path))
 
         """open the fits file and grab_obj the necessary data"""
 
@@ -164,7 +162,7 @@ class LocalCdfFetcher(Fetcher):
 
     def fetch(self, params=None):
         """Get the correct images prepared"""
-        print(" v Loading Local File...")
+        logger.info(" v Loading Local File...")
         self.params = params or self.params
         self.find_paths()
         self.open_cdf()
@@ -187,7 +185,7 @@ class LocalCdfFetcher(Fetcher):
         self.time_stamp = file_name[3:-3]
 
         pstem = "   Looking in: \n     {}\n     for {}  at  {}"
-        print(pstem.format(dir_path, file_name, self.time_stamp))
+        logger.info(pstem.format(dir_path, file_name, self.time_stamp))
         #         if not os.path.exists(new_img_path):
         #             self.copy_cdf(img_path, new_img_path)
         self.params.new_img_path = new_img_path
@@ -211,11 +209,9 @@ class LocalCdfFetcher(Fetcher):
         for frame, wave in color_frames_in:
             self.color_frames.append([frame, int(wave)])
         if verb:
-            print(
-                "       Found {} frames in the CDF file and loaded {}!".format(
+            logger.info("       Found {} frames in the CDF file and loaded {}!".format(
                     self.n_frames, len(self.color_frames)
-                )
-            )
+                ))
         self.params.color_frames = self.color_frames
         self.params.n_frames = self.n_frames
         dss.close()
@@ -231,18 +227,18 @@ class LocalCdfFetcher(Fetcher):
     def confirm_save(self, orig_img_path, new_img_path):
         # Load the raw file for reference
 
-        print("\n   V Plotting Confirmation of Reduction:")
+        logger.info("\n   V Plotting Confirmation of Reduction:")
 
-        print("      raw:")
+        logger.info("      raw:")
         self.open_cdf(orig_img_path)
         self.peek_load(title="raw: {}".format(os.path.basename(orig_img_path)))
 
-        print("      Modified:")
+        logger.info("      Modified:")
         self.open_cdf(new_img_path)
         self.peek_load(
             filt=False, title="MODIFIED: {}".format(os.path.basename(new_img_path))
         )
-        print("   ^ We Plotted!\n")
+        logger.info("   ^ We Plotted!\n")
 
     def write_to_cdf(self, orig_img_path, new_img_path, frame_list, do_plot=False):
         # Load + Legacy_SRN_Kernal the netCDF File
@@ -263,13 +259,13 @@ class LocalCdfFetcher(Fetcher):
 
         dss.to_netcdf(new_img_path)
         dss.close()
-        print("   New CDF saved to \n    {}".format(new_img_path))
+        logger.info("   New CDF saved to \n    {}".format(new_img_path))
 
     def peek_load(self, filt=True, use_cmap=True, title=None):
         # Prep Plot
         n_frames = len(self.color_frames)
         fig, axArray = plt.subplots(3, 3, sharex="all", sharey="all")
-        print("")
+        logger.info("")
         fig.suptitle(title or "Plotting Frames Loaded in Memory")
         axArray = axArray.flatten()
         for (frame, wave), ax in zip(self.color_frames, axArray):
@@ -296,7 +292,7 @@ class LocalCdfFetcher(Fetcher):
     def peek_selection(self):
         """Plot the loaded image_path"""
 
-        print("")
+        logger.info("")
         fig, (ax1, ax) = plt.subplots(1, 2)
         fig.suptitle("Plotting Selected Frame: {}".format(self.current_wave))
 
@@ -312,7 +308,7 @@ class LocalCdfFetcher(Fetcher):
         plt.show()
 
     def peek_cdf(self, path):
-        print("\n\n          Plotting the frames on in_array from CDF")
+        logger.info("\n\n          Plotting the frames on in_array from CDF")
         # Open the Image
         dss = xr.open_dataset(path)
 

@@ -1,0 +1,79 @@
+{
+ "$schema": "http://json-schema.org/draft-07/schema#",
+ "title": "manifest/<id>.json, imagery contract v1",
+ "description": "One product's manifest fragment. Readers ignore keys they do not know; a new optional key is a new property here and a new fixture version.",
+ "type": "object",
+ "required": [
+  "id",
+  "label",
+  "thumb",
+  "img1k",
+  "video",
+  "updated",
+  "frame_count",
+  "integration"
+ ],
+ "additionalProperties": true,
+ "properties": {
+  "id": {
+   "type": "string",
+   "pattern": "^[A-Za-z0-9_]+$"
+  },
+  "label": {
+   "type": "string"
+  },
+  "thumb": {
+   "type": "string",
+   "pattern": "^thumb/rhef_[A-Za-z0-9_]+_thumb\\.png$"
+  },
+  "img1k": {
+   "type": "string",
+   "pattern": "^1k/rhef_[A-Za-z0-9_]+_1k\\.png$"
+  },
+  "video": {
+   "type": "string",
+   "pattern": "^video/rhef_[A-Za-z0-9_]+_1k\\.mp4$"
+  },
+  "updated": {
+   "type": "string"
+  },
+  "frame_count": {
+   "type": "integer"
+  },
+  "integration": {
+   "type": "object",
+   "required": [
+    "frames",
+    "method"
+   ],
+   "properties": {
+    "frames": {
+     "type": "integer"
+    },
+    "method": {
+     "type": "string"
+    }
+   }
+  },
+  "video_v": {
+   "type": "string",
+   "pattern": "^v/[A-Za-z0-9_]+/[0-9]{8}T[0-9]{6}\\.mp4$"
+  },
+  "still_v": {
+   "type": "string",
+   "pattern": "^v/[A-Za-z0-9_]+/[0-9]{8}T[0-9]{6}\\.png$"
+  },
+  "through": {
+   "type": "string"
+  },
+  "obs_start": {
+   "type": "string"
+  },
+  "obs_end": {
+   "type": "string"
+  },
+  "hdr_video": {
+   "type": "string"
+  }
+ }
+}

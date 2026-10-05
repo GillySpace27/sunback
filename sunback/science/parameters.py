@@ -1,4 +1,6 @@
 import os
+import logging
+logger = logging.getLogger(__name__)
 import datetime
 from os import makedirs, getcwd
 from os.path import join, normpath, dirname, abspath, isdir
@@ -239,7 +241,7 @@ class Parameters:
 
     def init_pool(self, n_cores=10):
         if self.multi_pool is None and self.do_parallel is True:
-            print("$$$$$$$$$$$$$   Initializing Pool of {}...".format(n_cores))
+            logger.info("$$$$$$$$$$$$$   Initializing Pool of {}...".format(n_cores))
             try:
                 from multiprocessing import set_start_method
 
@@ -252,7 +254,7 @@ class Parameters:
             from time import sleep
 
             sleep(2 + n_cores / 2)
-            print("$$$$$$$$$$$$$   Pool Initialized!!", flush=True)
+            logger.info("$$$$$$$$$$$$$   Pool Initialized!!")
             self.multi_pool = the_pool
         return self.multi_pool
 
@@ -882,7 +884,7 @@ class Parameters:
                             output.write(string)
                     output.write("\n\n")
         except Exception as e:
-            print("Failed to print to text: {}".format(e))
+            logger.info("Failed to print to text: {}".format(e))
 
     def load_preset_time_settings(self, selection=None):
         """Load one of a few presets for the time settings"""
@@ -930,13 +932,9 @@ class Parameters:
             return False
 
         if not self.did_print:
-            print(
-                "Settings: {}".format(self.selection),
-                "\n  Cadence = {} Minutes ({} hours), [{}] per day".format(
+            logger.info("%s %s %s", "Settings: {}".format(self.selection), "\n  Cadence = {} Minutes ({} hours), [{}] per day".format(
                     cadence_minutes, cadence_minutes / 60, 24 * 60 / cadence_minutes
-                ),
-                "\n  Exposure = {} Seconds".format(exposure_time_secs),
-            )
+                ), "\n  Exposure = {} Seconds".format(exposure_time_secs))
             self.did_print = True
 
         # Set the Parameters

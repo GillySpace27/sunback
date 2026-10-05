@@ -34,8 +34,10 @@ from aiapy.calibrate import normalize_exposure, register, update_pointing
 from sunback.processor.Processor import Processor
 import warnings
 
-from sunback.utils.RHT.rht import rht
-from sunback.utils.RHT.rht.convRHT import unsharp_mask
+# from sunback.utils.RHT.rht import rht  # 2026-10-02 (SB-11): the directory is sunback/utils/rht (lowercase)
+from sunback.utils.rht.rht import rht
+# from sunback.utils.RHT.rht.convRHT import unsharp_mask
+from sunback.utils.rht.rht.convRHT import unsharp_mask
 
 warnings.filterwarnings("ignore")
 import matplotlib.pyplot as plt

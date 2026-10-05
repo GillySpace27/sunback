@@ -1,9 +1,10 @@
 Solar Background Updater
 ==============================
 [//]: # (Badges)
+<a href="https://github.com/GillySpace27/sunback/actions/workflows/tests.yml" target="_blank">![tests](https://github.com/GillySpace27/sunback/actions/workflows/tests.yml/badge.svg?branch=master)</a>
 <a href="https://github.com/GillySpace27/sunback/tree/master" target="_blank">![GitHub last commit (branch)](https://img.shields.io/github/last-commit/GillySpace27/sunback/master)</a>
-<a href="https://travis-ci.com/GillySpace27/sunback" target="_blank">![Travis Build Status](https://travis-ci.com/GillySpace27/sunback.svg?branch=master)</a>
-<a href="https://ci.appveyor.com/project/GillySpace27/sunback/" target="_blank">![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/ji7e0pm5xxckf6rq/branch/master?svg=true)</a>
+<!-- 2026-10-02 (SB-10): Travis: .travis.yml moved to attic/.travis.yml; badge kept for the record: <a href="https://travis-ci.com/GillySpace27/sunback" target="_blank">![Travis Build Status](https://travis-ci.com/GillySpace27/sunback.svg?branch=master)</a> -->
+<!-- 2026-10-02 (SB-10): AppVeyor: appveyor.yml moved to attic/appveyor.yml; badge kept for the record: <a href="https://ci.appveyor.com/project/GillySpace27/sunback/" target="_blank">![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/ji7e0pm5xxckf6rq/branch/master?svg=true)</a> -->
 <a href="https://sunback.readthedocs.io/en/latest/?badge=latest" target="_blank">![Documentation Status](https://readthedocs.org/projects/sunback/badge/?version=latest)</a>
 
 <a href="https://pypi.org/project/sunback/" target="_blank"><img alt="PyPI - Downloads" src="https://img.shields.io/pypi/dm/sunback"></a>
@@ -15,7 +16,7 @@ Solar Background Updater
 <a href="https://codeclimate.com/github/GillySpace27/sunback/maintainability"><img src="https://api.codeclimate.com/v1/badges/f7ae86dc9703d4a7eec6/maintainability" /></a>
 <a href="https://codeclimate.com/github/GillySpace27/sunback/test_coverage"><img src="https://api.codeclimate.com/v1/badges/f7ae86dc9703d4a7eec6/test_coverage" /></a>
 <a href="https://www.codacy.com/manual/GillySpace27/sunback" target="_blank">![Codacy Badge](https://api.codacy.com/project/badge/Grade/a47b3701e7544010a4708d923a71fedb)</a>
-<a href="https://codecov.io/gh/GillySpace27/sunback/branch/master" target="_blank">![codecov](https://codecov.io/gh/GillySpace27/sunback/branch/master/graph/badge.svg)</a>
+<!-- 2026-10-02 (SB-10): Codecov: .codecov.yml moved to attic/.codecov.yml, and no workflow uploads coverage; badge kept for the record: <a href="https://codecov.io/gh/GillySpace27/sunback/branch/master" target="_blank">![codecov](https://codecov.io/gh/GillySpace27/sunback/branch/master/graph/badge.svg)</a> -->
 
 
 This program is the core analysis package that Dr. Gilly uses for his research. This code is very modular and can perform many different data pipelines for images with arbitrary and custom filtering steps. Sunback runs analysis on images from AIA, updates Gilly's personal website, and allows users to run a daemon on their machines to update their computer desktop background.

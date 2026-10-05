@@ -8,6 +8,7 @@ from sunback.processor.Processor import Processor
 from sunback.processor.ImageProcessorCV import ImageProcessorCV
 
 import logging
+logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -162,7 +163,7 @@ class RainbowRGBImageProcessor(ImageProcessorCV):
                             data_G = self.label_plot(data_G)
                             data_B = self.label_plot(data_B)
                         except (ValueError, AttributeError) as e:
-                            print(110, e)
+                            logger.info("%s %s", 110, e)
 
                         # Create the RGB image
                         img_rgb = self.make_unscaled_rgb(data_R, data_G, data_B)

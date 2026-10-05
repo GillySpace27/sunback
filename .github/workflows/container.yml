@@ -1,0 +1,70 @@
+# Reducer image (SB-13): ghcr.io/gillyspace27/sunback-ci. Runbook: docs/CONTAINER.md (not written yet).
+# freeze:  records an image's pip freeze, Python, ffmpeg and digest (artifact "freeze").
+#          Gilly dispatches it by hand: gh workflow run container.yml -f image=<image>.
+#          It pulls the production image, which needs his yes (open question Q3). Once he
+#          gives it, change the job's `if` to `github.event_name != 'push'` so every pull
+#          request that touches the Dockerfile, the lock or this file records the freeze too.
+# verify and publish (build the candidate, compare it with the lock, push sha-<gitsha> and
+# latest with SBOM and provenance) are not here: they need requirements-reducer.txt, which
+# is frozen from that image, and `publish` must not exist before GitCloudRunHourly.yml and
+# tests.yml pin the image by digest, because production follows :latest today.
+name: container
+
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - requirements-reducer.txt
+      - .github/workflows/container.yml
+  push:
+    branches:
+      - master
+    paths:
+      - Dockerfile
+      - requirements-reducer.txt
+      - .github/workflows/container.yml
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Image the freeze job records
+        required: false
+        default: ghcr.io/gillyspace27/sunback-ci:latest
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  freeze:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ${{ inputs.image || 'ghcr.io/gillyspace27/sunback-ci:latest' }}
+    steps:
+      - name: Record the image's environment
+        run: |
+          mkdir -p freeze
+          docker pull "$IMAGE"
+          docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE" | tee freeze/image-digest.txt
+          docker run --rm "$IMAGE" python --version | tee freeze/python-version.txt
+          docker run --rm "$IMAGE" pip freeze --all > freeze/pip-freeze.txt
+          docker run --rm "$IMAGE" sh -c 'ffmpeg -version | head -n 1' | tee freeze/ffmpeg-version.txt
+          docker run --rm "$IMAGE" dpkg-query -W -f='${Version}\n' ffmpeg | tee freeze/ffmpeg-deb-version.txt
+          docker run --rm "$IMAGE" pip check > freeze/pip-check.txt 2>&1 || echo "pip check reported problems (recorded)"
+          echo "pip freeze lines: $(wc -l < freeze/pip-freeze.txt)"
+          {
+            echo "### freeze of ${IMAGE}"
+            echo
+            echo '```'
+            cat freeze/image-digest.txt freeze/python-version.txt freeze/ffmpeg-version.txt freeze/ffmpeg-deb-version.txt freeze/pip-check.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the freeze
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: freeze
+          path: freeze/
