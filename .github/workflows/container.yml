@@ -1,9 +1,9 @@
-# Reducer image (SB-13): ghcr.io/gillyspace27/sunback-ci. Runbook: docs/CONTAINER.md (not written yet).
+# Reducer image (SB-13): ghcr.io/gillyspace27/sunback-ci. Runbook: docs/CONTAINER.md.
 # freeze:  records an image's pip freeze, Python, ffmpeg and digest (artifact "freeze").
 #          Gilly dispatches it by hand: gh workflow run container.yml -f image=<image>.
-#          It pulls the production image, which needs his yes (open question Q3). Once he
-#          gives it, change the job's `if` to `github.event_name != 'push'` so every pull
-#          request that touches the Dockerfile, the lock or this file records the freeze too.
+#          Q3 answered (Gilly, 2026-10-02, DECISIONS.md run question 11): yes, by manual
+#          dispatch only, so the job stays `if: github.event_name == 'workflow_dispatch'`
+#          and never runs on a pull request or a push.
 # verify and publish (build the candidate, compare it with the lock, push sha-<gitsha> and
 # latest with SBOM and provenance) are not here: they need requirements-reducer.txt, which
 # is frozen from that image, and `publish` must not exist before GitCloudRunHourly.yml and
