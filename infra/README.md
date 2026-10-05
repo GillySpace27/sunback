@@ -16,6 +16,8 @@ Nothing here changes AWS. Every script is read-only except
 | `snapshot.py` | Reads every resource below (get, describe and list calls only) and writes one sorted JSON file per resource. Volatile fields are removed, the account id becomes `<ACCOUNT>`, token-shaped strings and sensitive environment values become `<REDACTED>`. Never reads a secret value or the Budget's subscribers. |
 | `diff.py` | Takes a fresh snapshot in memory and diffs it against `declared/`. Exit 0 no drift, 1 drift, 3 UNCHECKED. |
 | `pat_expiry.py` | Days until the dispatcher's GitHub token expires, from the `pat-expires` tag on its secret. Exit 1 inside 14 days. |
+| `fetch_dispatcher.py` | Gilly runs it once (SB-7 Task 7). One `lambda:GetFunction` read, downloads the dispatcher's code zip to `/tmp/sb7-dispatcher` (refuses a folder inside the repository), checks it against the function's `CodeSha256`, unpacks it and scans it by count. Never prints the presigned URL. Exit 0 clean, 1 the scan found something or the zip does not match, 3 UNCHECKED. |
+| `public_scan.py` | Counts token-, key-, account-id-, email- and `SecretString`-shaped text under the given paths and prints only counts per file, never a value. Exit 0 nothing, 1 something. Run it on `infra/live/` before any `declared/` commit. |
 | `rotate_dispatch_pat.py` | Gilly only. Stores a new token, tags its expiry, fires one test dispatch. See `RUNBOOK-pat.md`. |
 | `declared/` | The committed snapshot: what the account is meant to look like. Changed only by a PR that re-snapshots after a human change. NOT YET PRESENT: the first commit needs Gilly's yes (Q15), so `diff.py` answers UNCHECKED until then. |
 | `live/` | Scratch output of `snapshot.py`. Gitignored; may hold drift you have not reviewed yet. |
@@ -27,7 +29,10 @@ Nothing here changes AWS. Every script is read-only except
 python infra/snapshot.py --out infra/live     # exit 0, or 3 with UNCHECKED sections
 python infra/diff.py                          # exit 0 no drift, 1 drift, 3 unchecked
 python infra/pat_expiry.py --warn-days 14     # exit 0 ok, 1 rotate soon or expired, 3 no tag
+python infra/fetch_dispatcher.py              # once: the dispatcher code into /tmp/sb7-dispatcher, scanned
 ```
+
+`python infra/public_scan.py <path>` needs no AWS and is safe for anyone to run.
 
 Each takes `--region` (default `us-east-2`; the Budget is always read from
 `us-east-1`, where the Budgets API lives).
@@ -66,7 +71,8 @@ grep -rEn '(^|[^0-9])[0-9]{12}([^0-9]|$)' infra/declared/ infra/live/
 grep -rEn 'gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|A[KS]IA[0-9A-Z]{16}' infra/declared/ infra/live/
 ```
 
-Both must print nothing.
+Both must print nothing. `python infra/public_scan.py infra/live` runs the same
+patterns plus email addresses and `SecretString` and must end `total: 0`.
 
 ## Rebuild order from an empty account
 
