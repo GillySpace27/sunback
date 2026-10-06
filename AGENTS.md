@@ -207,6 +207,7 @@ branch, tag, S3 object, Lambda version or layer removal. Retire code with
 - `python -m build && python devtools/scripts/check_wheel.py dist/*.whl`: build the sdist and wheel and audit the wheel; releases follow RELEASING.md and every upload is Gilly's (SB-12)
 - `python devtools/scripts/alert_triage.py`: classify open Dependabot alerts by whether production installs the package; read only (SB-13)
 - `python -m devtools.scripts.pixel_probe --out DIR`: fixed render for comparing two reducer environments; `--compare DIR_A DIR_B` diffs two renders (SB-13)
+- `python devtools/scripts/reducer_lock.py check`: whether the reducer lock, Dockerfile and digest pins agree; exit 3 until the first freeze (SB-13, docs/CONTAINER.md)
 
 ## Where work lives
 
