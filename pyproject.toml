@@ -60,6 +60,14 @@ test = ["pytest", "pytest-runner"]
         "aiapy",
     ]
 
+[dependency-groups]
+# Canonical RHEF build for every Python consumer (suite SU-13). A dependency group is not
+# published metadata, so PyPI accepts it; the same direct reference in the server extra would
+# make an upload to PyPI fail. sunback/__tests__/test_rhef_build.py checks this entry.
+rhef-canonical = [
+    "sunkit-image @ git+https://github.com/GillySpace27/sunkit-image.git@41e89767fc8dbd0c3799d2e3aaaf87419c67fdfd",
+]
+
 [project.scripts]
 sunback-run = "sunback.run.run_client_background:run_client"
 sunback-serve = "sunback.run.run_server_lingon:run_server_lingon"

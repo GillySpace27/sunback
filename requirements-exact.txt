@@ -147,6 +147,7 @@ sphinxcontrib-serializinghtml==2.0.0
 stack-data==0.6.3
 
 git+https://github.com/sunpy/sunpy.git
+# SU-13 canonical RHEF build: commit 41e89767fc8dbd0c3799d2e3aaaf87419c67fdfd, version 0.1.dev308+g41e89767f; checked by sunback/__tests__/test_rhef_build.py. Comment only, no workflow installs this file.
 git+https://github.com/GillySpace27/sunkit-image.git@rhe-bugfix#egg=sunkit-image
 
 tifffile==2025.1.10
