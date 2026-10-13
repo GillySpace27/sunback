@@ -134,8 +134,10 @@ Run it before every commit. Rules for this repository follow this block.
 
 ## Production files (a mistake here reaches the public within minutes)
 
-- `.github/workflows/GitCloudRunHourly.yml`: until SB-2 lands, a push to master
-  that touches code runs the production reducer against the live bucket.
+- `.github/workflows/GitCloudRunHourly.yml`: the production reducer. It runs on the
+  20-minute dispatch and the hourly schedule only; a push or merge to master no
+  longer starts it (SB-2 Task 6, 2026-10-13), but the next dispatch runs the merged
+  code against the live bucket. One run at a time (`concurrency: reducer`).
 - `sunback/run/run_server_github.py`, `sunback/run/run.py`, `sunback/science/parameters.py`
 - `sunback/fetcher/NRTFitsFetcher.py`, `sunback/fetcher/nrt_listing.py`,
   `sunback/fetcher/nrt_integrate.py`, `sunback/utils/time_integration.py`
