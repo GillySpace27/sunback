@@ -7,6 +7,8 @@ SUNBACK_PREFIX, so a staging run was impossible and a plain dispatch wrote produ
 The workflow is parsed as YAML; nothing is dispatched and nothing reaches AWS or GitHub.
 """
 import importlib
+import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -52,7 +54,7 @@ def test_prefix_reaches_the_reducer_only_through_env():
         for s in job["steps"]:
             assert "inputs." not in s.get("run", ""), (job_name, s.get("name"))
             assert "${{" not in s.get("run", "") or "inputs" not in s["run"], (job_name, s.get("name"))
-            if s is not step:
+            if s is not step and s.get("name") != "Refuse a staging prefix on a scheduled run":
                 assert "SUNBACK_PREFIX" not in (s.get("env") or {}), (job_name, s.get("name"))
     assert "SUNBACK_PREFIX" not in (doc.get("env") or {})
 
@@ -68,6 +70,7 @@ def test_rest_of_the_workflow_is_unchanged():
     doc, _ = load()
     assert list(doc["jobs"]) == ["gate", "run-task"]
     assert [s.get("name") or s.get("uses") for s in doc["jobs"]["run-task"]["steps"]] == [
+        "Refuse a staging prefix on a scheduled run",
         "Check out repository", "Install sunback package from checked out code",
         "Configure AWS credentials for OIDC", "Execute the script"]
     assert doc["jobs"]["run-task"]["needs"] == "gate"
@@ -109,3 +112,32 @@ def test_a_bad_prefix_is_refused_before_any_write(monkeypatch, bad):
     with pytest.raises(ValueError, match="SUNBACK_PREFIX"):
         rsg.run_server_github()
     assert touched == []
+
+
+# SB-5 Task 6: a scheduled run refuses a non-empty prefix. A schedule has no inputs, so
+# inputs.prefix is '' there today; the guard keeps it that way if that ever changes.
+def _guard_step(doc):
+    steps = [s for s in doc["jobs"]["run-task"]["steps"]
+             if s.get("name") == "Refuse a staging prefix on a scheduled run"]
+    assert len(steps) == 1, f"expected one guard step in {WF.name}, found {len(steps)}"
+    return steps[0]
+
+
+def test_guard_is_the_first_step_and_reads_the_prefix_from_env():
+    doc, _ = load()
+    step = _guard_step(doc)
+    assert doc["jobs"]["run-task"]["steps"][0] is step
+    assert step["env"] == {"SUNBACK_PREFIX": "${{ inputs.prefix }}"}
+
+
+@pytest.mark.parametrize("event,prefix,code", [
+    ("schedule", "staging/", 1),
+    ("schedule", "", 0),
+    ("workflow_dispatch", "staging/", 0),
+    ("workflow_dispatch", "", 0),
+])
+def test_guard_refuses_a_prefix_on_schedule(event, prefix, code):
+    doc, _ = load()
+    env = {"PATH": os.environ.get("PATH", ""), "GITHUB_EVENT_NAME": event, "SUNBACK_PREFIX": prefix}
+    result = subprocess.run(["bash", "-c", _guard_step(doc)["run"]], env=env, capture_output=True, text=True)
+    assert result.returncode == code, result.stdout + result.stderr
