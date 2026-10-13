@@ -1,15 +1,18 @@
 name: GitCloudRunHourly
 
 on:
-  push:
-    branches:
-      - master
-    # Doc/web/lambda-only changes don't affect the reducer — don't spin it up.
-    paths-ignore:
-      - 'web/**'
-      - 'docs/**'
-      - 'aws_lambda/**'
-      - '**.md'
+  # push trigger removed 2026-10-13 (SB-2 Task 6, Gilly's yes 2026-10-12): a merge to master
+  # no longer runs the production reducer. tests.yml gates merges; the 20-minute dispatcher
+  # or the hourly fallback below picks up merged reducer code. To restore, uncomment:
+  # push:
+  #   branches:
+  #     - master
+  #   # Doc/web/lambda-only changes don't affect the reducer: don't spin it up.
+  #   paths-ignore:
+  #     - 'web/**'
+  #     - 'docs/**'
+  #     - 'aws_lambda/**'
+  #     - '**.md'
   schedule:
     # Fallback only. The reliable cadence comes from the EventBridge dispatcher
     # (workflow_dispatch every 20 min). This hourly schedule just catches the
@@ -22,9 +25,14 @@ on:
         required: false
         default: ''
 
+# One reducer at a time. A queued run waits; a running production run is never cancelled.
+concurrency:
+  group: reducer
+  cancel-in-progress: false
+
 jobs:
   # Cheap decision job (no container, no pull). For a scheduled run it only lets
-  # the heavy job proceed if the latest image is stale; dispatch/push always run.
+  # the heavy job proceed if the latest image is stale; a dispatch always runs.
   gate:
     runs-on: ubuntu-latest
     permissions:
@@ -67,14 +75,14 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Install sunback package from checked out code
         run: pip install .
 
       - name: Configure AWS credentials for OIDC
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: arn:aws:iam::940506845164:role/Github_Web_Identity
           aws-region: us-east-2

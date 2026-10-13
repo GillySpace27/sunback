@@ -57,13 +57,10 @@ def test_prefix_reaches_the_reducer_only_through_env():
     assert "SUNBACK_PREFIX" not in (doc.get("env") or {})
 
 
-def test_push_and_schedule_triggers_are_unchanged():
+def test_schedule_trigger_is_unchanged_and_push_is_gone():
+    """SB-2 Task 6 (Gilly, 2026-10-12) removed the push trigger; test_reducer_workflow.py pins the rest."""
     _, triggers = load()
-    assert set(triggers) == {"push", "schedule", "workflow_dispatch"}
-    assert triggers["push"] == {
-        "branches": ["master"],
-        "paths-ignore": ["web/**", "docs/**", "aws_lambda/**", "**.md"],
-    }
+    assert set(triggers) == {"schedule", "workflow_dispatch"}
     assert triggers["schedule"] == [{"cron": "0 * * * *"}]
 
 
@@ -83,7 +80,7 @@ def test_rest_of_the_workflow_is_unchanged():
 
 @pytest.mark.parametrize("value,prefix", [("", ""), ("staging/", "staging/"), ("staging/run-42/", "staging/run-42/")])
 def test_what_the_workflow_passes_becomes_the_reducer_prefix(value, prefix):
-    """Push and schedule pass '' (inputs.prefix is empty there): production, byte for byte."""
+    """A schedule passes '' (inputs.prefix is empty there): production, byte for byte."""
     assert NrtSettings.from_env({"SUNBACK_PREFIX": value}).prefix == prefix
     assert NrtSettings.from_env({"SUNBACK_PREFIX": value}).prefixed("1k/rhef_171_1k.png") == prefix + "1k/rhef_171_1k.png"
 
