@@ -84,3 +84,15 @@ badges. Codacy and the two Code Climate badges were left for Gilly to decide.
 | `sunback/versioneer.py` | `attic/packaging/sunback/versioneer.py` | 1822 | Byte-identical copy of the root versioneer.py inside the package (computed with cmp). Packaging metadata now lives only in pyproject.toml; the version is read at run time with importlib.metadata (SB-12). | 2026-10-02 | `git mv attic/packaging/sunback/versioneer.py sunback/versioneer.py` |
 | `sunback/_version.py` | `attic/packaging/sunback/_version.py` | 520 | Versioneer template, unused by the build and imported by nothing. Packaging metadata now lives only in pyproject.toml; the version is read at run time with importlib.metadata (SB-12). | 2026-10-02 | `git mv attic/packaging/sunback/_version.py sunback/_version.py` |
 | `sunback/setup.cfg` | `attic/packaging/sunback/setup.cfg` | 13 | Versioneer stub with every key commented out. Packaging metadata now lives only in pyproject.toml; the version is read at run time with importlib.metadata (SB-12). | 2026-10-02 | `git mv attic/packaging/sunback/setup.cfg sunback/setup.cfg` |
+
+## Left in place (listed only)
+
+Format: https://gilly.space/heliosoftware/spec/attic.md. Nothing below was moved, tagged or changed. The ledger above has its own columns (SB-2, SB-10); these rows use the suite's five.
+
+| What | Where it is now | Why | Restore command | Date |
+|---|---|---|---|---|
+| `sunback_data/` | untracked folder at the root of Gilly's checkout, 38 GB (read from maps/sunback.md on 2026-09-28; recheck with du -sh) | Runtime render output rooted at the working directory; git-ignored since SB-4 (.gitignore line 157); never moved or read by a plan task | none: listed only; do not remove | 2026-10-13 |
+| `.git-backup/` | untracked folder at the root of Gilly's checkout, 111 MB (read from the map) | An older backup of git data; kept | none: listed only; do not remove | 2026-10-13 |
+| `webapp/` | a separate repository (the My Heliogram store, formerly My Heliograph) nested in the checkout, 4.9 GB (read from the map) | Must stay a separate repository; its ledger is ATTIC.md in that repository | none: listed only; do not remove | 2026-10-13 |
+| `sunback/run/run_server_lingon.py` with its .zsh file | same paths | Moving it would break the published sunback-serve console script (pyproject.toml line 65 on 7817b4d names sunback.run.run_server_lingon:run_server_lingon). SB-5 fences it in place | none: fenced in place by SB-5 | 2026-10-13 |
+| `AwsPutter.empty_the_bucket` in `sunback/putter/AwsPutter.py` | same path (line 296 on 7817b4d) | A hazardous writer; SB-5 makes it raise instead of moving it | none: fenced in place by SB-5 | 2026-10-13 |
