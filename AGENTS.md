@@ -189,8 +189,8 @@ branch, tag, S3 object, Lambda version or layer removal. Retire code with
   repository root breaks bare `pytest` collection. Until SB-2 lands,
   `sunback/__tests__/test_sunback.py` and `sunback/__tests__/test_parameters.py`
   cannot import and are skipped by path; every other test must pass.
-- Offline fixtures: public-manifest fixtures (placeholders until recaptured, see
-  the `_fixture_note` key) in `sunback/__tests__/fixtures/` and `sunback/__tests__/fixtures/make_fits.py` (a synthetic AIA-like FITS).
+- Offline fixtures: public-manifest fixtures (captured by public GET on 2026-10-13;
+  provenance in `sunback/__tests__/fixtures/README.md`) in `sunback/__tests__/fixtures/` and `sunback/__tests__/fixtures/make_fits.py` (a synthetic AIA-like FITS).
   Tests never need the network.
 - A check that cannot fail proves nothing. Mark an unverifiable step UNCHECKED
   in the commit message instead of claiming it.
