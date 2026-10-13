@@ -74,6 +74,15 @@ jobs:
       contents: read
 
     steps:
+      # SB-5: a scheduled run never takes a staging prefix (a schedule has no inputs, so this
+      # only fires if that ever changes). The prefix arrives through env, never in the script.
+      - name: Refuse a staging prefix on a scheduled run
+        env:
+          SUNBACK_PREFIX: ${{ inputs.prefix }}
+        run: |
+          if [ -n "${SUNBACK_PREFIX}" ] && [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then echo "SUNBACK_PREFIX='${SUNBACK_PREFIX}' is not allowed on a scheduled run"; exit 1; fi
+          echo "event=${GITHUB_EVENT_NAME} SUNBACK_PREFIX='${SUNBACK_PREFIX}'"
+
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
