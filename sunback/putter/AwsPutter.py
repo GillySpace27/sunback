@@ -82,7 +82,8 @@ PRODUCT_INPUT_WAVES = {
     "dem": ("0094", "0131", "0171", "0193", "0211", "0335"),
 }
 
-# Wording for Gilly to confirm before merge (overview Q18); WS-17 shows the same strings.
+# CREDIT is Gilly's decided SDO credit line (2026-10-12, overview Q18), used everywhere;
+# RHEF_CITATION wording is still his to confirm. WS-17 shows the same strings.
 RHEF_CITATION = "Gilly and Cranmer 2025, Solar Physics, doi:10.1007/s11207-025-02578-x"
 CREDIT = "Imagery courtesy of NASA/SDO and the AIA science team."
 # Read from sunback_webapp api/solar-archive.js (CITATIONS.AIA_PAPER); matches the vault's instruments/AIA.md.

@@ -21,8 +21,9 @@ applied.
   header carried no observation time" (honesty: say unknown, never guess).
 - "Combined: median of 5 exposures" from `integration`.
 - "Timelapse: 48 hours through <through>, <frame_count> distinct frames".
-- RHEF note, Cite line and credit, wording for Gilly to confirm (Q18), the
-  same strings WS-17 fixes as `SunData` constants:
+- RHEF note, Cite line and credit, the same strings WS-17 fixes as `SunData`
+  constants. The credit line is decided (Gilly, 2026-10-12, Q18) and is used
+  everywhere; the Cite and RHEF note wording is still his to confirm:
   `Gilly and Cranmer 2025, Solar Physics, doi:10.1007/s11207-025-02578-x`;
   `Imagery courtesy of NASA/SDO and the AIA science team.`;
   `Processed with RHEF (Gilly and Cranmer 2025, Solar Physics); visualization, not a calibrated radiance.`
@@ -81,7 +82,7 @@ swap('''              <button class="ghost" onclick="shareCard('${id}', this)" a
               <button class="ghost" onclick="openInfo('${id}')">How this was made</button>''')
 
 swap('''  async function loadTimes(){''', '''  // --- SB-9: provenance drawer ---------------------------------------------------
-  // Wording for Gilly to confirm (overview Q18); WS-17 uses the same constants.
+  // CREDIT decided by Gilly 2026-10-12 (Q18); CITATION and RHEF_NOTE still to confirm. WS-17 uses the same constants.
   const CITATION = "Gilly and Cranmer 2025, Solar Physics, doi:10.1007/s11207-025-02578-x";
   const CREDIT = "Imagery courtesy of NASA/SDO and the AIA science team.";
   const RHEF_NOTE = "Processed with RHEF (Gilly and Cranmer 2025, Solar Physics); visualization, not a calibrated radiance.";
