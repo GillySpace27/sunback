@@ -112,6 +112,14 @@
      "raw1k": {
       "type": "string",
       "pattern": "^raw/rhef_[A-Za-z0-9_]+_raw_1k\\.png$"
+     },
+     "rhef": {
+      "type": "string",
+      "description": "SU-18: the RHEF stamp line of the newest still"
+     },
+     "credit": {
+      "type": "string",
+      "description": "SU-18: the credit line (spec attribution.json credit)"
      }
     }
    }

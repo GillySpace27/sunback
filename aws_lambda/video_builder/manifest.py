@@ -55,6 +55,11 @@ def manifest_key(product_id):
     return f"manifest/{product_id}.json"
 
 
+# SU-18: the credit line of heliosoftware/spec/attribution.json ("credit"), the same words as
+# CREDIT in sunback/putter/AwsPutter.py (bound by sunback/__tests__/test_provenance_keys.py).
+CREDIT = "Imagery courtesy of NASA/SDO and the AIA science team."
+
+
 def raw1k_key(product_id):
     """SB-16: log-stretched view of an AIA single, written by the reducer (serve_keys.s3_raw_key)."""
     return f"raw/rhef_{product_id}_raw_1k.png"
@@ -93,7 +98,7 @@ def product_from_1k_key(key):
 
 def build_manifest_fragment(product_id, updated, frame_count, integration,
                             video_v=None, still_v=None, through=None,
-                            obs_start=None, obs_end=None, raw1k=None):
+                            obs_start=None, obs_end=None, raw1k=None, rhef=None, credit=None):
     """Build the JSON fragment for one product. Raises KeyError on unknown id.
 
     ``video_v``/``still_v`` name the immutable copies and ``through`` is the time
@@ -115,8 +120,10 @@ def build_manifest_fragment(product_id, updated, frame_count, integration,
     # SB-9: obs_start/obs_end are the newest still's observation window (ISO),
     # present only when the reducer read them from the FITS header.
     # SB-16: raw1k names the log-stretched view, present only when the Lambda found it.
+    # SU-18 (spec/provenance.md): rhef is the RHEF stamp line, credit the credit line.
     for key, value in (("video_v", video_v), ("still_v", still_v), ("through", through),
-                       ("obs_start", obs_start), ("obs_end", obs_end), ("raw1k", raw1k)):
+                       ("obs_start", obs_start), ("obs_end", obs_end), ("raw1k", raw1k),
+                       ("rhef", rhef), ("credit", credit)):
         if value is not None:
             frag[key] = value
     return frag
@@ -155,7 +162,7 @@ FRAGMENT_REQUIRED: dict[str, type] = {
 # writes it yet (SB-23 will); it is listed so the schema, validate_fragment and CONTRACT.md agree on the name.
 FRAGMENT_OPTIONAL: dict[str, type] = {"video_v": str, "still_v": str, "through": str,
                                       "obs_start": str, "obs_end": str, "hdr_video": str,
-                                      "raw1k": str}
+                                      "raw1k": str, "rhef": str, "credit": str}
 # overlay_grid (SB-15): the body of manifest/overlay.json, folded in through INDEX_EXTRA_KEYS.
 INDEX_OPTIONAL: dict[str, type] = {"overlay_grid": dict}
 _INTEGRATION_FIELDS = {"frames": int, "method": str}
