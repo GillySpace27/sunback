@@ -38,10 +38,16 @@ DEM_SOURCE = "C_isothermal"  # -> "dem" (isothermal temperature map)
 
 _DRGILLY_RE = re.compile(r"DrGilly_(\d{4})_")
 
+# SB-16: the log-stretched "before" view of a single AIA wave (processor/raw_view.py)
+RAW_SUFFIX = "_raw.png"
+_RAW_RE = re.compile(r"DrGilly_(\d{4})_raw\.png$")
+
 
 def serve_id_for_local_png(path):
     """Return the served product id for a local PNG, or None if it isn't served."""
     name = os.path.basename(path)
+    if name.endswith(RAW_SUFFIX):
+        return None  # SB-16: a raw view is never uploaded as the RHEF still
     if name.startswith(RAINBOW_SOURCE):
         return "rainbow"
     if name.startswith(UV_COMPOSITE_SOURCE):
@@ -70,3 +76,14 @@ def s3_meta_key(product_id):
 def overlay_grid_key():
     """Grid and limb overlay for the AIA stills (SB-15). Not under 1k/, so the video Lambda never fires on it."""
     return "overlay/grid_1k.png"
+
+
+def raw_id_for_local_png(path):
+    """Product id for a local DrGilly_<wave>_raw.png, or None (composites have no raw view)."""
+    m = _RAW_RE.match(os.path.basename(path))
+    return SERVED_CHANNELS.get(m.group(1)) if m else None
+
+
+def s3_raw_key(product_id):
+    """Raw (log-stretched) view of an AIA single (SB-16). Not under 1k/, so the Lambda never fires on it."""
+    return f"raw/rhef_{product_id}_raw_1k.png"
