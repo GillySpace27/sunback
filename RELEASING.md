@@ -27,8 +27,8 @@ is Gilly's, one release at a time.
    TestPyPI, then waits on the `pypi` environment.
 4. Check the TestPyPI upload in a fresh venv outside the repository:
    `python3.11 -m venv /tmp/sb-rel && /tmp/sb-rel/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ sunback==<version>`
-   then `cd /tmp && /tmp/sb-rel/bin/python -c 'import sunback, sunback.science.color_tables, sunback.run.run_client_background; print(sunback.__version__)'`.
-   Import only; running `sunback-run` changes the desktop picture.
+   then `cd /tmp && /tmp/sb-rel/bin/python -c 'import sunback, sunback.science.color_tables; print(sunback.__version__)'`.
+   Import only.
 5. Gilly approves the `pypi` job (Actions, the run, Review deployments) or rejects it.
 
 ### Rules

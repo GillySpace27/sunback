@@ -3,7 +3,8 @@
 Everything below is read by something outside this repository: the landing page
 at gilly.space/sun.html, Heliogram (0.6 and older read the fixed keys, 0.7 and
 later read the index and the versioned keys), the R2 mirror at
-imagery.myheliograph.com, the `sunback-run` wallpaper client and the hourly gate
+imagery.myheliograph.com, the `sunback-run` wallpaper client (retired 2026-10-15,
+but installs of PyPI releases up to 0.6.17.3 still read `1k/`) and the hourly gate
 in `.github/workflows/GitCloudRunHourly.yml`. Base URL:
 `https://the-sun-now.s3.us-east-2.amazonaws.com/`.
 
