@@ -29,6 +29,10 @@ Run every offline check with `bash devtools/check.sh`.
 
 ## Installation
 
+For a live Sun on your desktop, use [Heliogram](https://gilly.space/heliogram/).
+The old `sunback-run` wallpaper client was retired on 2026-10-15; its code is in
+`attic/sunback/run/run_client_background.py`.
+
 ### Github Installation Instructions
 
 ``` zsh
@@ -37,24 +41,12 @@ cd sunback
 python3 -m venv .venv
 source .venv/bin/activate
 pip install .
-sunback-run
 ```
 
 ### PyPi Installation Instructions:
 ``` bash
 pip install sunback
 ```
-followed by either
-```
-sunback-run
-```
-in the console, or in python
-```
-python3
->> from sunback.run.run_client_background import run_client as run
->> run(delay=20) # Delay in seconds between updates
-```
-You'll need to give the process access to come computer services when you first install it.
 
 Check contribute.md to see how you can help out!
 

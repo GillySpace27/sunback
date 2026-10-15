@@ -133,9 +133,11 @@ Run it before every commit. Rules for this repository follow this block.
    (code in `aws_lambda/video_builder/`) turns each new 1k still into a
    48-hour movie plus the manifest JSON that gilly.space/sun.html, Heliograph
    and the R2 mirror read.
-3. Wallpaper client: `pip install sunback`, console script `sunback-run`
-   (`sunback/run/run_client_background.py`, `sunback/fetcher/S3ImgFetcher.py`,
-   `sunback/putter/DesktopPutter.py`).
+3. Wallpaper client: retired 2026-10-15. The `sunback-run` console script is
+   gone and `run_client_background.py` is in `attic/`; Heliogram is the
+   wallpaper app now. Releases up to 0.6.17.3 on PyPI still ship it, so their
+   installs keep reading `1k/` from the bucket. `DesktopPutter.py` and
+   `S3ImgFetcher.py` stay in place.
 
 ## Production files (a mistake here reaches the public within minutes)
 
