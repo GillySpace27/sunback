@@ -149,7 +149,8 @@ FRAGMENT_REQUIRED: dict[str, type] = {
 # writes it yet (SB-23 will); it is listed so the schema, validate_fragment and CONTRACT.md agree on the name.
 FRAGMENT_OPTIONAL: dict[str, type] = {"video_v": str, "still_v": str, "through": str,
                                       "obs_start": str, "obs_end": str, "hdr_video": str}
-INDEX_OPTIONAL: dict[str, type] = {}
+# overlay_grid (SB-15): the body of manifest/overlay.json, folded in through INDEX_EXTRA_KEYS.
+INDEX_OPTIONAL: dict[str, type] = {"overlay_grid": dict}
 _INTEGRATION_FIELDS = {"frames": int, "method": str}
 
 
@@ -198,8 +199,8 @@ def validate_fragment(frag):
 STATUS_KEY = "status.json"
 
 # Top-level index field name -> S3 key whose JSON body becomes its value.
-# Empty until a later initiative adds one (SB-15 overlay_grid, SB-18 reel).
-INDEX_EXTRA_KEYS = {}
+# SB-15 adds overlay_grid; SB-18 will add its reel.
+INDEX_EXTRA_KEYS = {"overlay_grid": "manifest/overlay.json"}
 
 # A manual staging invoke uses keys under this prefix; the handler then reads
 # and writes only under it. The S3 trigger matches 1k/ only, so staging keys

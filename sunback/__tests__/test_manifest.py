@@ -131,7 +131,7 @@ def test_build_status_skips_unknown_and_unparseable():
 
 
 def test_build_index_extras_merge_but_never_override():
-    assert INDEX_EXTRA_KEYS == {}
+    assert INDEX_EXTRA_KEYS == {"overlay_grid": "manifest/overlay.json"}  # SB-15
     doc = build_index([_frag("171", "t")], "g", extras={"reel": {"video": "video/reel_48h.mp4"}})
     assert doc["reel"] == {"video": "video/reel_48h.mp4"}
     assert build_index([], "g") == {"generated": "g", "products": []}
