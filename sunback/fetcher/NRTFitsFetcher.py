@@ -24,7 +24,7 @@ from sunback.fetcher.nrt_integrate import write_integrated_synoptic
 
 # --- Tunables ---------------------------------------------------------------
 INTEGRATION_FRAMES = 5            # N frames to integrate (~15 min at 3-min cadence)
-INTEGRATION_METHOD = "median"     # 'median' (cosmic-ray robust) | 'mean' | 'sum'
+INTEGRATION_METHOD = "median"     # 'median' (cosmic-ray robust) | 'mean' | 'sum' | 'sigclip' (SB-20)
 LOOKBACK_HOURS = 1                # also scan the previous hour bucket near the edge
 # 7 EUV channels that get their own card on the page.
 SERVE_WAVES = ["0171", "0193", "0211", "0304", "0335", "0094", "0131"]

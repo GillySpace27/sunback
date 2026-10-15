@@ -16,7 +16,7 @@ import re
 from dataclasses import dataclass
 
 DEFAULT_BUCKET = "the-sun-now"
-INTEGRATION_METHODS = ("median", "mean", "sum")
+INTEGRATION_METHODS = ("median", "mean", "sum", "sigclip")  # sigclip: SB-20, sigma-clipped mean
 _FALSE_WORDS = ("0", "false", "no")
 _PREFIX_RE = re.compile(r"^(?:[A-Za-z0-9_-][A-Za-z0-9._-]*/)*$")
 
