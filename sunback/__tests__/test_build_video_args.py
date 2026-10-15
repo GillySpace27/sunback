@@ -73,7 +73,7 @@ def test_build_video_writes_json_tag_and_creation_time(monkeypatch, tmp_path):
     """Decision A4: the JSON rides in its own tag; `comment` is reserved for the RH-3 stamp string."""
     argv = _argv_of_build_video(monkeypatch, tmp_path)
     metas = _metadata_of(argv)
-    assert [m.split("=", 1)[0] for m in metas] == ["sunback_provenance", "creation_time"], argv
+    assert [m.split("=", 1)[0] for m in metas] == ["sunback_provenance", "creation_time", "description"], argv
     info = _json.loads(metas[0].split("=", 1)[1])
     assert info["product"] == "171"
     assert (info["first"], info["through"]) == ("2026-09-28T12:00:00Z", "2026-09-28T12:20:00Z")
@@ -92,7 +92,7 @@ def test_build_video_comment_is_the_stamp_string(monkeypatch, tmp_path):
     handler._build_video("171", keys, str(tmp_path), {"frames": 5, "method": "median"}, stamp)
     metas = _metadata_of(calls[0])
     assert metas[0] == "comment=" + stamp
-    assert [m.split("=", 1)[0] for m in metas] == ["comment", "sunback_provenance", "creation_time"]
+    assert [m.split("=", 1)[0] for m in metas] == ["comment", "sunback_provenance", "creation_time", "description"]
     assert "comment=" not in metas[1]  # the JSON never lands in comment
 
 
@@ -102,7 +102,8 @@ def test_build_video_drops_a_stamp_that_is_not_one_ascii_line(monkeypatch, tmp_p
     monkeypatch.setattr(handler.subprocess, "run", lambda argv, **kw: calls.append(list(argv)))
     keys = ["frames/171/20260928T120000_1k.png"]
     handler._build_video("171", keys, str(tmp_path), None, "line one\nline two")
-    assert [m.split("=", 1)[0] for m in _metadata_of(calls[0])] == ["sunback_provenance", "creation_time"]
+    assert [m.split("=", 1)[0] for m in _metadata_of(calls[0])] == ["sunback_provenance", "creation_time",
+                                                                    "description"]  # SU-18
 
 
 def test_fragment_carries_obs_window_from_still_metadata(monkeypatch, tmp_path):
