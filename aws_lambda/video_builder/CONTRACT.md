@@ -54,6 +54,8 @@ processed: a visualization, not a calibrated radiance.
 | `manifest/index.json` | Lambda | `application/json` | `public, max-age=300` | every fragment, schema below | Heliogram 0.7+, R2 mirror |
 | `image_times.txt` | reducer | `text/plain` | none | `T_REC` of the integrated frame, UTC without a zone suffix | landing page, hourly gate |
 | `image_times_readable.txt` | reducer | `text/plain` | none | no known reader, kept on purpose: still uploaded (decision Q25, Gilly, 2026-10-02; see below) | none known |
+| `overlay/grid_1k.png` | reducer (`grid_overlay.publish_grid_overlay`, after the runner) | `image/png` | `no-cache` | SB-15: transparent RGBA, the same pixel size as the 1k stills; Stonyhurst grid every 15 degrees and the limb, drawn from the integrated 171 FITS's WCS. Lines up with the AIA singles whose geometry matches 171 (the reducer logs any wave that does not). Not under `1k/`, so it never fires the Lambda | gilly.space Grid toggle (Website handoff, not built yet) |
+| `manifest/overlay.json` | reducer, with the overlay | `application/json` | `no-cache` | `{"key": "overlay/grid_1k.png", "updated": ISO UTC upload time, "source_id": "171"}`; the Lambda copies it into the index as `overlay_grid` | the Lambda (`INDEX_EXTRA_KEYS`) |
 
 ## Versioned keys (written once, never rewritten)
 
@@ -104,9 +106,9 @@ Built by `build_manifest_fragment`, checked by `validate_fragment`
 |---|---|---|
 | `generated` | string | ISO UTC time the index was rebuilt |
 | `products` | array | the fragments, in `PRODUCTS` order; a product not built yet is absent |
+| `overlay_grid` | object, optional | SB-15: the body of `manifest/overlay.json` (`key`, `updated`, `source_id`); absent until the reducer has published an overlay and a Lambda with this field is deployed |
 
-`INDEX_OPTIONAL` in `manifest.py` lists added top-level fields; it is empty
-today.
+`INDEX_OPTIONAL` in `manifest.py` lists added top-level fields.
 
 ## Kept: `image_times_readable.txt`
 
@@ -123,7 +125,7 @@ uploading it.** The default stays on and the key stays; nothing is deprecated.
 |---|---|---|---|
 | `status.json` | `sun-video-builder`, `handler._write_index`, on every trigger, beside `manifest/index.json` | `public, max-age=60` | `{"generated": "YYYY-MM-DDTHH:MM:SSZ", "products": [{"id": str, "updated": str, "age_s": int}], "worst_age_s": int or null}`; products in `PRODUCTS` order; a product without a fragment or with an unparseable `updated` is absent; `worst_age_s` is null only when no product could be read |
 
-- `manifest/index.json` top-level fields other than `generated` and `products` come only from `INDEX_EXTRA_KEYS` in `manifest.py` (none yet; SB-15 and SB-18 add theirs).
+- `manifest/index.json` top-level fields other than `generated` and `products` come only from `INDEX_EXTRA_KEYS` in `manifest.py` (`overlay_grid` from SB-15; SB-18 adds its reel).
 - A manual invoke whose trigger key starts with `staging/` reads and writes only under `staging/`; frames there are never pruned by code.
 - Additive only: `status.json` and its fields are never renamed or removed.
 
