@@ -4,7 +4,7 @@ Operating notes for any agent working in this repository. `CLAUDE.md` is a
 symlink to this file: edit `AGENTS.md` only. Gilly owns this repository.
 
 <!-- SU-6: the HelioSoftware suite preamble block goes directly below this line. -->
-<!-- heliosoftware-preamble v1 sha256=65cca40da47de90e3dfd8f36d1178ea92e56101bdddb803688f73297f837a980 -->
+<!-- heliosoftware-preamble v1 sha256=c9882316496d18859bd87a955f296b195d734e67b354e4d19800befc8b19a8ce -->
 ## HelioSoftware suite rules
 
 Shared by every HelioSoftware repository. The canonical copy is
@@ -48,9 +48,8 @@ gilly.space (the site) and My Heliogram (the store, formerly My Heliograph).
    release notes, UI strings. Use a colon, semicolon, comma, period or
    parentheses.
 4. heliograph.com is not Gilly's site (it belongs to Heliograph, Inc.). Never
-   link it or name it as ours. The store is myheliograph.com, moving to
-   myheliogram.com once that domain is registered and served; the old address
-   then stays as a permanent redirect.
+   link it or name it as ours. The store is myheliogram.com; myheliograph.com
+   only redirects to it.
 5. Data contracts that other products read are append-only: S3 keys,
    `manifest/*.json`, `appcast.xml`, `version.json`, bundle identifiers, the
    app group, defaults domains, SAMP names, `HFStudio-<version>.*` asset names.
@@ -77,11 +76,14 @@ gilly.space (the site) and My Heliogram (the store, formerly My Heliograph).
   `space.gilly.heliograph` and `https://gilly.space/heliograph/appcast.xml`, so
   every file under `/heliograph/` stays. `SUPublicEDKey` is frozen;
   `version.json` keeps its shape.
-- My Heliogram, formerly My Heliograph (Gilly, 2026-10-11): the store's public
-  brand. The address stays myheliograph.com until myheliogram.com is registered
-  and served. Internal names stay `solar-archive`, `myheliograph-api`,
-  `imagery.myheliograph.com` and `dev.myheliograph.com`. Buyers see Original
-  and Enhanced only.
+- My Heliogram, formerly My Heliograph: the store's public brand, served at
+  myheliogram.com (myheliograph.com redirects to it). On 2026-10-17 Gilly chose
+  to remove "myheliograph" and "heliograph" from every name, internal ones
+  included: Fly apps, Workers, the R2 bucket and hosts each move to the
+  myheliogram or heliogram form in their own migration step (the rename
+  migration plan in Gilly's project files). Until a resource's step lands, its
+  old name is the live one: never rename a live resource outside its step.
+  `solar-archive` stays. Buyers see Original and Enhanced only.
 - RHEF: "oRHEF" is RHEF 2.0; there is no `strict=` legacy flag; Upsilon splits
   at 0.5.
 - gilly.space: GitHub Pages is case-sensitive, so short links are handed out
