@@ -131,7 +131,7 @@ Run it before every commit. Rules for this repository follow this block.
    runs `sunback/run/run_server_github.py` about every 20 minutes and writes
    to the public S3 bucket `the-sun-now`. The Lambda `sun-video-builder`
    (code in `aws_lambda/video_builder/`) turns each new 1k still into a
-   48-hour movie plus the manifest JSON that gilly.space/sun.html, Heliograph
+   48-hour movie plus the manifest JSON that gilly.space/sun.html, Heliogram
    and the R2 mirror read.
 3. Wallpaper client: retired 2026-10-15. The `sunback-run` console script is
    gone and `run_client_background.py` is in `attic/`; Heliogram is the
@@ -154,7 +154,7 @@ Run it before every commit. Rules for this repository follow this block.
 - `aws_lambda/video_builder/handler.py`, `aws_lambda/video_builder/manifest.py`,
   `aws_lambda/video_builder/frame_queue.py` (the Lambda zip)
 - Public S3 key names and the manifest JSON shape are a contract with sun.html,
-  Heliograph and the R2 mirror: add keys and fields, never rename or remove one.
+  Heliogram and the R2 mirror: add keys and fields, never rename or remove one.
 
 ## Never do these without Gilly's explicit yes, every time
 
@@ -185,7 +185,7 @@ branch, tag, S3 object, Lambda version or layer removal. Retire code with
 
 - `sunback_data/`: pipeline output rooted at the working directory (tens of GB on Gilly's Mac).
 - `solar_archive_output/`: local Solar Archive output.
-- `webapp/`: a separate git repository (the My Heliograph store, `sunback_webapp`).
+- `webapp/`: a separate git repository (the My Heliogram store, `sunback_webapp`).
   It is not part of this repository and must stay separate.
 
 ## How to check a change

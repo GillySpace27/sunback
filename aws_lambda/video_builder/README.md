@@ -39,13 +39,13 @@ What `sun-video-builder` runs (us-east-2, python3.12, handler
   the zip). Measured 2026-10-02 with ffmpeg version 6.1.1-3ubuntu5: mean
   |RGB| difference from the still 3.244 untagged, 1.013 tagged.
 - Readers: gilly.space/sun.html and Heliograph 0.6 and older read the fixed
-  keys; Heliograph 0.7+ and the R2 mirror read `v/` and `manifest/index.json`.
+  keys; Heliograph/Heliogram 0.7+ and the R2 mirror read `v/` and `manifest/index.json`.
   Both sets are a public contract: add keys, never rename or remove one.
 - Deploy: see "Deploying code changes" below. Never run `deploy.sh` or
   `deploy.py` against the live function: `deploy.py` publishes a new ffmpeg
   layer on every run, and both rewrite the function environment and the bucket
   notification configuration. Every real deploy is Gilly's call.
-- Lifecycle: a 7-day expiry on `v/` is described in Heliograph's
+- Lifecycle: a 7-day expiry on `v/` is described in Heliogram's
   `infra/IMAGERY.md`; the rule is not in this repository.
 
 ## Deploying code changes (deploy_code.py)

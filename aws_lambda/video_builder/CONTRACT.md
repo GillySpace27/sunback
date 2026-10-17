@@ -170,6 +170,6 @@ Contract version 1 is the key layout, the fragment and index fields and the cach
 | gilly.space | `tools/tests/fixtures/contract-v1/` in the Website repository | `node tools/check_sun_contract.mjs` |
 | Heliogram and its R2 mirror | `infra/contract/contract-v1/` in the Heliogram repository | `node infra/mirror/test.mjs` (case 7) and `--selftest` (`selftest: contract-v1 ok`) |
 
-**The promise to installed software.** The fixed keys keep working for gilly.space/sun.html and for Heliograph 0.6 and older; `v/<id>/<stamp>.*` plus `manifest/index.json` serve Heliogram 0.7 and later and the R2 mirror. Neither set is removed or renamed.
+**The promise to installed software.** The fixed keys keep working for gilly.space/sun.html and for Heliograph 0.6 and older; `v/<id>/<stamp>.*` plus `manifest/index.json` serve Heliograph/Heliogram 0.7 and later and the R2 mirror. Neither set is removed or renamed.
 
 **Freshness limits** (SU-2's probe, not in this repository yet, is planned to read these; today `devtools/scripts/check_freshness.py --threshold` reads `image_times.txt`): `image_times.txt` is fresh when its time is under 3600 s old; the R2 copy of the index is fresh when its `generated` is under 28800 s old. The pages additionally ignore an index whose `generated` is more than 6 hours old and read the per-product fragments instead.
