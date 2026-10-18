@@ -11,6 +11,7 @@ from sunback.processor.CompositeRainbowImageProcessor import RainbowRGBImageProc
 from sunback.processor.ScienceProcessor import DEMReconstructionProcessor
 from sunback.fetcher.NRTFitsFetcher import NRTFitsFetcher
 from sunback.settings import NrtSettings
+from sunback.processor.grid_overlay import publish_grid_overlay
 
 
 import logging
@@ -87,6 +88,12 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
 
     # # Run the Code
     SingleRunner(p).start()
+
+    # SB-15: grid and limb overlay from the integrated 171 FITS, written to
+    # overlay/grid_1k.png and manifest/overlay.json under the same prefix. It
+    # logs and returns [] on any problem, so it never stops a run.
+    import tempfile
+    publish_grid_overlay(p.fits_directory(), tempfile.mkdtemp(prefix="sunback_overlay_"), settings=settings)
 
 
 if __name__ == "__main__":

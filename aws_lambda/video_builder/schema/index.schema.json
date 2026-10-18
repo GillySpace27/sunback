@@ -9,6 +9,26 @@
  ],
  "additionalProperties": true,
  "properties": {
+  "overlay_grid": {
+   "type": "object",
+   "required": [
+    "key",
+    "updated",
+    "source_id"
+   ],
+   "properties": {
+    "key": {
+     "type": "string",
+     "pattern": "^overlay/[A-Za-z0-9_]+\\.png$"
+    },
+    "updated": {
+     "type": "string"
+    },
+    "source_id": {
+     "type": "string"
+    }
+   }
+  },
   "generated": {
    "type": "string",
    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"

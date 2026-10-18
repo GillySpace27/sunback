@@ -65,3 +65,8 @@ def s3_thumb_key(product_id):
 def s3_meta_key(product_id):
     """Provenance sidecar for the newest still (SB-9); schema.org ImageObject JSON."""
     return f"meta/rhef_{product_id}.json"
+
+
+def overlay_grid_key():
+    """Grid and limb overlay for the AIA stills (SB-15). Not under 1k/, so the video Lambda never fires on it."""
+    return "overlay/grid_1k.png"
