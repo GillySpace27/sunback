@@ -37,6 +37,7 @@ from .frame_queue import (
 from .manifest import (
     IMMUTABLE,
     INDEX_EXTRA_KEYS,
+    CREDIT,
     AIA_IDS,
     INDEX_KEY,
     PRODUCTS,
@@ -115,6 +116,7 @@ def _mp4_metadata_args(product, seq, n_frames, integration, stamp=None):
     ``comment`` is the RH-3 stamp string, the human line, and only when the
     reducer sent one (one printable ASCII line). The JSON lives in the separate
     ``sunback_provenance`` tag. ``creation_time`` is the newest frame's time.
+    SU-18: ``description`` is the credit line (spec/provenance.md, MP4).
     """
     info = {"product": product, "first": _iso(compact_stamp(seq[0])),
             "through": _iso(compact_stamp(seq[-1])), "slots": len(seq), "frames": n_frames,
@@ -124,8 +126,14 @@ def _mp4_metadata_args(product, seq, n_frames, integration, stamp=None):
     if stamp and _STAMP_RE.fullmatch(stamp):
         args += ["-metadata", "comment=" + stamp]
     args += ["-metadata", "sunback_provenance=" + json.dumps(info, separators=(",", ":")),
-             "-metadata", "creation_time=" + _iso(compact_stamp(seq[-1]))]
+             "-metadata", "creation_time=" + _iso(compact_stamp(seq[-1])),
+             "-metadata", "description=" + CREDIT]
     return args
+
+
+def _valid_stamp(stamp):
+    """The stamp when it is one printable ASCII line (as the comment tag takes it), else None."""
+    return stamp if stamp and _STAMP_RE.fullmatch(stamp) else None
 
 
 def _build_video(product, frame_keys, workdir, integration=None, stamp=None):
@@ -312,6 +320,8 @@ def _process_one(product, trigger_key, obstime, prefix="", meta=None):
         obs_start=(meta or {}).get("obs_start") or None,
         obs_end=(meta or {}).get("obs_end") or None,
         raw1k=_raw_view(product, prefix),
+        rhef=_valid_stamp((meta or {}).get("rhef_stamp")),
+        credit=CREDIT,
         fits=fits,
         fits_bytes=fits_bytes,
     )

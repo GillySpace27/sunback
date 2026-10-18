@@ -104,6 +104,8 @@ Built by `build_manifest_fragment`, checked by `validate_fragment`
 | `still_v` | string | no | key of the immutable copy of the newest still |
 | `through` | string | no | ISO UTC time of the newest frame in the video; trails `updated` by up to the encode throttle |
 | `raw1k` | string | no | SB-16, AIA singles only: key of the log-stretched view of the same integrated frame (`raw/rhef_<id>_raw_1k.png`); present when the Lambda found that key at the time it wrote the fragment. The reducer writes it after the stills, so for a few minutes it can be one run older than `img1k` |
+| `rhef` | string | no | SU-18 (`heliosoftware/spec/provenance.md`): the RHEF stamp line of the newest still, byte for byte as the reducer sent it in the still's `rhef_stamp` metadata; absent when there is none or it is not one printable ASCII line |
+| `credit` | string | no | SU-18: the credit line, `Imagery courtesy of NASA/SDO and the AIA science team.` (spec `attribution.json` `credit`); written by the Lambda on every fragment from SU-18 on |
 | `fits` | string | no | SB-17, AIA singles only: key of the integrated synoptic FITS behind the still (`fits/aia_<id>_latest.fits.gz`); present when the Lambda found that key |
 | `fits_bytes` | integer | no | SB-17: size in bytes of that file (HEAD `ContentLength`), for the download label; present with `fits` |
 | `hdr_video` | string | no | **reserved**, no writer yet (SB-23 writes it): key of the HDR video. The name is fixed by decision A1 (Gilly, 2026-10-02); the key layout is not decided, so the schema checks only that it is a string |
@@ -146,7 +148,7 @@ uploading it.** The default stays on and the key stays; nothing is deprecated.
 | S3 metadata on `1k/rhef_<id>_1k.png` | `obstime` (existing, unchanged), plus new keys `obs_start`, `obs_end`, `tint_n`, `tint_m`; `rhef_stamp` once the reducer sends the RH-3 stamp | str | reducer `AwsPutter.do_upload` | `obstime` stays the upload time, as before SB-9. The observation time is carried in `obs_end` (header `T_REC` of the newest frame), `obs_start` the oldest frame of the window. The four new keys are omitted when no header time could be read |
 | `meta/rhef_<id>.json` | schema.org `ImageObject` | JSON | reducer, every run, `Cache-Control: no-cache` | provenance sidecar; field names of the Solar Archive provenance JSON |
 | PNG tEXt in `1k/rhef_<id>_1k.png` | `obs_start`, `obs_end`, `n_frames`, `method`, `sunkit_image_version`, `sunback_version` | text | reducer | the same window inside the file |
-| MP4 tags in `video/rhef_<id>_1k.mp4`, `v/<id>/<through>.mp4` | `comment` (the RH-3 stamp string, only when the still's metadata carries `rhef_stamp`), `sunback_provenance` (compact JSON: `product`, `first`, `through`, `slots`, `frames`, `fps`, `cadence_s`, `integration`, `source`), `creation_time` (= `through`) | text | Lambda | the JSON never goes in `comment` (decision A4, 2026-10-02) |
+| MP4 tags in `video/rhef_<id>_1k.mp4`, `v/<id>/<through>.mp4` | `comment` (the RH-3 stamp string, only when the still's metadata carries `rhef_stamp`), `sunback_provenance` (compact JSON: `product`, `first`, `through`, `slots`, `frames`, `fps`, `cadence_s`, `integration`, `source`), `creation_time` (= `through`), `description` (the credit line, SU-18) | text | Lambda | the JSON never goes in `comment` (decision A4, 2026-10-02) |
 
 **Decision (Gilly, 2026-10-02): keep.** The S3 `obstime` key and the manifest `updated` stay
 the upload time long-term. The observation window is published separately, in `obs_start` and
