@@ -55,6 +55,9 @@ processed: a visualization, not a calibrated radiance.
 | `manifest/index.json` | Lambda | `application/json` | `public, max-age=300` | every fragment, schema below | Heliogram 0.7+, R2 mirror |
 | `image_times.txt` | reducer | `text/plain` | none | `T_REC` of the integrated frame, UTC without a zone suffix | landing page, hourly gate |
 | `image_times_readable.txt` | reducer | `text/plain` | none | no known reader, kept on purpose: still uploaded (decision Q25, Gilly, 2026-10-02; see below) | none known |
+| `raw/rhef_<id>_raw_1k.png` | reducer (`raw_view.publish_raw_views`, after the runner) | `image/png` | `no-cache` | SB-16, AIA singles only (no raw view for composites): the integrated frame before any filter, log10 between the 1st and 99.5th percentile, AIA colour table, same pixels and orientation as the 1k still. A visualization, not a calibrated radiance. Not under `1k/` | gilly.space swipe (Website handoff) |
+| `lab/filter_<name>_171.png` | `run_filter_lab.py`, at most once a day from the reducer workflow | `image/png` | `no-cache` | SB-16 Filter Lab tiles, `<name>` one of `rhef`, `upsilon`, `nrgf`, `fnrgf`, `msgn`, `wow`; a filter that fails has no tile | gilly.space lab (Website handoff) |
+| `lab/filter_lab.json` | `run_filter_lab.py` | `application/json` | `no-cache` | `{"generated", "source", "sunkit_image_version", "display", "note", "tiles": [{"name", "key", "function", "params"}], "skipped": [{"name", "error"}]}` | gilly.space lab, the workflow's once-a-day gate |
 | `overlay/grid_1k.png` | reducer (`grid_overlay.publish_grid_overlay`, after the runner) | `image/png` | `no-cache` | SB-15: transparent RGBA, the same pixel size as the 1k stills; Stonyhurst grid every 15 degrees and the limb, drawn from the integrated 171 FITS's WCS. Lines up with the AIA singles whose geometry matches 171 (the reducer logs any wave that does not). Not under `1k/`, so it never fires the Lambda | gilly.space Grid toggle (Website handoff, not built yet) |
 | `manifest/overlay.json` | reducer, with the overlay | `application/json` | `no-cache` | `{"key": "overlay/grid_1k.png", "updated": ISO UTC upload time, "source_id": "171"}`; the Lambda copies it into the index as `overlay_grid` | the Lambda (`INDEX_EXTRA_KEYS`) |
 
@@ -99,6 +102,7 @@ Built by `build_manifest_fragment`, checked by `validate_fragment`
 | `video_v` | string | no | key of the immutable copy of the current video |
 | `still_v` | string | no | key of the immutable copy of the newest still |
 | `through` | string | no | ISO UTC time of the newest frame in the video; trails `updated` by up to the encode throttle |
+| `raw1k` | string | no | SB-16, AIA singles only: key of the log-stretched view of the same integrated frame (`raw/rhef_<id>_raw_1k.png`); present when the Lambda found that key at the time it wrote the fragment. The reducer writes it after the stills, so for a few minutes it can be one run older than `img1k` |
 | `hdr_video` | string | no | **reserved**, no writer yet (SB-23 writes it): key of the HDR video. The name is fixed by decision A1 (Gilly, 2026-10-02); the key layout is not decided, so the schema checks only that it is a string |
 
 ## Index (`manifest/index.json`)

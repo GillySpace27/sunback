@@ -54,7 +54,9 @@ def test_prefix_reaches_the_reducer_only_through_env():
         for s in job["steps"]:
             assert "inputs." not in s.get("run", ""), (job_name, s.get("name"))
             assert "${{" not in s.get("run", "") or "inputs" not in s["run"], (job_name, s.get("name"))
-            if s is not step and s.get("name") != "Refuse a staging prefix on a scheduled run":
+            if s.get("name") == "Daily Filter Lab (SB-16)":   # SB-16: same prefix, also only through env
+                assert s["env"] == {"SUNBACK_PREFIX": "${{ inputs.prefix }}"}
+            elif s is not step and s.get("name") != "Refuse a staging prefix on a scheduled run":
                 assert "SUNBACK_PREFIX" not in (s.get("env") or {}), (job_name, s.get("name"))
     assert "SUNBACK_PREFIX" not in (doc.get("env") or {})
 
@@ -72,7 +74,7 @@ def test_rest_of_the_workflow_is_unchanged():
     assert [s.get("name") or s.get("uses") for s in doc["jobs"]["run-task"]["steps"]] == [
         "Refuse a staging prefix on a scheduled run",
         "Check out repository", "Install sunback package from checked out code",
-        "Configure AWS credentials for OIDC", "Execute the script"]
+        "Configure AWS credentials for OIDC", "Execute the script", "Daily Filter Lab (SB-16)"]
     assert doc["jobs"]["run-task"]["needs"] == "gate"
     assert doc["jobs"]["run-task"]["if"] == "needs.gate.outputs.run == 'true'"
     assert doc["jobs"]["run-task"]["permissions"] == {"id-token": "write", "contents": "read"}
