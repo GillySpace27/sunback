@@ -60,6 +60,11 @@ def manifest_key(product_id):
 CREDIT = "Imagery courtesy of NASA/SDO and the AIA science team."
 
 
+def fits_key(product_id):
+    """SB-17: integrated synoptic FITS of an AIA single, written by the reducer (serve_keys.s3_fits_key)."""
+    return f"fits/aia_{product_id}_latest.fits.gz"
+
+
 def raw1k_key(product_id):
     """SB-16: log-stretched view of an AIA single, written by the reducer (serve_keys.s3_raw_key)."""
     return f"raw/rhef_{product_id}_raw_1k.png"
@@ -98,7 +103,8 @@ def product_from_1k_key(key):
 
 def build_manifest_fragment(product_id, updated, frame_count, integration,
                             video_v=None, still_v=None, through=None,
-                            obs_start=None, obs_end=None, raw1k=None, rhef=None, credit=None):
+                            obs_start=None, obs_end=None, raw1k=None, rhef=None, credit=None,
+                            fits=None, fits_bytes=None):
     """Build the JSON fragment for one product. Raises KeyError on unknown id.
 
     ``video_v``/``still_v`` name the immutable copies and ``through`` is the time
@@ -123,7 +129,8 @@ def build_manifest_fragment(product_id, updated, frame_count, integration,
     # SU-18 (spec/provenance.md): rhef is the RHEF stamp line, credit the credit line.
     for key, value in (("video_v", video_v), ("still_v", still_v), ("through", through),
                        ("obs_start", obs_start), ("obs_end", obs_end), ("raw1k", raw1k),
-                       ("rhef", rhef), ("credit", credit)):
+                       ("rhef", rhef), ("credit", credit),
+                       ("fits", fits), ("fits_bytes", fits_bytes)):
         if value is not None:
             frag[key] = value
     return frag
@@ -162,7 +169,8 @@ FRAGMENT_REQUIRED: dict[str, type] = {
 # writes it yet (SB-23 will); it is listed so the schema, validate_fragment and CONTRACT.md agree on the name.
 FRAGMENT_OPTIONAL: dict[str, type] = {"video_v": str, "still_v": str, "through": str,
                                       "obs_start": str, "obs_end": str, "hdr_video": str,
-                                      "raw1k": str, "rhef": str, "credit": str}
+                                      "raw1k": str, "rhef": str, "credit": str,
+                                      "fits": str, "fits_bytes": int}
 # overlay_grid (SB-15): the body of manifest/overlay.json, folded in through INDEX_EXTRA_KEYS.
 INDEX_OPTIONAL: dict[str, type] = {"overlay_grid": dict}
 _INTEGRATION_FIELDS = {"frames": int, "method": str}

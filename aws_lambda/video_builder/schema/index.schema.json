@@ -120,6 +120,13 @@
      "credit": {
       "type": "string",
       "description": "SU-18: the credit line (spec attribution.json credit)"
+     },
+     "fits": {
+      "type": "string",
+      "pattern": "^fits/aia_[A-Za-z0-9_]+_latest\\.fits\\.gz$"
+     },
+     "fits_bytes": {
+      "type": "integer"
      }
     }
    }

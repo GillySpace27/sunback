@@ -3,7 +3,8 @@
 Everything below is read by something outside this repository: the landing page
 at gilly.space/sun.html, Heliogram (0.6 and older read the fixed keys, 0.7 and
 later read the index and the versioned keys), the R2 mirror at
-imagery.myheliograph.com, the `sunback-run` wallpaper client and the hourly gate
+imagery.myheliograph.com, the `sunback-run` wallpaper client (retired 2026-10-15,
+but installs of PyPI releases up to 0.6.17.3 still read `1k/`) and the hourly gate
 in `.github/workflows/GitCloudRunHourly.yml`. Base URL:
 `https://the-sun-now.s3.us-east-2.amazonaws.com/`.
 
@@ -57,6 +58,7 @@ processed: a visualization, not a calibrated radiance.
 | `raw/rhef_<id>_raw_1k.png` | reducer (`raw_view.publish_raw_views`, after the runner) | `image/png` | `no-cache` | SB-16, AIA singles only (no raw view for composites): the integrated frame before any filter, log10 between the 1st and 99.5th percentile, AIA colour table, same pixels and orientation as the 1k still. A visualization, not a calibrated radiance. Not under `1k/` | gilly.space swipe (Website handoff) |
 | `lab/filter_<name>_171.png` | `run_filter_lab.py`, at most once a day from the reducer workflow | `image/png` | `no-cache` | SB-16 Filter Lab tiles, `<name>` one of `rhef`, `upsilon`, `nrgf`, `fnrgf`, `msgn`, `wow`; a filter that fails has no tile | gilly.space lab (Website handoff) |
 | `lab/filter_lab.json` | `run_filter_lab.py` | `application/json` | `no-cache` | `{"generated", "source", "sunkit_image_version", "display", "note", "tiles": [{"name", "key", "function", "params"}], "skipped": [{"name", "error"}]}` | gilly.space lab, the workflow's once-a-day gate |
+| `fits/aia_<id>_latest.fits.gz` | reducer (`fits_handoff.publish_integrated_fits`, after the runner) | `application/gzip` | `no-cache` | SB-17, AIA singles only: gzipped FITS, empty primary plus the integrated frame (before any filter) with its full header (`T_REC`, `TINT_*`, WCS). Latest only, rewritten in place each run; no versioned copy. Not under `1k/` | gilly.space Download FITS and Open in HelioFITS Studio buttons (Website handoff) |
 | `overlay/grid_1k.png` | reducer (`grid_overlay.publish_grid_overlay`, after the runner) | `image/png` | `no-cache` | SB-15: transparent RGBA, the same pixel size as the 1k stills; Stonyhurst grid every 15 degrees and the limb, drawn from the integrated 171 FITS's WCS. Lines up with the AIA singles whose geometry matches 171 (the reducer logs any wave that does not). Not under `1k/`, so it never fires the Lambda | gilly.space Grid toggle (Website handoff, not built yet) |
 | `manifest/overlay.json` | reducer, with the overlay | `application/json` | `no-cache` | `{"key": "overlay/grid_1k.png", "updated": ISO UTC upload time, "source_id": "171"}`; the Lambda copies it into the index as `overlay_grid` | the Lambda (`INDEX_EXTRA_KEYS`) |
 
@@ -104,6 +106,8 @@ Built by `build_manifest_fragment`, checked by `validate_fragment`
 | `raw1k` | string | no | SB-16, AIA singles only: key of the log-stretched view of the same integrated frame (`raw/rhef_<id>_raw_1k.png`); present when the Lambda found that key at the time it wrote the fragment. The reducer writes it after the stills, so for a few minutes it can be one run older than `img1k` |
 | `rhef` | string | no | SU-18 (`heliosoftware/spec/provenance.md`): the RHEF stamp line of the newest still, byte for byte as the reducer sent it in the still's `rhef_stamp` metadata; absent when there is none or it is not one printable ASCII line |
 | `credit` | string | no | SU-18: the credit line, `Imagery courtesy of NASA/SDO and the AIA science team.` (spec `attribution.json` `credit`); written by the Lambda on every fragment from SU-18 on |
+| `fits` | string | no | SB-17, AIA singles only: key of the integrated synoptic FITS behind the still (`fits/aia_<id>_latest.fits.gz`); present when the Lambda found that key |
+| `fits_bytes` | integer | no | SB-17: size in bytes of that file (HEAD `ContentLength`), for the download label; present with `fits` |
 | `hdr_video` | string | no | **reserved**, no writer yet (SB-23 writes it): key of the HDR video. The name is fixed by decision A1 (Gilly, 2026-10-02); the key layout is not decided, so the schema checks only that it is a string |
 
 ## Index (`manifest/index.json`)
@@ -177,6 +181,6 @@ Contract version 1 is the key layout, the fragment and index fields and the cach
 | gilly.space | `tools/tests/fixtures/contract-v1/` in the Website repository | `node tools/check_sun_contract.mjs` |
 | Heliogram and its R2 mirror | `infra/contract/contract-v1/` in the Heliogram repository | `node infra/mirror/test.mjs` (case 7) and `--selftest` (`selftest: contract-v1 ok`) |
 
-**The promise to installed software.** The fixed keys keep working for gilly.space/sun.html and for Heliograph 0.6 and older; `v/<id>/<stamp>.*` plus `manifest/index.json` serve Heliogram 0.7 and later and the R2 mirror. Neither set is removed or renamed.
+**The promise to installed software.** The fixed keys keep working for gilly.space/sun.html and for Heliograph 0.6 and older; `v/<id>/<stamp>.*` plus `manifest/index.json` serve Heliograph/Heliogram 0.7 and later and the R2 mirror. Neither set is removed or renamed.
 
 **Freshness limits** (SU-2's probe, not in this repository yet, is planned to read these; today `devtools/scripts/check_freshness.py --threshold` reads `image_times.txt`): `image_times.txt` is fresh when its time is under 3600 s old; the R2 copy of the index is fresh when its `generated` is under 28800 s old. The pages additionally ignore an index whose `generated` is more than 6 hours old and read the per-product fragments instead.

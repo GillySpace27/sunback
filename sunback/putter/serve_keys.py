@@ -87,3 +87,10 @@ def raw_id_for_local_png(path):
 def s3_raw_key(product_id):
     """Raw (log-stretched) view of an AIA single (SB-16). Not under 1k/, so the Lambda never fires on it."""
     return f"raw/rhef_{product_id}_raw_1k.png"
+
+
+def s3_fits_key(product_id):
+    """Integrated synoptic FITS behind an AIA single's still (SB-17); KeyError for composites."""
+    if product_id not in SERVED_CHANNELS.values():
+        raise KeyError(f"FITS is published for AIA singles only, not {product_id!r}")
+    return f"fits/aia_{product_id}_latest.fits.gz"
