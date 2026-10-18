@@ -74,6 +74,17 @@
   },
   "hdr_video": {
    "type": "string"
+  },
+  "raw1k": {
+   "type": "string",
+   "pattern": "^raw/rhef_[A-Za-z0-9_]+_raw_1k\\.png$"
+  },
+  "fits": {
+   "type": "string",
+   "pattern": "^fits/aia_[A-Za-z0-9_]+_latest\\.fits\\.gz$"
+  },
+  "fits_bytes": {
+   "type": "integer"
   }
  }
 }

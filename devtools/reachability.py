@@ -39,7 +39,6 @@ from pathlib import Path
 
 PRODUCTION_ROOTS = (
     "sunback/run/run_server_github.py",
-    "sunback/run/run_client_background.py",
     "sunback/client/__main__.py",
     "sunback/client/dome.py",
     "sunback/run/run_server_lingon.py",

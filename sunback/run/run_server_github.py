@@ -11,6 +11,9 @@ from sunback.processor.CompositeRainbowImageProcessor import RainbowRGBImageProc
 from sunback.processor.ScienceProcessor import DEMReconstructionProcessor
 from sunback.fetcher.NRTFitsFetcher import NRTFitsFetcher
 from sunback.settings import NrtSettings
+from sunback.processor.grid_overlay import publish_grid_overlay
+from sunback.processor.raw_view import publish_raw_views
+from sunback.putter.fits_handoff import publish_integrated_fits
 
 
 import logging
@@ -87,6 +90,17 @@ def run_server_github(delay=180, debug=True, do_one="rainbow", stop=True):
 
     # # Run the Code
     SingleRunner(p).start()
+
+    # SB-15: grid and limb overlay from the integrated 171 FITS, written to
+    # overlay/grid_1k.png and manifest/overlay.json under the same prefix. It
+    # logs and returns [] on any problem, so it never stops a run.
+    import tempfile
+    publish_grid_overlay(p.fits_directory(), tempfile.mkdtemp(prefix="sunback_overlay_"), settings=settings)
+    # SB-16: the log-stretched "before" view of each AIA single, raw/rhef_<id>_raw_1k.png;
+    # same contract: logs and carries on.
+    publish_raw_views(p.fits_directory(), tempfile.mkdtemp(prefix="sunback_raw_"), settings=settings)
+    # SB-17: the integrated FITS behind each AIA still, fits/aia_<id>_latest.fits.gz; same contract.
+    publish_integrated_fits(p.fits_directory(), tempfile.mkdtemp(prefix="sunback_fits_"), settings=settings)
 
 
 if __name__ == "__main__":

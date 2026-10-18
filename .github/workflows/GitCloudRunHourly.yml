@@ -102,3 +102,18 @@ jobs:
           SUNBACK_PREFIX: ${{ inputs.prefix }}
         run: |
           python sunback/run/run_server_github.py
+
+      # SB-16: the Filter Lab, at most once a day: runs when lab/filter_lab.json (under the same
+      # prefix) is missing, older than 23 h (82800 s, a chosen threshold) or unreadable. It reads
+      # the integrated 171 FITS the step above left in sunback_data/. A lab failure never fails
+      # the reducer run.
+      - name: Daily Filter Lab (SB-16)
+        continue-on-error: true
+        env:
+          SUNBACK_PREFIX: ${{ inputs.prefix }}
+        run: |
+          if python devtools/scripts/check_freshness.py --key lab/filter_lab.json --prefix "${SUNBACK_PREFIX}" --threshold 82800; then
+            echo "filter lab is under a day old: skip"
+          else
+            python -m sunback.run.run_filter_lab --fits-dir sunback_data
+          fi

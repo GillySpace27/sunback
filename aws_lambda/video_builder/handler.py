@@ -37,6 +37,7 @@ from .frame_queue import (
 from .manifest import (
     IMMUTABLE,
     INDEX_EXTRA_KEYS,
+    AIA_IDS,
     INDEX_KEY,
     PRODUCTS,
     STATUS_KEY,
@@ -44,8 +45,10 @@ from .manifest import (
     build_manifest_fragment,
     build_status,
     compact_stamp,
+    fits_key,
     manifest_key,
     product_from_1k_key,
+    raw1k_key,
     split_staging_prefix,
     versioned_still_key,
     versioned_video_key,
@@ -182,6 +185,29 @@ def _last_build(product, prefix=""):
     return age, head.get("Metadata", {}).get("through")
 
 
+def _raw_view(product, prefix=""):
+    """SB-16: the raw view's key when the reducer has published one for this AIA single, else None."""
+    if product not in AIA_IDS:
+        return None
+    try:
+        s3.head_object(Bucket=BUCKET, Key=prefix + raw1k_key(product))
+    except ClientError:
+        return None
+    return raw1k_key(product)
+
+
+def _fits_download(product, prefix=""):
+    """SB-17: (key, size in bytes) of the published FITS for this AIA single, else (None, None)."""
+    if product not in AIA_IDS:
+        return None, None
+    try:
+        head = s3.head_object(Bucket=BUCKET, Key=prefix + fits_key(product))
+    except ClientError:
+        return None, None
+    size = head.get("ContentLength")
+    return fits_key(product), (int(size) if isinstance(size, int) else None)
+
+
 def _write_index(prefix=""):
     """Rebuild manifest/index.json from every product's fragment.
 
@@ -274,6 +300,7 @@ def _process_one(product, trigger_key, obstime, prefix="", meta=None):
 
     # 4b. write the manifest fragment (every trigger — keeps the card's
     #     "updated Xm ago" live even when the video encode was throttled)
+    fits, fits_bytes = _fits_download(product, prefix)
     fragment = build_manifest_fragment(
         product,
         updated=_iso(obstime),
@@ -284,6 +311,9 @@ def _process_one(product, trigger_key, obstime, prefix="", meta=None):
         through=_iso(through),
         obs_start=(meta or {}).get("obs_start") or None,
         obs_end=(meta or {}).get("obs_end") or None,
+        raw1k=_raw_view(product, prefix),
+        fits=fits,
+        fits_bytes=fits_bytes,
     )
     s3.put_object(
         Bucket=BUCKET, Key=prefix + manifest_key(product),

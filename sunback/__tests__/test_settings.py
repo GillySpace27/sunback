@@ -121,3 +121,24 @@ def test_reducer_refuses_bad_prefix_before_any_work(monkeypatch):
     with pytest.raises(ValueError, match="SUNBACK_PREFIX"):
         gh.run_server_github()
     assert started == []
+
+
+def test_settings_accept_every_integration_method_and_only_those():
+    """SB-20: the settings list and integrate_frames agree, so sigclip is selectable by environment."""
+    from sunback.settings import INTEGRATION_METHODS
+    from sunback.utils.time_integration import METHODS
+
+    assert sorted(INTEGRATION_METHODS) == sorted(METHODS)
+    s = NrtSettings.from_env({"SUNBACK_INTEGRATION_FRAMES": "15", "SUNBACK_INTEGRATION_METHOD": "sigclip"})
+    assert (s.integration_frames, s.integration_method) == (15, "sigclip")
+
+
+def test_fetcher_reads_the_integration_knobs_from_params():
+    """The reducer sets p.integration_* from NrtSettings; NRTFitsFetcher._cfg reads them."""
+    from types import SimpleNamespace
+
+    from sunback.fetcher.NRTFitsFetcher import NRTFitsFetcher
+
+    shell = SimpleNamespace(params=SimpleNamespace(integration_frames=15, integration_method="sigclip"))
+    assert NRTFitsFetcher._cfg(shell, "integration_frames", 5) == 15
+    assert NRTFitsFetcher._cfg(shell, "integration_method", "median") == "sigclip"

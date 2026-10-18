@@ -69,9 +69,9 @@ rhef-canonical = [
 ]
 
 [project.scripts]
-sunback-run = "sunback.run.run_client_background:run_client"
-# SB-21, 2026-10-15: the stdlib client is `python -m sunback.client`; sunback-run moves to it
-# only after Gilly compares the two on a Mac.
+# 2026-10-15: sunback-run (the wallpaper client) retired; Heliogram replaces it.
+# Module in attic/sunback/run/run_client_background.py (attic/README.md).
+# SB-21, 2026-10-15: the stdlib client is `python -m sunback.client`; sunback-dome is the planetarium tool.
 sunback-dome = "sunback.client.dome:main"
 sunback-serve = "sunback.run.run_server_lingon:run_server_lingon"
 
