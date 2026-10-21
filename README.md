@@ -69,8 +69,7 @@ python -m sunback.client --choose           # pick again
 Channels: `rainbow`, `171`, `193`, `211`, `304`, `335`, `94`, `131`, `1600`,
 `1700`, `composite_uv`, `dem`. The choice is saved in `client.json` in your
 config folder (`~/Library/Application Support/sunback` on macOS, `%APPDATA%\sunback`
-on Windows, `~/.config/sunback` on Linux). `sunback-run` still starts the
-previous client for now. Only macOS has been tested; the Windows (registry) and
+on Windows, `~/.config/sunback` on Linux). The `sunback-run` script is retired. Only macOS has been tested; the Windows (registry) and
 GNOME (gsettings) setters are the old ones, moved unchanged and not yet tried on
 those systems.
 
