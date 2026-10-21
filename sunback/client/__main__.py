@@ -8,7 +8,7 @@ it as the desktop picture and prints when it was taken. Standard library only.
     python -m sunback.client --per-screen 171,193,304   # macOS: one channel per screen
     python -m sunback.client --download-only --once     # fetch, do not touch the desktop
 
-``sunback-run`` still starts the 0.6.17.3 client until Gilly switches it.
+The old ``sunback-run`` script was retired on 2026-10-15.
 """
 import argparse
 import json
