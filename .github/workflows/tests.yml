@@ -35,8 +35,8 @@ jobs:
         run: ruff check
 
   # Windows run of the same unit tests (replaces the retired AppVeyor build).
-  # The Linux job runs in the reducer's container; Windows uses setup-python
-  # at the container's Python version instead.
+  # The Linux job runs in the reducer's container; Windows uses setup-python at
+  # the container's Python version and installs the same requirement files.
   tests-windows:
     runs-on: windows-latest
     steps:
@@ -52,11 +52,28 @@ jobs:
       - name: Install sunback and the test tools
         run: |
           python --version
+          python -m pip install -r requirements.txt -r requirements-server.txt
           python -m pip install .
           python -m pip install pytest==9.1.1
 
       - name: Unit tests
-        run: python -m pytest -q
+        run: python -m pytest -q --junitxml=pytest-windows.xml
+
+      # Failing tests as annotations (GitHub keeps 10 per step, so they are
+      # batched), readable from the checks API without downloading the log.
+      - name: Annotate failing tests
+        if: failure()
+        shell: python
+        run: |
+          import xml.etree.ElementTree as ET
+          lines = []
+          for case in ET.parse("pytest-windows.xml").iter("testcase"):
+              for bad in list(case.iter("failure")) + list(case.iter("error")):
+                  msg = " ".join((bad.get("message") or "").split())[:160]
+                  lines.append(f"{case.get('classname')}.{case.get('name')}: {msg}")
+          step = max(1, -(-len(lines) // 10))
+          for k in range(0, len(lines), step):
+              print("::error title=Windows failures::" + " %0A".join(lines[k:k + step]))
 
   em-dash:
     runs-on: ubuntu-latest
