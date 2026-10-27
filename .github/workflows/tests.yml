@@ -47,11 +47,13 @@ jobs:
         with:
           python-version: "3.12"
 
+      # python -m pip, not a bare "pip install .": devtools/scripts/reducer_lock.py
+      # pins the Linux job by matching that exact line, which must stay unique.
       - name: Install sunback and the test tools
         run: |
           python --version
-          pip install .
-          pip install pytest==9.1.1
+          python -m pip install .
+          python -m pip install pytest==9.1.1
 
       - name: Unit tests
         run: python -m pytest -q
