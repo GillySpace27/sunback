@@ -34,6 +34,28 @@ jobs:
       - name: Lint
         run: ruff check
 
+  # Windows run of the same unit tests (replaces the retired AppVeyor build).
+  # The Linux job runs in the reducer's container; Windows uses setup-python
+  # at the container's Python version instead.
+  tests-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install sunback and the test tools
+        run: |
+          python --version
+          pip install .
+          pip install pytest==9.1.1
+
+      - name: Unit tests
+        run: python -m pytest -q
+
   em-dash:
     runs-on: ubuntu-latest
     steps:
