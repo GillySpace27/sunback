@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sunback"
 version = "0.6.17.3"
-description = "Sets your desktop background to the most recent images of the Sun."
+description = "Gilly's solar imagery pipeline (RHEF, SDO/AIA). For a live Sun on your desktop, use Heliogram: https://gilly.space/heliogram/"
 readme = "README.md"
 license = { text = "BSD-3-Clause" }
 authors = [
@@ -72,6 +72,8 @@ rhef-canonical = [
 # 2026-10-15: sunback-run (the wallpaper client) retired; Heliogram replaces it.
 # Module in attic/sunback/run/run_client_background.py (attic/README.md).
 # SB-21, 2026-10-15: the stdlib client is `python -m sunback.client`; sunback-dome is the planetarium tool.
+# 2026-10-28: sunback-run is back only as a notice pointing to Heliogram (sunback/client/retired.py).
+sunback-run = "sunback.client.retired:main"
 sunback-dome = "sunback.client.dome:main"
 sunback-serve = "sunback.run.run_server_lingon:run_server_lingon"
 

@@ -19,6 +19,12 @@ Solar Background Updater
 <!-- 2026-10-02 (SB-10): Codecov: .codecov.yml moved to attic/.codecov.yml, and no workflow uploads coverage; badge kept for the record: <a href="https://codecov.io/gh/GillySpace27/sunback/branch/master" target="_blank">![codecov](https://codecov.io/gh/GillySpace27/sunback/branch/master/graph/badge.svg)</a> -->
 
 
+> **Looking for the desktop wallpaper?** `sunback-run` has been superseded by
+> [Heliogram](https://gilly.space/heliogram/), a Mac app that plays the last 48 hours
+> of the Sun as your desktop picture, a screen saver or a wall. `sunback-run` is no
+> longer supported and has been retired; in releases after 0.6.17.3 the command only
+> prints this notice.
+
 This program is the core analysis package that Dr. Gilly uses for his research. This code is very modular and can perform many different data pipelines for images with arbitrary and custom filtering steps. Sunback runs analysis on images from AIA, updates Gilly's personal website, and allows users to run a daemon on their machines to update their computer desktop background.
 
 ## Working here
