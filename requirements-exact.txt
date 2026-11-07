@@ -94,7 +94,7 @@ opencv-python==4.11.0.86
 packaging==24.2
 pandas==2.2.3
 parameters==0.2.1
-paramiko==3.5.0
+paramiko==5.0.0
 parfive==2.1.0
 parso==0.8.4
 partd==1.4.2
